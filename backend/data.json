@@ -1,0 +1,16 @@
+{
+  "events": [
+    {
+      "id": "evt-1",
+      "title": "Gala Dinner 2024",
+      "description": "An exclusive evening of fine dining and networking.",
+      "date": "2024-12-25",
+      "imageUrl": "https://picsum.photos/800/600",
+      "paymentPhone": "79991234567",
+      "maxSeatsPerBooking": 4,
+      "tables": []
+    }
+  ],
+  "bookings": [],
+  "admins": []
+}

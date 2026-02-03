@@ -1,0 +1,86 @@
+import fs from 'fs';
+import path from 'path';
+import type { Database, EventData, Booking, BookingStatus } from './models';
+
+const DATA_FILE = path.join(__dirname, '..', 'data.json');
+
+const ensureFile = () => {
+  if (!fs.existsSync(DATA_FILE)) {
+    const initial: Database = {
+      events: [],
+      bookings: [],
+      admins: [],
+    };
+    fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2), 'utf-8');
+  }
+};
+
+const readDb = (): Database => {
+  ensureFile();
+  const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+  return JSON.parse(raw) as Database;
+};
+
+const writeDb = (db: Database) => {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2), 'utf-8');
+};
+
+export const getEvents = (): EventData[] => {
+  return readDb().events;
+};
+
+export const saveEvents = (events: EventData[]) => {
+  const db = readDb();
+  db.events = events;
+  writeDb(db);
+};
+
+export const getBookings = (): Booking[] => {
+  return readDb().bookings;
+};
+
+export const saveBookings = (bookings: Booking[]) => {
+  const db = readDb();
+  db.bookings = bookings;
+  writeDb(db);
+};
+
+export const getAdmins = () => readDb().admins;
+
+export const setAdmins = (ids: number[]) => {
+  const db = readDb();
+  db.admins = ids.map((id) => ({ id }));
+  writeDb(db);
+};
+
+export const upsertEvent = (event: EventData) => {
+  const db = readDb();
+  const idx = db.events.findIndex((e) => e.id === event.id);
+  if (idx >= 0) {
+    db.events[idx] = event;
+  } else {
+    db.events.push(event);
+  }
+  writeDb(db);
+};
+
+export const findEventById = (id: string): EventData | undefined => {
+  return getEvents().find((e) => e.id === id);
+};
+
+export const addBooking = (booking: Booking) => {
+  const db = readDb();
+  db.bookings.push(booking);
+  writeDb(db);
+};
+
+export const updateBookingStatus = (bookingId: string, status: BookingStatus) => {
+  const db = readDb();
+  const booking = db.bookings.find((b) => b.id === bookingId);
+  if (booking) {
+    booking.status = status;
+    writeDb(db);
+  }
+  return booking;
+};
+
