@@ -5,14 +5,17 @@ const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'http://localhost:5173';
 
 if (!BOT_TOKEN) {
-  console.warn('BOT_TOKEN is not set. Telegram bot will not start.');
+  console.warn('BOT_TOKEN is not set. Telegram bot will not work.');
 }
 
+// ВАЖНО: бот создаётся, но НЕ запускается
 export const bot = BOT_TOKEN ? new Telegraf(BOT_TOKEN) : null;
 
-export const initBot = () => {
-  if (!bot) return;
-
+/**
+ * Регистрируем handlers.
+ * НИКАКОГО bot.launch() — webhook режим
+ */
+if (bot) {
   bot.start((ctx) => {
     const keyboard = Markup.keyboard([
       Markup.button.webApp('Открыть план зала', WEBAPP_URL),
@@ -27,14 +30,9 @@ export const initBot = () => {
   bot.help((ctx) => {
     ctx.reply('Используйте кнопку «Открыть план зала» для выбора мест.');
   });
+}
 
-  bot.launch().then(() => {
-    console.log('Telegram bot started');
-  });
-
-  process.once('SIGINT', () => bot.stop('SIGINT'));
-  process.once('SIGTERM', () => bot.stop('SIGTERM'));
-};
+// ===== send-only helpers =====
 
 export const notifyAdminsAboutBooking = async (text: string) => {
   if (!bot) return;
@@ -56,4 +54,3 @@ export const notifyUser = async (chatId: number, text: string) => {
     console.error('Failed to notify user', chatId, e);
   }
 };
-

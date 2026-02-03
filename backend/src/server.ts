@@ -11,13 +11,26 @@ import {
   addBooking,
   updateBookingStatus,
 } from './db';
-import { initBot, notifyAdminsAboutBooking, notifyUser } from './bot';
+import { bot, notifyAdminsAboutBooking, notifyUser } from './bot';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(bodyParser.json());
+
+/**
+ * ==============================
+ * TELEGRAM WEBHOOK ENDPOINT
+ * ==============================
+ * Telegram будет слать POST сюда
+ */
+app.post('/telegram/webhook', (req, res) => {
+  if (bot) {
+    bot.handleUpdate(req.body);
+  }
+  res.sendStatus(200);
+});
 
 // Seed from frontend mock if no events exist (simple dev helper)
 const seedIfEmpty = () => {
@@ -39,7 +52,9 @@ const seedIfEmpty = () => {
 
 seedIfEmpty();
 
-// Events
+// ==============================
+// EVENTS
+// ==============================
 app.get('/events', (_req, res) => {
   res.json(getEvents());
 });
@@ -50,7 +65,9 @@ app.get('/events/:eventId', (req, res) => {
   res.json(event);
 });
 
-// Create booking
+// ==============================
+// CREATE BOOKING
+// ==============================
 app.post('/bookings', (req, res) => {
   const { eventId, telegramUserId, username, seatIds } = req.body as {
     eventId: string;
@@ -66,9 +83,9 @@ app.post('/bookings', (req, res) => {
     return res.status(400).json({ error: 'No seats selected' });
   }
 
-  // Check seat availability and compute total
   let totalAmount = 0;
   const now = Date.now();
+
   for (const fullId of seatIds) {
     const [tableId, seatId] = fullId.split('-');
     const table = event.tables.find((t) => t.id === tableId);
@@ -95,11 +112,11 @@ app.post('/bookings', (req, res) => {
   };
 
   addBooking(booking);
-  // persist updated event with locked seats
+
   const events = getEvents().map((e) => (e.id === event.id ? event : e));
   saveEvents(events);
 
-  // Notify user and admins via bot (best-effort)
+  // Telegram notifications (send-only)
   notifyUser(
     telegramUserId,
     `Вы выбрали места ${seatIds.join(
@@ -116,16 +133,22 @@ app.post('/bookings', (req, res) => {
   res.status(201).json(booking);
 });
 
-// My bookings
+// ==============================
+// MY BOOKINGS
+// ==============================
 app.get('/bookings/my', (req, res) => {
   const telegramUserId = Number(req.query.telegramUserId);
-  if (!telegramUserId) return res.status(400).json({ error: 'telegramUserId is required' });
+  if (!telegramUserId) {
+    return res.status(400).json({ error: 'telegramUserId is required' });
+  }
   const all = getBookings();
   const mine = all.filter((b) => b.userTelegramId === telegramUserId);
   res.json(mine);
 });
 
-// Admin endpoints
+// ==============================
+// ADMIN
+// ==============================
 app.get('/admin/bookings', (req, res) => {
   const status = req.query.status as string | undefined;
   let all = getBookings();
@@ -138,26 +161,23 @@ app.get('/admin/bookings', (req, res) => {
 app.post('/admin/bookings/:id/confirm', (req, res) => {
   const booking = updateBookingStatus(req.params.id, 'paid');
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
   const event = findEventById(booking.eventId);
   if (!event) return res.status(404).json({ error: 'Event not found' });
 
-  // Mark seats as sold
   for (const fullId of booking.seatIds) {
     const [tableId, seatId] = fullId.split('-');
     const table = event.tables.find((t) => t.id === tableId);
     const seat = table?.seats.find((s) => s.id === seatId);
     if (seat) {
       seat.status = 'sold';
-      if (seat.lockedAt !== undefined) {
-        delete seat.lockedAt;
-      }
+      if (seat.lockedAt !== undefined) delete seat.lockedAt;
     }
   }
 
   const events = getEvents().map((e) => (e.id === event.id ? event : e));
   saveEvents(events);
 
-  // In a real setup, here we would iterate seats and send ticket images based on ticketImagePath
   notifyUser(
     booking.userTelegramId,
     'Оплата подтверждена. В ближайшее время вы получите билеты (графические файлы).',
@@ -166,34 +186,36 @@ app.post('/admin/bookings/:id/confirm', (req, res) => {
   res.json({ ok: true });
 });
 
-// Cleanup expired locks every minute
+// ==============================
+// CLEANUP LOCKS
+// ==============================
 const LOCK_DURATION = 15 * 60 * 1000;
 setInterval(() => {
   const events = getEvents();
   const now = Date.now();
   let changed = false;
+
   for (const event of events) {
     for (const table of event.tables) {
       for (const seat of table.seats) {
         if (seat.status === 'locked' && seat.lockedAt && now - seat.lockedAt > LOCK_DURATION) {
           seat.status = 'free';
-          if (seat.lockedAt !== undefined) {
-            delete seat.lockedAt;
-          }
-          if (seat.bookedBy !== undefined) {
-            delete seat.bookedBy;
-          }
+          delete seat.lockedAt;
+          delete seat.bookedBy;
           changed = true;
         }
       }
     }
   }
+
   if (changed) {
     saveEvents(events);
   }
 }, 60_000);
 
+// ==============================
+// START SERVER
+// ==============================
 app.listen(PORT, () => {
   console.log(`Backend API listening on http://localhost:${PORT}`);
 });
-
