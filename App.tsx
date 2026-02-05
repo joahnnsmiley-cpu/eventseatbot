@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { EventData, Booking, ViewState } from './types';
 import * as StorageService from './services/storageService';
+import AuthService from './services/authService';
 import SeatMap from './components/SeatMap';
 import AdminPanel from './components/AdminPanel';
 
@@ -21,25 +22,85 @@ declare global {
 
 function App() {
   const [view, setView] = useState<ViewState>('event-list');
-  const [isAdmin, setIsAdmin] = useState(false); // Toggle for demo
+  const [isAdmin, setIsAdmin] = useState(false);
   const [currentUsername, setCurrentUsername] = useState<string>('guest');
   const [telegramUserId, setTelegramUserId] = useState<number | null>(null);
+  const [tgReady, setTgReady] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
 
   const [events, setEvents] = useState<EventData[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null);
   
   // Selection State
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]); // "tableId-seatId"
+  const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]); // actual seat.id values for backend
   const [selectionTotal, setSelectionTotal] = useState(0);
 
-  // Initial Load
+  // Detect Telegram WebApp availability and user info safely
+  const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined;
+  const tgUser = tg?.initDataUnsafe?.user;
+  const isInTelegram = Boolean(tg);
+
+  // If not opened inside Telegram, render a clear, non-technical message and avoid any console errors or network calls.
+  if (!isInTelegram) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
+        <div className="max-w-md bg-white p-6 rounded shadow text-center">
+          <h2 className="text-lg font-semibold mb-3">Open in Telegram</h2>
+          <p className="text-sm text-gray-600">Please open this Web App from the Telegram mobile app or desktop client.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Initial Load: authenticate via Telegram WebApp id
   useEffect(() => {
-    // Detect Telegram WebApp user
-    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-    if (tgUser?.id) {
-      setTelegramUserId(tgUser.id);
-      setCurrentUsername(tgUser.username || `user_${tgUser.id}`);
+    // Safe initialization inside Telegram
+    if (!tgUser || typeof tgUser.id === 'undefined') {
+      setClientError('Unable to read Telegram user data. Please reopen the WebApp from Telegram.');
+      return;
     }
+
+    setTelegramUserId(tgUser.id);
+    setCurrentUsername(tgUser.username || `user_${tgUser.id}`);
+
+    let mounted = true;
+
+    const init = async () => {
+      try {
+        // Signal Telegram that WebApp is ready (no-op if unsupported)
+        try {
+          tg?.ready?.();
+        } catch {}
+
+        // Perform login with backend using Telegram-provided id
+        await AuthService.loginWithTelegram(tgUser.id);
+        if (!mounted) return;
+        const token = AuthService.getToken();
+        const payload = AuthService.decodeToken(token);
+        setIsAdmin((payload as any)?.role === 'admin');
+        setTgReady(true);
+      } catch (err) {
+        // Surface human-friendly message; avoid console.error in production
+        setClientError((err as Error)?.message || 'Authentication failed');
+      }
+    };
+
+    init();
+
+    const onAuthChanged = () => {
+      const t = AuthService.getToken();
+      if (!t) return setIsAdmin(false);
+      const p = AuthService.decodeToken(t);
+      setIsAdmin((p as any)?.role === 'admin');
+    };
+
+    window.addEventListener('auth:changed', onAuthChanged as EventListener);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('auth:changed', onAuthChanged as EventListener);
+    };
   }, []);
 
   useEffect(() => {
@@ -50,7 +111,7 @@ function App() {
         const data = await StorageService.getEvents();
         setEvents(data);
       } catch (e) {
-        console.error(e);
+        setClientError((e as Error)?.message || 'Failed to load events');
       }
     };
 
@@ -63,6 +124,7 @@ function App() {
     const uniqueId = `${tableId}-${seatId}`;
     if (selectedSeats.includes(uniqueId)) {
       setSelectedSeats(prev => prev.filter(id => id !== uniqueId));
+      setSelectedSeatIds(prev => prev.filter(id => id !== seatId));
       setSelectionTotal(prev => prev - price);
     } else {
       // Check max seats limit
@@ -71,6 +133,7 @@ function App() {
         return;
       }
       setSelectedSeats(prev => [...prev, uniqueId]);
+      setSelectedSeatIds(prev => [...prev, seatId]);
       setSelectionTotal(prev => prev + price);
     }
   };
@@ -84,17 +147,18 @@ function App() {
     try {
       const booking = await StorageService.createBooking(
         selectedEvent.id,
-        telegramUserId,
-        currentUsername,
-        selectedSeats,
+        selectedSeatIds,
       );
 
       const data = await StorageService.getEvents();
       setEvents(data);
 
       setSelectedSeats([]);
+      setSelectedSeatIds([]);
       setSelectionTotal(0);
       (window as any).currentBooking = booking;
+      // Keep a snapshot of the event for payment display
+      (window as any).currentBookingEvent = selectedEvent;
       setView('booking-success');
     } catch (e) {
       alert((e as Error).message);
@@ -195,6 +259,7 @@ function App() {
 
   const renderBookingSuccess = () => {
     const booking = (window as any).currentBooking as Booking;
+    const eventSnap = (window as any).currentBookingEvent as EventData | undefined;
     if (!booking) return <div onClick={() => setView('event-list')}>Error</div>;
 
     return (
@@ -207,9 +272,9 @@ function App() {
 
         <div className="bg-white p-6 rounded-xl shadow-sm border w-full max-w-sm mb-6 text-left">
           <h3 className="font-bold border-b pb-2 mb-2">Payment Instructions</h3>
-          <p className="mb-4 text-sm text-gray-700">Please transfer <b>{booking.totalAmount} ₽</b> via SBP (Fast Payment System) to:</p>
+          <p className="mb-4 text-sm text-gray-700">Please transfer <b>{(booking.totalPrice ?? (booking.totalAmount as any))} ₽</b> via SBP (Fast Payment System) to:</p>
           <div className="bg-gray-100 p-3 rounded-lg flex justify-between items-center mb-4">
-            <span className="font-mono font-bold text-lg">{selectedEvent?.paymentPhone}</span>
+            <span className="font-mono font-bold text-lg">{eventSnap?.paymentPhone || selectedEvent?.paymentPhone}</span>
             <button className="text-blue-600 text-sm font-bold">COPY</button>
           </div>
           <p className="text-xs text-gray-500">
@@ -230,22 +295,65 @@ function App() {
   const renderMyTickets = () => {
     const [myBookings, setMyBookings] = useState<Booking[] | null>(null);
 
+    const [myTickets, setMyTickets] = useState<Booking[] | null>(null);
+
     useEffect(() => {
       const load = async () => {
         if (!telegramUserId) {
           setMyBookings([]);
+          setMyTickets([]);
           return;
         }
         try {
-          const data = await StorageService.getMyBookings(telegramUserId);
-          setMyBookings(data);
+          const [bookingsData, ticketsData] = await Promise.all([
+            StorageService.getMyBookings(),
+            StorageService.getMyTickets(),
+          ]);
+          setMyBookings(bookingsData);
+          setMyTickets(ticketsData);
         } catch (e) {
-          console.error(e);
+          setClientError((e as Error)?.message || 'Failed to load your bookings');
           setMyBookings([]);
+          setMyTickets([]);
         }
       };
       load();
     }, [telegramUserId]);
+
+    // Sync with Telegram viewport/resizing and back button when available
+    useEffect(() => {
+      if (!tg) return;
+
+      const updateViewport = () => {
+        try {
+          const h = (tg as any).viewportHeight;
+          if (typeof h === 'number') {
+            document.documentElement.style.setProperty('--tg-viewport-height', `${h}px`);
+          }
+        } catch {}
+      };
+
+      updateViewport();
+
+      // Prefer Telegram event API when present
+      const hasOnEvent = typeof (tg as any).onEvent === 'function';
+      if (hasOnEvent) {
+        try {
+          (tg as any).onEvent('viewportChanged', updateViewport);
+          (tg as any).onEvent('backButtonClicked', () => setView('event-list'));
+        } catch {}
+        return () => {
+          try {
+            (tg as any).offEvent?.('viewportChanged', updateViewport);
+            (tg as any).offEvent?.('backButtonClicked', () => setView('event-list'));
+          } catch {}
+        };
+      }
+
+      // Fallback to window resize
+      window.addEventListener('resize', updateViewport);
+      return () => window.removeEventListener('resize', updateViewport);
+    }, [tg]);
 
     if (myBookings === null) {
       return (
@@ -255,45 +363,72 @@ function App() {
         </div>
       );
     }
-
     return (
       <div className="p-4 pb-20 min-h-screen bg-gray-50">
         <h1 className="text-2xl font-bold mb-6">My Tickets</h1>
-        {myBookings.length === 0 ? (
-          <p className="text-gray-500">No tickets found.</p>
-        ) : (
-          <div className="space-y-4">
-            {myBookings.map(bk => {
-              const event = events.find(e => e.id === bk.eventId);
-              return (
-                <div key={bk.id} className="bg-white rounded-xl overflow-hidden shadow-sm border relative">
-                  <div className={`h-2 w-full ${bk.status === 'paid' ? 'bg-green-500' : 'bg-yellow-400'}`}></div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg">{event?.title || 'Unknown Event'}</h3>
-                    <div className="flex justify-between mt-2 text-sm text-gray-600">
-                      <span>Booking #{bk.id.slice(-4)}</span>
-                      <span className={`font-bold ${bk.status === 'paid' ? 'text-green-600' : 'text-yellow-600'}`}>
-                        {bk.status.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="mt-4 border-t pt-2 border-dashed">
-                      <p className="text-xs text-gray-400">SEATS</p>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {bk.seatIds.map(sid => {
-                          const parts = sid.split('-');
-                          return <span key={sid} className="bg-gray-100 px-2 py-1 rounded text-xs font-mono">T{parts[2] || '?'} / S{parts[3]}</span>
-                        })}
-                      </div>
+
+        {/* Reserved (active) bookings */}
+        <h2 className="text-lg font-semibold mb-3">Active Reservations</h2>
+        {myBookings && myBookings.length === 0 && <p className="text-gray-500 mb-4">No active reservations.</p>}
+        <div className="space-y-4 mb-6">
+          {(myBookings || []).map(bk => {
+            const event = events.find(e => e.id === bk.eventId);
+            return (
+              <div key={bk.id} className="bg-white rounded-xl overflow-hidden shadow-sm border relative">
+                <div className={`h-2 w-full ${bk.status === 'confirmed' ? 'bg-green-500' : 'bg-yellow-400'}`}></div>
+                <div className="p-4">
+                  <h3 className="font-bold text-lg">{event?.title || 'Unknown Event'}</h3>
+                  <div className="flex justify-between mt-2 text-sm text-gray-600">
+                    <span>Reservation #{bk.id.slice(-4)}</span>
+                    <span className={`font-bold ${bk.status === 'confirmed' ? 'text-green-600' : 'text-yellow-600'}`}>
+                      {String(bk.status).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t pt-2 border-dashed">
+                    <p className="text-xs text-gray-400">SEATS</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {(bk.seatIds || []).map((sid: string) => (
+                        <span key={sid} className="bg-gray-100 px-2 py-1 rounded text-xs font-mono">{sid}</span>
+                      ))}
                     </div>
                   </div>
-                  {/* Visual cutouts for ticket look */}
-                  <div className="absolute top-1/2 -left-2 w-4 h-4 bg-gray-50 rounded-full"></div>
-                  <div className="absolute top-1/2 -right-2 w-4 h-4 bg-gray-50 rounded-full"></div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <div className="absolute top-1/2 -left-2 w-4 h-4 bg-gray-50 rounded-full"></div>
+                <div className="absolute top-1/2 -right-2 w-4 h-4 bg-gray-50 rounded-full"></div>
+              </div>
+            );
+          })}
+        </div>
+
+        <h2 className="text-lg font-semibold mb-3">Confirmed Tickets</h2>
+        {myTickets && myTickets.length === 0 && <p className="text-gray-500 mb-4">No confirmed tickets yet.</p>}
+        <div className="space-y-4">
+          {(myTickets || []).map(tk => {
+            const event = events.find(e => e.id === tk.eventId);
+            return (
+              <div key={tk.id} className="bg-white rounded-xl overflow-hidden shadow-sm border relative">
+                <div className={`h-2 w-full bg-green-500`}></div>
+                <div className="p-4">
+                  <h3 className="font-bold text-lg">{event?.title || 'Unknown Event'}</h3>
+                  <div className="flex justify-between mt-2 text-sm text-gray-600">
+                    <span>Ticket #{tk.id.slice(-4)}</span>
+                    <span className="font-bold text-green-600">CONFIRMED</span>
+                  </div>
+                  <div className="mt-4 border-t pt-2 border-dashed">
+                    <p className="text-xs text-gray-400">SEATS</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {(tk.seatIds || []).map((sid: string) => (
+                        <span key={sid} className="bg-gray-100 px-2 py-1 rounded text-xs font-mono">{sid}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="absolute top-1/2 -left-2 w-4 h-4 bg-gray-50 rounded-full"></div>
+                <div className="absolute top-1/2 -right-2 w-4 h-4 bg-gray-50 rounded-full"></div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -303,11 +438,7 @@ function App() {
     <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
       
       {/* Dev Toggle */}
-      <div className="fixed top-0 right-0 z-50 opacity-20 hover:opacity-100 p-2">
-         <button onClick={() => setIsAdmin(!isAdmin)} className="bg-black text-white text-xs px-2 py-1 rounded">
-           {isAdmin ? 'Switch to User' : 'Switch to Admin'}
-         </button>
-      </div>
+      {/* Telegram WebApp is the only auth entrypoint; admin UI shown only when backend grants role */}
 
       {isAdmin ? (
         <AdminPanel onBack={() => setIsAdmin(false)} />

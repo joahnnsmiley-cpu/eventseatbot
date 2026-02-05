@@ -1,4 +1,5 @@
 import { EventData, Booking } from '../types';
+import AuthService from './authService';
 
 const API_BASE =
   (typeof import.meta !== 'undefined' &&
@@ -20,27 +21,47 @@ export const getEvent = async (eventId: string): Promise<EventData> => {
 
 export const createBooking = async (
   eventId: string,
-  telegramUserId: number,
-  username: string,
   seatFullIds: string[],
-): Promise<Booking> => {
+): Promise<any> => {
   const res = await fetch(`${API_BASE}/bookings`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ eventId, telegramUserId, username, seatIds: seatFullIds }),
+    headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
+    body: JSON.stringify({ eventId, seatIds: seatFullIds }),
   });
   if (!res.ok) {
+    if (res.status === 403) {
+      AuthService.logout();
+      throw new Error('Forbidden');
+    }
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to create booking');
+  }
+  // Server responds with { booking, paymentInstructions }
+  const data = await res.json();
+  return data.booking || data;
+};
+
+export const getMyBookings = async (): Promise<Booking[]> => {
+  const res = await fetch(`${API_BASE}/me/bookings`, { headers: AuthService.getAuthHeader() });
+  if (!res.ok) {
+    if (res.status === 403) {
+      AuthService.logout();
+      throw new Error('Forbidden');
+    }
+    throw new Error('Failed to load bookings');
   }
   return res.json();
 };
 
-export const getMyBookings = async (telegramUserId: number): Promise<Booking[]> => {
-  const res = await fetch(
-    `${API_BASE}/bookings/my?telegramUserId=${encodeURIComponent(String(telegramUserId))}`,
-  );
-  if (!res.ok) throw new Error('Failed to load bookings');
+export const getMyTickets = async (): Promise<Booking[]> => {
+  const res = await fetch(`${API_BASE}/me/tickets`, { headers: AuthService.getAuthHeader() });
+  if (!res.ok) {
+    if (res.status === 403) {
+      AuthService.logout();
+      throw new Error('Forbidden');
+    }
+    throw new Error('Failed to load tickets');
+  }
   return res.json();
 };
 
@@ -48,18 +69,91 @@ export const getMyBookings = async (telegramUserId: number): Promise<Booking[]> 
 export const getAdminBookings = async (status?: string): Promise<Booking[]> => {
   const url = new URL(`${API_BASE}/admin/bookings`);
   if (status) url.searchParams.set('status', status);
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error('Failed to load admin bookings');
+  const res = await fetch(url.toString(), { headers: AuthService.getAuthHeader() });
+  if (!res.ok) {
+    if (res.status === 403) {
+      AuthService.logout();
+      throw new Error('Forbidden');
+    }
+    throw new Error('Failed to load admin bookings');
+  }
   return res.json();
 };
 
 export const confirmBooking = async (bookingId: string): Promise<void> => {
   const res = await fetch(`${API_BASE}/admin/bookings/${bookingId}/confirm`, {
     method: 'POST',
+    headers: AuthService.getAuthHeader(),
   });
   if (!res.ok) {
+    if (res.status === 403) {
+      AuthService.logout();
+      throw new Error('Forbidden');
+    }
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to confirm booking');
+  }
+};
+
+// Admin events API
+export const getAdminEvents = async (): Promise<EventData[]> => {
+  const res = await fetch(`${API_BASE}/admin/events`, { headers: AuthService.getAuthHeader() });
+  if (!res.ok) {
+    if (res.status === 403) {
+      AuthService.logout();
+      throw new Error('Forbidden');
+    }
+    throw new Error('Failed to load admin events');
+  }
+  return res.json();
+};
+
+export const createAdminEvent = async (payload: Partial<EventData>): Promise<EventData> => {
+  const res = await fetch(`${API_BASE}/admin/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    if (res.status === 403) {
+      AuthService.logout();
+      throw new Error('Forbidden');
+    }
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to create event');
+  }
+  return res.json();
+};
+
+export const updateAdminEvent = async (id: string, payload: Partial<EventData>): Promise<EventData> => {
+  const res = await fetch(`${API_BASE}/admin/events/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    if (res.status === 403) {
+      AuthService.logout();
+      throw new Error('Forbidden');
+    }
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to update event');
+  }
+  return res.json();
+};
+
+export const deleteAdminEvent = async (id: string): Promise<void> => {
+  const res = await fetch(`${API_BASE}/admin/events/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) {
+    if (res.status === 403) {
+      AuthService.logout();
+      throw new Error('Forbidden');
+    }
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to delete event');
   }
 };
 
