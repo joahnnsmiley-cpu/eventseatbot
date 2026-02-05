@@ -26,6 +26,7 @@ function App() {
   const [currentUsername, setCurrentUsername] = useState<string>('guest');
   const [telegramUserId, setTelegramUserId] = useState<number | null>(null);
   const [tgReady, setTgReady] = useState(false);
+  const [telegramStatus, setTelegramStatus] = useState<'pending' | 'ready' | 'error'>('pending');
   const [clientError, setClientError] = useState<string | null>(null);
 
   const [events, setEvents] = useState<EventData[]>([]);
@@ -84,6 +85,7 @@ function App() {
         if (mounted) {
           setAuthState('error');
           setAuthError('This Web App must be opened from the Telegram client.');
+          setTelegramStatus('error');
         }
       }
     }, checkInterval);
@@ -109,6 +111,7 @@ function App() {
     if (!tg) {
       setAuthState('error');
       setAuthError('Telegram WebApp is not available.');
+      setTelegramStatus('error');
       return;
     }
 
@@ -145,7 +148,9 @@ function App() {
       return null;
     };
 
+    // Call ready() and mark Telegram SDK as ready for viewport integration
     safeReady();
+    setTelegramStatus('ready');
 
     const resolved = extractTelegramUser();
     if (!resolved) {
