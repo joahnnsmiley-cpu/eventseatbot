@@ -5,6 +5,21 @@ import { adminOnly } from '../auth/admin.middleware';
 import { getEvents, saveEvents, upsertEvent, findEventById } from '../db';
 import type { EventData } from '../models';
 
+/*
+  ADMIN DOMAIN: FROZEN
+
+  NOTE: The admin CRUD surface (routes under /admin) including the
+  publish-lock behavior is considered complete and frozen. Do NOT make
+  additional changes to admin business logic without explicit review.
+
+  Rationale / source-of-truth:
+  - Backend persistence smoke test: backend/scripts/persist-smoke.js
+  - Publish-lock integration test: tests/publish-lock.spec.ts
+
+  If you need to evolve admin behavior, update the tests above first
+  and get explicit approval before changing the routes in this folder.
+*/
+
 // Simple Event shape for admin CRUD
 export interface Event {
   id: string;
@@ -73,6 +88,23 @@ router.put('/events/:id', (req: Request, res: Response) => {
   }
   const existing = findEventById(id);
   if (!existing) return res.status(404).json({ error: 'Event not found' });
+  // Allow publishing the event via status change from draft -> published
+  const requestedStatus = typeof req.body.status === 'string' ? req.body.status : undefined;
+
+  if (requestedStatus === 'published' && existing.status === 'draft') {
+    // ensure required fields exist when publishing
+    if (!existing.schemaImageUrl && !existing.imageUrl) {
+      return res.status(400).json({ error: 'schemaImageUrl or imageUrl is required to publish' });
+    }
+    existing.status = 'published';
+    upsertEvent(existing);
+    return res.json(toEvent(existing));
+  }
+
+  // Once published, the event must not be modified
+  if (existing.status === 'published') {
+    return res.status(403).json({ error: 'Event is published and cannot be modified' });
+  }
 
   const errs = validate(req.body);
   if (errs.length) return res.status(400).json({ errors: errs });
@@ -97,6 +129,8 @@ router.delete('/events/:id', (req: Request, res: Response) => {
   const events = getEvents();
   const idx = events.findIndex((e) => e.id === id);
   if (idx === -1) return res.status(404).json({ error: 'Event not found' });
+  const existing = events[idx];
+  if ((existing as any).status === 'published') return res.status(403).json({ error: 'Event is published and cannot be deleted' });
   events.splice(idx, 1);
   saveEvents(events);
   res.json({ ok: true });

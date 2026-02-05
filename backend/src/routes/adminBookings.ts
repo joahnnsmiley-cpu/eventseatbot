@@ -3,6 +3,7 @@ import { authMiddleware } from '../auth/auth.middleware';
 import { adminOnly } from '../auth/admin.middleware';
 import { inMemoryBookings } from '../state';
 import { seats as inMemorySeats } from './adminSeats';
+import { updateBookingStatus } from '../db';
 
 const router = Router();
 
@@ -26,11 +27,18 @@ router.post('/bookings/:id/confirm', (req: Request, res: Response) => {
   // mark booking confirmed
   booking.status = 'confirmed';
 
-  // mark seats sold
-  for (const sid of booking.seatIds) {
-    const s = inMemorySeats.find((x) => x.id === sid && x.eventId === booking.eventId);
-    if (s) s.status = 'sold';
+  // If booking contains seatIds, mark seats sold (legacy)
+  if (Array.isArray(booking.seatIds) && booking.seatIds.length > 0) {
+    for (const sid of booking.seatIds) {
+      const s = inMemorySeats.find((x) => x.id === sid && x.eventId === booking.eventId);
+      if (s) s.status = 'sold';
+    }
   }
+
+  // mirror status to persisted DB if present
+  try {
+    updateBookingStatus(booking.id, 'paid');
+  } catch {}
 
   res.json({ ok: true, booking });
 });

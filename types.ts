@@ -12,10 +12,12 @@ export interface Seat {
 
 export interface Table {
   id: string;
-  x: number; // Percentage 0-100
-  y: number; // Percentage 0-100
-  label: string;
-  seats: Seat[];
+  number: number; // human-friendly table number
+  seatsTotal: number;
+  seatsAvailable: number;
+  centerX: number; // Percentage 0-100
+  centerY: number; // Percentage 0-100
+  shape: string; // e.g. 'round' | 'rect'
 }
 
 export interface EventData {

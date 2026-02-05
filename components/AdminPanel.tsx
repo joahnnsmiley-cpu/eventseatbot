@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { EventData } from '../types';
 import * as StorageService from '../services/storageService';
 
+const genId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2);
+
 type FormState = {
   id?: string;
   title: string;
@@ -10,6 +12,7 @@ type FormState = {
   imageUrl?: string;
   paymentPhone?: string;
   maxSeatsPerBooking?: number;
+  tables?: any[]; // Table[] — kept loose here to avoid strict coupling
 };
 
 const emptyForm = (): FormState => ({ title: '', description: '', date: '', imageUrl: '', paymentPhone: '', maxSeatsPerBooking: 4 });
@@ -23,6 +26,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [form, setForm] = useState<FormState>(emptyForm());
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+
+  const [markupOpen, setMarkupOpen] = useState(false);
+  const [draftTables, setDraftTables] = useState<any[]>([]);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -45,13 +51,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   }, []);
 
   const openCreate = () => {
-    setForm(emptyForm());
+    setForm({ ...emptyForm(), tables: [] });
     setFormErrors({});
     setIsFormOpen(true);
   };
 
   const openEdit = (evt: EventData) => {
-    setForm({ id: evt.id, title: evt.title, description: evt.description, date: evt.date, imageUrl: evt.imageUrl, paymentPhone: evt.paymentPhone, maxSeatsPerBooking: evt.maxSeatsPerBooking });
+    setForm({ id: evt.id, title: evt.title, description: evt.description, date: evt.date, imageUrl: evt.imageUrl, paymentPhone: evt.paymentPhone, maxSeatsPerBooking: evt.maxSeatsPerBooking, tables: evt.tables || [] });
     setFormErrors({});
     setIsFormOpen(true);
   };
@@ -83,6 +89,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           imageUrl: form.imageUrl,
           paymentPhone: form.paymentPhone,
           maxSeatsPerBooking: form.maxSeatsPerBooking,
+          tables: form.tables || draftTables || [],
         });
       } else {
         await StorageService.createAdminEvent({
@@ -92,11 +99,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           imageUrl: form.imageUrl,
           paymentPhone: form.paymentPhone,
           maxSeatsPerBooking: form.maxSeatsPerBooking,
-          tables: [],
+          tables: form.tables || draftTables || [],
         });
       }
       await load();
       setIsFormOpen(false);
+      setDraftTables([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -148,6 +156,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               </div>
               <div className="flex flex-col gap-2">
                 <button onClick={() => openEdit(evt)} className="px-3 py-1 bg-gray-100 rounded text-sm">Edit</button>
+                  <button onClick={() => { openEdit(evt); setMarkupOpen(true); setDraftTables(evt.tables || []); }} className="px-3 py-1 bg-gray-100 rounded text-sm">Layout</button>
                 <button onClick={() => confirmDelete(evt.id)} className="px-3 py-1 bg-red-50 text-red-600 rounded text-sm">Delete</button>
               </div>
             </div>
@@ -190,6 +199,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 <input value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} className="border p-2 rounded" />
               </label>
 
+              <div className="mt-2">
+                <button type="button" onClick={() => { setDraftTables(form.tables || []); setMarkupOpen(true); }} className="px-3 py-2 bg-gray-100 rounded">Edit Layout</button>
+                <span className="text-sm text-gray-500 ml-2">Open layout markup to add tables on the event image.</span>
+              </div>
+
               <label className="flex flex-col">
                 <span className="text-sm font-medium">Max Seats Per Booking</span>
                 <input type="number" value={form.maxSeatsPerBooking} onChange={e => setForm({ ...form, maxSeatsPerBooking: Number(e.target.value) })} className="border p-2 rounded" />
@@ -200,6 +214,65 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setIsFormOpen(false)} className="px-3 py-2 rounded border">Cancel</button>
               <button onClick={submit} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded">{saving ? 'Saving…' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Markup Modal */}
+      {markupOpen && (
+        <div className="fixed inset-0 z-60 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white max-w-3xl w-full rounded shadow overflow-hidden">
+            <div className="p-4 border-b flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h4 className="font-semibold">Layout Markup</h4>
+                <span className="text-sm text-gray-500">Click on the image to create a table</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setMarkupOpen(false); }} className="px-3 py-1 border rounded">Close</button>
+                <button onClick={() => { setForm({ ...form, tables: draftTables }); setMarkupOpen(false); }} className="px-3 py-1 bg-blue-600 text-white rounded">Apply</button>
+              </div>
+            </div>
+            <div className="p-4">
+              {form.imageUrl ? (
+                <div className="relative bg-gray-100" style={{ aspectRatio: '16/9' }}>
+                  <img src={form.imageUrl} alt="layout" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} onClick={(e) => {
+                    // compute click position in percent
+                    const rect = (e.target as HTMLImageElement).getBoundingClientRect();
+                    const x = (e.clientX - rect.left) / rect.width * 100;
+                    const y = (e.clientY - rect.top) / rect.height * 100;
+                    const numStr = window.prompt('Table number (numeric)');
+                    if (!numStr) return;
+                    const seatsStr = window.prompt('Seats count for this table');
+                    if (!seatsStr) return;
+                    const num = Number(numStr);
+                    const seatsTotal = Number(seatsStr);
+                    if (!Number.isFinite(num) || !Number.isFinite(seatsTotal)) return;
+                    const tbl = {
+                      id: genId(),
+                      number: num,
+                      seatsTotal: seatsTotal,
+                      seatsAvailable: seatsTotal,
+                      centerX: Math.max(0, Math.min(100, x)),
+                      centerY: Math.max(0, Math.min(100, y)),
+                      shape: 'round',
+                    };
+                    setDraftTables(prev => [...prev, tbl]);
+                  }} />
+
+                  {/* overlays */}
+                  {draftTables.map(t => (
+                    <div key={t.id} style={{ position: 'absolute', left: `${t.centerX}%`, top: `${t.centerY}%`, transform: 'translate(-50%, -50%)' }}>
+                      <div className="relative">
+                        <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">{t.number}</div>
+                        <button onClick={() => setDraftTables(prev => prev.filter(x => x.id !== t.id))} className="absolute -top-2 -right-2 bg-white rounded-full p-1 text-xs border">✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-6 text-center text-sm text-gray-600">No image URL provided. Set Image URL in the event form first.</div>
+              )}
             </div>
           </div>
         </div>

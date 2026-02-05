@@ -30,6 +30,7 @@ function App() {
 
   const [events, setEvents] = useState<EventData[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null);
+  const [tableModal, setTableModal] = useState<any | null>(null);
   
   // Selection State
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]); // "tableId-seatId"
@@ -321,11 +322,21 @@ function App() {
           </div>
           
           <div className="p-4 h-full flex items-center">
-            <SeatMap 
-              event={liveEvent} 
-              onSeatSelect={handleSeatSelect}
-              selectedSeats={selectedSeats}
-            />
+              <SeatMap 
+                event={liveEvent} 
+                onSeatSelect={handleSeatSelect}
+                selectedSeats={selectedSeats}
+                onTableClick={(tableId) => {
+                  const t = (liveEvent.tables || []).find((x: any) => x.id === tableId);
+                  if (!t) return;
+                  if (t.seatsAvailable === 0) {
+                    // Prevent booking when no seats
+                    alert('No seats available at this table');
+                    return;
+                  }
+                  setTableModal(t);
+                }}
+              />
           </div>
         </div>
 
@@ -348,6 +359,22 @@ function App() {
           >
             Book & Pay
           </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTableModal = () => {
+    if (!tableModal) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="bg-white p-6 rounded shadow max-w-sm w-full">
+          <h3 className="font-bold text-lg mb-2">Table {tableModal.number}</h3>
+          <p className="text-sm text-gray-600 mb-4">Available seats: {tableModal.seatsAvailable} / {tableModal.seatsTotal}</p>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setTableModal(null)} className="px-3 py-2 border rounded">Close</button>
+            <button disabled={tableModal.seatsAvailable === 0} onClick={() => setTableModal(null)} className="px-3 py-2 bg-blue-600 text-white rounded">Book</button>
+          </div>
         </div>
       </div>
     );

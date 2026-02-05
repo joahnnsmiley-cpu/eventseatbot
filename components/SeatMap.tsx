@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { EventData, Table, Seat } from '../types';
+import { EventData } from '../types';
 
 interface SeatMapProps {
   event: EventData;
@@ -8,6 +8,7 @@ interface SeatMapProps {
   selectedSeats?: string[]; // Array of "tableId-seatId"
   onTableAdd?: (x: number, y: number) => void;
   onTableDelete?: (tableId: string) => void;
+  onTableClick?: (tableId: string) => void;
 }
 
 const SeatMap: React.FC<SeatMapProps> = ({ 
@@ -65,17 +66,19 @@ const SeatMap: React.FC<SeatMapProps> = ({
             className="absolute inset-0 w-full h-full object-cover opacity-80 pointer-events-none"
           />
 
-          {/* Tables */}
+          {/* Tables (new model) */}
           {event.tables.map((table) => (
             <div
               key={table.id}
-              className="table-node absolute flex flex-col items-center justify-center transform -translate-x-1/2 -translate-y-1/2"
-              style={{ left: `${table.x}%`, top: `${table.y}%` }}
+              className={`table-node absolute flex flex-col items-center justify-center transform -translate-x-1/2 -translate-y-1/2 ${!isEditable && table.seatsAvailable === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              style={{ left: `${table.centerX}%`, top: `${table.centerY}%` }}
+              onClick={(e) => { e.stopPropagation(); if (!isEditable && onTableClick) onTableClick(table.id); }}
             >
-              {/* Table Shape */}
               <div className="relative w-24 h-24 bg-white/90 rounded-full shadow-lg border-2 border-gray-400 flex items-center justify-center group">
-                <span className="font-bold text-gray-800 text-sm">{table.label}</span>
-                
+                <div className="text-center">
+                  <div className="font-bold text-gray-800 text-sm">{table.number}</div>
+                  <div className="text-xs text-gray-500">{table.seatsAvailable}/{table.seatsTotal}</div>
+                </div>
                 {isEditable && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); onTableDelete && onTableDelete(table.id); }}
@@ -85,41 +88,6 @@ const SeatMap: React.FC<SeatMapProps> = ({
                   </button>
                 )}
               </div>
-
-              {/* Seats around the table */}
-              {table.seats.map((seat, index) => {
-                const totalSeats = table.seats.length;
-                const angle = (index / totalSeats) * 2 * Math.PI;
-                const radius = 60; // Distance from center of table
-                const seatX = Math.cos(angle) * radius;
-                const seatY = Math.sin(angle) * radius;
-
-                const uniqueId = `${table.id}-${seat.id}`;
-                const isSelected = selectedSeats.includes(uniqueId);
-                
-                let seatColor = 'bg-green-500 hover:bg-green-600'; // Free
-                if (seat.status === 'sold') seatColor = 'bg-red-500 cursor-not-allowed';
-                if (seat.status === 'locked') seatColor = 'bg-yellow-500 cursor-not-allowed';
-                if (isSelected) seatColor = 'bg-blue-500 ring-2 ring-blue-300';
-
-                return (
-                  <button
-                    key={seat.id}
-                    disabled={!isEditable && (seat.status === 'sold' || seat.status === 'locked')}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!isEditable && onSeatSelect) onSeatSelect(seat.id, table.id, seat.price);
-                    }}
-                    className={`absolute w-8 h-8 rounded-full shadow-md text-white text-xs font-bold flex items-center justify-center transition-all transform ${seatColor}`}
-                    style={{
-                      transform: `translate(${seatX}px, ${seatY}px)`
-                    }}
-                    title={`Seat ${seat.number} - ${seat.price}₽`}
-                  >
-                    {seat.number}
-                  </button>
-                );
-              })}
             </div>
           ))}
         </div>

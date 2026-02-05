@@ -12,10 +12,17 @@ export interface Seat {
 
 export interface Table {
   id: string;
-  x: number;
-  y: number;
-  label: string;
-  seats: Seat[];
+  // Table number (human-friendly)
+  number: number;
+  // Total seats at this table
+  seatsTotal: number;
+  // Seats currently available (derived or maintained by admin)
+  seatsAvailable: number;
+  // Center position as percentages (0-100)
+  centerX: number;
+  centerY: number;
+  // Shape identifier, e.g. 'round' | 'rectangle'
+  shape: string;
 }
 
 export interface EventData {

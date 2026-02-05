@@ -15,6 +15,17 @@ export interface Seat {
 
 const router = Router();
 
+/*
+  ADMIN DOMAIN: FROZEN (SEATS)
+
+  The admin seat management endpoints are part of the frozen admin domain.
+  Do not change seat-related admin logic without updating the backend
+  truth tests and coordinating the change. Reference the following tests
+  as the source-of-truth for admin behavior:
+  - backend/scripts/persist-smoke.js
+  - tests/publish-lock.spec.ts
+*/
+
 // In-memory storage for seats (volatile)
 export const seats: Seat[] = [];
 

@@ -3,11 +3,12 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import { v4 as uuid } from 'uuid';
 import type { EventData } from './models';
-import { getEvents, findEventById, saveEvents, getBookings } from './db';
+import { getEvents, findEventById, saveEvents, getBookings, addBooking } from './db';
 import { bot, notifyAdminsAboutBooking, notifyUser } from './bot';
 import adminEventsRouter from './routes/adminEvents';
 import adminSeatsRouter, { seats as inMemorySeats } from './routes/adminSeats';
 import adminBookingsRouter from './routes/adminBookings';
+import publicEventsRouter from './routes/publicEvents';
 import { inMemoryBookings } from './state';
 import { authMiddleware, AuthRequest } from './auth/auth.middleware';
 import 'dotenv/config';
@@ -79,65 +80,174 @@ app.post('/bookings', authMiddleware, (req: AuthRequest, res) => {
   if (!userIdVal) return res.status(401).json({ error: 'Unauthorized' });
   const userId = String(userIdVal);
 
-  const { eventId, seatIds } = req.body as { eventId: string; seatIds: string[] };
-  if (!eventId || !Array.isArray(seatIds) || seatIds.length === 0) {
-    return res.status(400).json({ error: 'eventId and seatIds[] are required' });
-  }
+  const body = req.body || {};
+  const eventId = body.eventId as string | undefined;
+
+  if (!eventId) return res.status(400).json({ error: 'eventId is required' });
 
   // Validate event exists
   const event = findEventById(eventId);
   if (!event) return res.status(404).json({ error: 'Event not found' });
 
-  // Check seats exist and are available
-  const seatsToReserve: any[] = [];
-  for (const seatId of seatIds) {
-    const s = inMemorySeats.find((x) => x.id === seatId && x.eventId === eventId);
-    if (!s) return res.status(400).json({ error: `Seat not found: ${seatId}` });
-    if (s.status !== 'available') return res.status(400).json({ error: `Seat not available: ${seatId}` });
-    seatsToReserve.push(s);
-  }
+  // Support two booking types for compatibility:
+  // 1) seatIds: array of individual seat ids (legacy)
+  // 2) tableBookings: array of { tableId: string, seats: number, totalPrice?: number }
+  const seatIds = Array.isArray(body.seatIds) ? body.seatIds as string[] : undefined;
+  const tableBookings = Array.isArray(body.tableBookings) ? body.tableBookings as Array<{ tableId: string; seats: number; totalPrice?: number }> : undefined;
 
-  // Calculate total
-  const totalPrice = seatsToReserve.reduce((sum, s) => sum + Number(s.price || 0), 0);
   const now = Date.now();
   const expiresAt = now + 15 * 60 * 1000;
 
-  // Reserve seats
-  for (const s of seatsToReserve) {
-    s.status = 'reserved';
+  // Legacy seat-level booking
+  if (seatIds && seatIds.length > 0) {
+    const seatsToReserve: any[] = [];
+    for (const seatId of seatIds) {
+      const s = inMemorySeats.find((x) => x.id === seatId && x.eventId === eventId);
+      if (!s) return res.status(400).json({ error: `Seat not found: ${seatId}` });
+      if (s.status !== 'available') return res.status(400).json({ error: `Seat not available: ${seatId}` });
+      seatsToReserve.push(s);
+    }
+
+    const totalPrice = seatsToReserve.reduce((sum, s) => sum + Number(s.price || 0), 0);
+
+    // Reserve seats
+    for (const s of seatsToReserve) s.status = 'reserved';
+
+    const booking: import('./state').InMemoryBooking = {
+      id: uuid(),
+      eventId,
+      userId,
+      seatIds,
+      totalPrice,
+      status: 'reserved',
+      createdAt: now,
+      expiresAt,
+    };
+
+    inMemoryBookings.push(booking);
+
+    // persist booking to DB for longer-term storage (mirror)
+    try {
+      addBooking({
+        id: booking.id,
+        eventId: booking.eventId,
+        userTelegramId: Number(userId) || 0,
+        username: (req.user && (req.user as any).username) || '',
+        seatIds: booking.seatIds,
+        totalAmount: booking.totalPrice,
+        status: 'pending',
+        createdAt: booking.createdAt,
+      } as any);
+    } catch {}
+
+    // Expire reservation after 15 minutes if still reserved
+    setTimeout(() => {
+      const b = inMemoryBookings.find((x) => x.id === booking.id);
+      if (!b) return;
+      if (b.status === 'reserved') {
+        for (const sid of b.seatIds) {
+          const s = inMemorySeats.find((x) => x.id === sid && x.eventId === b.eventId);
+          if (s && s.status === 'reserved') s.status = 'available';
+        }
+        b.status = 'cancelled';
+      }
+    }, expiresAt - now);
+
+    const paymentInstructions = event
+      ? `Pay ${booking.totalPrice} ₽ to ${event.paymentPhone || 'the provided payment method'}`
+      : `Pay ${booking.totalPrice} ₽`;
+
+    return res.status(201).json({ booking, paymentInstructions });
   }
 
-  const booking: import('./state').InMemoryBooking = {
-    id: uuid(),
-    eventId,
-    userId,
-    seatIds,
-    totalPrice,
-    status: 'reserved',
-    createdAt: now,
-    expiresAt,
-  };
-
-  inMemoryBookings.push(booking);
-
-  // Expire reservation after 15 minutes if still reserved
-  setTimeout(() => {
-    const b = inMemoryBookings.find((x) => x.id === booking.id);
-    if (!b) return;
-    if (b.status === 'reserved') {
-      for (const sid of b.seatIds) {
-        const s = inMemorySeats.find((x) => x.id === sid && x.eventId === b.eventId);
-        if (s && s.status === 'reserved') s.status = 'available';
-      }
-      b.status = 'cancelled';
+  // Table-level booking
+  if (tableBookings && tableBookings.length > 0) {
+    // validate requested tables
+    const updates: { tableId: string; seats: number; totalPrice: number }[] = [];
+    let totalPrice = 0;
+    for (const tb of tableBookings) {
+      const tableId = tb.tableId;
+      const seatsRequested = Number(tb.seats) || 0;
+      if (!tableId || seatsRequested <= 0) return res.status(400).json({ error: 'Invalid tableBookings entries' });
+      const table = event.tables.find((t) => t.id === tableId);
+      if (!table) return res.status(400).json({ error: `Table not found: ${tableId}` });
+      if (table.seatsAvailable < seatsRequested) return res.status(400).json({ error: `Not enough seats available at table ${table.number}` });
+      const tbPrice = Number(tb.totalPrice) || 0;
+      updates.push({ tableId, seats: seatsRequested, totalPrice: tbPrice });
+      totalPrice += tbPrice;
     }
-  }, expiresAt - now);
 
-  const paymentInstructions = event
-    ? `Pay ${totalPrice} ₽ to ${event.paymentPhone || 'the provided payment method'}`
-    : `Pay ${totalPrice} ₽`;
+    // Apply updates atomically
+    const events = getEvents();
+    const evIdx = events.findIndex((e) => e.id === event.id);
+    if (evIdx === -1) return res.status(500).json({ error: 'Event not found in storage' });
 
-  res.status(201).json({ booking, paymentInstructions });
+    for (const up of updates) {
+      const table = events[evIdx].tables.find((t) => t.id === up.tableId);
+      if (!table) continue;
+      table.seatsAvailable = Math.max(0, table.seatsAvailable - up.seats);
+    }
+
+    // persist updated events
+    saveEvents(events);
+
+    const bookingRecord = {
+      id: uuid(),
+      eventId: event.id,
+      userId,
+      seatIds: [],
+      totalPrice,
+      status: 'reserved',
+      createdAt: now,
+      expiresAt,
+      tableBookings: updates,
+    } as any;
+
+    inMemoryBookings.push(bookingRecord);
+
+    // persist to DB (mirror) — include tableBookings in db record if possible
+    try {
+      addBooking({
+        id: bookingRecord.id,
+        eventId: bookingRecord.eventId,
+        userTelegramId: Number(userId) || 0,
+        username: (req.user && (req.user as any).username) || '',
+        seatIds: [],
+        totalAmount: bookingRecord.totalPrice,
+        status: 'pending',
+        createdAt: bookingRecord.createdAt,
+        // store tableBookings under a custom field for compatibility
+        tableBookings: bookingRecord.tableBookings,
+      } as any);
+    } catch {}
+
+    // Expire reservation after 15 minutes if still reserved — restore seatsAvailable
+    setTimeout(() => {
+      const b = inMemoryBookings.find((x) => x.id === bookingRecord.id);
+      if (!b) return;
+      if (b.status === 'reserved') {
+        // restore seats
+        const evs = getEvents();
+        const idx = evs.findIndex((e) => e.id === bookingRecord.eventId);
+        if (idx !== -1) {
+          for (const tb of (b.tableBookings || [])) {
+            const table = evs[idx].tables.find((t) => t.id === tb.tableId);
+            if (table) table.seatsAvailable = Math.min(table.seatsTotal, table.seatsAvailable + tb.seats);
+          }
+          saveEvents(evs);
+        }
+        b.status = 'cancelled';
+      }
+    }, expiresAt - now);
+
+    const paymentInstructions = event
+      ? `Pay ${totalPrice} ₽ to ${event.paymentPhone || 'the provided payment method'}`
+      : `Pay ${totalPrice} ₽`;
+
+    return res.status(201).json({ booking: bookingRecord, paymentInstructions });
+  }
+
+  return res.status(400).json({ error: 'Either seatIds[] or tableBookings[] must be provided' });
 });
 
 // ==============================
@@ -158,33 +268,11 @@ app.get('/bookings/my', (req, res) => {
 app.use('/admin', adminEventsRouter);
 app.use('/admin', adminSeatsRouter);
 app.use('/admin', adminBookingsRouter);
+// Public read-only event views and JSON endpoints
+app.use('/public', publicEventsRouter);
 
-// ==============================
-// CLEANUP LOCKS
-// ==============================
-const LOCK_DURATION = 15 * 60 * 1000;
-setInterval(() => {
-  const events = getEvents();
-  const now = Date.now();
-  let changed = false;
-
-  for (const event of events) {
-    for (const table of event.tables) {
-      for (const seat of table.seats) {
-        if (seat.status === 'locked' && seat.lockedAt && now - seat.lockedAt > LOCK_DURATION) {
-          seat.status = 'free';
-          delete seat.lockedAt;
-          delete seat.bookedBy;
-          changed = true;
-        }
-      }
-    }
-  }
-
-  if (changed) {
-    saveEvents(events);
-  }
-}, 60_000);
+// NOTE: seat reservation expiry is handled by the booking expiration job
+// which moves reserved seats back to available when bookings expire.
 
 // ==============================
 // START SERVER
