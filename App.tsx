@@ -35,13 +35,22 @@ function App() {
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]); // "tableId-seatId"
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]); // actual seat.id values for backend
   const [selectionTotal, setSelectionTotal] = useState(0);
+  // Telegram detection state: start as 'pending' and become 'ready' or 'unavailable'
+  const [telegramStatus, setTelegramStatus] = useState<'pending' | 'ready' | 'unavailable'>('pending');
 
-  // Detect Telegram WebApp availability (presence only)
-  const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined;
-  const isInTelegram = Boolean(tg);
+  // Render states: while pending show a loading screen; when unavailable show Open-in-Telegram message.
+  if (telegramStatus === 'pending') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
+        <div className="max-w-md bg-white p-6 rounded shadow text-center">
+          <h2 className="text-lg font-semibold mb-3">Loading…</h2>
+          <p className="text-sm text-gray-600">Initializing Telegram Web App integration.</p>
+        </div>
+      </div>
+    );
+  }
 
-  // If Telegram WebApp object is truly absent, render a clear, non-technical message and avoid any network calls.
-  if (!isInTelegram) {
+  if (telegramStatus === 'unavailable') {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
         <div className="max-w-md bg-white p-6 rounded shadow text-center">
@@ -52,15 +61,52 @@ function App() {
     );
   }
 
-  // Initial Load: authenticate via Telegram WebApp id
+  // Poll for Telegram WebApp presence asynchronously on mount.
   useEffect(() => {
-    // Initialize Telegram WebApp and attempt to read user id with safe retries.
-    // We must call ready() before reading init data.
+    let mounted = true;
+    let found = false;
+    const checkInterval = 100;
+    const poll = setInterval(() => {
+      try {
+        if ((window as any).Telegram && (window as any).Telegram.WebApp) {
+          found = true;
+          setTelegramStatus('ready');
+          clearInterval(poll);
+        }
+      } catch {}
+    }, checkInterval);
+
+    // immediate check
+    try {
+      if ((window as any).Telegram && (window as any).Telegram.WebApp) {
+        found = true;
+        setTelegramStatus('ready');
+        clearInterval(poll);
+      }
+    } catch {}
+
+    // If not found within timeout, mark unavailable
+    const timeout = setTimeout(() => {
+      if (!found && mounted) setTelegramStatus('unavailable');
+      clearInterval(poll);
+    }, 1800);
+
+    return () => {
+      mounted = false;
+      clearInterval(poll);
+      clearTimeout(timeout);
+    };
+  }, []);
+
+  // When Telegram WebApp is ready, call ready() and attempt to read init data (with retries for user)
+  useEffect(() => {
+    if (telegramStatus !== 'ready') return;
+    const tg = (window as any).Telegram?.WebApp;
     if (!tg) return;
 
     let mounted = true;
     let attempts = 0;
-    const maxAttempts = 12; // retry up to ~6 seconds (12 * 500ms)
+    const maxAttempts = 12;
     const intervalMs = 500;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -72,7 +118,6 @@ function App() {
 
     const readUser = async () => {
       if (!mounted) return;
-      // Try to read user from initDataUnsafe first
       const unsafe = (tg as any).initDataUnsafe as { user?: { id?: number; username?: string } } | undefined;
       const uid = unsafe?.user?.id;
       const uname = unsafe?.user?.username;
@@ -93,7 +138,6 @@ function App() {
         return;
       }
 
-      // If user is not available yet, retry briefly.
       attempts += 1;
       if (attempts <= maxAttempts) {
         timer = setTimeout(() => {
@@ -103,11 +147,9 @@ function App() {
         return;
       }
 
-      // After retries, surface a friendly error (do not claim we're outside Telegram)
       setClientError('Unable to read Telegram user data. Please reopen the Web App from the Telegram client.');
     };
 
-    // Start sequence
     safeReady();
     readUser();
 
@@ -125,7 +167,44 @@ function App() {
       if (timer) clearTimeout(timer);
       window.removeEventListener('auth:changed', onAuthChanged as EventListener);
     };
-  }, [tg]);
+  }, [telegramStatus]);
+
+  // Viewport and back-button integration when Telegram is ready
+  useEffect(() => {
+    if (telegramStatus !== 'ready') return;
+    const tg = (window as any).Telegram?.WebApp;
+    if (!tg) return;
+
+    const updateViewport = () => {
+      try {
+        const h = (tg as any).viewportHeight;
+        if (typeof h === 'number') {
+          document.documentElement.style.setProperty('--tg-viewport-height', `${h}px`);
+        }
+      } catch {}
+    };
+
+    updateViewport();
+
+    const hasOnEvent = typeof (tg as any).onEvent === 'function';
+    if (hasOnEvent) {
+      try {
+        (tg as any).onEvent('viewportChanged', updateViewport);
+        (tg as any).onEvent('backButtonClicked', () => setView('event-list'));
+      } catch {}
+    }
+
+    window.addEventListener('resize', updateViewport);
+    return () => {
+      if (hasOnEvent) {
+        try {
+          (tg as any).offEvent?.('viewportChanged', updateViewport);
+          (tg as any).offEvent?.('backButtonClicked', () => setView('event-list'));
+        } catch {}
+      }
+      window.removeEventListener('resize', updateViewport);
+    };
+  }, [telegramStatus]);
 
   useEffect(() => {
     // Refresh data every few seconds to simulate live updates (for lock expiry)
@@ -344,40 +423,7 @@ function App() {
       load();
     }, [telegramUserId]);
 
-    // Sync with Telegram viewport/resizing and back button when available
-    useEffect(() => {
-      if (!tg) return;
-
-      const updateViewport = () => {
-        try {
-          const h = (tg as any).viewportHeight;
-          if (typeof h === 'number') {
-            document.documentElement.style.setProperty('--tg-viewport-height', `${h}px`);
-          }
-        } catch {}
-      };
-
-      updateViewport();
-
-      // Prefer Telegram event API when present
-      const hasOnEvent = typeof (tg as any).onEvent === 'function';
-      if (hasOnEvent) {
-        try {
-          (tg as any).onEvent('viewportChanged', updateViewport);
-          (tg as any).onEvent('backButtonClicked', () => setView('event-list'));
-        } catch {}
-        return () => {
-          try {
-            (tg as any).offEvent?.('viewportChanged', updateViewport);
-            (tg as any).offEvent?.('backButtonClicked', () => setView('event-list'));
-          } catch {}
-        };
-      }
-
-      // Fallback to window resize
-      window.addEventListener('resize', updateViewport);
-      return () => window.removeEventListener('resize', updateViewport);
-    }, [tg]);
+    // NOTE: viewport handlers moved to top-level effect when Telegram is ready
 
     if (myBookings === null) {
       return (
