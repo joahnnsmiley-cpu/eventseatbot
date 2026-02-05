@@ -12,12 +12,24 @@ import {
   updateBookingStatus,
 } from './db';
 import { bot, notifyAdminsAboutBooking, notifyUser } from './bot';
+import adminEventsRouter from './routes/adminEvents';
+import adminSeatsRouter, { seats as inMemorySeats } from './routes/adminSeats';
+import adminBookingsRouter from './routes/adminBookings';
+import { inMemoryBookings } from './state';
+import { authMiddleware } from './auth/auth.middleware';
+import 'dotenv/config';
+import authRoutes from './auth/auth.routes';
+import { startBookingExpirationJob } from './jobs/bookingExpiration.job';
+import meRoutes from './routes/me.routes';
+
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use('/auth', authRoutes);
+app.use('/me', meRoutes);
 
 /**
  * ==============================
@@ -66,71 +78,72 @@ app.get('/events/:eventId', (req, res) => {
 });
 
 // ==============================
-// CREATE BOOKING
+// CREATE BOOKING (user-facing)
 // ==============================
-app.post('/bookings', (req, res) => {
-  const { eventId, telegramUserId, username, seatIds } = req.body as {
-    eventId: string;
-    telegramUserId: number;
-    username: string;
-    seatIds: string[];
-  };
+app.post('/bookings', authMiddleware, (req, res) => {
+  const user = (req as any).user;
+  const userId = user?.sub ?? user?.id ?? user?.userId;
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
+  const { eventId, seatIds } = req.body as { eventId: string; seatIds: string[] };
+  if (!eventId || !Array.isArray(seatIds) || seatIds.length === 0) {
+    return res.status(400).json({ error: 'eventId and seatIds[] are required' });
+  }
+
+  // Validate event exists
   const event = findEventById(eventId);
   if (!event) return res.status(404).json({ error: 'Event not found' });
 
-  if (!Array.isArray(seatIds) || seatIds.length === 0) {
-    return res.status(400).json({ error: 'No seats selected' });
+  // Check seats exist and are available
+  const seatsToReserve: any[] = [];
+  for (const seatId of seatIds) {
+    const s = inMemorySeats.find((x) => x.id === seatId && x.eventId === eventId);
+    if (!s) return res.status(400).json({ error: `Seat not found: ${seatId}` });
+    if (s.status !== 'available') return res.status(400).json({ error: `Seat not available: ${seatId}` });
+    seatsToReserve.push(s);
   }
 
-  let totalAmount = 0;
+  // Calculate total
+  const totalPrice = seatsToReserve.reduce((sum, s) => sum + Number(s.price || 0), 0);
   const now = Date.now();
+  const expiresAt = now + 15 * 60 * 1000;
 
-  for (const fullId of seatIds) {
-    const [tableId, seatId] = fullId.split('-');
-    const table = event.tables.find((t) => t.id === tableId);
-    const seat = table?.seats.find((s) => s.id === seatId);
-    if (!seat) return res.status(400).json({ error: `Seat not found: ${fullId}` });
-    if (seat.status !== 'free') {
-      return res.status(400).json({ error: `Seat not available: ${fullId}` });
-    }
-    totalAmount += seat.price;
-    seat.status = 'locked';
-    seat.lockedAt = now;
-    seat.bookedBy = username;
+  // Reserve seats
+  for (const s of seatsToReserve) {
+    s.status = 'reserved';
   }
 
-  const booking: Booking = {
+  const booking: InMemoryBooking = {
     id: uuid(),
     eventId,
-    userTelegramId: Number(telegramUserId),
-    username: username ?? '',
+    userId,
     seatIds,
-    totalAmount,
-    status: 'pending',
+    totalPrice,
+    status: 'reserved',
     createdAt: now,
+    expiresAt,
   };
 
-  addBooking(booking);
+  inMemoryBookings.push(booking);
 
-  const events = getEvents().map((e) => (e.id === event.id ? event : e));
-  saveEvents(events);
+  // Expire reservation after 15 minutes if still reserved
+  setTimeout(() => {
+    const b = inMemoryBookings.find((x) => x.id === booking.id);
+    if (!b) return;
+    if (b.status === 'reserved') {
+      for (const sid of b.seatIds) {
+        const s = inMemorySeats.find((x) => x.id === sid && x.eventId === b.eventId);
+        if (s && s.status === 'reserved') s.status = 'available';
+      }
+      b.status = 'cancelled';
+    }
+  }, expiresAt - now);
 
-  // Telegram notifications (send-only)
-  notifyUser(
-    telegramUserId,
-    `Вы выбрали места ${seatIds.join(
-      ', ',
-    )}. К оплате ${totalAmount} рублей. Перевод по номеру тел. ${event.paymentPhone} СБП. После оплаты ожидайте билеты в этом чате.`,
-  );
+  const paymentInstructions = event
+    ? `Pay ${totalPrice} ₽ to ${event.paymentPhone || 'the provided payment method'}`
+    : `Pay ${totalPrice} ₽`;
 
-  notifyAdminsAboutBooking(
-    `@${username} забронировал места ${seatIds.join(
-      ', ',
-    )} на мероприятие "${event.title}" на сумму ${totalAmount} ₽. Проверьте оплату.`,
-  );
-
-  res.status(201).json(booking);
+  res.status(201).json({ booking, paymentInstructions });
 });
 
 // ==============================
@@ -146,45 +159,11 @@ app.get('/bookings/my', (req, res) => {
   res.json(mine);
 });
 
-// ==============================
-// ADMIN
-// ==============================
-app.get('/admin/bookings', (req, res) => {
-  const status = req.query.status as string | undefined;
-  let all = getBookings();
-  if (status) {
-    all = all.filter((b) => b.status === status);
-  }
-  res.json(all);
-});
 
-app.post('/admin/bookings/:id/confirm', (req, res) => {
-  const booking = updateBookingStatus(req.params.id, 'paid');
-  if (!booking) return res.status(404).json({ error: 'Booking not found' });
-
-  const event = findEventById(booking.eventId);
-  if (!event) return res.status(404).json({ error: 'Event not found' });
-
-  for (const fullId of booking.seatIds) {
-    const [tableId, seatId] = fullId.split('-');
-    const table = event.tables.find((t) => t.id === tableId);
-    const seat = table?.seats.find((s) => s.id === seatId);
-    if (seat) {
-      seat.status = 'sold';
-      if (seat.lockedAt !== undefined) delete seat.lockedAt;
-    }
-  }
-
-  const events = getEvents().map((e) => (e.id === event.id ? event : e));
-  saveEvents(events);
-
-  notifyUser(
-    booking.userTelegramId,
-    'Оплата подтверждена. В ближайшее время вы получите билеты (графические файлы).',
-  );
-
-  res.json({ ok: true });
-});
+// Mount admin routes (JWT + adminOnly applied inside router)
+app.use('/admin', adminEventsRouter);
+app.use('/admin', adminSeatsRouter);
+app.use('/admin', adminBookingsRouter);
 
 // ==============================
 // CLEANUP LOCKS
@@ -218,4 +197,5 @@ setInterval(() => {
 // ==============================
 app.listen(PORT, () => {
   console.log(`Backend API listening on http://localhost:${PORT}`);
+  startBookingExpirationJob();
 });

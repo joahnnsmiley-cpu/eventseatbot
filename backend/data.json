@@ -9,6 +9,16 @@
       "paymentPhone": "79991234567",
       "maxSeatsPerBooking": 4,
       "tables": []
+    },
+    {
+      "id": "6822d760-e79d-47ec-b6c2-0c0f03b45002",
+      "title": "Test Event",
+      "description": "Test description",
+      "date": "2026-03-01",
+      "imageUrl": "",
+      "paymentPhone": "",
+      "maxSeatsPerBooking": 0,
+      "tables": []
     }
   ],
   "bookings": [],
