@@ -4,6 +4,7 @@
  */
 
 export interface PaymentCreatedEvent {
+  paymentId: string;
   bookingId: string;
   eventId: string;
   tableId?: string | undefined;

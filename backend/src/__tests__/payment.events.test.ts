@@ -143,6 +143,35 @@ runTest('paymentCreated event includes bookingId', () => {
   }
 });
 
+runTest('paymentCreated event includes paymentId', () => {
+  mockNotifier.reset();
+
+  const mockBookingsState = [
+    {
+      id: 'test-bk-evt-2b',
+      eventId: 'test-evt-2b',
+      tableId: 'table-2b',
+      seatsBooked: 3,
+      status: 'confirmed',
+      totalAmount: 7500,
+    },
+  ];
+
+  (bookingDb as any).getBookings = () => mockBookingsState;
+
+  try {
+    createPaymentIntentService('test-bk-evt-2b', 7500);
+
+    assert(mockNotifier.calls[0], 'Should have first call');
+    assert(mockNotifier.calls[0]!.event === 'paymentCreated', 'Should emit paymentCreated');
+    const event = mockNotifier.calls[0]!.data as PaymentCreatedEvent;
+    assert(event.paymentId, 'Should include paymentId');
+    assert(event.paymentId.length > 0, 'paymentId should not be empty');
+  } finally {
+    (bookingDb as any).getBookings = originalGetBookings;
+  }
+});
+
 runTest('paymentCreated event includes eventId', () => {
   mockNotifier.reset();
 

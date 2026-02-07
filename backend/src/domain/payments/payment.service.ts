@@ -52,6 +52,7 @@ export function createPaymentIntent(
     const booking = bookings.find((b: any) => b.id === bookingId);
     if (booking) {
       emitPaymentCreated({
+        paymentId: id,
         bookingId,
         eventId: booking.eventId,
         tableId: booking.tableId,

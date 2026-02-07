@@ -235,21 +235,30 @@ runTest('POST /admin/payments/:id/confirm returns 409 for already paid payment',
 });
 
 runTest('POST /admin/payments/:id/confirm requires confirmed booking', () => {
-  const bookings = originalGetBookings();
-  const pendingBooking = bookings.find((b: any) => b.status === 'pending' || b.status === 'cancelled') as any;
+  // Setup with non-confirmed booking
+  mockBookingsState = [
+    {
+      id: 'test-bk-pending',
+      eventId: 'test-evt',
+      status: 'pending', // Not confirmed
+      totalAmount: 1000,
+    },
+  ];
 
-  assert(pendingBooking || bookings.length > 0, 'Test setup: Need at least one booking');
+  (bookingDb as any).getBookings = () => mockBookingsState;
 
-  const testBooking = pendingBooking || bookings[0];
+  try {
+    const createResult = createPaymentIntentService('test-bk-pending', 1000);
+    const paymentId = createResult.data!.id;
 
-  const createResult = createPaymentIntentService(testBooking.id, 1000);
-  const paymentId = createResult.data!.id;
+    const mockRes = createMockResponse();
+    handleConfirmPayment(paymentId, 'admin@example.com', mockRes);
 
-  const mockRes = createMockResponse();
-  handleConfirmPayment(paymentId, 'admin@example.com', mockRes);
-
-  assertEquals(mockRes.statusCode, 400, 'Should return 400');
-  assert(mockRes.body.error.includes('confirmed'), 'Error should mention booking status');
+    assertEquals(mockRes.statusCode, 400, 'Should return 400');
+    assert(mockRes.body.error.includes('confirmed'), 'Error should mention booking status');
+  } finally {
+    (bookingDb as any).getBookings = originalGetBookings;
+  }
 });
 
 runTest('Confirmed payment has correct audit fields', () => {

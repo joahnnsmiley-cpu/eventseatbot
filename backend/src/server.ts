@@ -17,7 +17,9 @@ import 'dotenv/config';
 import authRoutes from './auth/auth.routes';
 import meRoutes from './routes/me.routes';
 import { setBookingEventNotifier } from './domain/bookings';
+import { setPaymentEventNotifier } from './domain/payments';
 import { TelegramBookingNotifier } from './infra/telegram';
+import { TelegramPaymentNotifier } from './infra/telegram/telegram.payment-notifier';
 import { startBookingExpirationJob } from './infra/scheduler';
 
 
@@ -35,11 +37,15 @@ const token = process.env.TELEGRAM_BOT_TOKEN;
 const chatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
 
 if (token && chatId) {
-  const telegramNotifier = new TelegramBookingNotifier();
-  setBookingEventNotifier(telegramNotifier);
+  const telegramBookingNotifier = new TelegramBookingNotifier();
+  setBookingEventNotifier(telegramBookingNotifier);
   console.log('[Bootstrap] Telegram booking notifier initialized');
+
+  const telegramPaymentNotifier = new TelegramPaymentNotifier();
+  setPaymentEventNotifier(telegramPaymentNotifier);
+  console.log('[Bootstrap] Telegram payment notifier initialized');
 } else {
-  console.log('[Bootstrap] Telegram notifier disabled: missing env vars');
+  console.log('[Bootstrap] Telegram notifiers disabled: missing env vars');
 }
 
 app.use(cors());
