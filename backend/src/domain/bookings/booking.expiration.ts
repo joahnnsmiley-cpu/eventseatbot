@@ -4,6 +4,7 @@
 
 import { getEvents, getBookings, updateBookingStatus, saveEvents } from '../../db';
 import { emitBookingCancelled } from './booking.events';
+import { findPaymentsByBookingId } from '../payments/payment.repository';
 
 /**
  * Get booking TTL in minutes from environment or use default
@@ -37,8 +38,20 @@ export function isBookingExpired(expiresAt: string): boolean {
 }
 
 /**
+ * Check if a booking has a paid payment
+ * If payment exists and status is 'paid', booking should not expire
+ * @param bookingId - Booking ID to check
+ * @returns true if booking has a paid payment
+ */
+export function hasPaymentPaid(bookingId: string): boolean {
+  const payments = findPaymentsByBookingId(bookingId);
+  return payments.some((p) => p.status === 'paid');
+}
+
+/**
  * Expire stale confirmed bookings
  * - Find all confirmed bookings with expiresAt < now
+ * - Skip bookings with paid payments (never expire if paid)
  * - Cancel each booking and restore table seats
  * - Idempotent and never throws
  * @param now - Current timestamp (defaults to Date.now())
@@ -55,7 +68,8 @@ export function expireStaleBookings(now: Date = new Date()): number {
       return (
         b.status === 'confirmed' &&
         b.expiresAt &&
-        new Date(b.expiresAt) <= now
+        new Date(b.expiresAt) <= now &&
+        !hasPaymentPaid(b.id) // Do NOT expire if payment is paid
       );
     });
 

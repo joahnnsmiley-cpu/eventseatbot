@@ -6,6 +6,7 @@
 import { expireStaleBookings, calculateBookingExpiration, getBookingTtlMinutes } from '../domain/bookings/booking.expiration';
 import { setBookingEventNotifier, type BookingEventNotifier, type BookingCancelledEvent } from '../domain/bookings';
 import * as db from '../db';
+import { createPaymentIntent, updatePaymentStatus } from '../domain/payments/payment.repository';
 
 interface TestResult {
   name: string;
@@ -741,6 +742,193 @@ async function runTests() {
     if (finalBooking?.status !== 'cancelled') {
       throw new Error(
         `Expected booking cancelled with injected time, got status: ${finalBooking?.status}`,
+      );
+    }
+  });
+
+  // Test 9: Booking with pending payment still expires
+  await runTest('booking with pending payment expires normally', async () => {
+    setBookingEventNotifier(mockNotifier);
+    mockNotifier.reset();
+
+    const events = db.getEvents();
+    const bookings = db.getBookings();
+
+    // Clear previous test data
+    db.setBookings([]);
+    const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-9');
+    db.saveEvents(cleanEvents);
+
+    // Add test event
+    const testEvent = {
+      id: 'exp-test-evt-9',
+      title: 'Test Event 9',
+      description: '',
+      date: new Date().toISOString(),
+      imageUrl: 'https://example.com/image9.jpg',
+      status: 'published',
+      paymentPhone: '',
+      maxSeatsPerBooking: 10,
+      schemaImageUrl: 'https://example.com/schema9.jpg',
+      tables: [
+        {
+          id: 'exp-test-tbl-9',
+          number: 1,
+          seatsTotal: 4,
+          seatsAvailable: 2,
+          centerX: 50,
+          centerY: 50,
+        },
+      ],
+    } as any;
+    const allEvents = db.getEvents();
+    allEvents.push(testEvent);
+    db.saveEvents(allEvents);
+
+    // Add expired booking
+    const now = new Date();
+    const createdAt = new Date(now.getTime() - 20 * 60 * 1000);
+    const expiresAt = calculateBookingExpiration(createdAt.getTime());
+
+    const bookingId = 'exp-test-bk-9';
+    const allBookings = db.getBookings();
+    allBookings.push({
+      id: bookingId,
+      eventId: 'exp-test-evt-9',
+      tableId: 'exp-test-tbl-9',
+      seatsBooked: 2,
+      status: 'confirmed',
+      createdAt: createdAt.getTime(),
+      expiresAt,
+      userTelegramId: 0,
+      username: '',
+      seatIds: [],
+      totalAmount: 5000,
+    } as any);
+    db.setBookings(allBookings);
+
+    // Create a PENDING payment for this booking
+    const paymentId = 'exp-test-payment-9';
+    createPaymentIntent(paymentId, bookingId, 5000);
+
+    // Call expireStaleBookings
+    const expiredCount = expireStaleBookings(now);
+
+    // Verify booking still expires (pending payment doesn't prevent expiration)
+    if (expiredCount !== 1) {
+      throw new Error(`Expected 1 booking to expire with pending payment, got ${expiredCount}`);
+    }
+
+    // Verify booking was cancelled
+    const finalBookings = db.getBookings();
+    const finalBooking = finalBookings.find((b: any) => b.id === bookingId);
+
+    if (finalBooking?.status !== 'cancelled') {
+      throw new Error(
+        `Expected booking cancelled with pending payment, got status: ${finalBooking?.status}`,
+      );
+    }
+
+    // Verify cancellation event was emitted
+    if (mockNotifier.callCount.bookingCancelled !== 1) {
+      throw new Error(
+        `Expected 1 bookingCancelled call, got ${mockNotifier.callCount.bookingCancelled}`,
+      );
+    }
+  });
+
+  // Test 10: Booking with paid payment does NOT expire
+  await runTest('booking with paid payment does NOT expire', async () => {
+    setBookingEventNotifier(mockNotifier);
+    mockNotifier.reset();
+
+    const events = db.getEvents();
+    const bookings = db.getBookings();
+
+    // Clear previous test data
+    db.setBookings([]);
+    const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-10');
+    db.saveEvents(cleanEvents);
+
+    // Add test event
+    const testEvent = {
+      id: 'exp-test-evt-10',
+      title: 'Test Event 10',
+      description: '',
+      date: new Date().toISOString(),
+      imageUrl: 'https://example.com/image10.jpg',
+      status: 'published',
+      paymentPhone: '',
+      maxSeatsPerBooking: 10,
+      schemaImageUrl: 'https://example.com/schema10.jpg',
+      tables: [
+        {
+          id: 'exp-test-tbl-10',
+          number: 1,
+          seatsTotal: 4,
+          seatsAvailable: 2,
+          centerX: 50,
+          centerY: 50,
+        },
+      ],
+    } as any;
+    const allEvents = db.getEvents();
+    allEvents.push(testEvent);
+    db.saveEvents(allEvents);
+
+    // Add expired booking
+    const now = new Date();
+    const createdAt = new Date(now.getTime() - 20 * 60 * 1000);
+    const expiresAt = calculateBookingExpiration(createdAt.getTime());
+
+    const bookingId = 'exp-test-bk-10';
+    const allBookings = db.getBookings();
+    allBookings.push({
+      id: bookingId,
+      eventId: 'exp-test-evt-10',
+      tableId: 'exp-test-tbl-10',
+      seatsBooked: 2,
+      status: 'confirmed',
+      createdAt: createdAt.getTime(),
+      expiresAt,
+      userTelegramId: 0,
+      username: '',
+      seatIds: [],
+      totalAmount: 6000,
+    } as any);
+    db.setBookings(allBookings);
+
+    // Create a PAID payment for this booking
+    const paymentId = 'exp-test-payment-10';
+    const payment = createPaymentIntent(paymentId, bookingId, 6000);
+    updatePaymentStatus(paymentId, 'paid', {
+      method: 'manual',
+      confirmedBy: 'admin-user',
+      confirmedAt: new Date().toISOString(),
+    });
+
+    // Call expireStaleBookings
+    const expiredCount = expireStaleBookings(now);
+
+    // Verify NO bookings expired (paid payment prevents expiration)
+    if (expiredCount !== 0) {
+      throw new Error(`Expected 0 bookings to expire with paid payment, got ${expiredCount}`);
+    }
+
+    // Verify booking is STILL confirmed (not cancelled)
+    const finalBookings = db.getBookings();
+    const finalBooking = finalBookings.find((b: any) => b.id === bookingId);
+
+    if (finalBooking?.status !== 'confirmed') {
+      throw new Error(
+        `Expected booking still confirmed with paid payment, got status: ${finalBooking?.status}`,
+      );
+    }
+
+    // Verify NO cancellation event was emitted
+    if (mockNotifier.callCount.bookingCancelled !== 0) {
+      throw new Error(
+        `Expected 0 bookingCancelled calls, got ${mockNotifier.callCount.bookingCancelled}`,
       );
     }
   });

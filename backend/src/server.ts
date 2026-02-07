@@ -10,6 +10,7 @@ import adminSeatsRouter, { seats as inMemorySeats } from './routes/adminSeats';
 import adminBookingsRouter from './routes/adminBookings';
 import publicEventsRouter from './routes/publicEvents';
 import publicPaymentsRouter from './routes/publicPayments';
+import adminPaymentsRouter from './routes/adminPayments';
 import { inMemoryBookings } from './state';
 import { authMiddleware, AuthRequest } from './auth/auth.middleware';
 import 'dotenv/config';
@@ -291,6 +292,7 @@ app.get('/bookings/my', (req, res) => {
 app.use('/admin', adminEventsRouter);
 app.use('/admin', adminSeatsRouter);
 app.use('/admin', adminBookingsRouter);
+app.use('/admin', adminPaymentsRouter);
 // Public read-only event views and JSON endpoints
 app.use('/public', publicEventsRouter);
 app.use('/public', publicPaymentsRouter);

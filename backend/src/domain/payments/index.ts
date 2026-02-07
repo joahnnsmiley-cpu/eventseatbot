@@ -18,3 +18,12 @@ export {
   cancelPayment,
   type ServiceResponse,
 } from './payment.service';
+
+export {
+  setPaymentEventNotifier,
+  emitPaymentCreated,
+  emitPaymentConfirmed,
+  type PaymentEventNotifier,
+  type PaymentCreatedEvent,
+  type PaymentConfirmedEvent,
+} from './payment.events';

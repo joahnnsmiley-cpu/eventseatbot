@@ -13,6 +13,7 @@ import {
   type PaymentStatus,
 } from './payment.repository';
 import { getBookings, updateBookingStatus as updateBooking } from '../../db';
+import { emitPaymentCreated, emitPaymentConfirmed } from './payment.events';
 
 /**
  * Service response types
@@ -27,6 +28,7 @@ export interface ServiceResponse<T> {
 /**
  * Create a new payment intent for a booking
  * - Default status: pending
+ * - Emits paymentCreated event (fire-and-forget, errors don't break API)
  * - Returns the created payment intent
  */
 export function createPaymentIntent(
@@ -44,6 +46,22 @@ export function createPaymentIntent(
   try {
     const id = uuid();
     const payment = repoCreate(id, bookingId, amount);
+    
+    // Emit payment created event (fire-and-forget, errors don't affect API)
+    const bookings = getBookings();
+    const booking = bookings.find((b: any) => b.id === bookingId);
+    if (booking) {
+      emitPaymentCreated({
+        bookingId,
+        eventId: booking.eventId,
+        tableId: booking.tableId,
+        seatsBooked: booking.seatsBooked,
+        amount,
+        method: 'manual',
+        instruction: 'Ожидается перевод по номеру телефона',
+      });
+    }
+    
     return {
       success: true,
       status: 201,
@@ -149,6 +167,14 @@ export function markPaid(
       console.error('[PaymentService] Failed to update booking status:', err);
       // Continue anyway - payment is already marked paid
     }
+
+    // Emit payment confirmed event (fire-and-forget, errors don't affect API)
+    emitPaymentConfirmed({
+      bookingId: payment.bookingId,
+      amount: payment.amount,
+      confirmedBy,
+      confirmedAt: updated.confirmedAt!,
+    });
 
     return {
       success: true,

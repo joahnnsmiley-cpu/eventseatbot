@@ -1,0 +1,303 @@
+/**
+ * Unit tests for admin payment confirmation endpoint
+ * Run with: npx ts-node src/__tests__/payment.admin.test.ts
+ */
+
+import {
+  createPaymentIntentService,
+  findPaymentById,
+  markPaid,
+} from '../domain/payments';
+import * as bookingDb from '../db';
+
+interface TestResult {
+  name: string;
+  passed: boolean;
+  error?: string;
+}
+
+const results: TestResult[] = [];
+
+function runTest(name: string, fn: () => void): void {
+  try {
+    fn();
+    results.push({ name, passed: true });
+    console.log(`✓ ${name}`);
+  } catch (error) {
+    results.push({
+      name,
+      passed: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    console.log(`✗ ${name}`);
+    if (error instanceof Error) {
+      console.log(`  Error: ${error.message}`);
+    }
+  }
+}
+
+function assert(condition: boolean | any, message: string): void {
+  if (!condition) throw new Error(message);
+}
+
+function assertEquals<T>(actual: T, expected: T, message: string): void {
+  if (actual !== expected) {
+    throw new Error(`${message}: expected ${expected}, got ${actual}`);
+  }
+}
+
+// ============================================
+// MOCK RESPONSE HELPER
+// ============================================
+
+interface MockResponse {
+  statusCode: number;
+  body: any;
+}
+
+function createMockResponse(): MockResponse {
+  return {
+    statusCode: 200,
+    body: null,
+  };
+}
+
+// Store original getBookings
+const originalGetBookings = (bookingDb as any).getBookings;
+
+// Mock bookings for testing
+let mockBookingsState: any[] = [];
+
+// ============================================
+// ENDPOINT HANDLER (mirrors actual route)
+// ============================================
+
+function handleConfirmPayment(
+  paymentId: string,
+  confirmedBy: string | undefined,
+  mockRes: MockResponse,
+): void {
+  // Validation
+  if (!confirmedBy) {
+    mockRes.statusCode = 400;
+    mockRes.body = { error: 'confirmedBy is required' };
+    return;
+  }
+
+  if (!paymentId) {
+    mockRes.statusCode = 400;
+    mockRes.body = { error: 'paymentId is required' };
+    return;
+  }
+
+  // Find payment
+  const payment = findPaymentById(paymentId);
+  if (!payment) {
+    mockRes.statusCode = 404;
+    mockRes.body = { error: 'Payment not found' };
+    return;
+  }
+
+  // Check payment status
+  if (payment.status !== 'pending') {
+    mockRes.statusCode = 409;
+    mockRes.body = { error: 'Payment is not pending' };
+    return;
+  }
+
+  // Find related booking - uses the mocked getBookings
+  const bookings = (bookingDb as any).getBookings();
+  const booking = bookings.find((b: any) => b.id === payment.bookingId);
+  if (!booking) {
+    mockRes.statusCode = 404;
+    mockRes.body = { error: 'Booking not found' };
+    return;
+  }
+
+  // Check booking status
+  if (booking.status !== 'confirmed') {
+    mockRes.statusCode = 400;
+    mockRes.body = { error: 'Booking must be confirmed' };
+    return;
+  }
+
+  // Mark as paid
+  const result = markPaid(paymentId, confirmedBy);
+  if (!result.success) {
+    mockRes.statusCode = result.status || 500;
+    mockRes.body = { error: result.error };
+    return;
+  }
+
+  mockRes.statusCode = 200;
+  mockRes.body = result.data;
+}
+
+// ============================================
+// TESTS
+// ============================================
+
+console.log('\n📋 Admin Payment Confirmation Tests\n');
+
+runTest('POST /admin/payments/:id/confirm marks payment as paid', () => {
+  // Setup mock bookings
+  mockBookingsState = [
+    {
+      id: 'test-bk-1',
+      eventId: 'test-evt',
+      status: 'confirmed',
+      totalAmount: 1000,
+    },
+  ];
+
+  // Mock getBookings to return our test data
+  (bookingDb as any).getBookings = () => mockBookingsState;
+
+  try {
+    const createResult = createPaymentIntentService('test-bk-1', 1000);
+    assert(createResult.success, `Should create payment: ${createResult.error}`);
+    const paymentId = createResult.data!.id;
+
+    const mockRes = createMockResponse();
+    handleConfirmPayment(paymentId, 'admin@example.com', mockRes);
+
+    assertEquals(mockRes.statusCode, 200, `Should return 200, got ${mockRes.statusCode}: ${JSON.stringify(mockRes.body)}`);
+    assertEquals(mockRes.body.status, 'paid', 'Status should be paid');
+    assertEquals(mockRes.body.confirmedBy, 'admin@example.com', 'Should track confirmedBy');
+    assert(mockRes.body.confirmedAt, 'Should have confirmedAt timestamp');
+  } finally {
+    // Restore original getBookings
+    (bookingDb as any).getBookings = originalGetBookings;
+  }
+});
+
+runTest('POST /admin/payments/:id/confirm requires confirmedBy', () => {
+  mockBookingsState = [
+    {
+      id: 'test-bk-2',
+      eventId: 'test-evt',
+      status: 'confirmed',
+      totalAmount: 1000,
+    },
+  ];
+
+  (bookingDb as any).getBookings = () => mockBookingsState;
+
+  try {
+    const createResult = createPaymentIntentService('test-bk-2', 1000);
+    const paymentId = createResult.data!.id;
+
+    const mockRes = createMockResponse();
+    handleConfirmPayment(paymentId, undefined, mockRes);
+
+    assertEquals(mockRes.statusCode, 400, 'Should return 400');
+    assert(mockRes.body.error, 'Should have error message');
+  } finally {
+    (bookingDb as any).getBookings = originalGetBookings;
+  }
+});
+
+runTest('POST /admin/payments/:id/confirm returns 404 for missing payment', () => {
+  const mockRes = createMockResponse();
+  handleConfirmPayment('nonexistent-id', 'admin@example.com', mockRes);
+
+  assertEquals(mockRes.statusCode, 404, 'Should return 404');
+});
+
+runTest('POST /admin/payments/:id/confirm returns 409 for already paid payment', () => {
+  mockBookingsState = [
+    {
+      id: 'test-bk-3',
+      eventId: 'test-evt',
+      status: 'confirmed',
+      totalAmount: 1000,
+    },
+  ];
+
+  (bookingDb as any).getBookings = () => mockBookingsState;
+
+  try {
+    const createResult = createPaymentIntentService('test-bk-3', 1000);
+    const paymentId = createResult.data!.id;
+
+    // First confirm - should succeed
+    const mockRes1 = createMockResponse();
+    handleConfirmPayment(paymentId, 'admin@example.com', mockRes1);
+    assertEquals(mockRes1.statusCode, 200, `First confirm should succeed, got ${mockRes1.statusCode}: ${JSON.stringify(mockRes1.body)}`);
+
+    // Second confirm - should fail with 409
+    const mockRes2 = createMockResponse();
+    handleConfirmPayment(paymentId, 'admin@example.com', mockRes2);
+    assertEquals(mockRes2.statusCode, 409, 'Should return 409 on double confirm');
+  } finally {
+    (bookingDb as any).getBookings = originalGetBookings;
+  }
+});
+
+runTest('POST /admin/payments/:id/confirm requires confirmed booking', () => {
+  const bookings = originalGetBookings();
+  const pendingBooking = bookings.find((b: any) => b.status === 'pending' || b.status === 'cancelled') as any;
+
+  assert(pendingBooking || bookings.length > 0, 'Test setup: Need at least one booking');
+
+  const testBooking = pendingBooking || bookings[0];
+
+  const createResult = createPaymentIntentService(testBooking.id, 1000);
+  const paymentId = createResult.data!.id;
+
+  const mockRes = createMockResponse();
+  handleConfirmPayment(paymentId, 'admin@example.com', mockRes);
+
+  assertEquals(mockRes.statusCode, 400, 'Should return 400');
+  assert(mockRes.body.error.includes('confirmed'), 'Error should mention booking status');
+});
+
+runTest('Confirmed payment has correct audit fields', () => {
+  mockBookingsState = [
+    {
+      id: 'test-bk-4',
+      eventId: 'test-evt',
+      status: 'confirmed',
+      totalAmount: 1000,
+    },
+  ];
+
+  (bookingDb as any).getBookings = () => mockBookingsState;
+
+  try {
+    const createResult = createPaymentIntentService('test-bk-4', 1000);
+    const paymentId = createResult.data!.id;
+
+    const mockRes = createMockResponse();
+    handleConfirmPayment(paymentId, 'jane.admin@company.com', mockRes);
+
+    assertEquals(mockRes.statusCode, 200, 'Should succeed');
+    assertEquals(mockRes.body.method, 'manual', 'Should have method: manual');
+    assertEquals(mockRes.body.confirmedBy, 'jane.admin@company.com', 'Should track confirmedBy');
+    assert(typeof mockRes.body.confirmedAt === 'string', 'confirmedAt should be ISO string');
+    assert(mockRes.body.status === 'paid', 'Status should be paid');
+  } finally {
+    (bookingDb as any).getBookings = originalGetBookings;
+  }
+});
+
+// ============================================
+// SUMMARY
+// ============================================
+
+const passed = results.filter((r) => r.passed).length;
+const failed = results.filter((r) => !r.passed).length;
+const total = results.length;
+
+console.log('\n' + '='.repeat(50));
+console.log(`Tests: ${passed}/${total} passed`);
+if (failed > 0) {
+  console.log(`\n❌ Failed tests:`);
+  results.filter((r) => !r.passed).forEach((r) => {
+    console.log(`  - ${r.name}: ${r.error}`);
+  });
+  process.exit(1);
+} else {
+  console.log('✅ All tests passed!');
+  process.exit(0);
+}
