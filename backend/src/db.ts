@@ -152,6 +152,12 @@ export const saveBookings = (bookings: Booking[]) => {
   writeDb(db);
 };
 
+export const setBookings = (bookings: Booking[]) => {
+  const db = readDb();
+  db.bookings = bookings;
+  writeDb(db);
+};
+
 export const getAdmins = () => readDb().admins;
 
 export const setAdmins = (ids: number[]) => {

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getEvents, findEventById } from '../db';
 import { getBookings, updateBookingStatus, saveEvents, addBooking } from '../db';
+import { emitBookingCreated, emitBookingCancelled, calculateBookingExpiration } from '../domain/bookings';
 
 const router = Router();
 
@@ -185,16 +186,25 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
       saveEvents(saveable);
 
       // create booking record
+      const createdAtMs = Date.now();
       const booking = {
         id: (require('uuid').v4)(),
         eventId,
         tableId,
         seatsBooked: seats,
         status: 'confirmed',
-        createdAt: Date.now(),
+        createdAt: createdAtMs,
+        expiresAt: calculateBookingExpiration(createdAtMs), // Set expiration for confirmed bookings
       } as any;
 
       try { addBooking(booking); } catch {}
+
+      // Emit booking created event (fire-and-forget)
+      emitBookingCreated({
+        bookingId: booking.id,
+        eventId: booking.eventId,
+        seats: booking.seatsBooked,
+      }).catch(() => {}); // Already handled in emitter
 
       return { status: 201, body: booking };
     });
@@ -259,6 +269,13 @@ router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
       // mark booking cancelled
       const updated = updateBookingStatus(bookingId, 'cancelled');
       if (!updated) return { status: 500, body: { error: 'Failed to update booking status' } };
+
+      // Emit booking cancelled event (fire-and-forget)
+      emitBookingCancelled({
+        bookingId: booking.id,
+        eventId: booking.eventId,
+        reason: 'manual',
+      }).catch(() => {}); // Already handled in emitter
 
       return { status: 200, body: { ok: true } };
     });

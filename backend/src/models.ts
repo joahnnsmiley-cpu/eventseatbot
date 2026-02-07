@@ -49,6 +49,7 @@ export interface Booking {
   totalAmount: number;
   status: BookingStatus;
   createdAt: number;
+  expiresAt?: string; // ISO string, only set for status = 'confirmed', ignored if status = 'paid'
   tableId?: string;
   seatsBooked?: number;
 }

@@ -40,6 +40,7 @@ export interface Booking {
   totalAmount: number;
   status: 'pending' | 'paid' | 'cancelled';
   createdAt: number;
+  expiresAt?: string; // ISO string, only for confirmed/pending bookings
 }
 
 export type ViewState = 'event-list' | 'event-details' | 'admin-dashboard' | 'admin-create' | 'booking-success' | 'my-tickets';

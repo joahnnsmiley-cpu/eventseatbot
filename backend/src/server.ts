@@ -9,16 +9,37 @@ import adminEventsRouter from './routes/adminEvents';
 import adminSeatsRouter, { seats as inMemorySeats } from './routes/adminSeats';
 import adminBookingsRouter from './routes/adminBookings';
 import publicEventsRouter from './routes/publicEvents';
+import publicPaymentsRouter from './routes/publicPayments';
 import { inMemoryBookings } from './state';
 import { authMiddleware, AuthRequest } from './auth/auth.middleware';
 import 'dotenv/config';
 import authRoutes from './auth/auth.routes';
-import { startBookingExpirationJob } from './jobs/bookingExpiration.job';
 import meRoutes from './routes/me.routes';
+import { setBookingEventNotifier } from './domain/bookings';
+import { TelegramBookingNotifier } from './infra/telegram';
+import { startBookingExpirationJob } from './infra/scheduler';
 
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+/**
+ * ==============================
+ * BOOTSTRAP: Initialize Infrastructure
+ * ==============================
+ */
+
+// Wire Telegram notifier into booking events (if env vars exist)
+const token = process.env.TELEGRAM_BOT_TOKEN;
+const chatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+
+if (token && chatId) {
+  const telegramNotifier = new TelegramBookingNotifier();
+  setBookingEventNotifier(telegramNotifier);
+  console.log('[Bootstrap] Telegram booking notifier initialized');
+} else {
+  console.log('[Bootstrap] Telegram notifier disabled: missing env vars');
+}
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -272,6 +293,7 @@ app.use('/admin', adminSeatsRouter);
 app.use('/admin', adminBookingsRouter);
 // Public read-only event views and JSON endpoints
 app.use('/public', publicEventsRouter);
+app.use('/public', publicPaymentsRouter);
 
 // NOTE: seat reservation expiry is handled by the booking expiration job
 // which moves reserved seats back to available when bookings expire.
