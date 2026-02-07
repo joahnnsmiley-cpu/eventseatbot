@@ -11,17 +11,18 @@
     "test:e2e:ui": "playwright test tests/admin.spec.ts --reporter=list"
   },
   "dependencies": {
+    "@google/genai": "^1.39.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "uuid": "^11.0.5",
-    "@google/genai": "^1.39.0"
+    "uuid": "^11.0.5"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0",
     "@playwright/test": "^1.37.0",
-    "jsonwebtoken": "^9.0.0"
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-legacy": "^6.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
   }
 }
