@@ -50,6 +50,7 @@ if (token && chatId) {
 
 const allowedOrigins = [
   'https://web.telegram.org',
+  'https://t.me',
 ];
 const vercelOrigin = /^https:\/\/.+\.vercel\.app$/;
 
@@ -61,7 +62,7 @@ app.use(cors({
     }
     return callback(new Error('Not allowed by CORS'));
   },
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(bodyParser.json());
