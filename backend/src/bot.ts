@@ -8,10 +8,14 @@ import {
 } from './infra/telegram';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const WEBAPP_URL = process.env.WEBAPP_URL || 'http://localhost:5173';
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:4000';
 
 if (!BOT_TOKEN) {
   console.warn('BOT_TOKEN is not set. Telegram bot will not work.');
+}
+
+if (!API_BASE_URL) {
+  console.warn('API_BASE_URL is not set. Using default http://localhost:4000');
 }
 
 // ВАЖНО: бот создаётся, но НЕ запускается
@@ -22,19 +26,87 @@ export const bot = BOT_TOKEN ? new Telegraf(BOT_TOKEN) : null;
  * НИКАКОГО bot.launch() — webhook режим
  */
 if (bot) {
-  bot.start((ctx) => {
-    const keyboard = Markup.keyboard([
-      Markup.button.webApp('Открыть план зала', WEBAPP_URL),
-    ]).resize();
+  const fetchJson = async <T>(path: string): Promise<T> => {
+    const res = await fetch(`${API_BASE_URL}${path}`);
+    if (!res.ok) {
+      throw new Error(`Request failed: ${res.status}`);
+    }
+    return res.json() as Promise<T>;
+  };
 
-    ctx.reply(
-      'Добро пожаловать! Нажмите «Открыть план зала», чтобы выбрать места.',
+  const formatEventLine = (event: { title?: string; date?: string }) => {
+    const title = event.title || 'Без названия';
+    const date = event.date || '';
+    return date ? `${title}\n${date}` : title;
+  };
+
+  bot.start(async (ctx) => {
+    const keyboard = Markup.inlineKeyboard([
+      Markup.button.callback('📅 События', 'public_events'),
+    ]);
+
+    await ctx.reply(
+      'Привет! Я показываю опубликованные события.',
       keyboard,
     );
   });
 
   bot.help((ctx) => {
-    ctx.reply('Используйте кнопку «Открыть план зала» для выбора мест.');
+    ctx.reply('Нажмите «📅 События», чтобы посмотреть опубликованные события.');
+  });
+
+  bot.action('public_events', async (ctx) => {
+    try {
+      const events = await fetchJson<Array<{ id: string; title?: string; date?: string }>>('/public/events');
+      if (!events.length) {
+        await ctx.reply('Пока нет опубликованных событий.');
+        return;
+      }
+
+      for (const event of events) {
+        const keyboard = Markup.inlineKeyboard([
+          Markup.button.callback('Открыть', `public_event:${event.id}`),
+        ]);
+        await ctx.reply(formatEventLine(event), keyboard);
+      }
+    } catch (err) {
+      console.error('[PublicEvents] Failed to load events:', err);
+      await ctx.reply('Не удалось загрузить события. Попробуйте позже.');
+    } finally {
+      await ctx.answerCbQuery();
+    }
+  });
+
+  bot.action(/^public_event:(.+)$/i, async (ctx) => {
+    const eventId = ctx.match[1];
+    try {
+      const event = await fetchJson<{
+        id: string;
+        title?: string;
+        date?: string;
+        coverImageUrl?: string | null;
+        schemaImageUrl?: string | null;
+      }>(`/public/events/${encodeURIComponent(eventId)}`);
+
+      const title = event.title || 'Без названия';
+      const date = event.date || '';
+      await ctx.reply(`${title}\n${date}`);
+
+      if (event.coverImageUrl) {
+        await ctx.replyWithPhoto(event.coverImageUrl, { caption: 'Афиша' });
+      }
+
+      if (event.schemaImageUrl) {
+        await ctx.replyWithPhoto(event.schemaImageUrl, { caption: 'Схема зала' });
+      }
+
+      await ctx.reply('Скоро здесь появится бронирование');
+    } catch (err) {
+      console.error('[PublicEvents] Failed to load event:', err);
+      await ctx.reply('Не удалось загрузить событие. Попробуйте позже.');
+    } finally {
+      await ctx.answerCbQuery();
+    }
   });
 
   /**

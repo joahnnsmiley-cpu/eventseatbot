@@ -33,17 +33,17 @@ const router = Router();
 // Protect all admin event routes
 router.use(authMiddleware, adminOnly);
 
-const validate = (body: unknown) => {
-  const errors: string[] = [];
-  if (!body || typeof body !== 'object') {
-    errors.push('Invalid body');
-    return errors;
+const normalizeId = (raw: string | string[] | undefined) => {
+  if (Array.isArray(raw)) {
+    return raw.find((v) => typeof v === 'string' && v.length > 0) || '';
   }
-  const b = body as Record<string, unknown>;
-  if (!b.title || typeof b.title !== 'string') errors.push('title is required');
-  if (!b.description || typeof b.description !== 'string') errors.push('description is required');
-  if (!b.date || typeof b.date !== 'string' || Number.isNaN(Date.parse(b.date as string))) errors.push('date is required (ISO string)');
-  return errors;
+  if (typeof raw === 'string') return raw;
+  return '';
+};
+
+const respondBadRequest = (res: Response, err: Error, payload: unknown) => {
+  console.error('[ADMIN ROUTER ERROR]', err);
+  return res.status(400).json(payload);
 };
 
 const toEvent = (e: EventData): Event => ({ id: e.id, title: e.title, description: e.description, date: e.date });
@@ -54,13 +54,31 @@ router.get('/events', (_req: Request, res: Response) => {
   res.json(events);
 });
 
+// GET /admin/events/:id
+router.get('/events/:id', (req: Request, res: Response) => {
+  const id = normalizeId(req.params.id);
+
+  if (!id) {
+    return respondBadRequest(res, new Error('Event id is required'), { error: 'Event id is required' });
+  }
+
+  const existing = findEventById(id);
+  if (!existing) return res.status(404).json({ error: 'Event not found' });
+
+  // Allow admin to read events regardless of status.
+  res.json(existing);
+});
+
 // POST /admin/events
 router.post('/events', (req: Request, res: Response) => {
-  const errs = validate(req.body);
-  if (errs.length) return res.status(400).json({ errors: errs });
-
   const id = uuid();
-  const newEvent: Event = { id, title: req.body.title, description: req.body.description, date: req.body.date };
+  const title = typeof req.body.title === 'string' ? req.body.title : '';
+  const description = typeof req.body.description === 'string' ? req.body.description : '';
+  const date = typeof req.body.date === 'string' ? req.body.date : new Date().toISOString();
+  const newEvent: Event = { id, title, description, date };
+  const coverImageUrl = typeof req.body.coverImageUrl === 'string' ? req.body.coverImageUrl : undefined;
+  const imageUrl = typeof req.body.imageUrl === 'string' ? req.body.imageUrl : coverImageUrl || '';
+  const schemaImageUrl = typeof req.body.schemaImageUrl === 'string' ? req.body.schemaImageUrl : undefined;
 
   // Convert to EventData with sensible defaults so storage remains compatible
   const eventData: EventData = {
@@ -68,7 +86,8 @@ router.post('/events', (req: Request, res: Response) => {
     title: newEvent.title,
     description: newEvent.description,
     date: newEvent.date,
-    imageUrl: req.body.imageUrl || '',
+    imageUrl,
+    schemaImageUrl,
     paymentPhone: req.body.paymentPhone || '',
     maxSeatsPerBooking: Number(req.body.maxSeatsPerBooking) || 0,
     tables: req.body.tables || [],
@@ -78,13 +97,35 @@ router.post('/events', (req: Request, res: Response) => {
   res.status(201).json(newEvent);
 });
 
-// PUT /admin/events/:id
-router.put('/events/:id', (req: Request, res: Response) => {
-  const rawId = req.params.id;
-  const id = Array.isArray(rawId) ? rawId[0] : rawId;
+// POST /admin/events/:id/publish
+router.post('/events/:id/publish', (req: Request, res: Response) => {
+  const id = normalizeId(req.params.id);
 
   if (!id) {
-    return res.status(400).json({ error: 'Event id is required' });
+    return respondBadRequest(res, new Error('Event id is required'), { error: 'Event id is required' });
+  }
+  const existing = findEventById(id);
+  if (!existing) return res.status(404).json({ error: 'Event not found' });
+
+  if (existing.status === 'published') {
+    return res.status(409).json({ error: 'Event is already published' });
+  }
+
+  if (existing.status && existing.status !== 'draft') {
+    return res.status(409).json({ error: 'Event cannot be published from current status' });
+  }
+
+  existing.status = 'published';
+  upsertEvent(existing);
+  return res.status(200).json(existing);
+});
+
+// PUT /admin/events/:id
+router.put('/events/:id', (req: Request, res: Response) => {
+  const id = normalizeId(req.params.id);
+
+  if (!id) {
+    return respondBadRequest(res, new Error('Event id is required'), { error: 'Event id is required' });
   }
   const existing = findEventById(id);
   if (!existing) return res.status(404).json({ error: 'Event not found' });
@@ -92,10 +133,6 @@ router.put('/events/:id', (req: Request, res: Response) => {
   const requestedStatus = typeof req.body.status === 'string' ? req.body.status : undefined;
 
   if (requestedStatus === 'published' && existing.status === 'draft') {
-    // ensure required fields exist when publishing
-    if (!existing.schemaImageUrl && !existing.imageUrl) {
-      return res.status(400).json({ error: 'schemaImageUrl or imageUrl is required to publish' });
-    }
     existing.status = 'published';
     upsertEvent(existing);
     return res.json(toEvent(existing));
@@ -106,14 +143,13 @@ router.put('/events/:id', (req: Request, res: Response) => {
     return res.status(403).json({ error: 'Event is published and cannot be modified' });
   }
 
-  const errs = validate(req.body);
-  if (errs.length) return res.status(400).json({ errors: errs });
-
-  existing.title = req.body.title;
-  existing.description = req.body.description;
-  existing.date = req.body.date;
+  if (typeof req.body.title === 'string') existing.title = req.body.title;
+  if (typeof req.body.description === 'string') existing.description = req.body.description;
+  if (typeof req.body.date === 'string') existing.date = req.body.date;
   // allow optional other fields to be updated if provided
   if (typeof req.body.imageUrl === 'string') existing.imageUrl = req.body.imageUrl;
+  if (typeof req.body.coverImageUrl === 'string') existing.imageUrl = req.body.coverImageUrl;
+  if (typeof req.body.schemaImageUrl === 'string') existing.schemaImageUrl = req.body.schemaImageUrl;
   if (typeof req.body.paymentPhone === 'string') existing.paymentPhone = req.body.paymentPhone;
   if (typeof req.body.maxSeatsPerBooking !== 'undefined') existing.maxSeatsPerBooking = Number(req.body.maxSeatsPerBooking) || 0;
   if (Array.isArray(req.body.tables)) existing.tables = req.body.tables;

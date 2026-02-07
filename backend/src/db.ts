@@ -19,15 +19,14 @@ const readDb = (): Database => {
   ensureFile();
   const raw = fs.readFileSync(DATA_FILE, 'utf-8');
   const parsed = JSON.parse(raw) as Database;
-  // Migrate old events: if `schemaImageUrl` missing, set to null and mark draft
+  // Migrate old events: if `schemaImageUrl` missing, set to null (idempotent)
   let migrationHappened = false;
   if (Array.isArray((parsed as any).events)) {
     (parsed as any).events.forEach((ev: any) => {
       if (ev && typeof ev.schemaImageUrl === 'undefined') {
         ev.schemaImageUrl = null;
-        ev.status = 'draft';
         migrationHappened = true;
-        console.warn(`Migrated persisted event ${ev.id || '<unknown>'}: set schemaImageUrl=null and status='draft'`);
+        console.warn(`Migrated persisted event ${ev.id || '<unknown>'}: set schemaImageUrl=null`);
       }
     });
   }
@@ -50,11 +49,7 @@ const readDb = (): Database => {
       errs.push(`events[${idx}] is invalid`);
       return errs;
     }
-    // Accept either schemaImageUrl (preferred) or imageUrl for backward compatibility.
-    // If schemaImageUrl is missing, only allow it for draft events (migration may have set draft).
-    if (!e.schemaImageUrl && !e.imageUrl) {
-      if (e.status !== 'draft') errs.push('schemaImageUrl (or imageUrl) is required for published events');
-    }
+    // schemaImageUrl may be null for migrated events; do not block admin reads.
     if (!Array.isArray(e.tables)) errs.push('tables must be an array');
     else {
       e.tables.forEach((t: any, ti: number) => {
@@ -102,10 +97,7 @@ const writeDb = (db: Database) => {
       errs.push(`events[${idx}] is invalid`);
       return errs;
     }
-    // When writing, require schemaImageUrl (or imageUrl) for published events.
-    if (!e.schemaImageUrl && !e.imageUrl) {
-      if (e.status !== 'draft') errs.push('schemaImageUrl (or imageUrl) is required for published events');
-    }
+    // schemaImageUrl may be null for migrated events; do not block writes.
     if (!Array.isArray(e.tables)) errs.push('tables must be an array');
     else {
       e.tables.forEach((t: any, ti: number) => {

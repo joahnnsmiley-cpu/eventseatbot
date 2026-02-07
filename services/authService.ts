@@ -1,4 +1,4 @@
-const API_BASE = (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_API_BASE) || 'http://localhost:4000';
+const API_BASE = (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_API_BASE_URL) || 'http://localhost:4000';
 
 const STORAGE_KEY = 'eventseatbot_jwt';
 

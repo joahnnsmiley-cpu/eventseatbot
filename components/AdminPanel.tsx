@@ -10,12 +10,13 @@ type FormState = {
   description: string;
   date: string;
   imageUrl?: string;
+  schemaImageUrl?: string | null;
   paymentPhone?: string;
   maxSeatsPerBooking?: number;
   tables?: any[]; // Table[] — kept loose here to avoid strict coupling
 };
 
-const emptyForm = (): FormState => ({ title: '', description: '', date: '', imageUrl: '', paymentPhone: '', maxSeatsPerBooking: 4 });
+const emptyForm = (): FormState => ({ title: '', description: '', date: '', imageUrl: '', schemaImageUrl: null, paymentPhone: '', maxSeatsPerBooking: 4 });
 
 const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [events, setEvents] = useState<EventData[] | null>(null);
@@ -56,10 +57,33 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setIsFormOpen(true);
   };
 
-  const openEdit = (evt: EventData) => {
-    setForm({ id: evt.id, title: evt.title, description: evt.description, date: evt.date, imageUrl: evt.imageUrl, paymentPhone: evt.paymentPhone, maxSeatsPerBooking: evt.maxSeatsPerBooking, tables: evt.tables || [] });
-    setFormErrors({});
-    setIsFormOpen(true);
+  const openEdit = async (evt: EventData, openMarkup = false) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const full = await StorageService.getAdminEvent(evt.id);
+      setForm({
+        id: full.id,
+        title: full.title,
+        description: full.description,
+        date: full.date,
+        imageUrl: full.imageUrl,
+        schemaImageUrl: full.schemaImageUrl ?? null,
+        paymentPhone: full.paymentPhone,
+        maxSeatsPerBooking: full.maxSeatsPerBooking,
+        tables: full.tables,
+      });
+      setDraftTables(full.tables);
+      setFormErrors({});
+      setIsFormOpen(true);
+      if (openMarkup) {
+        setMarkupOpen(true);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const validate = (values: FormState) => {
@@ -81,12 +105,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
     setSaving(true);
     try {
+      const schemaImageUrl = form.schemaImageUrl && form.schemaImageUrl.trim().length > 0 ? form.schemaImageUrl : null;
       if (form.id) {
         await StorageService.updateAdminEvent(form.id, {
           title: form.title,
           description: form.description,
           date: form.date,
           imageUrl: form.imageUrl,
+          schemaImageUrl,
           paymentPhone: form.paymentPhone,
           maxSeatsPerBooking: form.maxSeatsPerBooking,
           tables: form.tables || draftTables || [],
@@ -97,6 +123,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           description: form.description,
           date: form.date,
           imageUrl: form.imageUrl,
+          schemaImageUrl,
           paymentPhone: form.paymentPhone,
           maxSeatsPerBooking: form.maxSeatsPerBooking,
           tables: form.tables || draftTables || [],
@@ -155,8 +182,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 <div className="text-xs text-gray-500 mt-2">{evt.date}</div>
               </div>
               <div className="flex flex-col gap-2">
-                <button onClick={() => openEdit(evt)} className="px-3 py-1 bg-gray-100 rounded text-sm">Edit</button>
-                  <button onClick={() => { openEdit(evt); setMarkupOpen(true); setDraftTables(evt.tables || []); }} className="px-3 py-1 bg-gray-100 rounded text-sm">Layout</button>
+                <button onClick={() => { void openEdit(evt); }} className="px-3 py-1 bg-gray-100 rounded text-sm">Edit</button>
+                  <button onClick={() => { void openEdit(evt, true); }} className="px-3 py-1 bg-gray-100 rounded text-sm">Layout</button>
                 <button onClick={() => confirmDelete(evt.id)} className="px-3 py-1 bg-red-50 text-red-600 rounded text-sm">Delete</button>
               </div>
             </div>
@@ -199,6 +226,15 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 <input value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} className="border p-2 rounded" />
               </label>
 
+              <label className="flex flex-col">
+                <span className="text-sm font-medium">Schema image URL</span>
+                <input
+                  value={form.schemaImageUrl ?? ''}
+                  onChange={e => setForm({ ...form, schemaImageUrl: e.target.value })}
+                  className="border p-2 rounded"
+                />
+              </label>
+
               <div className="mt-2">
                 <button type="button" onClick={() => { setDraftTables(form.tables || []); setMarkupOpen(true); }} className="px-3 py-2 bg-gray-100 rounded">Edit Layout</button>
                 <span className="text-sm text-gray-500 ml-2">Open layout markup to add tables on the event image.</span>
@@ -234,9 +270,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               </div>
             </div>
             <div className="p-4">
-              {form.imageUrl ? (
+              {form.schemaImageUrl ? (
                 <div className="relative bg-gray-100" style={{ aspectRatio: '16/9' }}>
-                  <img src={form.imageUrl} alt="layout" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} onClick={(e) => {
+                  <img src={form.schemaImageUrl} alt="layout" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} onClick={(e) => {
                     // compute click position in percent
                     const rect = (e.target as HTMLImageElement).getBoundingClientRect();
                     const x = (e.clientX - rect.left) / rect.width * 100;
@@ -271,7 +307,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   ))}
                 </div>
               ) : (
-                <div className="p-6 text-center text-sm text-gray-600">No image URL provided. Set Image URL in the event form first.</div>
+                <div className="p-6 text-center text-sm text-gray-600">Схема зала не загружена</div>
               )}
             </div>
           </div>

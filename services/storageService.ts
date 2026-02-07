@@ -4,17 +4,17 @@ import AuthService from './authService';
 const API_BASE =
   (typeof import.meta !== 'undefined' &&
     (import.meta as any).env &&
-    (import.meta as any).env.VITE_API_BASE) ||
+    (import.meta as any).env.VITE_API_BASE_URL) ||
   'http://localhost:4000';
 
 export const getEvents = async (): Promise<EventData[]> => {
-  const res = await fetch(`${API_BASE}/events`);
+  const res = await fetch(`${API_BASE}/public/events`);
   if (!res.ok) throw new Error('Failed to load events');
   return res.json();
 };
 
 export const getEvent = async (eventId: string): Promise<EventData> => {
-  const res = await fetch(`${API_BASE}/events/${eventId}`);
+  const res = await fetch(`${API_BASE}/public/events/${eventId}`);
   if (!res.ok) throw new Error('Failed to load event');
   return res.json();
 };
@@ -104,6 +104,18 @@ export const getAdminEvents = async (): Promise<EventData[]> => {
       throw new Error('Forbidden');
     }
     throw new Error('Failed to load admin events');
+  }
+  return res.json();
+};
+
+export const getAdminEvent = async (id: string): Promise<EventData> => {
+  const res = await fetch(`${API_BASE}/admin/events/${encodeURIComponent(id)}`, { headers: AuthService.getAuthHeader() });
+  if (!res.ok) {
+    if (res.status === 403) {
+      AuthService.logout();
+      throw new Error('Forbidden');
+    }
+    throw new Error('Failed to load admin event');
   }
   return res.json();
 };

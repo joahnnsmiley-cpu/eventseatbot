@@ -22,13 +22,13 @@ export function authMiddleware(
 ) {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader) {
+  if (typeof authHeader !== 'string' || !authHeader.length) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const token = authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
+  const [scheme, token] = authHeader.split(' ');
+  if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) {
+    return res.status(401).json({ error: 'Invalid authorization header' });
   }
 
   // Development/test bypass: allow a simple bearer token to act as admin when

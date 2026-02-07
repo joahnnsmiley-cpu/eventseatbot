@@ -26,6 +26,7 @@ export interface EventData {
   description: string;
   date: string;
   imageUrl: string; // Floor plan background
+  schemaImageUrl?: string | null;
   tables: Table[];
   paymentPhone: string;
   maxSeatsPerBooking: number;
