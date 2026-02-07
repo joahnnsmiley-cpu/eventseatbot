@@ -20,6 +20,13 @@ export function authMiddleware(
   res: Response,
   next: NextFunction
 ) {
+  const urlPath = typeof req.originalUrl === 'string' && req.originalUrl.length
+    ? req.originalUrl
+    : req.path || '';
+  if (urlPath.startsWith('/public') || urlPath.startsWith('/events')) {
+    return next();
+  }
+
   const authHeader = req.headers.authorization;
 
   if (typeof authHeader !== 'string' || !authHeader.length) {
