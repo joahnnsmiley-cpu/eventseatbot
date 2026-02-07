@@ -3,7 +3,7 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import { v4 as uuid } from 'uuid';
 import type { EventData } from './models';
-import { getEvents, findEventById, saveEvents, getBookings, addBooking } from './db';
+import { getEvents, findEventById, saveEvents, getBookings, addBooking, upsertEvent } from './db';
 import { bot, notifyAdminsAboutBooking, notifyUser } from './bot';
 import adminEventsRouter from './routes/adminEvents';
 import adminSeatsRouter, { seats as inMemorySeats } from './routes/adminSeats';
@@ -82,25 +82,33 @@ app.post('/telegram/webhook', (req, res) => {
   res.sendStatus(200);
 });
 
-// Seed from frontend mock if no events exist (simple dev helper)
-const seedIfEmpty = () => {
-  const events = getEvents();
-  if (events.length === 0) {
-    const mock: EventData = {
-      id: 'evt-1',
-      title: 'Gala Dinner 2024',
-      description: 'An exclusive evening of fine dining and networking.',
-      date: '2024-12-25',
-      imageUrl: 'https://picsum.photos/800/600',
-      paymentPhone: '79991234567',
-      maxSeatsPerBooking: 4,
-      tables: [],
-    };
-    saveEvents([mock]);
-  }
+// Seed a single published event for dev/preview or explicit flag.
+const seedTestEvent = () => {
+  const shouldSeed = process.env.SEED_TEST_EVENT === 'true' || process.env.NODE_ENV !== 'production';
+  if (!shouldSeed) return;
+
+  const seedId = 'seed-public-event';
+  const existing = findEventById(seedId);
+  if (existing) return;
+
+  const base: EventData = {
+    id: seedId,
+    title: 'Test Event',
+    description: 'Seeded event for WebApp preview',
+    date: new Date().toISOString(),
+    imageUrl: 'https://picsum.photos/800/600',
+    schemaImageUrl: null,
+    paymentPhone: '79990000000',
+    maxSeatsPerBooking: 4,
+    tables: [],
+    status: 'draft',
+  };
+
+  upsertEvent(base);
+  upsertEvent({ ...base, status: 'published' });
 };
 
-seedIfEmpty();
+seedTestEvent();
 
 // ==============================
 // EVENTS
