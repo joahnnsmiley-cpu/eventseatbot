@@ -17,7 +17,8 @@
     "test:telegram-commands": "npx ts-node src/__tests__/telegram.commands.test.ts",
     "test:pending-payments": "npx ts-node src/__tests__/pending-payments.command.test.ts",
     "test:confirm-payment": "npx ts-node src/__tests__/confirm-payment.command.test.ts",
-    "test:all": "npm run test:booking-events && npm run test:booking-expiration && npm run test:booking-scheduler && npm run test:payment-domain && npm run test:payment-api && npm run test:payment-admin && npm run test:payment-events && npm run test:payment-confirm && npm run test:telegram-commands && npm run test:pending-payments && npm run test:confirm-payment"
+    "test:telegram-security": "npx ts-node src/__tests__/telegram.security.test.ts",
+    "test:all": "npm run test:booking-events && npm run test:booking-expiration && npm run test:booking-scheduler && npm run test:payment-domain && npm run test:payment-api && npm run test:payment-admin && npm run test:payment-events && npm run test:payment-confirm && npm run test:telegram-commands && npm run test:pending-payments && npm run test:confirm-payment && npm run test:telegram-security"
   },
   "keywords": [],
   "author": "",

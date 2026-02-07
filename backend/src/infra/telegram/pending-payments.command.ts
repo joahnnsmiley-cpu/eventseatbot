@@ -4,6 +4,26 @@
  */
 
 import { getAllPayments, type PaymentIntent } from '../../domain/payments/payment.repository';
+import { isAuthorizedAdminChat, logUnauthorizedCommand } from './telegram.security';
+
+/**
+ * Format pending payments for Telegram with authorization check
+ * Returns empty string if chat is not authorized
+ * Returns a human-readable message with all pending payments if authorized
+ * If no pending payments, returns a message saying so
+ */
+export function formatPendingPaymentsMessageSecure(
+  chatId: number | string | null | undefined,
+): string {
+  // Check authorization
+  if (!isAuthorizedAdminChat(chatId)) {
+    logUnauthorizedCommand(chatId, '/pending_payments');
+    return ''; // Silently ignore - return empty string
+  }
+
+  // Process command if authorized
+  return formatPendingPaymentsMessage();
+}
 
 /**
  * Format pending payments for Telegram

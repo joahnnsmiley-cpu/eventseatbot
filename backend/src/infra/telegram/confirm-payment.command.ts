@@ -7,11 +7,31 @@
 import { findPaymentById } from '../../domain/payments/payment.repository';
 import { markPaid } from '../../domain/payments/payment.service';
 import type { ParsedCommand } from './telegram.commands';
+import { isAuthorizedAdminChat, logUnauthorizedCommand } from './telegram.security';
 
 export interface ConfirmPaymentResult {
   success: boolean;
   message: string;
   paymentId?: string | undefined;
+}
+
+/**
+ * Format confirmation result as Telegram message with authorization check
+ * Returns empty string if chat is not authorized (silently ignore)
+ * Never throws
+ */
+export function formatConfirmPaymentMessageSecure(
+  chatId: number | string | null | undefined,
+  paymentId: string | undefined,
+): string {
+  // Check authorization
+  if (!isAuthorizedAdminChat(chatId)) {
+    logUnauthorizedCommand(chatId, '/confirm_payment');
+    return ''; // Silently ignore - return empty string
+  }
+
+  // Process command if authorized
+  return formatConfirmPaymentMessage(paymentId);
 }
 
 /**
