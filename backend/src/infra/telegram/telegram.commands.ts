@@ -8,8 +8,9 @@
  * Parsed command from text message
  */
 export interface ParsedCommand {
-  type: 'pending_payments' | 'confirm_payment' | 'unknown' | 'empty';
+  type: 'pending_payments' | 'confirm_payment' | 'booking_status' | 'unknown' | 'empty';
   paymentId?: string;
+  bookingId?: string;
 }
 
 /**
@@ -17,6 +18,7 @@ export interface ParsedCommand {
  * Supported commands:
  * - /pending_payments - List all pending payments
  * - /confirm_payment <paymentId> - Confirm a specific payment
+ * - /booking_status <bookingId> - Get booking status
  * 
  * Returns { type: 'unknown' } for unrecognized commands
  * Never throws
@@ -62,6 +64,21 @@ export function parseCommand(text: string | undefined | null): ParsedCommand {
       return {
         type: 'confirm_payment',
         paymentId,
+      };
+    }
+
+    // Handle /booking_status command
+    if (command === '/booking_status') {
+      const bookingId = parts[1];
+      
+      if (!bookingId) {
+        // Missing argument
+        return { type: 'unknown' };
+      }
+
+      return {
+        type: 'booking_status',
+        bookingId,
       };
     }
 

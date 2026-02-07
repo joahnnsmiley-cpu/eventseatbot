@@ -9,4 +9,5 @@ export { parseCommand, isKnownCommand, shouldProcessCommand, type ParsedCommand 
 export { parseCallback, isSupportedCallback, formatCallbackResponseMessage, isKnownCallback, type ParsedCallback } from './telegram.callbacks';
 export { formatPendingPaymentsMessage, formatPendingPaymentsMessageSecure, getPendingPayments } from './pending-payments.command';
 export { formatConfirmPaymentMessage, formatConfirmPaymentMessageSecure, processConfirmPaymentCommand, type ConfirmPaymentResult } from './confirm-payment.command';
+export { formatBookingStatusMessage, formatBookingStatusMessageSecure, getBookingStatusData } from './booking-status.command';
 export { isAuthorizedAdminChat, getConfiguredAdminChatId, logUnauthorizedCommand } from './telegram.security';

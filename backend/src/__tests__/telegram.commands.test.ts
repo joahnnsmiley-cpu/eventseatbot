@@ -230,8 +230,68 @@ runTest('parseCommand: command with tabs', () => {
 });
 
 // ============================================
-// SUMMARY
+// TEST 8: /booking_status command
 // ============================================
+
+runTest('parseCommand: /booking_status with bookingId', () => {
+  const parsed = parseCommand('/booking_status bk-123');
+  assertEquals(parsed.type, 'booking_status', 'Should parse /booking_status');
+  assertEquals(parsed.bookingId, 'bk-123', 'Should extract bookingId');
+});
+
+runTest('parseCommand: /booking_status with complex bookingId', () => {
+  const parsed = parseCommand('/booking_status booking_evt-2026-001');
+  assertEquals(parsed.type, 'booking_status', 'Should parse command');
+  assertEquals(parsed.bookingId, 'booking_evt-2026-001', 'Should handle complex ID');
+});
+
+runTest('parseCommand: /booking_status with extra spaces', () => {
+  const parsed = parseCommand('  /booking_status  bk-456  ');
+  assertEquals(parsed.type, 'booking_status', 'Should trim and parse');
+  assertEquals(parsed.bookingId, 'bk-456', 'Should extract bookingId');
+});
+
+runTest('parseCommand: /booking_status with uppercase', () => {
+  const parsed = parseCommand('/BOOKING_STATUS bk-789');
+  assertEquals(parsed.type, 'booking_status', 'Should handle uppercase');
+  assertEquals(parsed.bookingId, 'bk-789', 'Should extract bookingId');
+});
+
+runTest('parseCommand: /booking_status without bookingId returns unknown', () => {
+  const parsed = parseCommand('/booking_status');
+  assertEquals(parsed.type, 'unknown', 'Should return unknown without bookingId');
+});
+
+runTest('parseCommand: /booking_status with empty bookingId returns unknown', () => {
+  const parsed = parseCommand('/booking_status  ');
+  assertEquals(parsed.type, 'unknown', 'Should return unknown with empty bookingId');
+});
+
+runTest('parseCommand: /booking_status with multiple args takes first', () => {
+  const parsed = parseCommand('/booking_status bk-123 extra args');
+  assertEquals(parsed.type, 'booking_status', 'Should parse command');
+  assertEquals(parsed.bookingId, 'bk-123', 'Should take only first argument');
+});
+
+// ============================================
+// TEST 9: isKnownCommand for all types
+// ============================================
+
+runTest('isKnownCommand: returns true for booking_status', () => {
+  const parsed = parseCommand('/booking_status bk-123');
+  assert(isKnownCommand(parsed), 'Should return true for booking_status command');
+});
+
+runTest('isKnownCommand: returns false for unknown', () => {
+  const parsed = parseCommand('/unknown_command');
+  assert(!isKnownCommand(parsed), 'Should return false for unknown');
+});
+
+runTest('isKnownCommand: returns false for empty', () => {
+  const parsed = parseCommand('');
+  assert(!isKnownCommand(parsed), 'Should return false for empty');
+});
+
 
 const passed = results.filter((r) => r.passed).length;
 const failed = results.filter((r) => !r.passed).length;
