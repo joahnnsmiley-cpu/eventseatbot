@@ -1,19 +1,6 @@
 import { EventData, Booking } from '../types';
 import AuthService from './authService';
-
-const getApiBaseUrl = () => {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-  const normalizedApiBase = typeof apiBaseUrl === 'string'
-    ? apiBaseUrl.trim().replace(/\/+$/, '')
-    : '';
-
-  if (!normalizedApiBase || !normalizedApiBase.startsWith('https://')) {
-    console.error('Invalid API_BASE_URL', apiBaseUrl);
-    throw new Error('API_BASE_URL is not configured');
-  }
-
-  return normalizedApiBase;
-};
+import { getApiBaseUrl } from '../config/api';
 
 export const getEvents = async (): Promise<EventData[]> => {
   const apiBaseUrl = getApiBaseUrl();
