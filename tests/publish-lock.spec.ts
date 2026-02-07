@@ -36,14 +36,34 @@ test.describe('Publish lock behavior', () => {
     });
     expect(updRes.ok()).toBeTruthy();
 
-    // 3) Publish the event (status -> published)
-    const pubRes = await request.put(`${apiBase}/admin/events/${encodeURIComponent(eventId)}`, {
-      data: { status: 'published' },
+    // 3) Publish the event (draft -> published)
+    const pubRes = await request.post(`${apiBase}/admin/events/${encodeURIComponent(eventId)}/publish`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    expect(pubRes.ok()).toBeTruthy();
+    expect(pubRes.status()).toBe(200);
 
-    // 4) Attempt to modify tables -> expect 403
+    // 3b) Second publish attempt should return 409
+    const pubAgainRes = await request.post(`${apiBase}/admin/events/${encodeURIComponent(eventId)}/publish`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(pubAgainRes.status()).toBe(409);
+
+    // 4) Admin can GET published event
+    const getRes = await request.get(`${apiBase}/admin/events/${encodeURIComponent(eventId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(getRes.status()).toBe(200);
+    const getBody = await getRes.json();
+    expect(getBody.id).toBe(eventId);
+    expect(getBody.status).toBe('published');
+    expect(getBody.imageUrl).toBeTruthy();
+    expect(getBody.schemaImageUrl).toBeTruthy();
+    expect(Array.isArray(getBody.tables)).toBeTruthy();
+    expect(getBody.tables.length).toBe(1);
+    expect(getBody.tables[0].seatsTotal).toBe(6);
+    expect(getBody.tables[0].seatsAvailable).toBe(6);
+
+    // 5) Attempt to modify tables -> expect 403
     const modifyRes = await request.put(`${apiBase}/admin/events/${encodeURIComponent(eventId)}`, {
       data: { title: 'Attempt modify after publish', description: 'Should be rejected', date: '2026-12-01', tables: [] },
       headers: { Authorization: `Bearer ${token}` },
@@ -52,7 +72,7 @@ test.describe('Publish lock behavior', () => {
     const modifyBody = await modifyRes.json().catch(() => ({}));
     expect(modifyBody.error).toBeTruthy();
 
-    // 5) Attempt to delete -> expect 403
+    // 6) Attempt to delete -> expect 403
     const delRes = await request.delete(`${apiBase}/admin/events/${encodeURIComponent(eventId)}`, {
       headers: { Authorization: `Bearer ${token}` },
     });

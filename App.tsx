@@ -26,11 +26,20 @@ type TgUser = {
   last_name?: string;
 };
 
-const API_BASE_URL =
+const rawApiBaseUrl =
   (typeof import.meta !== 'undefined' &&
     (import.meta as any).env &&
     (import.meta as any).env.VITE_API_BASE_URL) ||
-  'http://localhost:4000';
+  '';
+const API_BASE_URL = typeof rawApiBaseUrl === 'string'
+  ? rawApiBaseUrl.trim().replace(/\/+$/, '')
+  : '';
+
+if (!API_BASE_URL) {
+  console.error('[API] VITE_API_BASE_URL is missing or empty.');
+} else if (!API_BASE_URL.startsWith('http')) {
+  console.error('[API] VITE_API_BASE_URL must be an absolute URL:', API_BASE_URL);
+}
 
 type PublicEvent = {
   id: string;

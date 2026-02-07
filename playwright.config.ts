@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  testDir: 'tests',
+  testDir: '.',
+  testMatch: ['**/*.spec.ts', '**/*.test.ts'],
   timeout: 30_000,
   expect: { timeout: 5000 },
   fullyParallel: true,
@@ -17,6 +18,10 @@ export default defineConfig({
     cwd: 'backend',
       // wait until the public events endpoint is reachable to consider server ready
       url: (process.env.PLAYWRIGHT_API_BASE || 'http://127.0.0.1:4000') + '/events',
+    env: {
+      ...process.env,
+      ADMIN_BYPASS_TOKEN: process.env.ADMIN_BYPASS_TOKEN,
+    },
     reuseExistingServer: true,
     timeout: 120_000,
   },

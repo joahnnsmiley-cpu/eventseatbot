@@ -1,11 +1,20 @@
 import { EventData, Booking } from '../types';
 import AuthService from './authService';
 
-const API_BASE =
+const rawApiBase =
   (typeof import.meta !== 'undefined' &&
     (import.meta as any).env &&
     (import.meta as any).env.VITE_API_BASE_URL) ||
-  'http://localhost:4000';
+  '';
+const API_BASE = typeof rawApiBase === 'string'
+  ? rawApiBase.trim().replace(/\/+$/, '')
+  : '';
+
+if (!API_BASE) {
+  console.error('[API] VITE_API_BASE_URL is missing or empty.');
+} else if (!API_BASE.startsWith('http')) {
+  console.error('[API] VITE_API_BASE_URL must be an absolute URL:', API_BASE);
+}
 
 export const getEvents = async (): Promise<EventData[]> => {
   const res = await fetch(`${API_BASE}/public/events`);
