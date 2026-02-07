@@ -16,10 +16,27 @@ if (!API_BASE) {
   console.error('[API] VITE_API_BASE_URL must be an absolute URL:', API_BASE);
 }
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const getEvents = async (): Promise<EventData[]> => {
-  const res = await fetch(`${API_BASE}/public/events`);
-  if (!res.ok) throw new Error('Failed to load events');
-  return res.json();
+  const delays = [0, 1000, 2000];
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < delays.length; attempt += 1) {
+    if (delays[attempt] > 0) {
+      await wait(delays[attempt]);
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/public/events`);
+      if (!res.ok) throw new Error('Failed to load events');
+      return res.json();
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw (lastError instanceof Error ? lastError : new Error('Failed to load events'));
 };
 
 export const getEvent = async (eventId: string): Promise<EventData> => {

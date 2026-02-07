@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import * as StorageService from './services/storageService';
 
 declare global {
   interface Window {
@@ -74,9 +75,7 @@ function App() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/public/events`);
-      if (!res.ok) throw new Error('Failed to load events');
-      const data = await res.json();
+      const data = await StorageService.getEvents();
       setEvents(Array.isArray(data) ? data : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -114,7 +113,7 @@ function App() {
           className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold"
           disabled={loading}
         >
-          {loading ? 'Загрузка…' : 'События'}
+          {loading ? 'Загружаем события…' : 'События'}
         </button>
 
         {error && <div className="text-sm text-red-600 mt-4">{error}</div>}
