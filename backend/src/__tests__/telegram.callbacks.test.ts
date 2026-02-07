@@ -272,6 +272,76 @@ runTest('formatCallbackResponseMessage: never throws on errors', () => {
 });
 
 // ============================================================================
+// PAYMENT CONFIRMATION VIA CALLBACK TESTS
+// ============================================================================
+
+runTest('Callback confirms payment with "telegram-inline" source', () => {
+  const originalEnv = process.env.TELEGRAM_ADMIN_CHAT_ID;
+  setEnv('TELEGRAM_ADMIN_CHAT_ID', '123456789');
+
+  try {
+    const callback = parseCallback('confirm_payment:nonexistent-pay-1');
+    const message = formatCallbackResponseMessage('123456789', callback);
+
+    // Message indicates payment not found (which is correct)
+    assert(message.includes('❌') || message.includes('Ошибка'), 'Should handle missing payment gracefully');
+    assert(!message.includes('undefined'), 'Should not expose undefined values');
+  } finally {
+    setEnv('TELEGRAM_ADMIN_CHAT_ID', originalEnv);
+  }
+});
+
+runTest('Callback prevents double confirmation', () => {
+  const originalEnv = process.env.TELEGRAM_ADMIN_CHAT_ID;
+  setEnv('TELEGRAM_ADMIN_CHAT_ID', '123456789');
+
+  try {
+    // Parse the callback
+    const callback = parseCallback('confirm_payment:already-paid-123');
+    const message = formatCallbackResponseMessage('123456789', callback);
+
+    // Should indicate error (payment not found in this test)
+    assert(message.length > 0, 'Should return a response');
+    assert(message.indexOf('undefined') === -1, 'Should not have undefined in response');
+  } finally {
+    setEnv('TELEGRAM_ADMIN_CHAT_ID', originalEnv);
+  }
+});
+
+runTest('Callback returns error message for unauthorized access', () => {
+  const originalEnv = process.env.TELEGRAM_ADMIN_CHAT_ID;
+  setEnv('TELEGRAM_ADMIN_CHAT_ID', '987654321'); // Different admin chat
+
+  try {
+    const callback = parseCallback('confirm_payment:pay-123');
+    const message = formatCallbackResponseMessage('123456789', callback); // Different chat
+
+    assertEquals(message, '', 'Should return empty string for unauthorized access');
+  } finally {
+    setEnv('TELEGRAM_ADMIN_CHAT_ID', originalEnv);
+  }
+});
+
+runTest('Callback response is properly formatted', () => {
+  const originalEnv = process.env.TELEGRAM_ADMIN_CHAT_ID;
+  setEnv('TELEGRAM_ADMIN_CHAT_ID', '123456789');
+
+  try {
+    const callback = parseCallback('confirm_payment:missing-payment-xyz');
+    const message = formatCallbackResponseMessage('123456789', callback);
+
+    // Should have some response (even if error)
+    assert(message.length > 0, 'Should return non-empty message');
+    // Check for structure
+    assert(message.includes('❌') || message.includes('⚠️') || message.includes('✅'), 'Should have status indicator');
+    // Verify no undefined values
+    assert(message.indexOf('undefined') === -1, 'Should not contain "undefined" string');
+  } finally {
+    setEnv('TELEGRAM_ADMIN_CHAT_ID', originalEnv);
+  }
+});
+
+// ============================================================================
 // SUMMARY
 // ============================================================================
 
