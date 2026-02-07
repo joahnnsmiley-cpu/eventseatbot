@@ -1,6 +1,6 @@
 import { EventData, Booking } from '../types';
 import AuthService from './authService';
-import { getApiBaseUrl } from '../config/api';
+import { getApiBaseUrl } from '@/config/api';
 
 export const getEvents = async (): Promise<EventData[]> => {
   const apiBaseUrl = getApiBaseUrl();

@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from '../config/api';
+import { getApiBaseUrl } from '@/config/api';
 
 const API_BASE = getApiBaseUrl();
 
