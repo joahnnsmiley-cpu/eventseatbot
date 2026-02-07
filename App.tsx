@@ -27,20 +27,7 @@ type TgUser = {
   last_name?: string;
 };
 
-const rawApiBaseUrl =
-  (typeof import.meta !== 'undefined' &&
-    (import.meta as any).env &&
-    (import.meta as any).env.VITE_API_BASE_URL) ||
-  '';
-const API_BASE_URL = typeof rawApiBaseUrl === 'string'
-  ? rawApiBaseUrl.trim().replace(/\/+$/, '')
-  : '';
-
-if (!API_BASE_URL) {
-  console.error('[API] VITE_API_BASE_URL is missing or empty.');
-} else if (!API_BASE_URL.startsWith('http')) {
-  console.error('[API] VITE_API_BASE_URL must be an absolute URL:', API_BASE_URL);
-}
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 type PublicEvent = {
   id: string;
@@ -78,7 +65,7 @@ function App() {
       const data = await StorageService.getEvents();
       setEvents(Array.isArray(data) ? data : []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError('API недоступен. Проверь VITE_API_BASE_URL.');
     } finally {
       setLoading(false);
     }

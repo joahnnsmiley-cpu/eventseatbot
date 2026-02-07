@@ -1,46 +1,24 @@
 import { EventData, Booking } from '../types';
 import AuthService from './authService';
 
-const rawApiBase =
-  (typeof import.meta !== 'undefined' &&
-    (import.meta as any).env &&
-    (import.meta as any).env.VITE_API_BASE_URL) ||
-  '';
-const API_BASE = typeof rawApiBase === 'string'
-  ? rawApiBase.trim().replace(/\/+$/, '')
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const normalizedApiBase = typeof API_BASE_URL === 'string'
+  ? API_BASE_URL.trim().replace(/\/+$/, '')
   : '';
 
-if (!API_BASE) {
-  console.error('[API] VITE_API_BASE_URL is missing or empty.');
-} else if (!API_BASE.startsWith('http')) {
-  console.error('[API] VITE_API_BASE_URL must be an absolute URL:', API_BASE);
+if (!normalizedApiBase || !normalizedApiBase.startsWith('https://')) {
+  console.error('Invalid API_BASE_URL', API_BASE_URL);
+  throw new Error('API_BASE_URL is not configured');
 }
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 export const getEvents = async (): Promise<EventData[]> => {
-  const delays = [0, 1000, 2000];
-  let lastError: unknown = null;
-
-  for (let attempt = 0; attempt < delays.length; attempt += 1) {
-    if (delays[attempt] > 0) {
-      await wait(delays[attempt]);
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/public/events`);
-      if (!res.ok) throw new Error('Failed to load events');
-      return res.json();
-    } catch (err) {
-      lastError = err;
-    }
-  }
-
-  throw (lastError instanceof Error ? lastError : new Error('Failed to load events'));
+  const res = await fetch(`${normalizedApiBase}/public/events`);
+  if (!res.ok) throw new Error('Failed to load events');
+  return res.json();
 };
 
 export const getEvent = async (eventId: string): Promise<EventData> => {
-  const res = await fetch(`${API_BASE}/public/events/${eventId}`);
+  const res = await fetch(`${normalizedApiBase}/public/events/${eventId}`);
   if (!res.ok) throw new Error('Failed to load event');
   return res.json();
 };
@@ -49,7 +27,7 @@ export const createBooking = async (
   eventId: string,
   seatFullIds: string[],
 ): Promise<any> => {
-  const res = await fetch(`${API_BASE}/bookings`, {
+  const res = await fetch(`${normalizedApiBase}/bookings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
     body: JSON.stringify({ eventId, seatIds: seatFullIds }),
@@ -68,7 +46,7 @@ export const createBooking = async (
 };
 
 export const getMyBookings = async (): Promise<Booking[]> => {
-  const res = await fetch(`${API_BASE}/me/bookings`, { headers: AuthService.getAuthHeader() });
+  const res = await fetch(`${normalizedApiBase}/me/bookings`, { headers: AuthService.getAuthHeader() });
   if (!res.ok) {
     if (res.status === 403) {
       AuthService.logout();
@@ -80,7 +58,7 @@ export const getMyBookings = async (): Promise<Booking[]> => {
 };
 
 export const getMyTickets = async (): Promise<Booking[]> => {
-  const res = await fetch(`${API_BASE}/me/tickets`, { headers: AuthService.getAuthHeader() });
+  const res = await fetch(`${normalizedApiBase}/me/tickets`, { headers: AuthService.getAuthHeader() });
   if (!res.ok) {
     if (res.status === 403) {
       AuthService.logout();
@@ -93,7 +71,7 @@ export const getMyTickets = async (): Promise<Booking[]> => {
 
 // Admin-side helpers
 export const getAdminBookings = async (status?: string): Promise<Booking[]> => {
-  const url = new URL(`${API_BASE}/admin/bookings`);
+  const url = new URL(`${normalizedApiBase}/admin/bookings`);
   if (status) url.searchParams.set('status', status);
   const res = await fetch(url.toString(), { headers: AuthService.getAuthHeader() });
   if (!res.ok) {
@@ -107,7 +85,7 @@ export const getAdminBookings = async (status?: string): Promise<Booking[]> => {
 };
 
 export const confirmBooking = async (bookingId: string): Promise<void> => {
-  const res = await fetch(`${API_BASE}/admin/bookings/${bookingId}/confirm`, {
+  const res = await fetch(`${normalizedApiBase}/admin/bookings/${bookingId}/confirm`, {
     method: 'POST',
     headers: AuthService.getAuthHeader(),
   });
@@ -123,7 +101,7 @@ export const confirmBooking = async (bookingId: string): Promise<void> => {
 
 // Admin events API
 export const getAdminEvents = async (): Promise<EventData[]> => {
-  const res = await fetch(`${API_BASE}/admin/events`, { headers: AuthService.getAuthHeader() });
+  const res = await fetch(`${normalizedApiBase}/admin/events`, { headers: AuthService.getAuthHeader() });
   if (!res.ok) {
     if (res.status === 403) {
       AuthService.logout();
@@ -135,7 +113,7 @@ export const getAdminEvents = async (): Promise<EventData[]> => {
 };
 
 export const getAdminEvent = async (id: string): Promise<EventData> => {
-  const res = await fetch(`${API_BASE}/admin/events/${encodeURIComponent(id)}`, { headers: AuthService.getAuthHeader() });
+  const res = await fetch(`${normalizedApiBase}/admin/events/${encodeURIComponent(id)}`, { headers: AuthService.getAuthHeader() });
   if (!res.ok) {
     if (res.status === 403) {
       AuthService.logout();
@@ -147,7 +125,7 @@ export const getAdminEvent = async (id: string): Promise<EventData> => {
 };
 
 export const createAdminEvent = async (payload: Partial<EventData>): Promise<EventData> => {
-  const res = await fetch(`${API_BASE}/admin/events`, {
+  const res = await fetch(`${normalizedApiBase}/admin/events`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
     body: JSON.stringify(payload),
@@ -164,7 +142,7 @@ export const createAdminEvent = async (payload: Partial<EventData>): Promise<Eve
 };
 
 export const updateAdminEvent = async (id: string, payload: Partial<EventData>): Promise<EventData> => {
-  const res = await fetch(`${API_BASE}/admin/events/${encodeURIComponent(id)}`, {
+  const res = await fetch(`${normalizedApiBase}/admin/events/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
     body: JSON.stringify(payload),
@@ -181,7 +159,7 @@ export const updateAdminEvent = async (id: string, payload: Partial<EventData>):
 };
 
 export const deleteAdminEvent = async (id: string): Promise<void> => {
-  const res = await fetch(`${API_BASE}/admin/events/${encodeURIComponent(id)}`, {
+  const res = await fetch(`${normalizedApiBase}/admin/events/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: AuthService.getAuthHeader(),
   });
