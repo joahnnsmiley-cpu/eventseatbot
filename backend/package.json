@@ -21,7 +21,8 @@
     "test:telegram-admin-commands": "npx ts-node src/__tests__/telegram.admin-commands.test.ts",
     "test:telegram-inline-keyboard": "npx ts-node src/__tests__/telegram.inline-keyboard.test.ts",
     "test:telegram-callbacks": "npx ts-node src/__tests__/telegram.callbacks.test.ts",
-    "test:all": "npm run test:booking-events && npm run test:booking-expiration && npm run test:booking-scheduler && npm run test:payment-domain && npm run test:payment-api && npm run test:payment-admin && npm run test:payment-events && npm run test:payment-confirm && npm run test:telegram-commands && npm run test:pending-payments && npm run test:confirm-payment && npm run test:telegram-security && npm run test:telegram-admin-commands && npm run test:telegram-inline-keyboard && npm run test:telegram-callbacks"
+    "test:inline-payment-confirmation": "npx ts-node src/__tests__/telegram.inline-payment-confirmation.test.ts",
+    "test:all": "npm run test:booking-events && npm run test:booking-expiration && npm run test:booking-scheduler && npm run test:payment-domain && npm run test:payment-api && npm run test:payment-admin && npm run test:payment-events && npm run test:payment-confirm && npm run test:telegram-commands && npm run test:pending-payments && npm run test:confirm-payment && npm run test:telegram-security && npm run test:telegram-admin-commands && npm run test:telegram-inline-keyboard && npm run test:telegram-callbacks && npm run test:inline-payment-confirmation"
   },
   "keywords": [],
   "author": "",
