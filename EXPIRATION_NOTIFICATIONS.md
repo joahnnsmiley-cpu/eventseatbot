@@ -56,24 +56,51 @@ emitBookingCancelled({
 
 ## Test Coverage
 
-**31 tests total:**
-- ✅ 10/10 Booking Events tests (includes reason field tests)
-- ✅ 3/3 Booking Expiration tests (verifies emit on auto-expiry)
+**41 tests total:**
+- ✅ 10/10 Booking Events tests
+- ✅ 8/8 Booking Expiration tests (new comprehensive suite)
+- ✅ 5/5 Booking Scheduler tests (new)
 - ✅ 10/10 Payment Domain tests
 - ✅ 8/8 Payment API tests
 
-### Key Expiration Tests
+### Booking Expiration Tests (8 tests)
 ```
 ✓ expireStaleBookings emits bookingCancelled with reason:expired
 ✓ multiple expiring bookings emit separate events (no duplication)
 ✓ non-expired confirmed bookings do not emit events
+✓ expired booking restores table seats
+✓ paid bookings are NOT cancelled on expiration
+✓ double expiration run has no double side-effects
+✓ scheduler does not throw on notifier errors
+✓ expireStaleBookings uses injected now parameter
 ```
 
-### Event Type Tests
+### Booking Scheduler Tests (5 tests)
 ```
-✓ bookingCancelled with reason:expired
-✓ bookingCancelled with reason:manual
+✓ startBookingExpirationJob starts without throwing
+✓ stopBookingExpirationJob stops the scheduler
+✓ multiple startBookingExpirationJob calls are safe (idempotent)
+✓ isBookingExpirationJobRunning correctly tracks state
+✓ startBookingExpirationJob is resilient to errors
 ```
+
+## Test Strategy
+
+**No Real Timers:**
+- All tests use injected `now` parameter in `expireStaleBookings(now)`
+- No `setTimeout`, `setInterval`, or clock manipulation needed
+- Deterministic test execution
+
+**Comprehensive Coverage:**
+
+1. **Seat Restoration**: Verifies `seatsAvailable` incremented when booking expires
+2. **Paid Booking Protection**: Paid/cancelled bookings never auto-expire
+3. **Idempotency**: Running expiration twice doesn't duplicate side-effects
+4. **Event Emission**: Booking cancellation emitted with correct `reason: 'expired'`
+5. **Error Resilience**: 
+   - Scheduler never throws even if notifier throws
+   - expireStaleBookings catches all errors per booking
+6. **State Isolation**: Each test clears data and starts fresh
 
 ## Notification Flow
 
@@ -118,8 +145,9 @@ User Action              Auto-Expiration (scheduler)
 
 Run tests:
 ```bash
-npm run test:all                    # All 31 tests
-npm run test:booking-expiration    # Expiration-specific (3 tests)
+npm run test:all                    # All 41 tests
+npm run test:booking-expiration    # Expiration domain (8 tests)
+npm run test:booking-scheduler     # Scheduler (5 tests)
 npm run test:booking-events        # Event type validation (10 tests)
 ```
 
@@ -128,3 +156,11 @@ Verify no TypeScript errors:
 npx tsc --noEmit  # Backend
 npx tsc --noEmit  # Frontend
 ```
+
+## Test Files
+
+- [backend/src/__tests__/booking.expiration.test.ts](backend/src/__tests__/booking.expiration.test.ts) - 8 domain tests
+- [backend/src/__tests__/booking.scheduler.test.ts](backend/src/__tests__/booking.scheduler.test.ts) - 5 scheduler tests
+- [backend/src/__tests__/booking.events.test.ts](backend/src/__tests__/booking.events.test.ts) - 10 event tests
+- [backend/src/__tests__/payment.domain.test.ts](backend/src/__tests__/payment.domain.test.ts) - 10 payment domain tests
+- [backend/src/__tests__/payment.api.test.ts](backend/src/__tests__/payment.api.test.ts) - 8 payment API tests
