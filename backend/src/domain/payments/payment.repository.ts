@@ -82,16 +82,26 @@ export function findPaymentsByBookingId(bookingId: string): PaymentIntent[] {
 }
 
 /**
- * Update payment status
+ * Update payment status with optional confirmation details
  */
 export function updatePaymentStatus(
   id: string,
   status: PaymentStatus,
+  details?: {
+    method?: string;
+    confirmedBy?: string;
+    confirmedAt?: string;
+  },
 ): PaymentIntent | null {
   const db = readPaymentsDb();
   const payment = db.payments.find((p) => p.id === id);
   if (!payment) return null;
   payment.status = status;
+  if (details) {
+    if (details.method) payment.method = details.method as any;
+    if (details.confirmedBy) payment.confirmedBy = details.confirmedBy;
+    if (details.confirmedAt) payment.confirmedAt = details.confirmedAt;
+  }
   writePaymentsDb(db);
   return payment;
 }

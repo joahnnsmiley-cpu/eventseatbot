@@ -88,10 +88,52 @@
       ]
     },
     {
+      "id": "exp-test-evt-1",
+      "title": "Test Event",
+      "description": "",
+      "date": "2026-02-07T15:55:18.550Z",
+      "imageUrl": "https://example.com/image.jpg",
+      "status": "published",
+      "paymentPhone": "",
+      "maxSeatsPerBooking": 10,
+      "schemaImageUrl": "https://example.com/schema.jpg",
+      "tables": [
+        {
+          "id": "exp-test-tbl-1",
+          "number": 1,
+          "seatsTotal": 4,
+          "seatsAvailable": 2,
+          "centerX": 50,
+          "centerY": 50
+        }
+      ]
+    },
+    {
+      "id": "exp-test-evt-1",
+      "title": "Test Event",
+      "description": "",
+      "date": "2026-02-07T16:01:46.026Z",
+      "imageUrl": "https://example.com/image.jpg",
+      "status": "published",
+      "paymentPhone": "",
+      "maxSeatsPerBooking": 10,
+      "schemaImageUrl": "https://example.com/schema.jpg",
+      "tables": [
+        {
+          "id": "exp-test-tbl-1",
+          "number": 1,
+          "seatsTotal": 4,
+          "seatsAvailable": 2,
+          "centerX": 50,
+          "centerY": 50
+        }
+      ]
+    },
+    {
       "id": "exp-test-evt-2",
       "title": "Test Event 2",
       "description": "",
-      "date": "2026-02-07T15:54:30.150Z",
+      "date": "2026-02-07T16:01:46.047Z",
       "imageUrl": "https://example.com/image2.jpg",
       "status": "published",
       "paymentPhone": "",
@@ -120,7 +162,7 @@
       "id": "exp-test-evt-3",
       "title": "Test Event 3",
       "description": "",
-      "date": "2026-02-07T15:54:30.155Z",
+      "date": "2026-02-07T16:01:46.051Z",
       "imageUrl": "https://example.com/image3.jpg",
       "status": "published",
       "paymentPhone": "",
@@ -141,7 +183,7 @@
       "id": "exp-test-evt-4",
       "title": "Test Event 4",
       "description": "",
-      "date": "2026-02-07T15:54:30.158Z",
+      "date": "2026-02-07T16:01:46.054Z",
       "imageUrl": "https://example.com/image4.jpg",
       "status": "published",
       "paymentPhone": "",
@@ -162,7 +204,7 @@
       "id": "exp-test-evt-5",
       "title": "Test Event 5",
       "description": "",
-      "date": "2026-02-07T15:54:30.164Z",
+      "date": "2026-02-07T16:01:46.058Z",
       "imageUrl": "https://example.com/image5.jpg",
       "status": "published",
       "paymentPhone": "",
@@ -183,7 +225,7 @@
       "id": "exp-test-evt-6",
       "title": "Test Event 6",
       "description": "",
-      "date": "2026-02-07T15:54:30.166Z",
+      "date": "2026-02-07T16:01:46.060Z",
       "imageUrl": "https://example.com/image6.jpg",
       "status": "published",
       "paymentPhone": "",
@@ -204,7 +246,7 @@
       "id": "exp-test-evt-7",
       "title": "Test Event 7",
       "description": "",
-      "date": "2026-02-07T15:54:30.170Z",
+      "date": "2026-02-07T16:01:46.067Z",
       "imageUrl": "https://example.com/image7.jpg",
       "status": "published",
       "paymentPhone": "",
@@ -225,7 +267,7 @@
       "id": "exp-test-evt-8",
       "title": "Test Event 8",
       "description": "",
-      "date": "2026-02-07T15:54:30.187Z",
+      "date": "2026-02-07T16:01:46.079Z",
       "imageUrl": "https://example.com/image8.jpg",
       "status": "published",
       "paymentPhone": "",

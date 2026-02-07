@@ -52,16 +52,22 @@ router.post('/payments', (req: Request, res: Response) => {
 
 /**
  * POST /public/payments/:id/pay
- * Mark payment as paid
+ * Mark payment as paid with manual confirmation
+ * Body: { confirmedBy }
  */
 router.post('/payments/:id/pay', (req: Request, res: Response) => {
   const paymentId = String(req.params.id);
+  const { confirmedBy } = req.body || {};
 
   if (!paymentId) {
     return res.status(400).json({ error: 'paymentId is required' });
   }
 
-  const result = markPaid(paymentId);
+  if (!confirmedBy) {
+    return res.status(400).json({ error: 'confirmedBy is required in request body' });
+  }
+
+  const result = markPaid(paymentId, confirmedBy);
   if (!result.success) {
     return res.status(result.status).json({ error: result.error });
   }

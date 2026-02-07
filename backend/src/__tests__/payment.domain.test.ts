@@ -128,37 +128,52 @@ async function runTests(): Promise<void> {
     assertEquals(result.status, 400, 'Should return 400');
   });
 
-  // Test 3: Pay payment -> status updated to paid
+  // Test 3: Pay payment -> status updated to paid with confirmation
   await runTest('markPaid transitions payment to paid', async () => {
     const bookingId = setupMockBooking();
     const createResult = createPaymentIntentService(bookingId, 1000);
     assert(createResult.data !== undefined, 'Should create payment');
 
     const paymentId = createResult.data!.id;
-    const payResult = markPaid(paymentId);
+    const payResult = markPaid(paymentId, 'admin-user');
 
     assert(payResult.success, 'Should succeed');
     assertEquals(payResult.status, 200, 'Should return 200');
     assertEquals(payResult.data!.status, 'paid', 'Status should be paid');
+    assertEquals(payResult.data!.confirmedBy, 'admin-user', 'Should have confirmedBy');
+    assert(payResult.data!.confirmedAt !== null, 'Should have confirmedAt timestamp');
+    assertEquals(payResult.data!.method, 'manual', 'Should have method: manual');
   });
 
-  // Test 4: Double pay -> 409
+  // Test 4: markPaid requires confirmedBy
+  await runTest('markPaid rejects missing confirmedBy', async () => {
+    const bookingId = setupMockBooking();
+    const createResult = createPaymentIntentService(bookingId, 1000);
+    const paymentId = createResult.data!.id;
+
+    // Try to pay without confirmedBy (empty string)
+    const payResult = markPaid(paymentId, '');
+    assert(!payResult.success, 'Should fail without confirmedBy');
+    assertEquals(payResult.status, 400, 'Should return 400');
+  });
+
+  // Test 5: Double pay -> 409
   await runTest('markPaid twice returns 409', async () => {
     const bookingId = setupMockBooking();
     const createResult = createPaymentIntentService(bookingId, 1000);
     const paymentId = createResult.data!.id;
 
     // First pay - should succeed
-    const payResult1 = markPaid(paymentId);
+    const payResult1 = markPaid(paymentId, 'admin-user');
     assert(payResult1.success, 'First pay should succeed');
 
     // Second pay - should fail with 409
-    const payResult2 = markPaid(paymentId);
+    const payResult2 = markPaid(paymentId, 'admin-user');
     assert(!payResult2.success, 'Second pay should fail');
     assertEquals(payResult2.status, 409, 'Should return 409 Conflict');
   });
 
-  // Test 5: Cancel payment -> cancelled
+  // Test 6: Cancel payment -> cancelled
   await runTest('cancelPayment transitions payment to cancelled', async () => {
     const bookingId = setupMockBooking();
     const createResult = createPaymentIntentService(bookingId, 1000);
@@ -170,7 +185,7 @@ async function runTests(): Promise<void> {
     assertEquals(cancelResult.data!.status, 'cancelled', 'Status should be cancelled');
   });
 
-  // Test 6: Pay cancelled -> 409
+  // Test 7: Pay cancelled -> 409
   await runTest('markPaid on cancelled payment returns 409', async () => {
     const bookingId = setupMockBooking();
     const createResult = createPaymentIntentService(bookingId, 1000);
@@ -180,12 +195,12 @@ async function runTests(): Promise<void> {
     cancelPayment(paymentId);
 
     // Try to pay - should fail
-    const payResult = markPaid(paymentId);
+    const payResult = markPaid(paymentId, 'admin-user');
     assert(!payResult.success, 'Should fail');
     assertEquals(payResult.status, 409, 'Should return 409');
   });
 
-  // Test 7: Cancel already cancelled -> 409
+  // Test 8: Double cancel -> 409
   await runTest('cancelPayment twice returns 409', async () => {
     const bookingId = setupMockBooking();
     const createResult = createPaymentIntentService(bookingId, 1000);
@@ -201,7 +216,7 @@ async function runTests(): Promise<void> {
     assertEquals(cancelResult2.status, 409, 'Should return 409');
   });
 
-  // Test 8: Pay payment -> booking status updated to paid
+  // Test 9: Pay payment -> booking status updated to paid
   await runTest('markPaid updates related booking status to paid', async () => {
     const bookingId = setupMockBooking();
     const createResult = createPaymentIntentService(bookingId, 1000);
@@ -209,7 +224,7 @@ async function runTests(): Promise<void> {
 
     bookingUpdateCalls = [];
 
-    const payResult = markPaid(paymentId);
+    const payResult = markPaid(paymentId, 'admin-user');
     assert(payResult.success, 'Should succeed');
 
     // Verify booking was updated
@@ -218,18 +233,18 @@ async function runTests(): Promise<void> {
     assertEquals(updateCall!.status, 'paid', 'Booking status should be updated to paid');
   });
 
-  // Test 9: Cannot pay if booking is already paid
+  // Test 10: Cannot pay if booking is already paid
   await runTest('markPaid fails if booking is already paid', async () => {
     const bookingId = setupPaidBooking();
     const createResult = createPaymentIntentService(bookingId, 1000);
     const paymentId = createResult.data!.id;
 
-    const payResult = markPaid(paymentId);
+    const payResult = markPaid(paymentId, 'admin-user');
     assert(!payResult.success, 'Should fail');
     assertEquals(payResult.status, 409, 'Should return 409');
   });
 
-  // Test 10: Cancel payment does not change booking status
+  // Test 11: Cancel payment does not change booking status
   await runTest('cancelPayment does not update booking status', async () => {
     const bookingId = setupMockBooking();
     const createResult = createPaymentIntentService(bookingId, 1000);

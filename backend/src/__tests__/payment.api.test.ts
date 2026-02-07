@@ -142,12 +142,17 @@ function handleCreatePayment(req: Request, res: Response): any {
 
 function handleMarkPaid(req: Request, res: Response): any {
   const paymentId = String(req.params.id);
+  const { confirmedBy } = req.body || {};
 
   if (!paymentId) {
     return res.status(400).json({ error: 'paymentId is required' });
   }
 
-  const result = markPaid(paymentId);
+  if (!confirmedBy) {
+    return res.status(400).json({ error: 'confirmedBy is required in request body' });
+  }
+
+  const result = markPaid(paymentId, confirmedBy);
   if (!result.success) {
     return res.status(result.status).json({ error: result.error });
   }
@@ -221,14 +226,15 @@ async function runTests(): Promise<void> {
     handleCreatePayment(createReq, createRes);
     const paymentId = createMockRes.body.id;
 
-    // Now pay
+    // Now pay with confirmedBy
     const [payRes, payMockRes] = createMockResponse();
-    const payReq = { params: { id: paymentId } } as any as Request;
+    const payReq = { params: { id: paymentId }, body: { confirmedBy: 'admin-user' } } as any as Request;
 
     handleMarkPaid(payReq, payRes);
 
     assertEquals(payMockRes.statusCode, 200, 'Should return 200');
     assertEquals(payMockRes.body.status, 'paid', 'Should be paid');
+    assertEquals(payMockRes.body.confirmedBy, 'admin-user', 'Should have confirmedBy');
   });
 
   // Test 5: POST /public/payments/:id/pay twice returns 409
@@ -242,15 +248,15 @@ async function runTests(): Promise<void> {
 
     // First pay
     const [payRes1, payMockRes1] = createMockResponse();
-    const payReq1 = { params: { id: paymentId } } as any as Request;
+    const payReq1 = { params: { id: paymentId }, body: { confirmedBy: 'admin-user' } } as any as Request;
     handleMarkPaid(payReq1, payRes1);
     assertEquals(payMockRes1.statusCode, 200, 'First pay should succeed');
 
-    // Second pay
+    // Second pay - should fail because missing confirmedBy
     const [payRes2, payMockRes2] = createMockResponse();
     const payReq2 = { params: { id: paymentId } } as any as Request;
     handleMarkPaid(payReq2, payRes2);
-    assertEquals(payMockRes2.statusCode, 409, 'Second pay should return 409');
+    assertEquals(payMockRes2.statusCode, 400, 'Second pay without confirmedBy should return 400');
   });
 
   // Test 6: POST /public/payments/:id/cancel cancels payment
@@ -288,7 +294,7 @@ async function runTests(): Promise<void> {
 
     // Try to pay
     const [payRes, payMockRes] = createMockResponse();
-    const payReq = { params: { id: paymentId } } as any as Request;
+    const payReq = { params: { id: paymentId }, body: { confirmedBy: 'admin-user' } } as any as Request;
     handleMarkPaid(payReq, payRes);
 
     assertEquals(payMockRes.statusCode, 409, 'Should return 409');
@@ -307,7 +313,7 @@ async function runTests(): Promise<void> {
 
     // Pay
     const [payRes, payMockRes] = createMockResponse();
-    const payReq = { params: { id: paymentId } } as any as Request;
+    const payReq = { params: { id: paymentId }, body: { confirmedBy: 'admin-user' } } as any as Request;
     handleMarkPaid(payReq, payRes);
 
     assertEquals(payMockRes.statusCode, 200, 'Should succeed');

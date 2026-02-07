@@ -60,17 +60,23 @@ export function createPaymentIntent(
 
 /**
  * Mark a payment as paid
+ * - Requires confirmedBy (who confirmed) and method (payment method)
+ * - Sets confirmedAt to ISO timestamp
  * - Updates related booking status to 'paid'
  * - Cannot transition from paid to other states (409)
  * - Cannot mark paid if booking is already paid (409)
  * - If not found, returns 404
  */
-export function markPaid(paymentId: string): ServiceResponse<PaymentIntent> {
-  if (!paymentId) {
+export function markPaid(
+  paymentId: string,
+  confirmedBy: string,
+  method: 'manual' = 'manual',
+): ServiceResponse<PaymentIntent> {
+  if (!paymentId || !confirmedBy) {
     return {
       success: false,
       status: 400,
-      error: 'paymentId is required',
+      error: 'paymentId and confirmedBy are required',
     };
   }
 
@@ -122,8 +128,12 @@ export function markPaid(paymentId: string): ServiceResponse<PaymentIntent> {
       };
     }
 
-    // Update payment status
-    const updated = updatePaymentStatus(paymentId, 'paid');
+    // Update payment status with confirmation details
+    const updated = updatePaymentStatus(paymentId, 'paid', {
+      method,
+      confirmedBy,
+      confirmedAt: new Date().toISOString(),
+    });
     if (!updated) {
       return {
         success: false,

@@ -692,6 +692,266 @@
       "amount": 1000,
       "status": "paid",
       "createdAt": 1770479683657
+    },
+    {
+      "id": "31c7e86c-f848-4416-9209-739aea58ee53",
+      "bookingId": "bk-test-1770480084791",
+      "amount": 1000,
+      "status": "pending",
+      "createdAt": 1770480084793
+    },
+    {
+      "id": "4c0e2f1c-ec51-42e5-aab6-9c169c948c9b",
+      "bookingId": "bk-test-1770480084794",
+      "amount": 1000,
+      "status": "paid",
+      "createdAt": 1770480084795,
+      "method": "manual",
+      "confirmedBy": "admin-user",
+      "confirmedAt": "2026-02-07T16:01:24.796Z"
+    },
+    {
+      "id": "081c76f1-6c5d-42c8-99ef-035ae0f00005",
+      "bookingId": "bk-test-1770480084798",
+      "amount": 1000,
+      "status": "pending",
+      "createdAt": 1770480084799
+    },
+    {
+      "id": "dc1c89a3-a518-4809-86cc-5783d93b072b",
+      "bookingId": "bk-test-1770480084800",
+      "amount": 1000,
+      "status": "paid",
+      "createdAt": 1770480084801,
+      "method": "manual",
+      "confirmedBy": "admin-user",
+      "confirmedAt": "2026-02-07T16:01:24.802Z"
+    },
+    {
+      "id": "1246dd22-1a7b-4f60-910a-d92d1ea935fe",
+      "bookingId": "bk-test-1770480084803",
+      "amount": 1000,
+      "status": "cancelled",
+      "createdAt": 1770480084803
+    },
+    {
+      "id": "16630d4a-29f8-4ac8-816b-4622d03ff7d1",
+      "bookingId": "bk-test-1770480084806",
+      "amount": 1000,
+      "status": "cancelled",
+      "createdAt": 1770480084807
+    },
+    {
+      "id": "3e686f9a-f63f-4f76-a339-862acc5670fd",
+      "bookingId": "bk-test-1770480084811",
+      "amount": 1000,
+      "status": "cancelled",
+      "createdAt": 1770480084811
+    },
+    {
+      "id": "b7d83a3a-9103-4b0e-ba53-d61559e04a81",
+      "bookingId": "bk-test-1770480084813",
+      "amount": 1000,
+      "status": "paid",
+      "createdAt": 1770480084814,
+      "method": "manual",
+      "confirmedBy": "admin-user",
+      "confirmedAt": "2026-02-07T16:01:24.815Z"
+    },
+    {
+      "id": "2e8e3d14-ab34-41b8-adf7-ce31427b8b8a",
+      "bookingId": "bk-paid-1770480084819",
+      "amount": 1000,
+      "status": "pending",
+      "createdAt": 1770480084819
+    },
+    {
+      "id": "4ec19c72-e994-4fec-bc57-fcea5f51f77c",
+      "bookingId": "bk-test-1770480084820",
+      "amount": 1000,
+      "status": "cancelled",
+      "createdAt": 1770480084820
+    },
+    {
+      "id": "917109ae-635d-4e4e-bda0-a1360c6c19ad",
+      "bookingId": "bk-api-test-1770480089301",
+      "amount": 1000,
+      "status": "pending",
+      "createdAt": 1770480089302
+    },
+    {
+      "id": "b68954b0-bee8-4ff1-b99d-d2bb6b42e5a9",
+      "bookingId": "bk-api-test-1770480089305",
+      "amount": 1000,
+      "status": "paid",
+      "createdAt": 1770480089306,
+      "method": "manual",
+      "confirmedBy": "admin-user",
+      "confirmedAt": "2026-02-07T16:01:29.308Z"
+    },
+    {
+      "id": "6eb5577b-ce9a-4be1-baa0-9341c16f3a1c",
+      "bookingId": "bk-api-test-1770480089313",
+      "amount": 1000,
+      "status": "paid",
+      "createdAt": 1770480089314,
+      "method": "manual",
+      "confirmedBy": "admin-user",
+      "confirmedAt": "2026-02-07T16:01:29.315Z"
+    },
+    {
+      "id": "c3090191-db3d-4ce7-b3a1-6c7b3b09d85e",
+      "bookingId": "bk-api-test-1770480089316",
+      "amount": 1000,
+      "status": "cancelled",
+      "createdAt": 1770480089316
+    },
+    {
+      "id": "a045ca0e-87ff-4b36-bcfb-ea85e9d2c1f5",
+      "bookingId": "bk-api-test-1770480089318",
+      "amount": 1000,
+      "status": "cancelled",
+      "createdAt": 1770480089318
+    },
+    {
+      "id": "38df1a72-f8d2-4f0c-a028-5fc445e15b38",
+      "bookingId": "bk-api-test-1770480089320",
+      "amount": 1000,
+      "status": "paid",
+      "createdAt": 1770480089321,
+      "method": "manual",
+      "confirmedBy": "admin-user",
+      "confirmedAt": "2026-02-07T16:01:29.321Z"
+    },
+    {
+      "id": "89338ecb-69a3-47ed-88dd-0108c8bbd24c",
+      "bookingId": "bk-test-1770480114906",
+      "amount": 1000,
+      "status": "pending",
+      "createdAt": 1770480114908
+    },
+    {
+      "id": "366bd2d3-08dc-46b0-9c7d-f37fe22495fc",
+      "bookingId": "bk-test-1770480114910",
+      "amount": 1000,
+      "status": "paid",
+      "createdAt": 1770480114910,
+      "method": "manual",
+      "confirmedBy": "admin-user",
+      "confirmedAt": "2026-02-07T16:01:54.912Z"
+    },
+    {
+      "id": "361f3486-2d6d-469a-864b-2f199948abd8",
+      "bookingId": "bk-test-1770480114913",
+      "amount": 1000,
+      "status": "pending",
+      "createdAt": 1770480114914
+    },
+    {
+      "id": "f40143d9-9049-48e9-ac76-e43fc7788d80",
+      "bookingId": "bk-test-1770480114914",
+      "amount": 1000,
+      "status": "paid",
+      "createdAt": 1770480114915,
+      "method": "manual",
+      "confirmedBy": "admin-user",
+      "confirmedAt": "2026-02-07T16:01:54.916Z"
+    },
+    {
+      "id": "c6d8ca13-a4ec-4c98-a55c-0d45b7ccc007",
+      "bookingId": "bk-test-1770480114917",
+      "amount": 1000,
+      "status": "cancelled",
+      "createdAt": 1770480114917
+    },
+    {
+      "id": "c0d6114b-0abb-47b9-8145-4dd99c3e4f2f",
+      "bookingId": "bk-test-1770480114919",
+      "amount": 1000,
+      "status": "cancelled",
+      "createdAt": 1770480114920
+    },
+    {
+      "id": "7d817370-d44a-4de5-9ca1-9b3f2f349aab",
+      "bookingId": "bk-test-1770480114922",
+      "amount": 1000,
+      "status": "cancelled",
+      "createdAt": 1770480114922
+    },
+    {
+      "id": "0b3483c2-ddfd-4d93-a63f-64fe874d185e",
+      "bookingId": "bk-test-1770480114923",
+      "amount": 1000,
+      "status": "paid",
+      "createdAt": 1770480114924,
+      "method": "manual",
+      "confirmedBy": "admin-user",
+      "confirmedAt": "2026-02-07T16:01:54.924Z"
+    },
+    {
+      "id": "162e75bf-7493-4f6d-8ed2-69db270f06be",
+      "bookingId": "bk-paid-1770480114925",
+      "amount": 1000,
+      "status": "pending",
+      "createdAt": 1770480114926
+    },
+    {
+      "id": "b16ec555-079b-4c77-9599-ee9993b4acd2",
+      "bookingId": "bk-test-1770480114927",
+      "amount": 1000,
+      "status": "cancelled",
+      "createdAt": 1770480114928
+    },
+    {
+      "id": "169a7297-aaf8-41c3-935d-809f27f6405b",
+      "bookingId": "bk-api-test-1770480119369",
+      "amount": 1000,
+      "status": "pending",
+      "createdAt": 1770480119371
+    },
+    {
+      "id": "a7a9dce0-2cb5-45a0-b35a-0e6b78306573",
+      "bookingId": "bk-api-test-1770480119372",
+      "amount": 1000,
+      "status": "paid",
+      "createdAt": 1770480119373,
+      "method": "manual",
+      "confirmedBy": "admin-user",
+      "confirmedAt": "2026-02-07T16:01:59.374Z"
+    },
+    {
+      "id": "daf7148a-7c82-46cb-a9d7-734d132633b5",
+      "bookingId": "bk-api-test-1770480119376",
+      "amount": 1000,
+      "status": "paid",
+      "createdAt": 1770480119376,
+      "method": "manual",
+      "confirmedBy": "admin-user",
+      "confirmedAt": "2026-02-07T16:01:59.377Z"
+    },
+    {
+      "id": "73b86d39-acb4-48f9-9006-70b445dfda8e",
+      "bookingId": "bk-api-test-1770480119378",
+      "amount": 1000,
+      "status": "cancelled",
+      "createdAt": 1770480119379
+    },
+    {
+      "id": "b2194436-8d06-4698-8621-33c397932fd3",
+      "bookingId": "bk-api-test-1770480119380",
+      "amount": 1000,
+      "status": "cancelled",
+      "createdAt": 1770480119381
+    },
+    {
+      "id": "c6f35e55-f594-4cb5-95b8-314005bee23d",
+      "bookingId": "bk-api-test-1770480119382",
+      "amount": 1000,
+      "status": "paid",
+      "createdAt": 1770480119383,
+      "method": "manual",
+      "confirmedBy": "admin-user",
+      "confirmedAt": "2026-02-07T16:01:59.383Z"
     }
   ]
 }
