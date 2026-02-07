@@ -7,18 +7,23 @@ const router = Router();
 
 // Return published events only
 router.get('/events', (_req: Request, res: Response) => {
-  const events = getEvents().filter((e: any) => (e as any).status === 'published');
-  // map to safe public shape
-  const mapped = events.map((e: any) => ({
-    id: e.id,
-    title: e.title,
-    description: e.description,
-    date: e.date,
-    coverImageUrl: e.imageUrl || e.schemaImageUrl || null,
-    schemaImageUrl: e.schemaImageUrl || e.imageUrl || null,
-    tables: Array.isArray(e.tables) ? e.tables : [],
-  }));
-  res.json(mapped);
+  try {
+    const events = getEvents().filter((e: any) => (e as any).status === 'published');
+    // map to safe public shape
+    const mapped = events.map((e: any) => ({
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      date: e.date,
+      coverImageUrl: e.imageUrl || e.schemaImageUrl || null,
+      schemaImageUrl: e.schemaImageUrl || e.imageUrl || null,
+      tables: Array.isArray(e.tables) ? e.tables : [],
+    }));
+    return res.json(mapped ?? []);
+  } catch (err) {
+    console.error('[PublicEvents] Failed to load events:', err);
+    return res.status(500).json({ error: 'Internal error' });
+  }
 });
 
 // Return a single published event
