@@ -41,6 +41,7 @@ function App() {
   const [tgUser, setTgUser] = useState<TgUser | null>(null);
 
   const [events, setEvents] = useState<PublicEvent[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,8 +65,10 @@ function App() {
     try {
       const data = await StorageService.getEvents();
       setEvents(Array.isArray(data) ? data : []);
+      setHasLoaded(true);
     } catch (e) {
       setError('API недоступен. Проверь VITE_API_BASE_URL.');
+      setHasLoaded(true);
     } finally {
       setLoading(false);
     }
@@ -106,6 +109,9 @@ function App() {
         {error && <div className="text-sm text-red-600 mt-4">{error}</div>}
 
         <div className="mt-6 space-y-3">
+          {hasLoaded && events.length === 0 && !error && (
+            <div className="text-sm text-gray-600">Пока нет опубликованных событий</div>
+          )}
           {events.map((evt) => (
             <div key={evt.id} className="bg-white p-3 rounded border">
               <div className="font-semibold">{evt.title || 'Без названия'}</div>

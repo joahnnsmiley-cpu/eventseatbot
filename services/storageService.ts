@@ -19,7 +19,9 @@ export const getEvents = async (): Promise<EventData[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/public/events`);
   if (!res.ok) throw new Error('Failed to load events');
-  return res.json();
+  if (res.status === 204) return [];
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
 };
 
 export const getEvent = async (eventId: string): Promise<EventData> => {
