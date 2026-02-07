@@ -64,8 +64,10 @@ if (bot) {
       }
 
       for (const event of events) {
+        const eventId = typeof event.id === 'string' ? event.id : String(event.id);
+        const callbackData = `public_event:${eventId}`;
         const keyboard = Markup.inlineKeyboard([
-          Markup.button.callback('Открыть', `public_event:${event.id}`),
+          Markup.button.callback('Открыть', callbackData),
         ]);
         await ctx.reply(formatEventLine(event), keyboard);
       }
@@ -78,7 +80,8 @@ if (bot) {
   });
 
   bot.action(/^public_event:(.+)$/i, async (ctx) => {
-    const eventId = ctx.match[1];
+    const matchValue = ctx.match[1];
+    const eventId = typeof matchValue === 'string' ? matchValue : String(matchValue);
     try {
       const event = await fetchJson<{
         id: string;
