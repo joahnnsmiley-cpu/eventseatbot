@@ -35,7 +35,7 @@ export interface EventData {
   paymentPhone: string;
   maxSeatsPerBooking: number;
   status?: 'draft' | 'published' | 'archived';
-  schemaImageUrl?: string;
+  schemaImageUrl?: string | null;
 }
 
 export type BookingStatus = 'pending' | 'confirmed' | 'paid' | 'cancelled';
@@ -49,9 +49,10 @@ export interface Booking {
   totalAmount: number;
   status: BookingStatus;
   createdAt: number;
-  expiresAt?: string; // ISO string, only set for status = 'confirmed', ignored if status = 'paid'
+  expiresAt?: string | number; // ISO string (db) or millis (legacy/in-memory)
   tableId?: string;
   seatsBooked?: number;
+  tableBookings?: Array<{ tableId: string; seats: number; totalPrice?: number }>;
 }
 
 export interface Admin {

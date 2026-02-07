@@ -1,4 +1,4 @@
-export type BookingStatus = 'reserved' | 'confirmed' | 'paid' | 'cancelled';
+export type BookingStatus = 'reserved' | 'confirmed' | 'cancelled';
 
 export interface InMemoryBooking {
   id: string;
@@ -9,7 +9,7 @@ export interface InMemoryBooking {
   status: BookingStatus;
   createdAt: number;
   expiresAt: number;
-  tableBookings?: Array<{ tableId: string; seats: number }>;
+  tableBookings?: Array<{ tableId: string; seats: number; totalPrice?: number }>;
 }
 
 export const inMemoryBookings: InMemoryBooking[] = [];
