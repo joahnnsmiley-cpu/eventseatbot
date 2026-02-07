@@ -8,9 +8,10 @@
     "test": "node ./scripts/persist-smoke.js",
     "test:booking-events": "npx ts-node src/__tests__/booking.events.test.ts",
     "test:booking-expiration": "npx ts-node src/__tests__/booking.expiration.test.ts",
+    "test:booking-scheduler": "npx ts-node src/__tests__/booking.scheduler.test.ts",
     "test:payment-domain": "npx ts-node src/__tests__/payment.domain.test.ts",
     "test:payment-api": "npx ts-node src/__tests__/payment.api.test.ts",
-    "test:all": "npm run test:booking-events && npm run test:booking-expiration && npm run test:payment-domain && npm run test:payment-api"
+    "test:all": "npm run test:booking-events && npm run test:booking-expiration && npm run test:booking-scheduler && npm run test:payment-domain && npm run test:payment-api"
   },
   "keywords": [],
   "author": "",

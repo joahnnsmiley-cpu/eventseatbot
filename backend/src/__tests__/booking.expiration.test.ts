@@ -321,6 +321,430 @@ async function runTests() {
     }
   });
 
+  // Test 4: Seats are restored when booking expires
+  await runTest('expired booking restores table seats', async () => {
+    setBookingEventNotifier(mockNotifier);
+    mockNotifier.reset();
+
+    // Clear
+    db.setBookings([]);
+    const events = db.getEvents();
+    const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-4');
+    db.saveEvents(cleanEvents);
+
+    // Add test event
+    const testEvent = {
+      id: 'exp-test-evt-4',
+      title: 'Test Event 4',
+      description: '',
+      date: new Date().toISOString(),
+      imageUrl: 'https://example.com/image4.jpg',
+      status: 'published',
+      paymentPhone: '',
+      maxSeatsPerBooking: 10,
+      schemaImageUrl: 'https://example.com/schema4.jpg',
+      tables: [
+        {
+          id: 'exp-test-tbl-4',
+          number: 1,
+          seatsTotal: 10,
+          seatsAvailable: 5, // 5 booked by expired booking
+          centerX: 50,
+          centerY: 50,
+        },
+      ],
+    } as any;
+    const allEvents = db.getEvents();
+    allEvents.push(testEvent);
+    db.saveEvents(allEvents);
+
+    // Add expired booking
+    const now = new Date();
+    const createdAt = new Date(now.getTime() - 20 * 60 * 1000);
+    const expiresAt = calculateBookingExpiration(createdAt.getTime());
+
+    const allBookings = db.getBookings();
+    allBookings.push({
+      id: 'exp-test-bk-4',
+      eventId: 'exp-test-evt-4',
+      tableId: 'exp-test-tbl-4',
+      seatsBooked: 5,
+      status: 'confirmed',
+      createdAt: createdAt.getTime(),
+      expiresAt,
+      userTelegramId: 0,
+      username: '',
+      seatIds: [],
+      totalAmount: 0,
+    } as any);
+    db.setBookings(allBookings);
+
+    // Run expiration
+    expireStaleBookings(now);
+
+    // Verify seats restored
+    const updatedEvents = db.getEvents();
+    const updatedEvent = updatedEvents.find((e: any) => e.id === 'exp-test-evt-4');
+    const table = (updatedEvent as any)?.tables?.[0];
+
+    if (!table) {
+      throw new Error('Table not found after expiration');
+    }
+
+    if (table.seatsAvailable !== 10) {
+      throw new Error(
+        `Expected seats restored to 10, got ${table.seatsAvailable}`,
+      );
+    }
+  });
+
+  // Test 5: Paid bookings are NOT cancelled on expiration
+  await runTest('paid bookings are NOT cancelled on expiration', async () => {
+    setBookingEventNotifier(mockNotifier);
+    mockNotifier.reset();
+
+    // Clear
+    db.setBookings([]);
+    const events = db.getEvents();
+    const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-5');
+    db.saveEvents(cleanEvents);
+
+    // Add test event
+    const testEvent = {
+      id: 'exp-test-evt-5',
+      title: 'Test Event 5',
+      description: '',
+      date: new Date().toISOString(),
+      imageUrl: 'https://example.com/image5.jpg',
+      status: 'published',
+      paymentPhone: '',
+      maxSeatsPerBooking: 10,
+      schemaImageUrl: 'https://example.com/schema5.jpg',
+      tables: [
+        {
+          id: 'exp-test-tbl-5',
+          number: 1,
+          seatsTotal: 4,
+          seatsAvailable: 2,
+          centerX: 50,
+          centerY: 50,
+        },
+      ],
+    } as any;
+    const allEvents = db.getEvents();
+    allEvents.push(testEvent);
+    db.saveEvents(allEvents);
+
+    // Add paid booking (status: paid)
+    const now = new Date();
+    const createdAt = new Date(now.getTime() - 20 * 60 * 1000);
+    const expiresAt = calculateBookingExpiration(createdAt.getTime());
+
+    const allBookings = db.getBookings();
+    allBookings.push({
+      id: 'exp-test-bk-5',
+      eventId: 'exp-test-evt-5',
+      tableId: 'exp-test-tbl-5',
+      seatsBooked: 2,
+      status: 'paid', // NOT "confirmed"
+      createdAt: createdAt.getTime(),
+      expiresAt,
+      userTelegramId: 0,
+      username: '',
+      seatIds: [],
+      totalAmount: 100,
+    } as any);
+    db.setBookings(allBookings);
+
+    // Run expiration
+    const expiredCount = expireStaleBookings(now);
+
+    // Verify booking was NOT expired
+    if (expiredCount !== 0) {
+      throw new Error(
+        `Expected paid booking to NOT expire, but ${expiredCount} bookings expired`,
+      );
+    }
+
+    // Verify booking still has status: paid
+    const updatedBookings = db.getBookings();
+    const updatedBooking = updatedBookings.find((b: any) => b.id === 'exp-test-bk-5');
+
+    if (updatedBooking?.status !== 'paid') {
+      throw new Error(
+        `Expected booking status to remain 'paid', got ${updatedBooking?.status}`,
+      );
+    }
+
+    // Verify no cancellation event emitted
+    if (mockNotifier.callCount.bookingCancelled !== 0) {
+      throw new Error(
+        `Expected no bookingCancelled calls for paid booking, got ${mockNotifier.callCount.bookingCancelled}`,
+      );
+    }
+  });
+
+  // Test 6: Double expiration run (idempotency) - no double side-effects
+  await runTest('double expiration run has no double side-effects', async () => {
+    setBookingEventNotifier(mockNotifier);
+    mockNotifier.reset();
+
+    // Clear
+    db.setBookings([]);
+    const events = db.getEvents();
+    const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-6');
+    db.saveEvents(cleanEvents);
+
+    // Add test event
+    const testEvent = {
+      id: 'exp-test-evt-6',
+      title: 'Test Event 6',
+      description: '',
+      date: new Date().toISOString(),
+      imageUrl: 'https://example.com/image6.jpg',
+      status: 'published',
+      paymentPhone: '',
+      maxSeatsPerBooking: 10,
+      schemaImageUrl: 'https://example.com/schema6.jpg',
+      tables: [
+        {
+          id: 'exp-test-tbl-6',
+          number: 1,
+          seatsTotal: 4,
+          seatsAvailable: 2,
+          centerX: 50,
+          centerY: 50,
+        },
+      ],
+    } as any;
+    const allEvents = db.getEvents();
+    allEvents.push(testEvent);
+    db.saveEvents(allEvents);
+
+    // Add expired booking
+    const now = new Date();
+    const createdAt = new Date(now.getTime() - 20 * 60 * 1000);
+    const expiresAt = calculateBookingExpiration(createdAt.getTime());
+
+    const allBookings = db.getBookings();
+    allBookings.push({
+      id: 'exp-test-bk-6',
+      eventId: 'exp-test-evt-6',
+      tableId: 'exp-test-tbl-6',
+      seatsBooked: 2,
+      status: 'confirmed',
+      createdAt: createdAt.getTime(),
+      expiresAt,
+      userTelegramId: 0,
+      username: '',
+      seatIds: [],
+      totalAmount: 0,
+    } as any);
+    db.setBookings(allBookings);
+
+    // First run
+    const expiredCount1 = expireStaleBookings(now);
+    const notifCount1 = mockNotifier.callCount.bookingCancelled;
+
+    if (expiredCount1 !== 1) {
+      throw new Error(`First run: expected 1 booking expired, got ${expiredCount1}`);
+    }
+
+    // Second run (same time, already cancelled)
+    const expiredCount2 = expireStaleBookings(now);
+    const notifCount2 = mockNotifier.callCount.bookingCancelled;
+
+    // Second run should find 0 bookings to expire (already cancelled)
+    if (expiredCount2 !== 0) {
+      throw new Error(
+        `Second run: expected 0 bookings expired (idempotent), got ${expiredCount2}`,
+      );
+    }
+
+    // Verify no duplicate notification
+    if (notifCount2 !== notifCount1) {
+      throw new Error(
+        `Expected ${notifCount1} total notifications, got ${notifCount2} (duplicate!)`,
+      );
+    }
+
+    // Verify seats only restored once
+    const finalEvents = db.getEvents();
+    const finalEvent = finalEvents.find((e: any) => e.id === 'exp-test-evt-6');
+    const finalTable = (finalEvent as any)?.tables?.[0];
+
+    if (finalTable?.seatsAvailable !== 4) {
+      throw new Error(
+        `Expected seats at 4 (restored once), got ${finalTable?.seatsAvailable}`,
+      );
+    }
+  });
+
+  // Test 7: Scheduler does not throw on errors
+  await runTest('scheduler does not throw on notifier errors', async () => {
+    // Create a notifier that throws
+    const throwingNotifier: BookingEventNotifier = {
+      async bookingCreated() {},
+      async bookingCancelled() {
+        throw new Error('Intentional notifier error');
+      },
+    };
+    setBookingEventNotifier(throwingNotifier);
+
+    // Clear and setup test data
+    db.setBookings([]);
+    const events = db.getEvents();
+    const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-7');
+    db.saveEvents(cleanEvents);
+
+    // Add test event
+    const testEvent = {
+      id: 'exp-test-evt-7',
+      title: 'Test Event 7',
+      description: '',
+      date: new Date().toISOString(),
+      imageUrl: 'https://example.com/image7.jpg',
+      status: 'published',
+      paymentPhone: '',
+      maxSeatsPerBooking: 10,
+      schemaImageUrl: 'https://example.com/schema7.jpg',
+      tables: [
+        {
+          id: 'exp-test-tbl-7',
+          number: 1,
+          seatsTotal: 4,
+          seatsAvailable: 2,
+          centerX: 50,
+          centerY: 50,
+        },
+      ],
+    } as any;
+    const allEvents = db.getEvents();
+    allEvents.push(testEvent);
+    db.saveEvents(allEvents);
+
+    // Add expired booking
+    const now = new Date();
+    const createdAt = new Date(now.getTime() - 20 * 60 * 1000);
+    const expiresAt = calculateBookingExpiration(createdAt.getTime());
+
+    const allBookings = db.getBookings();
+    allBookings.push({
+      id: 'exp-test-bk-7',
+      eventId: 'exp-test-evt-7',
+      tableId: 'exp-test-tbl-7',
+      seatsBooked: 2,
+      status: 'confirmed',
+      createdAt: createdAt.getTime(),
+      expiresAt,
+      userTelegramId: 0,
+      username: '',
+      seatIds: [],
+      totalAmount: 0,
+    } as any);
+    db.setBookings(allBookings);
+
+    // Should NOT throw even though notifier throws
+    let threw = false;
+    try {
+      expireStaleBookings(now);
+    } catch {
+      threw = true;
+    }
+
+    if (threw) {
+      throw new Error('expireStaleBookings should not throw even if notifier throws');
+    }
+
+    // Verify booking was still expired and seats restored
+    const finalBookings = db.getBookings();
+    const finalBooking = finalBookings.find((b: any) => b.id === 'exp-test-bk-7');
+
+    if (finalBooking?.status !== 'cancelled') {
+      throw new Error(
+        `Expected booking to be cancelled despite notifier error, got status: ${finalBooking?.status}`,
+      );
+    }
+  });
+
+  // Test 8: Uses injected now parameter (no real timers)
+  await runTest('expireStaleBookings uses injected now parameter', async () => {
+    setBookingEventNotifier(mockNotifier);
+    mockNotifier.reset();
+
+    // Clear
+    db.setBookings([]);
+    const events = db.getEvents();
+    const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-8');
+    db.saveEvents(cleanEvents);
+
+    // Add test event
+    const testEvent = {
+      id: 'exp-test-evt-8',
+      title: 'Test Event 8',
+      description: '',
+      date: new Date().toISOString(),
+      imageUrl: 'https://example.com/image8.jpg',
+      status: 'published',
+      paymentPhone: '',
+      maxSeatsPerBooking: 10,
+      schemaImageUrl: 'https://example.com/schema8.jpg',
+      tables: [
+        {
+          id: 'exp-test-tbl-8',
+          number: 1,
+          seatsTotal: 4,
+          seatsAvailable: 2,
+          centerX: 50,
+          centerY: 50,
+        },
+      ],
+    } as any;
+    const allEvents = db.getEvents();
+    allEvents.push(testEvent);
+    db.saveEvents(allEvents);
+
+    // Add booking that expires at specific time
+    const injectedNow = new Date('2026-02-07T12:00:00Z');
+    const expiresAt = '2026-02-07T11:50:00Z'; // 10 minutes before injectedNow
+
+    const allBookings = db.getBookings();
+    allBookings.push({
+      id: 'exp-test-bk-8',
+      eventId: 'exp-test-evt-8',
+      tableId: 'exp-test-tbl-8',
+      seatsBooked: 2,
+      status: 'confirmed',
+      createdAt: new Date('2026-02-07T11:40:00Z').getTime(),
+      expiresAt,
+      userTelegramId: 0,
+      username: '',
+      seatIds: [],
+      totalAmount: 0,
+    } as any);
+    db.setBookings(allBookings);
+
+    // Pass injected "now" - no real timers used
+    const expiredCount = expireStaleBookings(injectedNow);
+
+    // Verify it respects the injected time
+    if (expiredCount !== 1) {
+      throw new Error(
+        `Expected 1 booking to expire with injected time, got ${expiredCount}`,
+      );
+    }
+
+    // Verify booking was cancelled
+    const finalBookings = db.getBookings();
+    const finalBooking = finalBookings.find((b: any) => b.id === 'exp-test-bk-8');
+
+    if (finalBooking?.status !== 'cancelled') {
+      throw new Error(
+        `Expected booking cancelled with injected time, got status: ${finalBooking?.status}`,
+      );
+    }
+  });
+
   // ============================================
   // SUMMARY
   // ============================================

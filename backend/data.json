@@ -67,10 +67,31 @@
       ]
     },
     {
+      "id": "exp-test-evt-1",
+      "title": "Test Event",
+      "description": "",
+      "date": "2026-02-07T15:54:30.143Z",
+      "imageUrl": "https://example.com/image.jpg",
+      "status": "published",
+      "paymentPhone": "",
+      "maxSeatsPerBooking": 10,
+      "schemaImageUrl": "https://example.com/schema.jpg",
+      "tables": [
+        {
+          "id": "exp-test-tbl-1",
+          "number": 1,
+          "seatsTotal": 4,
+          "seatsAvailable": 2,
+          "centerX": 50,
+          "centerY": 50
+        }
+      ]
+    },
+    {
       "id": "exp-test-evt-2",
       "title": "Test Event 2",
       "description": "",
-      "date": "2026-02-07T15:52:08.203Z",
+      "date": "2026-02-07T15:54:30.150Z",
       "imageUrl": "https://example.com/image2.jpg",
       "status": "published",
       "paymentPhone": "",
@@ -99,7 +120,7 @@
       "id": "exp-test-evt-3",
       "title": "Test Event 3",
       "description": "",
-      "date": "2026-02-07T15:52:08.207Z",
+      "date": "2026-02-07T15:54:30.155Z",
       "imageUrl": "https://example.com/image3.jpg",
       "status": "published",
       "paymentPhone": "",
@@ -115,17 +136,122 @@
           "centerY": 50
         }
       ]
+    },
+    {
+      "id": "exp-test-evt-4",
+      "title": "Test Event 4",
+      "description": "",
+      "date": "2026-02-07T15:54:30.158Z",
+      "imageUrl": "https://example.com/image4.jpg",
+      "status": "published",
+      "paymentPhone": "",
+      "maxSeatsPerBooking": 10,
+      "schemaImageUrl": "https://example.com/schema4.jpg",
+      "tables": [
+        {
+          "id": "exp-test-tbl-4",
+          "number": 1,
+          "seatsTotal": 10,
+          "seatsAvailable": 10,
+          "centerX": 50,
+          "centerY": 50
+        }
+      ]
+    },
+    {
+      "id": "exp-test-evt-5",
+      "title": "Test Event 5",
+      "description": "",
+      "date": "2026-02-07T15:54:30.164Z",
+      "imageUrl": "https://example.com/image5.jpg",
+      "status": "published",
+      "paymentPhone": "",
+      "maxSeatsPerBooking": 10,
+      "schemaImageUrl": "https://example.com/schema5.jpg",
+      "tables": [
+        {
+          "id": "exp-test-tbl-5",
+          "number": 1,
+          "seatsTotal": 4,
+          "seatsAvailable": 2,
+          "centerX": 50,
+          "centerY": 50
+        }
+      ]
+    },
+    {
+      "id": "exp-test-evt-6",
+      "title": "Test Event 6",
+      "description": "",
+      "date": "2026-02-07T15:54:30.166Z",
+      "imageUrl": "https://example.com/image6.jpg",
+      "status": "published",
+      "paymentPhone": "",
+      "maxSeatsPerBooking": 10,
+      "schemaImageUrl": "https://example.com/schema6.jpg",
+      "tables": [
+        {
+          "id": "exp-test-tbl-6",
+          "number": 1,
+          "seatsTotal": 4,
+          "seatsAvailable": 4,
+          "centerX": 50,
+          "centerY": 50
+        }
+      ]
+    },
+    {
+      "id": "exp-test-evt-7",
+      "title": "Test Event 7",
+      "description": "",
+      "date": "2026-02-07T15:54:30.170Z",
+      "imageUrl": "https://example.com/image7.jpg",
+      "status": "published",
+      "paymentPhone": "",
+      "maxSeatsPerBooking": 10,
+      "schemaImageUrl": "https://example.com/schema7.jpg",
+      "tables": [
+        {
+          "id": "exp-test-tbl-7",
+          "number": 1,
+          "seatsTotal": 4,
+          "seatsAvailable": 4,
+          "centerX": 50,
+          "centerY": 50
+        }
+      ]
+    },
+    {
+      "id": "exp-test-evt-8",
+      "title": "Test Event 8",
+      "description": "",
+      "date": "2026-02-07T15:54:30.187Z",
+      "imageUrl": "https://example.com/image8.jpg",
+      "status": "published",
+      "paymentPhone": "",
+      "maxSeatsPerBooking": 10,
+      "schemaImageUrl": "https://example.com/schema8.jpg",
+      "tables": [
+        {
+          "id": "exp-test-tbl-8",
+          "number": 1,
+          "seatsTotal": 4,
+          "seatsAvailable": 4,
+          "centerX": 50,
+          "centerY": 50
+        }
+      ]
     }
   ],
   "bookings": [
     {
-      "id": "exp-test-bk-3",
-      "eventId": "exp-test-evt-3",
-      "tableId": "exp-test-tbl-3",
-      "seatsBooked": 1,
-      "status": "confirmed",
-      "createdAt": 1770479228207,
-      "expiresAt": "2026-02-07T16:02:08.207Z",
+      "id": "exp-test-bk-8",
+      "eventId": "exp-test-evt-8",
+      "tableId": "exp-test-tbl-8",
+      "seatsBooked": 2,
+      "status": "cancelled",
+      "createdAt": 1770464400000,
+      "expiresAt": "2026-02-07T11:50:00Z",
       "userTelegramId": 0,
       "username": "",
       "seatIds": [],
