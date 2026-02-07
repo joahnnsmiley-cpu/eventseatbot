@@ -183,7 +183,9 @@ app.post('/bookings', authMiddleware, (req: AuthRequest, res) => {
     if (evIdx === -1) return res.status(500).json({ error: 'Event not found in storage' });
 
     for (const up of updates) {
-      const table = events[evIdx].tables.find((t) => t.id === up.tableId);
+      const evt = events[evIdx];
+      if (!evt || !evt.tables) continue;
+      const table = evt.tables.find((t) => t.id === up.tableId);
       if (!table) continue;
       table.seatsAvailable = Math.max(0, table.seatsAvailable - up.seats);
     }
@@ -229,9 +231,9 @@ app.post('/bookings', authMiddleware, (req: AuthRequest, res) => {
         // restore seats
         const evs = getEvents();
         const idx = evs.findIndex((e) => e.id === bookingRecord.eventId);
-        if (idx !== -1) {
+        if (idx !== -1 && evs[idx]?.tables) {
           for (const tb of (b.tableBookings || [])) {
-            const table = evs[idx].tables.find((t) => t.id === tb.tableId);
+            const table = evs[idx].tables?.find((t) => t.id === tb.tableId);
             if (table) table.seatsAvailable = Math.min(table.seatsTotal, table.seatsAvailable + tb.seats);
           }
           saveEvents(evs);

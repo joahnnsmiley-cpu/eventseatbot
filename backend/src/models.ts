@@ -34,9 +34,11 @@ export interface EventData {
   tables: Table[];
   paymentPhone: string;
   maxSeatsPerBooking: number;
+  status?: 'draft' | 'published' | 'archived';
+  schemaImageUrl?: string;
 }
 
-export type BookingStatus = 'pending' | 'paid' | 'cancelled';
+export type BookingStatus = 'pending' | 'confirmed' | 'paid' | 'cancelled';
 
 export interface Booking {
   id: string;
@@ -47,6 +49,8 @@ export interface Booking {
   totalAmount: number;
   status: BookingStatus;
   createdAt: number;
+  tableId?: string;
+  seatsBooked?: number;
 }
 
 export interface Admin {

@@ -9,10 +9,6 @@ export default defineConfig({
   use: {
     headless: true,
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3001',
-    // Default API base used by API tests (can be overridden via env)
-    env: {
-      PLAYWRIGHT_API_BASE: process.env.PLAYWRIGHT_API_BASE || 'http://127.0.0.1:4000',
-    },
     viewport: { width: 1280, height: 800 },
   },
   // Ensure backend is started for API tests. Reuse existing server if present.

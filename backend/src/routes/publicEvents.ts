@@ -80,7 +80,7 @@ router.get('/view', (_req: Request, res: Response) => {
 
 // Simple static HTML view for event detail (renders schema image and overlays)
 router.get('/view/:id', (req: Request, res: Response) => {
-  const id = req.params.id;
+  const id = String(req.params.id);
   res.type('html').send(`<!doctype html>
 <html>
 <head>
@@ -208,7 +208,7 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
 // POST /public/bookings/:id/cancel
 // Cancel a confirmed booking and restore seatsAvailable on the related table.
 router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
-  const bookingId = req.params.id;
+  const bookingId = String(req.params.id);
   if (!bookingId) return res.status(400).json({ error: 'bookingId is required' });
 
   // reuse same locks map as bookings creation

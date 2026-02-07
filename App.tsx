@@ -395,7 +395,7 @@ function App() {
 
         <div className="bg-white p-6 rounded-xl shadow-sm border w-full max-w-sm mb-6 text-left">
           <h3 className="font-bold border-b pb-2 mb-2">Payment Instructions</h3>
-          <p className="mb-4 text-sm text-gray-700">Please transfer <b>{(booking.totalPrice ?? (booking.totalAmount as any))} ₽</b> via SBP (Fast Payment System) to:</p>
+          <p className="mb-4 text-sm text-gray-700">Please transfer <b>{booking.totalAmount} ₽</b> via SBP (Fast Payment System) to:</p>
           <div className="bg-gray-100 p-3 rounded-lg flex justify-between items-center mb-4">
             <span className="font-mono font-bold text-lg">{eventSnap?.paymentPhone || selectedEvent?.paymentPhone}</span>
             <button className="text-blue-600 text-sm font-bold">COPY</button>

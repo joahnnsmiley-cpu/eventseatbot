@@ -17,7 +17,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
   onSeatSelect, 
   selectedSeats = [],
   onTableAdd,
-  onTableDelete
+  onTableDelete,
+  onTableClick
 }) => {
   const [scale, setScale] = useState(1);
 

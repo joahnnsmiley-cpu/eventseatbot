@@ -9,6 +9,7 @@ export interface InMemoryBooking {
   status: BookingStatus;
   createdAt: number;
   expiresAt: number;
+  tableBookings?: Array<{ tableId: string; seats: number }>;
 }
 
 export const inMemoryBookings: InMemoryBooking[] = [];
