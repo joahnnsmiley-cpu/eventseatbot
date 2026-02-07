@@ -1,24 +1,30 @@
 import { EventData, Booking } from '../types';
 import AuthService from './authService';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const normalizedApiBase = typeof API_BASE_URL === 'string'
-  ? API_BASE_URL.trim().replace(/\/+$/, '')
-  : '';
+const getApiBaseUrl = () => {
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const normalizedApiBase = typeof apiBaseUrl === 'string'
+    ? apiBaseUrl.trim().replace(/\/+$/, '')
+    : '';
 
-if (!normalizedApiBase || !normalizedApiBase.startsWith('https://')) {
-  console.error('Invalid API_BASE_URL', API_BASE_URL);
-  throw new Error('API_BASE_URL is not configured');
-}
+  if (!normalizedApiBase || !normalizedApiBase.startsWith('https://')) {
+    console.error('Invalid API_BASE_URL', apiBaseUrl);
+    throw new Error('API_BASE_URL is not configured');
+  }
+
+  return normalizedApiBase;
+};
 
 export const getEvents = async (): Promise<EventData[]> => {
-  const res = await fetch(`${normalizedApiBase}/public/events`);
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/public/events`);
   if (!res.ok) throw new Error('Failed to load events');
   return res.json();
 };
 
 export const getEvent = async (eventId: string): Promise<EventData> => {
-  const res = await fetch(`${normalizedApiBase}/public/events/${eventId}`);
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/public/events/${eventId}`);
   if (!res.ok) throw new Error('Failed to load event');
   return res.json();
 };
@@ -27,7 +33,8 @@ export const createBooking = async (
   eventId: string,
   seatFullIds: string[],
 ): Promise<any> => {
-  const res = await fetch(`${normalizedApiBase}/bookings`, {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/bookings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
     body: JSON.stringify({ eventId, seatIds: seatFullIds }),
@@ -46,7 +53,8 @@ export const createBooking = async (
 };
 
 export const getMyBookings = async (): Promise<Booking[]> => {
-  const res = await fetch(`${normalizedApiBase}/me/bookings`, { headers: AuthService.getAuthHeader() });
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/me/bookings`, { headers: AuthService.getAuthHeader() });
   if (!res.ok) {
     if (res.status === 403) {
       AuthService.logout();
@@ -58,7 +66,8 @@ export const getMyBookings = async (): Promise<Booking[]> => {
 };
 
 export const getMyTickets = async (): Promise<Booking[]> => {
-  const res = await fetch(`${normalizedApiBase}/me/tickets`, { headers: AuthService.getAuthHeader() });
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/me/tickets`, { headers: AuthService.getAuthHeader() });
   if (!res.ok) {
     if (res.status === 403) {
       AuthService.logout();
@@ -71,7 +80,8 @@ export const getMyTickets = async (): Promise<Booking[]> => {
 
 // Admin-side helpers
 export const getAdminBookings = async (status?: string): Promise<Booking[]> => {
-  const url = new URL(`${normalizedApiBase}/admin/bookings`);
+  const apiBaseUrl = getApiBaseUrl();
+  const url = new URL(`${apiBaseUrl}/admin/bookings`);
   if (status) url.searchParams.set('status', status);
   const res = await fetch(url.toString(), { headers: AuthService.getAuthHeader() });
   if (!res.ok) {
@@ -85,7 +95,8 @@ export const getAdminBookings = async (status?: string): Promise<Booking[]> => {
 };
 
 export const confirmBooking = async (bookingId: string): Promise<void> => {
-  const res = await fetch(`${normalizedApiBase}/admin/bookings/${bookingId}/confirm`, {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/bookings/${bookingId}/confirm`, {
     method: 'POST',
     headers: AuthService.getAuthHeader(),
   });
@@ -101,7 +112,8 @@ export const confirmBooking = async (bookingId: string): Promise<void> => {
 
 // Admin events API
 export const getAdminEvents = async (): Promise<EventData[]> => {
-  const res = await fetch(`${normalizedApiBase}/admin/events`, { headers: AuthService.getAuthHeader() });
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/events`, { headers: AuthService.getAuthHeader() });
   if (!res.ok) {
     if (res.status === 403) {
       AuthService.logout();
@@ -113,7 +125,8 @@ export const getAdminEvents = async (): Promise<EventData[]> => {
 };
 
 export const getAdminEvent = async (id: string): Promise<EventData> => {
-  const res = await fetch(`${normalizedApiBase}/admin/events/${encodeURIComponent(id)}`, { headers: AuthService.getAuthHeader() });
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(id)}`, { headers: AuthService.getAuthHeader() });
   if (!res.ok) {
     if (res.status === 403) {
       AuthService.logout();
@@ -125,7 +138,8 @@ export const getAdminEvent = async (id: string): Promise<EventData> => {
 };
 
 export const createAdminEvent = async (payload: Partial<EventData>): Promise<EventData> => {
-  const res = await fetch(`${normalizedApiBase}/admin/events`, {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/events`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
     body: JSON.stringify(payload),
@@ -142,7 +156,8 @@ export const createAdminEvent = async (payload: Partial<EventData>): Promise<Eve
 };
 
 export const updateAdminEvent = async (id: string, payload: Partial<EventData>): Promise<EventData> => {
-  const res = await fetch(`${normalizedApiBase}/admin/events/${encodeURIComponent(id)}`, {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
     body: JSON.stringify(payload),
@@ -159,7 +174,8 @@ export const updateAdminEvent = async (id: string, payload: Partial<EventData>):
 };
 
 export const deleteAdminEvent = async (id: string): Promise<void> => {
-  const res = await fetch(`${normalizedApiBase}/admin/events/${encodeURIComponent(id)}`, {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: AuthService.getAuthHeader(),
   });
