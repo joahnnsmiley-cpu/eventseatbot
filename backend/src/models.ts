@@ -54,7 +54,7 @@ export interface EventData {
   schemaImageUrl?: string | null;
 }
 
-export type BookingStatus = 'reserved' | 'paid' | 'expired';
+export type BookingStatus = 'reserved' | 'paid' | 'expired' | 'pending';
 
 export interface Booking {
   id: string;
@@ -69,6 +69,8 @@ export interface Booking {
   expiresAt?: string | number; // ISO string (db) or millis (legacy/in-memory)
   tableId?: string;
   seatsBooked?: number;
+  /** Selected seat indices for table booking (BOOKING v1). */
+  seatIndices?: number[];
   tableBookings?: Array<{ tableId: string; seats: number; totalPrice?: number }>;
   tickets?: Ticket[];
 }

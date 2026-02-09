@@ -66,6 +66,7 @@ function App() {
   const [userPhone, setUserPhone] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
+  const [bookingSuccessMessage, setBookingSuccessMessage] = useState<string | null>(null);
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
   const [myBookingsLoading, setMyBookingsLoading] = useState(false);
   const [myBookingsError, setMyBookingsError] = useState<string | null>(null);
@@ -521,23 +522,28 @@ function App() {
                     setBookingError('Add a phone number to continue.');
                     return;
                   }
-                  const selectedCount = (selectedSeatsByTable[selectedTableId] ?? []).length;
-                  if (selectedCount === 0) {
+                  const seats = selectedSeatsByTable[selectedTableId] ?? [];
+                  if (seats.length === 0) {
                     setBookingError('Select at least one seat.');
                     return;
                   }
                   setBookingLoading(true);
                   setBookingError(null);
                   try {
-                    await StorageService.createTableBooking({
+                    const { id } = await StorageService.createPendingBooking({
                       eventId: selectedEventId,
                       tableId: selectedTableId,
-                      seatsRequested: selectedCount,
-                      userPhone: normalizedPhone,
+                      seats: [...seats],
+                      phone: normalizedPhone,
+                    });
+                    setSelectedSeatsByTable((prev) => {
+                      const next = { ...prev };
+                      delete next[selectedTableId];
+                      return next;
                     });
                     setSelectedTableId(null);
-                    setSelectedEventId(null);
                     setSelectedEvent(null);
+                    setBookingSuccessMessage(`Booking created. ID: ${id}`);
                     setView('my-bookings');
                     await loadMyBookings();
                   } catch (e) {
@@ -546,9 +552,9 @@ function App() {
                       setBookingError('Seats just ran out. Refresh and try another table.');
                       if (selectedEventId) loadEvent(selectedEventId, true);
                     } else if (err.status === 400 || err.status === 422) {
-                      setBookingError('Check your details and try again.');
+                      setBookingError(err.message || 'Check your details and try again.');
                     } else {
-                      setBookingError('Connection issue. Try again.');
+                      setBookingError(err.message || 'Connection issue. Try again.');
                     }
                   } finally {
                     setBookingLoading(false);
@@ -580,6 +586,7 @@ function App() {
                 setSelectedEventId(null);
                 setSelectedEvent(null);
                 setSelectedTableId(null);
+                setBookingSuccessMessage(null);
               }}
               disabled={myBookingsLoading}
               className="text-xs px-2 py-1 rounded border"
@@ -596,6 +603,9 @@ function App() {
             </button>
           </div>
 
+          {bookingSuccessMessage && (
+            <div className="text-sm text-green-700 mb-4">{bookingSuccessMessage}</div>
+          )}
           {myBookingsLoading && <div className="text-xs text-gray-500">Loading bookings…</div>}
           {myBookingsError && (
             <div className="text-xs text-red-600 mb-3">

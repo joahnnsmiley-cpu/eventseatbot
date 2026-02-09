@@ -145,7 +145,46 @@ router.get('/view/:id', (req: Request, res: Response) => {
 `);
 });
 
-export default router;
+// POST /public/bookings — create pending booking (no payment, no seat blocking)
+// Body: { eventId, tableId, seats: number[], phone }
+router.post('/bookings', (req: Request, res: Response) => {
+  const { eventId, tableId, seats, phone } = req.body || {};
+  if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
+  const normalizedPhone = typeof phone === 'string' ? phone.trim() : '';
+  if (!normalizedPhone) return res.status(400).json({ error: 'phone is required' });
+  const seatIndices = Array.isArray(seats) ? seats.filter((s) => Number.isInteger(s)) : [];
+  if (seatIndices.length === 0) return res.status(400).json({ error: 'seats must be a non-empty array of seat indices' });
+
+  try {
+    const ev = findEventById(String(eventId)) as any;
+    if (!ev || (ev.published !== true && ev.status !== 'published'))
+      return res.status(404).json({ error: 'Event not found' });
+    const tbl = Array.isArray(ev.tables) ? ev.tables.find((t: any) => t.id === tableId) : null;
+    if (!tbl) return res.status(400).json({ error: 'Table not found' });
+
+    const id = (require('uuid').v4)();
+    const createdAt = Date.now();
+    const booking = {
+      id,
+      eventId: String(eventId),
+      tableId: String(tableId),
+      seatsBooked: seatIndices.length,
+      seatIndices: [...seatIndices],
+      userPhone: normalizedPhone,
+      status: 'pending',
+      createdAt,
+      userTelegramId: 0,
+      username: '',
+      seatIds: [],
+      totalAmount: 0,
+    } as any;
+    addBooking(booking);
+    return res.status(201).json({ id: booking.id });
+  } catch (err) {
+    console.error('[PublicEvents] POST /bookings failed:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // POST /public/bookings/table
 // Create a reserved booking for a table (public read-only booking endpoint)
@@ -295,3 +334,5 @@ router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+export default router;

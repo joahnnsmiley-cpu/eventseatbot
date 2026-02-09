@@ -65,6 +65,28 @@ export const createTableBooking = async (payload: {
   return res.json();
 };
 
+/** Create a pending booking (no payment, no seat blocking). Body: eventId, tableId, seats (number[]), phone. */
+export const createPendingBooking = async (payload: {
+  eventId: string;
+  tableId: string;
+  seats: number[];
+  phone: string;
+}): Promise<{ id: string }> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/public/bookings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const error: Error & { status?: number } = new Error(err.error || 'Failed to create booking');
+    error.status = res.status;
+    throw error;
+  }
+  return res.json();
+};
+
 export const getMyBookings = async (): Promise<Booking[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/me/bookings`, { headers: AuthService.getAuthHeader() });
