@@ -34,6 +34,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [layoutUrl, setLayoutUrl] = useState('');
   const [savingLayout, setSavingLayout] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [creatingEvent, setCreatingEvent] = useState(false);
 
   const toFriendlyError = (e: unknown) => {
     const raw = e instanceof Error ? e.message : String(e);
@@ -91,6 +92,25 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setError(toFriendlyError(e));
     } finally {
       setEventsLoading(false);
+    }
+  };
+
+  const createEvent = async () => {
+    setCreatingEvent(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const created = await StorageService.createAdminEvent({ title: 'New event', status: 'draft' } as any);
+      await loadEvents();
+      if (created?.id) {
+        setSelectedEventId(created.id);
+        await loadEvent(created.id);
+      }
+      setSuccessMessage('Event created.');
+    } catch (e) {
+      setError(toFriendlyError(e));
+    } finally {
+      setCreatingEvent(false);
     }
   };
 
@@ -276,7 +296,20 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   </option>
                 ))}
               </select>
-              <button onClick={loadEvents} className="px-3 py-2 text-sm border rounded">Refresh</button>
+              <button
+                onClick={loadEvents}
+                disabled={eventsLoading || creatingEvent}
+                className="px-3 py-2 text-sm border rounded"
+              >
+                Refresh
+              </button>
+              <button
+                onClick={createEvent}
+                disabled={eventsLoading || creatingEvent}
+                className="px-3 py-2 text-sm border rounded"
+              >
+                {creatingEvent ? 'Creating…' : 'Create event'}
+              </button>
             </div>
             {eventsLoading && (
               <div className="text-xs text-gray-500 mt-2">Loading events…</div>
