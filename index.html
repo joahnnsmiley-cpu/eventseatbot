@@ -86,10 +86,10 @@
         /* NO width, NO height — size comes from .table-shape */
       }
       .table-shape {
-        width: clamp(24px, calc(var(--size) * 1%), 72px);
-        height: clamp(24px, calc(var(--size) * 1%), 72px);
+        /* Pixel-based size: baseSize 24px + (sizePercent * 4px). No % so no dependency on wrapper dimensions. */
+        width: calc(24px + (var(--size) * 4px));
+        height: calc(24px + (var(--size) * 4px));
         border: 2px solid rgba(0, 0, 0, 0.2);
-        /* single owner of width/height from --size; no position/inset so wrapper sizes to shape */
       }
       .table-shape.circle { border-radius: 50%; }
       .table-shape.rect { border-radius: 6px; }
