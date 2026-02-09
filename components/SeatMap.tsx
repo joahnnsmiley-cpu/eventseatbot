@@ -92,19 +92,31 @@ const SeatMap: React.FC<SeatMapProps> = ({
   return (
     <div
       className="relative w-full overflow-hidden bg-gray-100 rounded-lg border border-gray-300"
-      style={{
-        position: 'relative',
-        width: '100%',
-        minHeight: 300,
-        padding: 0,
-        cursor: isEditable ? 'crosshair' : 'default',
-        backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
-        backgroundRepeat: 'no-repeat',
-        backgroundPosition: 'center',
-        backgroundSize: 'contain',
-      }}
-      onClick={handleMapClick}
+      style={{ minHeight: 300 }}
     >
+      {/* Pure coordinate container: no padding/border/flex; percentage coordinates match admin 1:1 */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100%',
+          height: '100%',
+          padding: 0,
+          margin: 0,
+          border: 'none',
+          boxSizing: 'content-box',
+          display: 'block',
+          cursor: isEditable ? 'crosshair' : 'default',
+          backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center',
+          backgroundSize: 'contain',
+        }}
+        onClick={handleMapClick}
+      >
       {!backgroundUrl && (
         <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
           No layout image
@@ -201,6 +213,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
