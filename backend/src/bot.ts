@@ -21,19 +21,24 @@ export const bot = BOT_TOKEN ? new Telegraf(BOT_TOKEN) : null;
  * НИКАКОГО bot.launch() — webhook режим
  */
 if (bot) {
-  bot.start(async (ctx) => {
-    const keyboard = Markup.inlineKeyboard([
-      Markup.button.url('Открыть WebApp', WEBAPP_URL),
-    ]);
+  bot.telegram.setChatMenuButton({
+    type: 'web_app',
+    text: '🎟 Выбрать место',
+    web_app: { url: WEBAPP_URL },
+  }).catch((e) => {
+    console.error('Failed to set chat menu button', e);
+  });
 
-    await ctx.reply('Привет! Откройте WebApp для бронирования.', keyboard);
+  bot.start(async (ctx) => {
+    const keyboard = Markup.keyboard([
+      [Markup.button.webApp('🎟 Выбрать место', WEBAPP_URL)],
+    ]).resize();
+
+    await ctx.reply('Привет! Нажмите кнопку ниже, чтобы открыть WebApp.', keyboard);
   });
 
   bot.help((ctx) => {
-    const keyboard = Markup.inlineKeyboard([
-      Markup.button.url('Открыть WebApp', WEBAPP_URL),
-    ]);
-    ctx.reply('Используйте WebApp для бронирования.', keyboard);
+    ctx.reply('Используйте кнопку "🎟 Выбрать место" в сообщении /start.');
   });
 }
 
