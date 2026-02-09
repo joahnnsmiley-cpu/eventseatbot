@@ -33,6 +33,7 @@ export interface EventData {
   tables: Table[];
   paymentPhone: string;
   maxSeatsPerBooking: number;
+  published?: boolean;
 }
 
 export interface Booking {

@@ -35,6 +35,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [eventTitle, setEventTitle] = useState('');
   const [eventDescription, setEventDescription] = useState('');
   const [eventPhone, setEventPhone] = useState('');
+  const [eventPublished, setEventPublished] = useState(false);
   const [savingLayout, setSavingLayout] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [creatingEvent, setCreatingEvent] = useState(false);
@@ -94,6 +95,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setEventTitle(ev?.title || '');
       setEventDescription(ev?.description || '');
       setEventPhone(ev?.paymentPhone || '');
+      setEventPublished(ev?.published === true || ev?.status === 'published');
     } catch (e) {
       console.error('[AdminPanel] Failed to load event', e);
       if (e instanceof Error && e.message) {
@@ -140,11 +142,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         description: eventDescription.trim(),
         paymentPhone: eventPhone.trim(),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : null,
+        published: eventPublished,
       };
       const updated = await StorageService.updateAdminEvent(selectedEvent.id, payload);
       const merged = { ...selectedEvent, ...updated, ...payload };
       setSelectedEvent(merged);
       setLayoutUrl(merged.layoutImageUrl || '');
+      setEventPublished(merged.published === true);
       setEvents((prev) => prev.map((e) => (e.id === merged.id ? { ...e, title: merged.title } : e)));
       setError(null);
       setSuccessMessage('Event updated.');
@@ -386,6 +390,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   className="w-full border rounded px-3 py-2 text-sm"
                 />
               </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={eventPublished}
+                  onChange={(e) => setEventPublished(e.target.checked)}
+                />
+                Published
+              </label>
               <div>
                 <div className="text-sm font-semibold mb-1">Layout image URL</div>
                 <input

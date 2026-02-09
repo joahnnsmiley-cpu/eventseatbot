@@ -99,6 +99,7 @@ router.post('/events', (req: Request, res: Response) => {
   const imageUrl = typeof req.body.imageUrl === 'string' ? req.body.imageUrl : coverImageUrl || '';
   const schemaImageUrl = typeof req.body.schemaImageUrl === 'string' ? req.body.schemaImageUrl : undefined;
   const layoutImageUrl = typeof req.body.layoutImageUrl === 'string' ? req.body.layoutImageUrl : undefined;
+  const published = typeof req.body.published === 'boolean' ? req.body.published : false;
 
   // Convert to EventData with sensible defaults so storage remains compatible
   const eventData: EventData = {
@@ -112,6 +113,7 @@ router.post('/events', (req: Request, res: Response) => {
     paymentPhone: req.body.paymentPhone || '',
     maxSeatsPerBooking: Number(req.body.maxSeatsPerBooking) || 0,
     tables: normalizeTables(req.body.tables),
+    published,
   };
 
   upsertEvent(eventData);
@@ -137,6 +139,7 @@ router.post('/events/:id/publish', (req: Request, res: Response) => {
   }
 
   existing.status = 'published';
+  existing.published = true;
   upsertEvent(existing);
   return res.status(200).json(existing);
 });
@@ -174,6 +177,7 @@ router.put('/events/:id', (req: Request, res: Response) => {
   if (req.body.layoutImageUrl === null || typeof req.body.layoutImageUrl === 'string') {
     existing.layoutImageUrl = req.body.layoutImageUrl;
   }
+  if (typeof req.body.published === 'boolean') existing.published = req.body.published;
   if (typeof req.body.paymentPhone === 'string') existing.paymentPhone = req.body.paymentPhone;
   if (typeof req.body.maxSeatsPerBooking !== 'undefined') existing.maxSeatsPerBooking = Number(req.body.maxSeatsPerBooking) || 0;
   if (Array.isArray(req.body.tables)) existing.tables = normalizeTables(req.body.tables);

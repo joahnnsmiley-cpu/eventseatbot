@@ -8,7 +8,7 @@ const router = Router();
 // Return published events only
 router.get('/events', (_req: Request, res: Response) => {
   try {
-    const events = getEvents().filter((e: any) => (e as any).status === 'published');
+    const events = getEvents().filter((e: any) => (e as any).published === true || (e as any).status === 'published');
     // map to safe public shape
     const mapped = events.map((e: any) => ({
       id: e.id,
@@ -30,7 +30,7 @@ router.get('/events', (_req: Request, res: Response) => {
 router.get('/events/:id', (req: Request, res: Response) => {
   const id = req.params.id;
   const ev = findEventById(id as string) as any;
-  if (!ev || ev.status !== 'published') return res.status(404).json({ error: 'Event not found' });
+  if (!ev || (ev.published !== true && ev.status !== 'published')) return res.status(404).json({ error: 'Event not found' });
   const mapped = {
     id: ev.id,
     title: ev.title,

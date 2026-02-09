@@ -47,6 +47,7 @@ export interface EventData {
   paymentPhone: string;
   maxSeatsPerBooking: number;
   status?: 'draft' | 'published' | 'archived';
+  published?: boolean;
   layoutImageUrl?: string | null;
   schemaImageUrl?: string | null;
 }

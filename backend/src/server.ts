@@ -92,10 +92,11 @@ const seedTestEvent = () => {
     maxSeatsPerBooking: 4,
     tables: [],
     status: 'draft',
+    published: false,
   };
 
   upsertEvent(base);
-  upsertEvent({ ...base, status: 'published' });
+  upsertEvent({ ...base, status: 'published', published: true });
 };
 
 seedTestEvent();
@@ -104,12 +105,16 @@ seedTestEvent();
 // EVENTS
 // ==============================
 app.get('/events', (_req, res) => {
-  res.json(getEvents());
+  const events = getEvents().filter((e: any) => e?.published === true || e?.status === 'published');
+  res.json(events);
 });
 
 app.get('/events/:eventId', (req, res) => {
   const event = findEventById(req.params.eventId);
   if (!event) return res.status(404).json({ error: 'Event not found' });
+  if ((event as any).published !== true && (event as any).status !== 'published') {
+    return res.status(404).json({ error: 'Event not found' });
+  }
   res.json(event);
 });
 
