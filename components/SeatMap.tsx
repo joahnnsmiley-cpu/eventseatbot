@@ -105,11 +105,6 @@ const SeatMap: React.FC<SeatMapProps> = ({
       }}
       onClick={handleMapClick}
     >
-      {/* Debug: confirm tables data (remove once validated) — absolute so it does not affect coordinate system */}
-      <div className="absolute top-0 left-0 text-[10px] text-gray-400 p-1 break-all z-10" aria-hidden="true">
-        tables: {JSON.stringify(tables)}
-      </div>
-
       {!backgroundUrl && (
         <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
           No layout image

@@ -83,22 +83,21 @@
       .table-wrapper {
         position: absolute;
         transform: translate(-50%, -50%);
+        /* NO width, NO height — size comes from .table-shape */
       }
       .table-shape {
-        position: absolute;
-        inset: 0;
         width: clamp(24px, calc(var(--size) * 1%), 72px);
         height: clamp(24px, calc(var(--size) * 1%), 72px);
         border: 2px solid rgba(0, 0, 0, 0.2);
+        /* single owner of width/height from --size; no position/inset so wrapper sizes to shape */
       }
       .table-shape.circle { border-radius: 50%; }
       .table-shape.rect { border-radius: 6px; }
       .table-label {
         position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         text-align: center;
         color: #fff;
         font-size: 10px;
