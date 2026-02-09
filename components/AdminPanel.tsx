@@ -626,7 +626,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           ['--size' as any]: Number(table.sizePercent) || 5,
                         }}
                       >
-                        <div className="table-shape" style={{ backgroundColor: bg }} />
+                        <div className={`table-shape ${isRect ? 'rect' : 'circle'}`} style={{ backgroundColor: bg }} />
                         <div className="table-label">
                           {String((tables as any).indexOf(table) + 1)}
                         </div>

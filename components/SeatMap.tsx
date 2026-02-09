@@ -115,30 +115,30 @@ const SeatMap: React.FC<SeatMapProps> = ({
         const isSoldOut = !isEditable && table.seatsAvailable === 0;
         const isRect = (table as any).shape === 'rect';
         const bg = (table as any).color || '#3b82f6';
-        return (
-          <div
-            key={table.id}
-            className={`table-wrapper ${isRect ? 'rect' : 'circle'} ${isSoldOut ? 'opacity-60' : ''}`}
-            style={{
-              left: `${x}%`,
-              top: `${y}%`,
-              ['--size' as any]: Number((table as any).sizePercent) || 5,
-            }}
-          >
-            <div className="table-shape" style={{ backgroundColor: bg }} />
-            <button
-              type="button"
+          return (
+            <div
+              key={table.id}
+              className={`table-wrapper ${isRect ? 'rect' : 'circle'} ${isSoldOut ? 'opacity-60' : ''}`}
+              style={{
+                left: `${x}%`,
+                top: `${y}%`,
+                ['--size' as any]: Number((table as any).sizePercent) || 5,
+              }}
               onClick={(e) => {
+                if (isSoldOut) return;
                 e.stopPropagation();
                 if (onTableSelect) onTableSelect(table.id);
               }}
-              disabled={isSoldOut}
-              className={`table-label ${isSoldOut ? 'cursor-not-allowed' : 'cursor-pointer'}`}
               aria-label={`Table ${table.number}, free ${table.seatsAvailable}`}
             >
-              <div className="font-semibold">Table {table.number}</div>
-              <div className="text-[10px] text-white/90">Free {table.seatsAvailable}</div>
-            </button>
+              <div
+                className={`table-shape ${isRect ? 'rect' : 'circle'}`}
+                style={{ backgroundColor: bg, cursor: isSoldOut ? 'not-allowed' : 'pointer' }}
+              />
+              <div className="table-label">
+                <div className="font-semibold">Table {table.number}</div>
+                <div className="text-[10px] text-white/90">Free {table.seatsAvailable}</div>
+              </div>
             {isEditable && (
               <button
                 onClick={(e) => { e.stopPropagation(); onTableDelete && onTableDelete(table.id); }}

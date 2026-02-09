@@ -84,20 +84,15 @@
         position: absolute;
         transform: translate(-50%, -50%);
       }
-      .table-wrapper.circle {
-        width: clamp(24px, calc(var(--size) * 1%), 72px);
-        height: clamp(24px, calc(var(--size) * 1%), 72px);
-      }
-      .table-wrapper.rect {
-        width: clamp(36px, calc(var(--size) * 1.6%), 120px);
-        height: clamp(24px, calc(var(--size) * 1%), 72px);
-      }
       .table-shape {
         position: absolute;
         inset: 0;
+        width: clamp(24px, calc(var(--size) * 1%), 72px);
+        height: clamp(24px, calc(var(--size) * 1%), 72px);
+        border: 2px solid rgba(0, 0, 0, 0.2);
       }
-      .table-wrapper.circle .table-shape { border-radius: 50%; }
-      .table-wrapper.rect .table-shape { border-radius: 6px; }
+      .table-shape.circle { border-radius: 50%; }
+      .table-shape.rect { border-radius: 6px; }
       .table-label {
         position: absolute;
         inset: 0;
