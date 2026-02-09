@@ -568,7 +568,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         className="absolute -translate-x-1/2 -translate-y-1/2"
                         style={{ left: `${x}%`, top: `${y}%` }}
                       >
-                        <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center shadow">
+                        <div
+                          className="rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center shadow"
+                          style={{ width: '6%', aspectRatio: '1 / 1' }}
+                        >
                           {String((tables as any).indexOf(table) + 1)}
                         </div>
                       </div>

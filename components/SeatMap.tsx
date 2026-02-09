@@ -131,10 +131,11 @@ const SeatMap: React.FC<SeatMapProps> = ({
                   if (onTableSelect) onTableSelect(table.id);
                 }}
                 disabled={isSoldOut}
-                className={`min-w-[64px] min-h-[64px] px-2 py-1 rounded-full border-2 shadow bg-white/90 text-gray-800 text-xs flex flex-col items-center justify-center gap-1 ${
+                className={`rounded-full border-2 shadow bg-white/90 text-gray-800 text-[10px] flex flex-col items-center justify-center gap-1 ${
                   isSoldOut ? 'cursor-not-allowed border-gray-300' : 'cursor-pointer border-blue-500'
                 }`}
                 aria-label={`Table ${table.number}, free ${table.seatsAvailable}`}
+                style={{ width: '6%', aspectRatio: '1 / 1' }}
               >
                 <span className="font-semibold">Table {table.number}</span>
                 <span className="text-[10px] text-gray-600">Free {table.seatsAvailable}</span>
