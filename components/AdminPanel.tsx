@@ -259,7 +259,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   const hasBookings = useMemo(() => bookings.length > 0, [bookings.length]);
   const hasEvents = useMemo(() => events.length > 0, [events.length]);
-  const previewUrl = (selectedEvent?.layoutImageUrl || selectedEvent?.imageUrl || '').trim();
   const tables = eventTables;
 
   return (
@@ -599,43 +598,23 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 <div
                   className="relative w-full border rounded bg-gray-100 overflow-hidden"
                   style={{
-                    backgroundImage: previewUrl ? `url(${previewUrl})` : undefined,
+                    width: '100%',
+                    minHeight: 300,
+                    position: 'relative',
+                    backgroundImage: layoutUrl ? `url(${layoutUrl})` : 'none',
+                    backgroundSize: 'contain',
                     backgroundRepeat: 'no-repeat',
                     backgroundPosition: 'center',
-                    backgroundSize: 'contain',
                   }}
                 >
-                  {!previewUrl && (
+                  {!layoutUrl && (
                     <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
                       No layout image URL
                     </div>
                   )}
-
-                  {tables.map((table) => {
-                    const x = typeof table.x === 'number' ? table.x : 0;
-                    const y = typeof table.y === 'number' ? table.y : 0;
-                    const isRect = table.shape === 'rect';
-                    const bg = (table as any).color || '#3b82f6';
-                    return (
-                      <div
-                        key={table.id}
-                        className={`table-wrapper ${isRect ? 'rect' : 'circle'}`}
-                        style={{
-                          left: `${x}%`,
-                          top: `${y}%`,
-                          ['--size' as any]: Number(table.sizePercent) || 5,
-                        }}
-                      >
-                        <div className={`table-shape ${isRect ? 'rect' : 'circle'}`} style={{ backgroundColor: bg }} />
-                        <div className="table-label">
-                          {String((tables as any).indexOf(table) + 1)}
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
                 <div className="text-xs text-gray-500 mt-2">
-                  Tables are positioned using percentage coordinates (0–100).
+                  Enter a layout image URL above; preview updates instantly. Tables are positioned using percentage coordinates (0–100).
                 </div>
               </div>
             </div>
