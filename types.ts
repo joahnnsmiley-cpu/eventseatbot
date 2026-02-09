@@ -19,7 +19,9 @@ export interface Table {
   y?: number; // Percentage 0-100
   centerX: number; // Percentage 0-100
   centerY: number; // Percentage 0-100
-  shape: string; // e.g. 'round' | 'rect'
+  sizePercent?: number;
+  shape?: 'circle' | 'rect' | string; // e.g. 'circle' | 'rect'
+  color?: string;
 }
 
 export interface EventData {

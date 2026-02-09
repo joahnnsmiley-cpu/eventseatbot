@@ -34,7 +34,9 @@ export interface Table {
   centerX: number;
   centerY: number;
   // Shape identifier, e.g. 'round' | 'rectangle'
-  shape: string;
+  sizePercent?: number;
+  shape?: 'circle' | 'rect' | string;
+  color?: string;
 }
 
 export interface EventData {

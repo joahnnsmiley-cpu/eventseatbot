@@ -7,6 +7,9 @@ type AdminTable = {
   x: number;
   y: number;
   seatsCount: number;
+  sizePercent: number;
+  shape: 'circle' | 'rect';
+  color: string;
 };
 
 type AdminBooking = {
@@ -111,6 +114,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           x: typeof t.x === 'number' ? t.x : Number(t.centerX) || 0,
           y: typeof t.y === 'number' ? t.y : Number(t.centerY) || 0,
           seatsCount: typeof t.seatsTotal === 'number' ? t.seatsTotal : Number(t.seatsAvailable) || 0,
+          sizePercent: typeof t.sizePercent === 'number' ? t.sizePercent : 5,
+          shape: t.shape === 'rect' ? 'rect' : 'circle',
+          color: typeof t.color === 'string' && t.color.length > 0 ? t.color : '#3b82f6',
         })),
       );
     } catch (e) {
@@ -159,6 +165,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         const seatsAvailable = Math.min(seatsTotal, seatsTotal);
         const x = Math.min(100, Math.max(0, Number(t.x) || 0));
         const y = Math.min(100, Math.max(0, Number(t.y) || 0));
+        const sizePercent = Math.min(20, Math.max(1, Number(t.sizePercent) || 5));
         return {
           id: t.id,
           number: idx + 1,
@@ -168,7 +175,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           y,
           centerX: x,
           centerY: y,
-          shape: 'round',
+          sizePercent,
+          shape: t.shape || 'circle',
+          color: t.color || '#3b82f6',
         };
       });
       const payload: Partial<EventData> = {
@@ -194,6 +203,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           x: typeof t.x === 'number' ? t.x : Number(t.centerX) || 0,
           y: typeof t.y === 'number' ? t.y : Number(t.centerY) || 0,
           seatsCount: typeof t.seatsTotal === 'number' ? t.seatsTotal : Number(t.seatsAvailable) || 0,
+          sizePercent: typeof t.sizePercent === 'number' ? t.sizePercent : 5,
+          shape: t.shape === 'rect' ? 'rect' : 'circle',
+          color: typeof t.color === 'string' && t.color.length > 0 ? t.color : '#3b82f6',
         })),
       );
       setEvents((prev) => prev.map((e) => (e.id === refreshed.id ? { ...e, title: refreshed.title } : e)));
@@ -453,7 +465,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       const nextId = `tbl-${Date.now()}`;
                       setEventTables((prev) => ([
                         ...prev,
-                        { id: nextId, x: 50, y: 50, seatsCount: 4 },
+                        { id: nextId, x: 50, y: 50, seatsCount: 4, sizePercent: 5, shape: 'circle', color: '#3b82f6' },
                       ]));
                     }}
                     className="px-2 py-1 text-xs border rounded"
@@ -506,6 +518,48 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, seatsCount: val } : it));
                         }}
                         className="ml-1 w-20 border rounded px-2 py-1 text-xs"
+                      />
+                    </label>
+                    <label className="text-xs text-gray-600">
+                      Size (%)
+                      <input
+                        type="range"
+                        min={1}
+                        max={20}
+                        step={1}
+                        value={t.sizePercent}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, sizePercent: val } : it));
+                        }}
+                        className="ml-2 align-middle"
+                      />
+                      <span className="ml-1">{t.sizePercent}</span>
+                    </label>
+                    <label className="text-xs text-gray-600">
+                      Shape
+                      <select
+                        value={t.shape}
+                        onChange={(e) => {
+                          const val = e.target.value === 'rect' ? 'rect' : 'circle';
+                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, shape: val } : it));
+                        }}
+                        className="ml-1 border rounded px-2 py-1 text-xs"
+                      >
+                        <option value="circle">Circle</option>
+                        <option value="rect">Rectangle</option>
+                      </select>
+                    </label>
+                    <label className="text-xs text-gray-600">
+                      Table color
+                      <input
+                        type="color"
+                        value={t.color || '#3b82f6'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, color: val } : it));
+                        }}
+                        className="ml-1 h-7 w-10 border rounded"
                       />
                     </label>
                   </div>
@@ -562,6 +616,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   {tables.map((table) => {
                     const x = typeof table.x === 'number' ? table.x : 0;
                     const y = typeof table.y === 'number' ? table.y : 0;
+                    const sizePercent = Math.min(20, Math.max(1, Number(table.sizePercent) || 5));
+                    const borderRadius = table.shape === 'rect' ? '8px' : '50%';
+                    const bg = (table as any).color || '#3b82f6';
                     return (
                       <div
                         key={table.id}
@@ -569,8 +626,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         style={{ left: `${x}%`, top: `${y}%` }}
                       >
                         <div
-                          className="rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center shadow"
-                          style={{ width: '6%', aspectRatio: '1 / 1' }}
+                          className="text-white text-[10px] flex items-center justify-center shadow"
+                          style={{ width: `clamp(24px, ${sizePercent}%, 64px)`, aspectRatio: '1 / 1', borderRadius, backgroundColor: bg }}
                         >
                           {String((tables as any).indexOf(table) + 1)}
                         </div>

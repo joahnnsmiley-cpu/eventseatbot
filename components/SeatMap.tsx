@@ -118,6 +118,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
           const x = typeof table.x === 'number' ? table.x : table.centerX;
           const y = typeof table.y === 'number' ? table.y : table.centerY;
           const isSoldOut = !isEditable && table.seatsAvailable === 0;
+          const sizePercent = Math.min(20, Math.max(1, Number((table as any).sizePercent) || 5));
+          const shape = (table as any).shape === 'rect' ? 'rect' : 'circle';
+          const borderRadius = shape === 'rect' ? '8px' : '50%';
+          const bg = (table as any).color || '#3b82f6';
           return (
             <div
               key={table.id}
@@ -131,14 +135,14 @@ const SeatMap: React.FC<SeatMapProps> = ({
                   if (onTableSelect) onTableSelect(table.id);
                 }}
                 disabled={isSoldOut}
-                className={`rounded-full border-2 shadow bg-white/90 text-gray-800 text-[10px] flex flex-col items-center justify-center gap-1 ${
+                className={`border-2 shadow text-white text-[10px] flex flex-col items-center justify-center gap-1 ${
                   isSoldOut ? 'cursor-not-allowed border-gray-300' : 'cursor-pointer border-blue-500'
                 }`}
                 aria-label={`Table ${table.number}, free ${table.seatsAvailable}`}
-                style={{ width: '6%', aspectRatio: '1 / 1' }}
+                style={{ width: `clamp(24px, ${sizePercent}%, 64px)`, aspectRatio: '1 / 1', borderRadius, backgroundColor: bg }}
               >
                 <span className="font-semibold">Table {table.number}</span>
-                <span className="text-[10px] text-gray-600">Free {table.seatsAvailable}</span>
+                <span className="text-[10px] text-white/90">Free {table.seatsAvailable}</span>
               </button>
               {isEditable && (
                 <button
