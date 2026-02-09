@@ -94,7 +94,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
               backgroundImage: `url(${backgroundUrl})`,
               backgroundRepeat: 'no-repeat',
               backgroundPosition: 'center',
-              backgroundSize: '100% 100%',
+              backgroundSize: 'contain',
             }}
           />
         ) : (
