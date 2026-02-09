@@ -105,7 +105,12 @@ seedTestEvent();
 // EVENTS
 // ==============================
 app.get('/events', (_req, res) => {
-  const events = getEvents().filter((e: any) => e?.published === true || e?.status === 'published');
+  const events = getEvents()
+    .filter((e: any) => e?.published === true || e?.status === 'published')
+    .map((e: any) => ({
+      ...e,
+      tables: Array.isArray(e?.tables) ? e.tables : [],
+    }));
   res.json(events);
 });
 
@@ -115,7 +120,11 @@ app.get('/events/:eventId', (req, res) => {
   if ((event as any).published !== true && (event as any).status !== 'published') {
     return res.status(404).json({ error: 'Event not found' });
   }
-  res.json(event);
+  const safeEvent = {
+    ...event,
+    tables: Array.isArray((event as any)?.tables) ? (event as any).tables : [],
+  };
+  res.json(safeEvent);
 });
 
 // ==============================
