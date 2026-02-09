@@ -22,9 +22,11 @@ export const bot = BOT_TOKEN ? new Telegraf(BOT_TOKEN) : null;
  */
 if (bot) {
   bot.telegram.setChatMenuButton({
-    type: 'web_app',
-    text: '🎟 Выбрать место',
-    web_app: { url: WEBAPP_URL },
+    menuButton: {
+      type: 'web_app',
+      text: '🎟 Выбрать место',
+      web_app: { url: WEBAPP_URL },
+    },
   }).catch((e) => {
     console.error('Failed to set chat menu button', e);
   });
