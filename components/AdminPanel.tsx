@@ -50,6 +50,22 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [savingLayout, setSavingLayout] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [creatingEvent, setCreatingEvent] = useState(false);
+  const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!layoutUrl?.trim()) {
+      setLayoutAspectRatio(null);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth || 1;
+      const h = img.naturalHeight || 1;
+      setLayoutAspectRatio(w / h);
+    };
+    img.onerror = () => setLayoutAspectRatio(null);
+    img.src = layoutUrl.trim();
+  }, [layoutUrl]);
 
   const toFriendlyError = (e: unknown) => {
     const raw = e instanceof Error ? e.message : String(e);
@@ -595,18 +611,19 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
               <div>
                 <div className="text-sm font-semibold mb-2">Layout preview</div>
-                {/* Single layout container: background + tables share same coordinate system (0–100%). No padding, no transform, no scale. */}
+                {/* Layout container: same aspect ratio as image so admin and user coordinates match 1:1. */}
                 <div
                   className="relative w-full border rounded bg-gray-100 overflow-hidden"
                   style={{
                     position: 'relative',
                     width: '100%',
-                    minHeight: 300,
+                    aspectRatio: layoutAspectRatio ?? 16 / 9,
+                    minHeight: layoutAspectRatio == null ? 300 : undefined,
                     padding: 0,
                     backgroundImage: layoutUrl ? `url(${layoutUrl})` : 'none',
-                    backgroundSize: 'contain',
+                    backgroundSize: '100% 100%',
                     backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'center',
+                    backgroundPosition: 'top left',
                   }}
                 >
                   {!layoutUrl && (

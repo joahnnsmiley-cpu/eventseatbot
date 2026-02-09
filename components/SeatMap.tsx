@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { EventData } from '../types';
 
 type SeatStatus = 'available' | 'reserved' | 'sold';
@@ -61,10 +61,22 @@ const SeatMap: React.FC<SeatMapProps> = ({
   const seats = seatState?.seats ?? [];
   const selectedSet = new Set(selectedSeats);
   const backgroundUrl = (event?.layoutImageUrl ?? '').trim();
+  const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
 
   useEffect(() => {
-    console.log('[SEATING VIEW] layoutImageUrl =', event.layoutImageUrl);
-  }, [event.layoutImageUrl]);
+    if (!backgroundUrl) {
+      setLayoutAspectRatio(null);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth || 1;
+      const h = img.naturalHeight || 1;
+      setLayoutAspectRatio(w / h);
+    };
+    img.onerror = () => setLayoutAspectRatio(null);
+    img.src = backgroundUrl;
+  }, [backgroundUrl]);
 
   const canSelectSeat = (seat: SeatModel) => seat.status === 'available';
 
@@ -92,9 +104,13 @@ const SeatMap: React.FC<SeatMapProps> = ({
   return (
     <div
       className="relative w-full overflow-hidden bg-gray-100 rounded-lg border border-gray-300"
-      style={{ minHeight: 300 }}
+      style={{
+        width: '100%',
+        aspectRatio: layoutAspectRatio ?? 16 / 9,
+        minHeight: layoutAspectRatio == null ? 300 : undefined,
+      }}
     >
-      {/* Pure coordinate container: no padding/border/flex; percentage coordinates match admin 1:1 */}
+      {/* Pure coordinate container: same aspect ratio as admin so coordinates match 1:1. */}
       <div
         style={{
           position: 'absolute',
