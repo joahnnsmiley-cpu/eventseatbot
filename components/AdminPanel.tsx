@@ -2,6 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import * as StorageService from '../services/storageService';
 import { EventData } from '../types';
 
+type AdminTable = {
+  id: string;
+  x: number;
+  y: number;
+  seatsCount: number;
+};
+
 type AdminBooking = {
   id: string;
   event: { id: string; title?: string; date?: string };
@@ -36,6 +43,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [eventDescription, setEventDescription] = useState('');
   const [eventPhone, setEventPhone] = useState('');
   const [eventPublished, setEventPublished] = useState(false);
+  const [eventTables, setEventTables] = useState<AdminTable[]>([]);
   const [savingLayout, setSavingLayout] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [creatingEvent, setCreatingEvent] = useState(false);
@@ -96,6 +104,15 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setEventDescription(ev?.description || '');
       setEventPhone(ev?.paymentPhone || '');
       setEventPublished(ev?.published === true);
+      const tables = Array.isArray(ev?.tables) ? ev.tables : [];
+      setEventTables(
+        tables.map((t: any, idx: number) => ({
+          id: typeof t.id === 'string' && t.id ? t.id : `tbl-${idx + 1}`,
+          x: typeof t.x === 'number' ? t.x : Number(t.centerX) || 0,
+          y: typeof t.y === 'number' ? t.y : Number(t.centerY) || 0,
+          seatsCount: typeof t.seatsTotal === 'number' ? t.seatsTotal : Number(t.seatsAvailable) || 0,
+        })),
+      );
     } catch (e) {
       console.error('[AdminPanel] Failed to load event', e);
       if (e instanceof Error && e.message) {
@@ -137,18 +154,45 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setError(null);
     setSuccessMessage(null);
     try {
+      const tablesPayload = eventTables.map((t, idx) => {
+        const seatsTotal = Math.max(0, Number(t.seatsCount) || 0);
+        const seatsAvailable = Math.min(seatsTotal, seatsTotal);
+        const x = Math.min(100, Math.max(0, Number(t.x) || 0));
+        const y = Math.min(100, Math.max(0, Number(t.y) || 0));
+        return {
+          id: t.id,
+          number: idx + 1,
+          seatsTotal,
+          seatsAvailable,
+          x,
+          y,
+          centerX: x,
+          centerY: y,
+          shape: 'round',
+        };
+      });
       const payload: Partial<EventData> = {
         title: eventTitle.trim(),
         description: eventDescription.trim(),
         paymentPhone: eventPhone.trim(),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : null,
         published: eventPublished,
+        tables: tablesPayload as any,
       };
       const updated = await StorageService.updateAdminEvent(selectedEvent.id, payload);
       const merged = { ...selectedEvent, ...updated, ...payload };
       setSelectedEvent(merged);
       setLayoutUrl(merged.layoutImageUrl || '');
       setEventPublished(merged.published === true);
+      const mergedTables = Array.isArray(merged.tables) ? merged.tables : [];
+      setEventTables(
+        mergedTables.map((t: any, idx: number) => ({
+          id: typeof t.id === 'string' && t.id ? t.id : `tbl-${idx + 1}`,
+          x: typeof t.x === 'number' ? t.x : Number(t.centerX) || 0,
+          y: typeof t.y === 'number' ? t.y : Number(t.centerY) || 0,
+          seatsCount: typeof t.seatsTotal === 'number' ? t.seatsTotal : Number(t.seatsAvailable) || 0,
+        })),
+      );
       setEvents((prev) => prev.map((e) => (e.id === merged.id ? { ...e, title: merged.title } : e)));
       setError(null);
       setSuccessMessage('Event updated.');
@@ -201,7 +245,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const hasBookings = useMemo(() => bookings.length > 0, [bookings.length]);
   const hasEvents = useMemo(() => events.length > 0, [events.length]);
   const previewUrl = (selectedEvent?.layoutImageUrl || selectedEvent?.imageUrl || '').trim();
-  const tables = Array.isArray(selectedEvent?.tables) ? selectedEvent?.tables : [];
+  const tables = eventTables;
 
   return (
     <div className="p-4 bg-gray-50 min-h-screen">
@@ -398,6 +442,72 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 />
                 Published
               </label>
+              <div className="border rounded p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold">Tables</div>
+                  <button
+                    onClick={() => {
+                      const nextId = `tbl-${Date.now()}`;
+                      setEventTables((prev) => ([
+                        ...prev,
+                        { id: nextId, x: 50, y: 50, seatsCount: 4 },
+                      ]));
+                    }}
+                    className="px-2 py-1 text-xs border rounded"
+                  >
+                    Add table
+                  </button>
+                </div>
+                {eventTables.length === 0 && (
+                  <div className="text-xs text-gray-500">No tables yet. Add one to place seats.</div>
+                )}
+                {eventTables.map((t, idx) => (
+                  <div key={t.id} className="flex flex-wrap gap-2 items-center">
+                    <div className="text-xs text-gray-500">#{idx + 1}</div>
+                    <label className="text-xs text-gray-600">
+                      X
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={t.x}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, x: val } : it));
+                        }}
+                        className="ml-1 w-20 border rounded px-2 py-1 text-xs"
+                      />
+                    </label>
+                    <label className="text-xs text-gray-600">
+                      Y
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={t.y}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, y: val } : it));
+                        }}
+                        className="ml-1 w-20 border rounded px-2 py-1 text-xs"
+                      />
+                    </label>
+                    <label className="text-xs text-gray-600">
+                      Seats
+                      <input
+                        type="number"
+                        min={0}
+                        value={t.seatsCount}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, seatsCount: val } : it));
+                        }}
+                        className="ml-1 w-20 border rounded px-2 py-1 text-xs"
+                      />
+                    </label>
+                  </div>
+                ))}
+              </div>
               <div>
                 <div className="text-sm font-semibold mb-1">Layout image URL</div>
                 <input
@@ -447,8 +557,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   )}
 
                   {tables.map((table) => {
-                    const x = typeof table.x === 'number' ? table.x : table.centerX;
-                    const y = typeof table.y === 'number' ? table.y : table.centerY;
+                    const x = typeof table.x === 'number' ? table.x : 0;
+                    const y = typeof table.y === 'number' ? table.y : 0;
                     return (
                       <div
                         key={table.id}
@@ -456,7 +566,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         style={{ left: `${x}%`, top: `${y}%` }}
                       >
                         <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center shadow">
-                          {table.number}
+                          {String((tables as any).indexOf(table) + 1)}
                         </div>
                       </div>
                     );
