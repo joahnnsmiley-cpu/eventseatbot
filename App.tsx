@@ -229,23 +229,23 @@ function App() {
   }, [selectedEvent, selectedTableId]);
 
   useEffect(() => {
-    if (!selectedTable) return;
-    const max = Math.max(1, selectedTable.seatsAvailable);
-    setSeatsRequested((prev) => {
-      const next = Math.min(Math.max(1, prev), max);
-      if (next < prev) {
-        setSelectionAdjusted(true);
-        if (selectionAdjustedTimerRef.current) {
-          window.clearTimeout(selectionAdjustedTimerRef.current);
-        }
-        selectionAdjustedTimerRef.current = window.setTimeout(() => {
-          setSelectionAdjusted(false);
-          selectionAdjustedTimerRef.current = null;
-        }, 2500);
-      }
-      return next;
-    });
-  }, [selectedTable?.id, selectedTable?.seatsAvailable]);
+    if (!selectedTable || !selectedTableId) return;
+    const max = Math.max(0, selectedTable.seatsAvailable);
+    const sel = selectedSeatsByTable[selectedTableId] ?? [];
+    if (sel.length <= max) return;
+    setSelectionAdjusted(true);
+    if (selectionAdjustedTimerRef.current) {
+      window.clearTimeout(selectionAdjustedTimerRef.current);
+    }
+    selectionAdjustedTimerRef.current = window.setTimeout(() => {
+      setSelectionAdjusted(false);
+      selectionAdjustedTimerRef.current = null;
+    }, 2500);
+    setSelectedSeatsByTable((prev) => ({
+      ...prev,
+      [selectedTableId]: (prev[selectedTableId] ?? []).slice(0, max),
+    }));
+  }, [selectedTable?.id, selectedTable?.seatsAvailable, selectedTableId, selectedSeatsByTable]);
 
   useEffect(() => {
     if (view !== 'seats') return;
@@ -297,7 +297,6 @@ function App() {
     setSelectedEvent(null);
     setSelectedEventId(eventId);
     setSelectedTableId(null);
-    setSeatsRequested(1);
     setBookingError(null);
     setView('layout');
     await loadEvent(eventId);
