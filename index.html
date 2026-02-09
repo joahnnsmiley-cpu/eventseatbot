@@ -27,9 +27,25 @@
     </script>
     <style>
       body {
-        background-color: var(--tg-bg, var(--tg-theme-bg-color, #f3f4f6));
-        color: var(--tg-text, var(--tg-theme-text-color, #111827));
+        background-color: var(--tg-theme-bg-color, #f3f4f6);
+        color: var(--tg-theme-text-color, #111827);
         overflow-x: hidden;
+      }
+      input, textarea, select {
+        background-color: var(--tg-theme-bg-color, #ffffff);
+        color: var(--tg-theme-text-color, #111827);
+        border-color: var(--tg-theme-hint-color, #9ca3af);
+      }
+      input::placeholder,
+      textarea::placeholder {
+        color: var(--tg-theme-hint-color, #9ca3af);
+      }
+      input:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--tg-theme-button-color, #2563eb);
+        box-shadow: 0 0 0 1px var(--tg-theme-button-color, #2563eb);
       }
       body.tg-light {
         --tg-bg: var(--tg-theme-bg-color, #f3f4f6);
