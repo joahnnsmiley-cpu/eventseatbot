@@ -596,7 +596,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
               <div>
                 <div className="text-sm font-semibold mb-2">Layout preview</div>
-                <div className="relative w-full aspect-[4/3] border rounded bg-gray-100 overflow-hidden">
+                <div className="relative w-full h-80 border rounded bg-gray-100 overflow-hidden">
                   {previewUrl ? (
                     <div
                       className="absolute inset-0"
@@ -616,7 +616,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   {tables.map((table) => {
                     const x = typeof table.x === 'number' ? table.x : 0;
                     const y = typeof table.y === 'number' ? table.y : 0;
-                    const sizePercent = Math.min(20, Math.max(1, Number(table.sizePercent) || 5));
+                    const sizePercent = Number(table.sizePercent) || 5;
                     const isRect = table.shape === 'rect';
                     const bg = (table as any).color || '#3b82f6';
                     return (
@@ -628,10 +628,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         <div
                           className="text-white text-[10px] flex items-center justify-center shadow"
                           style={{
-                            ['--size-percent' as any]: sizePercent,
-                            ['--base-size' as any]: 'clamp(24px, calc(var(--size-percent) * 1%), 72px)',
-                            width: isRect ? 'calc(var(--base-size) * 1.6)' : 'var(--base-size)',
-                            height: 'var(--base-size)',
+                            ['--size' as any]: sizePercent,
+                            width: isRect
+                              ? 'clamp(36px, calc(var(--size) * 1.6%), 120px)'
+                              : 'clamp(24px, calc(var(--size) * 1%), 72px)',
+                            height: 'clamp(24px, calc(var(--size) * 1%), 72px)',
                             borderRadius: isRect ? '6px' : '50%',
                             backgroundColor: bg,
                           }}

@@ -85,10 +85,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
   };
 
   return (
-    <div
-      className="relative w-full overflow-hidden bg-gray-100 rounded-lg border border-gray-300"
-      style={{ aspectRatio: '4 / 3' }}
-    >
+    <div className="relative w-full overflow-hidden bg-gray-100 rounded-lg h-[60vh] border border-gray-300">
       <div
         className="w-full h-full relative"
         style={{ cursor: isEditable ? 'crosshair' : 'default' }}
@@ -121,7 +118,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
           const x = typeof table.x === 'number' ? table.x : table.centerX;
           const y = typeof table.y === 'number' ? table.y : table.centerY;
           const isSoldOut = !isEditable && table.seatsAvailable === 0;
-          const sizePercent = Math.min(20, Math.max(1, Number((table as any).sizePercent) || 5));
+          const sizePercent = Number((table as any).sizePercent) || 5;
           const isRect = (table as any).shape === 'rect';
           const bg = (table as any).color || '#3b82f6';
           return (
@@ -142,10 +139,11 @@ const SeatMap: React.FC<SeatMapProps> = ({
                 }`}
                 aria-label={`Table ${table.number}, free ${table.seatsAvailable}`}
                 style={{
-                  ['--size-percent' as any]: sizePercent,
-                  ['--base-size' as any]: 'clamp(24px, calc(var(--size-percent) * 1%), 72px)',
-                  width: isRect ? 'calc(var(--base-size) * 1.6)' : 'var(--base-size)',
-                  height: 'var(--base-size)',
+                  ['--size' as any]: sizePercent,
+                  width: isRect
+                    ? 'clamp(36px, calc(var(--size) * 1.6%), 120px)'
+                    : 'clamp(24px, calc(var(--size) * 1%), 72px)',
+                  height: 'clamp(24px, calc(var(--size) * 1%), 72px)',
                   borderRadius: isRect ? '6px' : '50%',
                   backgroundColor: bg,
                 }}
