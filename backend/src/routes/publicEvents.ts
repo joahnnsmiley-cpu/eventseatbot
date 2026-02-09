@@ -155,7 +155,7 @@ router.post('/bookings', (req: Request, res: Response) => {
   if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
   const normalizedPhone = typeof phone === 'string' ? phone.trim() : '';
   if (!normalizedPhone) return res.status(400).json({ error: 'phone is required' });
-  const seatIndices = Array.isArray(seats) ? seats.filter((s) => Number.isInteger(s)) : [];
+  const seatIndices: number[] = Array.isArray(seats) ? seats.filter((s: number) => Number.isInteger(s)) : [];
   if (seatIndices.length === 0) return res.status(400).json({ error: 'seats must be a non-empty array of seat indices' });
 
   try {
