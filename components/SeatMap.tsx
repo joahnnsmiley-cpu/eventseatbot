@@ -112,8 +112,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
           cursor: isEditable ? 'crosshair' : 'default',
           backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
           backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'center',
-          backgroundSize: 'contain',
+          backgroundPosition: 'top left',
+          backgroundSize: '100% 100%',
         }}
         onClick={handleMapClick}
       >
