@@ -44,6 +44,8 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authRole, setAuthRole] = useState<string | null>(null);
+  const [tokenRole, setTokenRole] = useState<string | null>(null);
   const [view, setView] = useState<'events' | 'layout' | 'seats' | 'my-bookings' | 'admin'>('events');
 
   const [events, setEvents] = useState<PublicEvent[]>([]);
@@ -86,6 +88,7 @@ function App() {
     const updateRole = (t: string | null) => {
       const payload = AuthService.decodeToken(t);
       setIsAdmin(payload?.role === 'admin');
+      setTokenRole(payload?.role ?? null);
     };
 
     updateRole(AuthService.getToken());
@@ -109,6 +112,7 @@ function App() {
       try {
         const data = await AuthService.loginWithTelegram(tgUser.id, tgInitData);
         setIsAdmin(data?.role === 'admin');
+        setAuthRole(data?.role ?? null);
       } catch {
         setAuthError('Unable to verify access. Please open the app from Telegram.');
       } finally {
@@ -602,6 +606,25 @@ function App() {
             </button>
           </div>
         )}
+        {(() => {
+          const debugFlag = (() => {
+            try {
+              return localStorage.getItem('debugAdmin') === 'true';
+            } catch {
+              return false;
+            }
+          })();
+          if (import.meta.env.MODE === 'production' && !debugFlag) return null;
+          return (
+            <div className="mb-4 rounded border bg-white p-3 text-xs text-gray-600">
+              <div>Debug admin</div>
+              <div>Telegram user id: {tgUser?.id ?? '—'}</div>
+              <div>isAdmin: {String(isAdmin)}</div>
+              <div>role (login): {authRole ?? '—'}</div>
+              <div>role (token): {tokenRole ?? '—'}</div>
+            </div>
+          );
+        })()}
 
         {!tgAvailable && (
           <div className="text-xs text-gray-500 mb-4">

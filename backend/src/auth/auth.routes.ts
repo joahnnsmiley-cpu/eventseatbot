@@ -80,6 +80,20 @@ router.post('/telegram', (req, res) => {
     .filter(Boolean);
 
   const role = adminIds.includes(String(normalizedId)) ? 'admin' : 'user';
+  const username = typeof body.username === 'string'
+    ? body.username.trim()
+    : typeof body.telegramUsername === 'string'
+      ? body.telegramUsername.trim()
+      : typeof body.telegram_username === 'string'
+        ? body.telegram_username.trim()
+        : '';
+  console.log(JSON.stringify({
+    action: 'telegram_login',
+    telegramId: Number.isFinite(asNumber) ? asNumber : String(normalizedId),
+    telegramUsername: username || undefined,
+    role,
+    timestamp: new Date().toISOString(),
+  }));
 
   try {
     const token = jwt.sign(
