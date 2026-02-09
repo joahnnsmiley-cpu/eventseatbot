@@ -32,6 +32,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [selectedEventId, setSelectedEventId] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null);
   const [layoutUrl, setLayoutUrl] = useState('');
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventDescription, setEventDescription] = useState('');
+  const [eventPhone, setEventPhone] = useState('');
   const [savingLayout, setSavingLayout] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [creatingEvent, setCreatingEvent] = useState(false);
@@ -88,7 +91,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       const ev = await StorageService.getAdminEvent(eventId);
       setSelectedEvent(ev);
       setLayoutUrl(ev?.layoutImageUrl || '');
+      setEventTitle(ev?.title || '');
+      setEventDescription(ev?.description || '');
+      setEventPhone(ev?.paymentPhone || '');
     } catch (e) {
+      console.error('[AdminPanel] Failed to load event', e);
+      if (e instanceof Error && e.message) {
+        console.error('[AdminPanel] Backend message:', e.message);
+      }
       setError(toFriendlyError(e));
     } finally {
       setEventsLoading(false);
@@ -106,8 +116,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         setSelectedEventId(created.id);
         await loadEvent(created.id);
       }
+      setError(null);
       setSuccessMessage('Event created.');
     } catch (e) {
+      console.error('[AdminPanel] Failed to create event', e);
+      if (e instanceof Error && e.message) {
+        console.error('[AdminPanel] Backend message:', e.message);
+      }
       setError(toFriendlyError(e));
     } finally {
       setCreatingEvent(false);
@@ -120,11 +135,24 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setError(null);
     setSuccessMessage(null);
     try {
-      const updated = await StorageService.updateAdminEvent(selectedEvent.id, {
+      const payload: Partial<EventData> = {
+        title: eventTitle.trim(),
+        description: eventDescription.trim(),
+        paymentPhone: eventPhone.trim(),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : null,
-      });
-      setSelectedEvent({ ...selectedEvent, ...updated, layoutImageUrl: layoutUrl ? layoutUrl.trim() : null });
+      };
+      const updated = await StorageService.updateAdminEvent(selectedEvent.id, payload);
+      const merged = { ...selectedEvent, ...updated, ...payload };
+      setSelectedEvent(merged);
+      setLayoutUrl(merged.layoutImageUrl || '');
+      setEvents((prev) => prev.map((e) => (e.id === merged.id ? { ...e, title: merged.title } : e)));
+      setError(null);
+      setSuccessMessage('Event updated.');
     } catch (e) {
+      console.error('[AdminPanel] Failed to save event', e);
+      if (e instanceof Error && e.message) {
+        console.error('[AdminPanel] Backend message:', e.message);
+      }
       setError(toFriendlyError(e));
     } finally {
       setSavingLayout(false);
@@ -153,8 +181,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     try {
       await StorageService.confirmBooking(bookingId);
       setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: 'paid' } : b)));
+      setError(null);
       setSuccessMessage('Payment confirmed.');
     } catch (e) {
+      console.error('[AdminPanel] Failed to confirm payment', e);
+      if (e instanceof Error && e.message) {
+        console.error('[AdminPanel] Backend message:', e.message);
+      }
       setError(toFriendlyError(e));
     } finally {
       setConfirmingId(null);
@@ -163,7 +196,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   const hasBookings = useMemo(() => bookings.length > 0, [bookings.length]);
   const hasEvents = useMemo(() => events.length > 0, [events.length]);
-  const previewUrl = (selectedEvent?.layoutImageUrl || selectedEvent?.schemaImageUrl || selectedEvent?.imageUrl || '').trim();
+  const previewUrl = (selectedEvent?.layoutImageUrl || selectedEvent?.imageUrl || '').trim();
   const tables = Array.isArray(selectedEvent?.tables) ? selectedEvent?.tables : [];
 
   return (
@@ -285,6 +318,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   const nextId = e.target.value;
                   setSelectedEventId(nextId);
                   setSelectedEvent(null);
+                  setError(null);
+                  setSuccessMessage(null);
                   if (nextId) loadEvent(nextId);
                 }}
                 className="border rounded px-2 py-2 text-sm w-full"
@@ -321,6 +356,36 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
           {selectedEvent && (
             <div className="bg-white p-4 rounded border space-y-4">
+              <div>
+                <div className="text-sm font-semibold mb-1">Title</div>
+                <input
+                  type="text"
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e.target.value)}
+                  placeholder="Event title"
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <div className="text-sm font-semibold mb-1">Description</div>
+                <textarea
+                  value={eventDescription}
+                  onChange={(e) => setEventDescription(e.target.value)}
+                  placeholder="Optional description"
+                  className="w-full border rounded px-3 py-2 text-sm"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <div className="text-sm font-semibold mb-1">Organizer phone</div>
+                <input
+                  type="text"
+                  value={eventPhone}
+                  onChange={(e) => setEventPhone(e.target.value)}
+                  placeholder="Phone for payments"
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
               <div>
                 <div className="text-sm font-semibold mb-1">Layout image URL</div>
                 <input
