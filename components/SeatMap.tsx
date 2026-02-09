@@ -93,8 +93,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
     <div
       className="relative w-full overflow-hidden bg-gray-100 rounded-lg border border-gray-300"
       style={{
+        position: 'relative',
         width: '100%',
         minHeight: 300,
+        padding: 0,
         cursor: isEditable ? 'crosshair' : 'default',
         backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
         backgroundRepeat: 'no-repeat',
@@ -103,8 +105,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
       }}
       onClick={handleMapClick}
     >
-      {/* Debug: confirm tables data (remove once validated) */}
-      <div className="text-[10px] text-gray-400 p-1 break-all" aria-hidden="true">
+      {/* Debug: confirm tables data (remove once validated) — absolute so it does not affect coordinate system */}
+      <div className="absolute top-0 left-0 text-[10px] text-gray-400 p-1 break-all z-10" aria-hidden="true">
         tables: {JSON.stringify(tables)}
       </div>
 
@@ -114,7 +116,6 @@ const SeatMap: React.FC<SeatMapProps> = ({
         </div>
       )}
 
-      {/* Layout container always visible; show placeholder only when no tables */}
       {tables.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
           No tables yet. Please check back later.
@@ -126,16 +127,18 @@ const SeatMap: React.FC<SeatMapProps> = ({
         const isSoldOut = !isEditable && table.seatsAvailable === 0;
         const isRect = (table as any).shape === 'rect';
         const bg = (table as any).color || '#3b82f6';
-          return (
-            <div
-              key={table.id}
-              className={`table-wrapper ${isRect ? 'rect' : 'circle'} ${isSoldOut ? 'opacity-60' : ''}`}
-              style={{
-                left: `${x}%`,
-                top: `${y}%`,
-                ['--size' as any]: Number((table as any).sizePercent) || 5,
-              }}
-              onClick={(e) => {
+        return (
+          <div
+            key={table.id}
+            className={`table-wrapper ${isRect ? 'rect' : 'circle'} ${isSoldOut ? 'opacity-60' : ''}`}
+            style={{
+              position: 'absolute',
+              left: `${x}%`,
+              top: `${y}%`,
+              transform: 'translate(-50%, -50%)',
+              ['--size' as string]: Number((table as any).sizePercent) || 5,
+            }}
+            onClick={(e) => {
                 if (isSoldOut) return;
                 e.stopPropagation();
                 if (onTableSelect) onTableSelect(table.id);

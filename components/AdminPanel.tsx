@@ -595,12 +595,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
               <div>
                 <div className="text-sm font-semibold mb-2">Layout preview</div>
+                {/* Single layout container: background + tables share same coordinate system (0–100%). No padding, no transform, no scale. */}
                 <div
                   className="relative w-full border rounded bg-gray-100 overflow-hidden"
                   style={{
+                    position: 'relative',
                     width: '100%',
                     minHeight: 300,
-                    position: 'relative',
+                    padding: 0,
                     backgroundImage: layoutUrl ? `url(${layoutUrl})` : 'none',
                     backgroundSize: 'contain',
                     backgroundRepeat: 'no-repeat',
@@ -608,10 +610,30 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   }}
                 >
                   {!layoutUrl && (
-                    <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
+                    <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
                       No layout image URL
                     </div>
                   )}
+                  {eventTables.map((t, idx) => {
+                    const isRect = t.shape === 'rect';
+                    const bg = t.color || '#3b82f6';
+                    return (
+                      <div
+                        key={t.id}
+                        className={`table-wrapper ${isRect ? 'rect' : 'circle'}`}
+                        style={{
+                          position: 'absolute',
+                          left: `${t.x}%`,
+                          top: `${t.y}%`,
+                          transform: 'translate(-50%, -50%)',
+                          ['--size' as string]: Number(t.sizePercent) || 5,
+                        }}
+                      >
+                        <div className={`table-shape ${isRect ? 'rect' : 'circle'}`} style={{ backgroundColor: bg }} />
+                        <div className="table-label">Table {idx + 1}</div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="text-xs text-gray-500 mt-2">
                   Enter a layout image URL above; preview updates instantly. Tables are positioned using percentage coordinates (0–100).
