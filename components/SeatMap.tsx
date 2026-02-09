@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { EventData } from '../types';
 
 type SeatStatus = 'available' | 'reserved' | 'sold';
@@ -56,6 +56,11 @@ const SeatMap: React.FC<SeatMapProps> = ({
   const seats = seatState?.seats ?? [];
   const selectedSet = new Set(selectedSeats);
   const backgroundUrl = (event.layoutImageUrl || '').trim();
+
+  useEffect(() => {
+    // Diagnostic: verify layoutImageUrl reaches user view
+    console.log('layoutImageUrl:', event.layoutImageUrl);
+  }, [event.layoutImageUrl]);
 
   const canSelectSeat = (seat: SeatModel) => seat.status === 'available';
 
