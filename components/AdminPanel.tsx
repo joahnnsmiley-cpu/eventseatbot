@@ -648,7 +648,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         }}
                       >
                         <div className={`table-shape ${isRect ? 'rect' : 'circle'}`} style={{ backgroundColor: bg }}>
-                          <SeatsLayer seatsTotal={t.seatsCount} />
+                          <SeatsLayer
+                            seatsTotal={t.seatsCount}
+                            tableShape={isRect ? 'rect' : 'circle'}
+                            sizePercent={t.sizePercent ?? 5}
+                          />
                         </div>
                         <div className="table-label">Table {idx + 1}</div>
                       </div>

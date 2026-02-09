@@ -178,6 +178,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
               >
                 <SeatsLayer
                   seatsTotal={table.seatsTotal}
+                  tableShape={(table as any).shape === 'rect' ? 'rect' : 'circle'}
+                  sizePercent={Number((table as any).sizePercent) || 5}
                   selectedIndices={new Set(selectedSeatsByTable?.[table.id] ?? [])}
                 />
               </div>
