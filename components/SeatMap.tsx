@@ -64,6 +64,9 @@ const SeatMap: React.FC<SeatMapProps> = ({
   const backgroundUrl = (event?.layoutImageUrl ?? '').trim();
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
 
+  /** UI-only seat selection (user view): key = "tableId-seatIndex". Not stored in table object. */
+  const [selectedSeatKeys, setSelectedSeatKeys] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     if (!backgroundUrl) {
       setLayoutAspectRatio(null);
@@ -173,7 +176,31 @@ const SeatMap: React.FC<SeatMapProps> = ({
                 className={`table-shape ${isRect ? 'rect' : 'circle'}`}
                 style={{ backgroundColor: bg, cursor: isSoldOut ? 'not-allowed' : 'pointer' }}
               >
-                <SeatsLayer seatsTotal={table.seatsTotal} />
+                <SeatsLayer
+                  seatsTotal={table.seatsTotal}
+                  selectedIndices={
+                    isEditable
+                      ? undefined
+                      : new Set(
+                          Array.from({ length: table.seatsTotal }, (_, i) => i).filter((i) =>
+                            selectedSeatKeys.has(`${table.id}-${i}`)
+                          )
+                        )
+                  }
+                  onSeatClick={
+                    isEditable
+                      ? undefined
+                      : (index) => {
+                          const key = `${table.id}-${index}`;
+                          setSelectedSeatKeys((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(key)) next.delete(key);
+                            else next.add(key);
+                            return next;
+                          });
+                        }
+                  }
+                />
               </div>
               <div className="table-label">
                 <div className="font-semibold">Table {table.number}</div>
