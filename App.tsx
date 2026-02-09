@@ -429,7 +429,6 @@ function App() {
                       const selected = selectedSeatsByTable[selectedTableId] ?? [];
                       if (selected.length === 0) return;
                       const sorted = [...selected].sort((a, b) => a - b);
-                      const removed = sorted[sorted.length - 1];
                       setSelectedSeatsByTable((prev) => ({
                         ...prev,
                         [selectedTableId]: sorted.slice(0, -1),
