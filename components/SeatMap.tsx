@@ -120,15 +120,14 @@ const SeatMap: React.FC<SeatMapProps> = ({
           return (
             <div
               key={table.id}
-              className={`table ${isRect ? 'rect' : 'circle'} ${isSoldOut ? 'opacity-60' : ''}`}
+              className={`table-wrapper ${isRect ? 'rect' : 'circle'} ${isSoldOut ? 'opacity-60' : ''}`}
               style={{
                 left: `${x}%`,
                 top: `${y}%`,
                 ['--size' as any]: Number((table as any).sizePercent) || 5,
-                backgroundColor: bg,
-                color: '#fff',
               }}
             >
+              <div className="table-shape" style={{ backgroundColor: bg }} />
               <button
                 type="button"
                 onClick={(e) => {
@@ -136,13 +135,11 @@ const SeatMap: React.FC<SeatMapProps> = ({
                   if (onTableSelect) onTableSelect(table.id);
                 }}
                 disabled={isSoldOut}
-                className={`border-2 shadow text-white text-[10px] flex flex-col items-center justify-center gap-1 w-full h-full bg-transparent ${
-                  isSoldOut ? 'cursor-not-allowed border-gray-300' : 'cursor-pointer border-blue-500'
-                }`}
+                className={`table-label ${isSoldOut ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                 aria-label={`Table ${table.number}, free ${table.seatsAvailable}`}
               >
-                <span className="font-semibold">Table {table.number}</span>
-                <span className="text-[10px] text-white/90">Free {table.seatsAvailable}</span>
+                <div className="font-semibold">Table {table.number}</div>
+                <div className="text-[10px] text-white/90">Free {table.seatsAvailable}</div>
               </button>
               {isEditable && (
                 <button

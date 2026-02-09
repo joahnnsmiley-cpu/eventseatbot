@@ -620,16 +620,17 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     return (
                       <div
                         key={table.id}
-                        className={`table ${isRect ? 'rect' : 'circle'}`}
+                        className={`table-wrapper ${isRect ? 'rect' : 'circle'}`}
                         style={{
                           left: `${x}%`,
                           top: `${y}%`,
                           ['--size' as any]: Number(table.sizePercent) || 5,
-                          backgroundColor: bg,
-                          color: '#fff',
                         }}
                       >
-                        {String((tables as any).indexOf(table) + 1)}
+                        <div className="table-shape" style={{ backgroundColor: bg }} />
+                        <div className="table-label">
+                          {String((tables as any).indexOf(table) + 1)}
+                        </div>
                       </div>
                     );
                   })}
