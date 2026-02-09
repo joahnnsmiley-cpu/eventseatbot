@@ -90,9 +90,30 @@
         width: calc(24px + (var(--size) * 4px));
         height: calc(24px + (var(--size) * 4px));
         border: 2px solid rgba(0, 0, 0, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
       }
       .table-shape.circle { border-radius: 50%; }
       .table-shape.rect { border-radius: 6px; }
+      .seats-layer {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 2px;
+        max-width: 100%;
+        max-height: 100%;
+        pointer-events: none;
+      }
+      .seat {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        background: rgba(255, 255, 255, 0.9);
+      }
       .table-label {
         position: absolute;
         top: 50%;

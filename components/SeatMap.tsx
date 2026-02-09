@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { EventData } from '../types';
+import SeatsLayer from './SeatsLayer';
 
 type SeatStatus = 'available' | 'reserved' | 'sold';
 
@@ -171,7 +172,9 @@ const SeatMap: React.FC<SeatMapProps> = ({
               <div
                 className={`table-shape ${isRect ? 'rect' : 'circle'}`}
                 style={{ backgroundColor: bg, cursor: isSoldOut ? 'not-allowed' : 'pointer' }}
-              />
+              >
+                <SeatsLayer seatsTotal={table.seatsTotal} />
+              </div>
               <div className="table-label">
                 <div className="font-semibold">Table {table.number}</div>
                 <div className="text-[10px] text-white/90">Free {table.seatsAvailable}</div>

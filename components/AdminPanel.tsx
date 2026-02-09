@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as StorageService from '../services/storageService';
 import { EventData } from '../types';
+import SeatsLayer from './SeatsLayer';
 
 type AdminTable = {
   id: string;
@@ -646,7 +647,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           ['--size' as string]: Number(t.sizePercent) || 5,
                         }}
                       >
-                        <div className={`table-shape ${isRect ? 'rect' : 'circle'}`} style={{ backgroundColor: bg }} />
+                        <div className={`table-shape ${isRect ? 'rect' : 'circle'}`} style={{ backgroundColor: bg }}>
+                          <SeatsLayer seatsTotal={t.seatsCount} />
+                        </div>
                         <div className="table-label">Table {idx + 1}</div>
                       </div>
                     );
