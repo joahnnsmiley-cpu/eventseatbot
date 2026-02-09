@@ -31,6 +31,7 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({ seatsTotal, selectedIndices, on
               isInteractive
                 ? (e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     onSeatClick!(i);
                   }
                 : undefined
