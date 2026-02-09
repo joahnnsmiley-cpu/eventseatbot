@@ -197,6 +197,8 @@ app.post('/bookings', authMiddleware, async (req: AuthRequest, res) => {
           status: 'reserved',
           createdAt: now,
           expiresAt,
+          tableId: '',
+          seatsBooked: 0,
         };
 
         inMemoryBookings.push(booking);
@@ -281,6 +283,7 @@ app.post('/bookings', authMiddleware, async (req: AuthRequest, res) => {
     // persist updated events
     saveEvents(events);
 
+    const singleTable = updates.length === 1 ? updates[0] : null;
     const bookingRecord = {
       id: uuid(),
       eventId: event.id,
@@ -291,6 +294,8 @@ app.post('/bookings', authMiddleware, async (req: AuthRequest, res) => {
       status: 'reserved',
       createdAt: now,
       expiresAt,
+      tableId: singleTable ? singleTable.tableId : '',
+      seatsBooked: singleTable ? singleTable.seats : 0,
       tableBookings: updates,
     } as any;
 

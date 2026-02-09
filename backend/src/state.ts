@@ -12,6 +12,8 @@ export interface InMemoryBooking {
   status: BookingStatus;
   createdAt: number;
   expiresAt: number;
+  tableId: string;
+  seatsBooked: number;
   tableBookings?: Array<{ tableId: string; seats: number; totalPrice?: number }>;
   tickets?: Ticket[];
 }
