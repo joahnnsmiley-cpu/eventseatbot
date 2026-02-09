@@ -147,23 +147,34 @@ router.get('/view/:id', (req: Request, res: Response) => {
 
 // POST /public/bookings — create pending booking (no payment, no seat blocking)
 // Body: { eventId, tableId, seats: number[], phone }
-router.post('/bookings', (req: Request, res: Response) => {
-  // TEMP: return success unconditionally to verify connection (remove this block to restore full logic)
-  return res.status(200).json({ ok: true, id: 'temp-' + Date.now() });
-
+router.post('/bookings', (req: Request, res: Response): void => {
   const { eventId, tableId, seats, phone } = req.body || {};
-  if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
+  if (!eventId || !tableId) {
+    res.status(400).json({ error: 'eventId and tableId are required' });
+    return;
+  }
   const normalizedPhone = typeof phone === 'string' ? phone.trim() : '';
-  if (!normalizedPhone) return res.status(400).json({ error: 'phone is required' });
+  if (!normalizedPhone) {
+    res.status(400).json({ error: 'phone is required' });
+    return;
+  }
   const seatIndices: number[] = Array.isArray(seats) ? seats.filter((s: number) => Number.isInteger(s)) : [];
-  if (seatIndices.length === 0) return res.status(400).json({ error: 'seats must be a non-empty array of seat indices' });
+  if (seatIndices.length === 0) {
+    res.status(400).json({ error: 'seats must be a non-empty array of seat indices' });
+    return;
+  }
 
   try {
     const ev = findEventById(String(eventId)) as any;
-    if (!ev || (ev.published !== true && ev.status !== 'published'))
-      return res.status(404).json({ error: 'Event not found' });
+    if (!ev || (ev.published !== true && ev.status !== 'published')) {
+      res.status(404).json({ error: 'Event not found' });
+      return;
+    }
     const tbl = Array.isArray(ev.tables) ? ev.tables.find((t: any) => t.id === tableId) : null;
-    if (!tbl) return res.status(400).json({ error: 'Table not found' });
+    if (!tbl) {
+      res.status(400).json({ error: 'Table not found' });
+      return;
+    }
 
     const id = (require('uuid').v4)();
     const createdAt = Date.now();
@@ -182,10 +193,11 @@ router.post('/bookings', (req: Request, res: Response) => {
       totalAmount: 0,
     } as any;
     addBooking(booking);
-    return res.status(201).json({ id: booking.id });
+    res.status(201).json({ ok: true, id: booking.id });
+    return;
   } catch (err) {
     console.error('[PublicEvents] POST /bookings failed:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
