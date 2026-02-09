@@ -201,6 +201,7 @@ function App() {
     }
     try {
       const ev = await StorageService.getEvent(eventId);
+      console.log('[USER EVENT FETCH]', ev);
       if (reqId !== eventRequestRef.current) return;
       setSelectedEvent(ev);
     } catch (e) {

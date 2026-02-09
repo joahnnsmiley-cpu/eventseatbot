@@ -58,8 +58,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
   const backgroundUrl = (event.layoutImageUrl || '').trim();
 
   useEffect(() => {
-    // Diagnostic: verify layoutImageUrl reaches user view
-    console.log('layoutImageUrl:', event.layoutImageUrl);
+    console.log('[SEATING VIEW] layoutImageUrl =', event.layoutImageUrl);
   }, [event.layoutImageUrl]);
 
   const canSelectSeat = (seat: SeatModel) => seat.status === 'available';
@@ -104,6 +103,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
+            {console.log('[SEATING VIEW] No layout image because layoutImageUrl is empty/undefined')}
             No layout image
           </div>
         )}
