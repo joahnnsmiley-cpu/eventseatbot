@@ -617,7 +617,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     const x = typeof table.x === 'number' ? table.x : 0;
                     const y = typeof table.y === 'number' ? table.y : 0;
                     const sizePercent = Math.min(20, Math.max(1, Number(table.sizePercent) || 5));
-                    const borderRadius = table.shape === 'rect' ? '8px' : '50%';
+                    const isRect = table.shape === 'rect';
                     const bg = (table as any).color || '#3b82f6';
                     return (
                       <div
@@ -627,7 +627,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       >
                         <div
                           className="text-white text-[10px] flex items-center justify-center shadow"
-                          style={{ width: `clamp(24px, ${sizePercent}%, 64px)`, aspectRatio: '1 / 1', borderRadius, backgroundColor: bg }}
+                          style={{
+                            ['--size-percent' as any]: sizePercent,
+                            ['--base-size' as any]: 'clamp(24px, calc(var(--size-percent) * 1%), 72px)',
+                            width: isRect ? 'calc(var(--base-size) * 1.6)' : 'var(--base-size)',
+                            height: 'var(--base-size)',
+                            borderRadius: isRect ? '6px' : '50%',
+                            backgroundColor: bg,
+                          }}
                         >
                           {String((tables as any).indexOf(table) + 1)}
                         </div>

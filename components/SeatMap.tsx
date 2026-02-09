@@ -85,7 +85,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
   };
 
   return (
-    <div className="relative w-full overflow-hidden bg-gray-100 rounded-lg aspect-[4/3] border border-gray-300">
+    <div
+      className="relative w-full overflow-hidden bg-gray-100 rounded-lg border border-gray-300"
+      style={{ aspectRatio: '4 / 3' }}
+    >
       <div
         className="w-full h-full relative"
         style={{ cursor: isEditable ? 'crosshair' : 'default' }}
@@ -119,8 +122,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
           const y = typeof table.y === 'number' ? table.y : table.centerY;
           const isSoldOut = !isEditable && table.seatsAvailable === 0;
           const sizePercent = Math.min(20, Math.max(1, Number((table as any).sizePercent) || 5));
-          const shape = (table as any).shape === 'rect' ? 'rect' : 'circle';
-          const borderRadius = shape === 'rect' ? '8px' : '50%';
+          const isRect = (table as any).shape === 'rect';
           const bg = (table as any).color || '#3b82f6';
           return (
             <div
@@ -139,7 +141,14 @@ const SeatMap: React.FC<SeatMapProps> = ({
                   isSoldOut ? 'cursor-not-allowed border-gray-300' : 'cursor-pointer border-blue-500'
                 }`}
                 aria-label={`Table ${table.number}, free ${table.seatsAvailable}`}
-                style={{ width: `clamp(24px, ${sizePercent}%, 64px)`, aspectRatio: '1 / 1', borderRadius, backgroundColor: bg }}
+                style={{
+                  ['--size-percent' as any]: sizePercent,
+                  ['--base-size' as any]: 'clamp(24px, calc(var(--size-percent) * 1%), 72px)',
+                  width: isRect ? 'calc(var(--base-size) * 1.6)' : 'var(--base-size)',
+                  height: 'var(--base-size)',
+                  borderRadius: isRect ? '6px' : '50%',
+                  backgroundColor: bg,
+                }}
               >
                 <span className="font-semibold">Table {table.number}</span>
                 <span className="text-[10px] text-white/90">Free {table.seatsAvailable}</span>
