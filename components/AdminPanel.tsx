@@ -542,7 +542,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
               <div>
                 <div className="text-sm font-semibold mb-2">Layout preview</div>
-                <div className="relative w-full h-80 border rounded bg-gray-100 overflow-hidden">
+                <div className="relative w-full aspect-[4/3] border rounded bg-gray-100 overflow-hidden">
                   {previewUrl ? (
                     <div
                       className="absolute inset-0"
@@ -550,7 +550,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         backgroundImage: `url(${previewUrl})`,
                         backgroundRepeat: 'no-repeat',
                         backgroundPosition: 'center',
-                        backgroundSize: '100% 100%',
+                        backgroundSize: 'contain',
                       }}
                     />
                   ) : (

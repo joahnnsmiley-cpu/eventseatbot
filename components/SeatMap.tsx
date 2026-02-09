@@ -85,7 +85,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
   };
 
   return (
-    <div className="relative w-full overflow-hidden bg-gray-100 rounded-lg h-[60vh] border border-gray-300">
+    <div className="relative w-full overflow-hidden bg-gray-100 rounded-lg aspect-[4/3] border border-gray-300">
       <div
         className="w-full h-full relative"
         style={{ cursor: isEditable ? 'crosshair' : 'default' }}
