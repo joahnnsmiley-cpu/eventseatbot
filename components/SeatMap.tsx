@@ -85,23 +85,19 @@ const SeatMap: React.FC<SeatMapProps> = ({
   };
 
   return (
-    <div className="relative w-full overflow-hidden bg-gray-100 rounded-lg h-[60vh] border border-gray-300">
+    <div className="relative w-full overflow-hidden bg-gray-100 rounded-lg border border-gray-300">
       <div
         className="w-full h-full relative"
-        style={{ cursor: isEditable ? 'crosshair' : 'default' }}
+        style={{
+          cursor: isEditable ? 'crosshair' : 'default',
+          backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center',
+          backgroundSize: 'contain',
+        }}
         onClick={handleMapClick}
       >
-        {backgroundUrl ? (
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url(${backgroundUrl})`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'center',
-              backgroundSize: 'contain',
-            }}
-          />
-        ) : (
+        {!backgroundUrl && (
           <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
             {console.log('[SEATING VIEW] No layout image because layoutImageUrl is empty/undefined')}
             No layout image
@@ -124,8 +120,14 @@ const SeatMap: React.FC<SeatMapProps> = ({
           return (
             <div
               key={table.id}
-              className={`table-node absolute transform -translate-x-1/2 -translate-y-1/2 ${isSoldOut ? 'opacity-60' : ''}`}
-              style={{ left: `${x}%`, top: `${y}%` }}
+              className={`table ${isRect ? 'rect' : 'circle'} ${isSoldOut ? 'opacity-60' : ''}`}
+              style={{
+                left: `${x}%`,
+                top: `${y}%`,
+                ['--size' as any]: Number((table as any).sizePercent) || 5,
+                backgroundColor: bg,
+                color: '#fff',
+              }}
             >
               <button
                 type="button"
@@ -134,19 +136,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
                   if (onTableSelect) onTableSelect(table.id);
                 }}
                 disabled={isSoldOut}
-                className={`border-2 shadow text-white text-[10px] flex flex-col items-center justify-center gap-1 ${
+                className={`border-2 shadow text-white text-[10px] flex flex-col items-center justify-center gap-1 w-full h-full bg-transparent ${
                   isSoldOut ? 'cursor-not-allowed border-gray-300' : 'cursor-pointer border-blue-500'
                 }`}
                 aria-label={`Table ${table.number}, free ${table.seatsAvailable}`}
-                style={{
-                  ['--size' as any]: sizePercent,
-                  width: isRect
-                    ? 'clamp(36px, calc(var(--size) * 1.6%), 120px)'
-                    : 'clamp(24px, calc(var(--size) * 1%), 72px)',
-                  height: 'clamp(24px, calc(var(--size) * 1%), 72px)',
-                  borderRadius: isRect ? '6px' : '50%',
-                  backgroundColor: bg,
-                }}
               >
                 <span className="font-semibold">Table {table.number}</span>
                 <span className="text-[10px] text-white/90">Free {table.seatsAvailable}</span>

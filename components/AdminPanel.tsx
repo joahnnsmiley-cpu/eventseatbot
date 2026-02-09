@@ -596,18 +596,17 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
               <div>
                 <div className="text-sm font-semibold mb-2">Layout preview</div>
-                <div className="relative w-full h-80 border rounded bg-gray-100 overflow-hidden">
-                  {previewUrl ? (
-                    <div
-                      className="absolute inset-0"
-                      style={{
-                        backgroundImage: `url(${previewUrl})`,
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'center',
-                        backgroundSize: 'contain',
-                      }}
-                    />
-                  ) : (
+                <div
+                  className="relative w-full border rounded bg-gray-100 overflow-hidden"
+                  style={{
+                    backgroundImage: previewUrl ? `url(${previewUrl})` : undefined,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'center',
+                    backgroundSize: 'contain',
+                    minHeight: '320px',
+                  }}
+                >
+                  {!previewUrl && (
                     <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
                       No layout image URL
                     </div>
@@ -616,29 +615,21 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   {tables.map((table) => {
                     const x = typeof table.x === 'number' ? table.x : 0;
                     const y = typeof table.y === 'number' ? table.y : 0;
-                    const sizePercent = Number(table.sizePercent) || 5;
                     const isRect = table.shape === 'rect';
                     const bg = (table as any).color || '#3b82f6';
                     return (
                       <div
                         key={table.id}
-                        className="absolute -translate-x-1/2 -translate-y-1/2"
-                        style={{ left: `${x}%`, top: `${y}%` }}
+                        className={`table ${isRect ? 'rect' : 'circle'}`}
+                        style={{
+                          left: `${x}%`,
+                          top: `${y}%`,
+                          ['--size' as any]: Number(table.sizePercent) || 5,
+                          backgroundColor: bg,
+                          color: '#fff',
+                        }}
                       >
-                        <div
-                          className="text-white text-[10px] flex items-center justify-center shadow"
-                          style={{
-                            ['--size' as any]: sizePercent,
-                            width: isRect
-                              ? 'clamp(36px, calc(var(--size) * 1.6%), 120px)'
-                              : 'clamp(24px, calc(var(--size) * 1%), 72px)',
-                            height: 'clamp(24px, calc(var(--size) * 1%), 72px)',
-                            borderRadius: isRect ? '6px' : '50%',
-                            backgroundColor: bg,
-                          }}
-                        >
-                          {String((tables as any).indexOf(table) + 1)}
-                        </div>
+                        {String((tables as any).indexOf(table) + 1)}
                       </div>
                     );
                   })}
