@@ -76,7 +76,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
   const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isEditable || !onTableAdd) return;
     // Don't trigger if clicking on a table
-    if ((e.target as HTMLElement).closest('.table-node')) return;
+    if ((e.target as HTMLElement).closest('.table-wrapper')) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -85,24 +85,23 @@ const SeatMap: React.FC<SeatMapProps> = ({
   };
 
   return (
-    <div className="relative w-full overflow-hidden bg-gray-100 rounded-lg border border-gray-300">
-      <div
-        className="w-full h-full relative"
-        style={{
-          cursor: isEditable ? 'crosshair' : 'default',
-          backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'center',
-          backgroundSize: 'contain',
-        }}
-        onClick={handleMapClick}
-      >
-        {!backgroundUrl && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
-            {console.log('[SEATING VIEW] No layout image because layoutImageUrl is empty/undefined')}
-            No layout image
-          </div>
-        )}
+    <div
+      className="relative w-full overflow-hidden bg-gray-100 rounded-lg border border-gray-300"
+      style={{
+        cursor: isEditable ? 'crosshair' : 'default',
+        backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+        backgroundSize: 'contain',
+      }}
+      onClick={handleMapClick}
+    >
+      {!backgroundUrl && (
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
+          {console.log('[SEATING VIEW] No layout image because layoutImageUrl is empty/undefined')}
+          No layout image
+        </div>
+      )}
 
         {/* Tables */}
         {tables.length === 0 && (
@@ -110,49 +109,47 @@ const SeatMap: React.FC<SeatMapProps> = ({
             No tables yet. Please check back later.
           </div>
         )}
-        {tables.map((table) => {
-          const x = typeof table.x === 'number' ? table.x : table.centerX;
-          const y = typeof table.y === 'number' ? table.y : table.centerY;
-          const isSoldOut = !isEditable && table.seatsAvailable === 0;
-          const sizePercent = Number((table as any).sizePercent) || 5;
-          const isRect = (table as any).shape === 'rect';
-          const bg = (table as any).color || '#3b82f6';
-          return (
-            <div
-              key={table.id}
-              className={`table-wrapper ${isRect ? 'rect' : 'circle'} ${isSoldOut ? 'opacity-60' : ''}`}
-              style={{
-                left: `${x}%`,
-                top: `${y}%`,
-                ['--size' as any]: Number((table as any).sizePercent) || 5,
+      {tables.map((table) => {
+        const x = typeof table.x === 'number' ? table.x : table.centerX;
+        const y = typeof table.y === 'number' ? table.y : table.centerY;
+        const isSoldOut = !isEditable && table.seatsAvailable === 0;
+        const isRect = (table as any).shape === 'rect';
+        const bg = (table as any).color || '#3b82f6';
+        return (
+          <div
+            key={table.id}
+            className={`table-wrapper ${isRect ? 'rect' : 'circle'} ${isSoldOut ? 'opacity-60' : ''}`}
+            style={{
+              left: `${x}%`,
+              top: `${y}%`,
+              ['--size' as any]: Number((table as any).sizePercent) || 5,
+            }}
+          >
+            <div className="table-shape" style={{ backgroundColor: bg }} />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onTableSelect) onTableSelect(table.id);
               }}
+              disabled={isSoldOut}
+              className={`table-label ${isSoldOut ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+              aria-label={`Table ${table.number}, free ${table.seatsAvailable}`}
             >
-              <div className="table-shape" style={{ backgroundColor: bg }} />
+              <div className="font-semibold">Table {table.number}</div>
+              <div className="text-[10px] text-white/90">Free {table.seatsAvailable}</div>
+            </button>
+            {isEditable && (
               <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onTableSelect) onTableSelect(table.id);
-                }}
-                disabled={isSoldOut}
-                className={`table-label ${isSoldOut ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                aria-label={`Table ${table.number}, free ${table.seatsAvailable}`}
+                onClick={(e) => { e.stopPropagation(); onTableDelete && onTableDelete(table.id); }}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md"
               >
-                <div className="font-semibold">Table {table.number}</div>
-                <div className="text-[10px] text-white/90">Free {table.seatsAvailable}</div>
+                ×
               </button>
-              {isEditable && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onTableDelete && onTableDelete(table.id); }}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            )}
+          </div>
+        );
+      })}
 
       {!isEditable && seats.length > 0 && (
         <div className="absolute bottom-0 left-0 right-0 bg-white/95 border-t border-gray-200 p-3">

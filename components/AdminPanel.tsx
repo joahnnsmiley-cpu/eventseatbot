@@ -603,7 +603,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     backgroundRepeat: 'no-repeat',
                     backgroundPosition: 'center',
                     backgroundSize: 'contain',
-                    minHeight: '320px',
                   }}
                 >
                   {!previewUrl && (
