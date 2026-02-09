@@ -175,25 +175,28 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         title: eventTitle.trim(),
         description: eventDescription.trim(),
         paymentPhone: eventPhone.trim(),
-        layoutImageUrl: layoutUrl ? layoutUrl.trim() : null,
+        layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
         tables: tablesPayload as any,
       };
-      const updated = await StorageService.updateAdminEvent(selectedEvent.id, payload);
-      const merged = { ...selectedEvent, ...updated, ...payload };
-      setSelectedEvent(merged);
-      setLayoutUrl(merged.layoutImageUrl || '');
-      setEventPublished(merged.published === true);
-      const mergedTables = Array.isArray(merged.tables) ? merged.tables : [];
+      await StorageService.updateAdminEvent(selectedEvent.id, payload);
+      const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
+      setSelectedEvent(refreshed);
+      setLayoutUrl(refreshed?.layoutImageUrl || '');
+      setEventTitle(refreshed?.title || '');
+      setEventDescription(refreshed?.description || '');
+      setEventPhone(refreshed?.paymentPhone || '');
+      setEventPublished(refreshed?.published === true);
+      const refreshedTables = Array.isArray(refreshed?.tables) ? refreshed.tables : [];
       setEventTables(
-        mergedTables.map((t: any, idx: number) => ({
+        refreshedTables.map((t: any, idx: number) => ({
           id: typeof t.id === 'string' && t.id ? t.id : `tbl-${idx + 1}`,
           x: typeof t.x === 'number' ? t.x : Number(t.centerX) || 0,
           y: typeof t.y === 'number' ? t.y : Number(t.centerY) || 0,
           seatsCount: typeof t.seatsTotal === 'number' ? t.seatsTotal : Number(t.seatsAvailable) || 0,
         })),
       );
-      setEvents((prev) => prev.map((e) => (e.id === merged.id ? { ...e, title: merged.title } : e)));
+      setEvents((prev) => prev.map((e) => (e.id === refreshed.id ? { ...e, title: refreshed.title } : e)));
       setError(null);
       setSuccessMessage('Event updated.');
     } catch (e) {
