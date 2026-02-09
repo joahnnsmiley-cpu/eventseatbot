@@ -148,23 +148,24 @@ router.get('/view/:id', (req: Request, res: Response) => {
 // POST /public/bookings — create pending booking (no payment, no seat blocking)
 // Body: { eventId, tableId, seats: number[], phone }
 router.post('/bookings', (req: Request, res: Response): void => {
-  const { eventId, tableId, seats, phone } = req.body || {};
-  if (!eventId || !tableId) {
-    res.status(400).json({ error: 'eventId and tableId are required' });
-    return;
-  }
-  const normalizedPhone = typeof phone === 'string' ? phone.trim() : '';
-  if (!normalizedPhone) {
-    res.status(400).json({ error: 'phone is required' });
-    return;
-  }
-  const seatIndices: number[] = Array.isArray(seats) ? seats.filter((s: number) => Number.isInteger(s)) : [];
-  if (seatIndices.length === 0) {
-    res.status(400).json({ error: 'seats must be a non-empty array of seat indices' });
-    return;
-  }
-
+  console.log('BOOKINGS HIT', req.body);
   try {
+    const { eventId, tableId, seats, phone } = req.body || {};
+    if (!eventId || !tableId) {
+      res.status(400).json({ error: 'eventId and tableId are required' });
+      return;
+    }
+    const normalizedPhone = typeof phone === 'string' ? phone.trim() : '';
+    if (!normalizedPhone) {
+      res.status(400).json({ error: 'phone is required' });
+      return;
+    }
+    const seatIndices: number[] = Array.isArray(seats) ? seats.filter((s: number) => Number.isInteger(s)) : [];
+    if (seatIndices.length === 0) {
+      res.status(400).json({ error: 'seats must be a non-empty array of seat indices' });
+      return;
+    }
+
     const ev = findEventById(String(eventId)) as any;
     if (!ev || (ev.published !== true && ev.status !== 'published')) {
       res.status(404).json({ error: 'Event not found' });
@@ -194,10 +195,9 @@ router.post('/bookings', (req: Request, res: Response): void => {
     } as any;
     addBooking(booking);
     res.status(201).json({ ok: true, id: booking.id });
-    return;
-  } catch (err) {
-    console.error('[PublicEvents] POST /bookings failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (e) {
+    console.error('BOOKINGS ERROR', e);
+    res.status(500).json({ error: 'internal' });
   }
 });
 

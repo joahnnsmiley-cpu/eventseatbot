@@ -72,16 +72,31 @@ export const createPendingBooking = async (payload: {
   seats: number[];
   phone: string;
 }): Promise<{ id: string }> => {
+  console.log('BOOKING START');
+  console.log(payload);
   const apiBaseUrl = getApiBaseUrl();
   const url = `${apiBaseUrl}/public/bookings`;
-  const body = JSON.stringify(payload);
-  console.log('[createPendingBooking] request', { method: 'POST', url, payload });
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.error('BOOKING ERROR', err);
+    throw err;
+  }
+  console.log(res.status);
+  console.log(res.headers.get('content-type'));
   const text = await res.text();
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.toLowerCase().includes('application/json')) {
+    console.log('response body (not JSON):', text);
+  }
   let data: { id?: string; ok?: boolean; error?: string } = {};
   try {
     data = text ? JSON.parse(text) : {};

@@ -48,12 +48,13 @@ if (token && chatId) {
   console.log('[Bootstrap] Telegram notifiers disabled: missing env vars');
 }
 
+// CORS before any routes — required for Telegram WebApp cross-origin POST (e.g. /public/bookings)
 app.use(cors({
-  origin: true,
-  credentials: true,
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+// JSON body parser for req.body (equivalent to express.json())
 app.use(bodyParser.json());
 app.use('/auth', authRoutes);
 app.use('/me', meRoutes);
