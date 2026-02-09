@@ -85,6 +85,36 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const tg = window.Telegram?.WebApp;
+    if (!tg) return;
+
+    const applyTheme = () => {
+      const isDark = tg.colorScheme === 'dark';
+      document.body.classList.toggle('tg-dark', isDark);
+      document.body.classList.toggle('tg-light', !isDark);
+      const params = tg.themeParams || {};
+      const root = document.documentElement;
+      if (params.bg_color) root.style.setProperty('--tg-theme-bg-color', params.bg_color);
+      if (params.text_color) root.style.setProperty('--tg-theme-text-color', params.text_color);
+      if (params.hint_color) root.style.setProperty('--tg-theme-hint-color', params.hint_color);
+      if (params.button_color) root.style.setProperty('--tg-theme-button-color', params.button_color);
+      if (params.button_text_color) root.style.setProperty('--tg-theme-button-text-color', params.button_text_color);
+      if (params.secondary_bg_color) root.style.setProperty('--tg-theme-secondary-bg-color', params.secondary_bg_color);
+    };
+
+    applyTheme();
+    try {
+      tg.onEvent?.('themeChanged', applyTheme);
+    } catch {}
+
+    return () => {
+      try {
+        tg.offEvent?.('themeChanged', applyTheme);
+      } catch {}
+    };
+  }, []);
+
+  useEffect(() => {
     const updateRole = (t: string | null) => {
       const payload = AuthService.decodeToken(t);
       setIsAdmin(payload?.role === 'admin');

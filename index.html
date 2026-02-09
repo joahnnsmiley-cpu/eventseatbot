@@ -27,10 +27,43 @@
     </script>
     <style>
       body {
-        background-color: var(--tg-theme-bg-color, #f3f4f6);
-        color: var(--tg-theme-text-color, #000000);
+        background-color: var(--tg-bg, var(--tg-theme-bg-color, #f3f4f6));
+        color: var(--tg-text, var(--tg-theme-text-color, #111827));
         overflow-x: hidden;
       }
+      body.tg-light {
+        --tg-bg: var(--tg-theme-bg-color, #f3f4f6);
+        --tg-text: var(--tg-theme-text-color, #111827);
+        --tg-muted: var(--tg-theme-hint-color, #6b7280);
+        --tg-card: #ffffff;
+        --tg-border: #e5e7eb;
+      }
+      body.tg-dark {
+        --tg-bg: var(--tg-theme-bg-color, #0f172a);
+        --tg-text: var(--tg-theme-text-color, #e5e7eb);
+        --tg-muted: var(--tg-theme-hint-color, #94a3b8);
+        --tg-card: #111827;
+        --tg-border: #1f2937;
+      }
+      body.tg-dark .bg-gray-50 { background-color: var(--tg-bg) !important; }
+      body.tg-dark .bg-white { background-color: var(--tg-card) !important; }
+      body.tg-dark .text-gray-500,
+      body.tg-dark .text-gray-600 { color: var(--tg-muted) !important; }
+      body.tg-dark .text-gray-700,
+      body.tg-dark .text-gray-800,
+      body.tg-dark .text-gray-900 { color: var(--tg-text) !important; }
+      body.tg-dark .border,
+      body.tg-dark .border-gray-200,
+      body.tg-dark .border-gray-300 { border-color: var(--tg-border) !important; }
+      body.tg-dark .bg-blue-600,
+      body.tg-light .bg-blue-600 {
+        background-color: var(--tg-theme-button-color, #2563eb) !important;
+        color: var(--tg-theme-button-text-color, #ffffff) !important;
+      }
+      body.tg-dark .bg-gray-100 { background-color: var(--tg-bg) !important; }
+      body.tg-dark .shadow,
+      body.tg-dark .shadow-sm,
+      body.tg-dark .shadow-lg { box-shadow: none !important; }
       /* Hide scrollbar for cleaner mobile UI */
       ::-webkit-scrollbar {
         width: 0px;
