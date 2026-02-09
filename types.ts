@@ -34,6 +34,7 @@ export interface EventData {
   paymentPhone: string;
   maxSeatsPerBooking: number;
   published?: boolean;
+  status?: 'draft' | 'published' | 'archived';
 }
 
 export interface Booking {

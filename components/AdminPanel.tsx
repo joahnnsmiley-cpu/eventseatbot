@@ -95,7 +95,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setEventTitle(ev?.title || '');
       setEventDescription(ev?.description || '');
       setEventPhone(ev?.paymentPhone || '');
-      setEventPublished(ev?.published === true || ev?.status === 'published');
+      setEventPublished(ev?.published === true);
     } catch (e) {
       console.error('[AdminPanel] Failed to load event', e);
       if (e instanceof Error && e.message) {
@@ -315,7 +315,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         <div className="grid grid-cols-1 gap-4">
           <div className="bg-white p-4 rounded border">
             <div className="text-sm font-semibold mb-2">Select event</div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 md:flex-row flex-col">
               <select
                 value={selectedEventId}
                 onChange={(e) => {
@@ -326,7 +326,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   setSuccessMessage(null);
                   if (nextId) loadEvent(nextId);
                 }}
-                className="border rounded px-2 py-2 text-sm w-full"
+                className="border rounded px-2 py-2 text-sm w-full max-w-full"
               >
                 <option value="">— Choose event —</option>
                 {events.map((ev) => (
@@ -338,14 +338,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               <button
                 onClick={loadEvents}
                 disabled={eventsLoading || creatingEvent}
-                className="px-3 py-2 text-sm border rounded"
+                className="px-3 py-2 text-sm border rounded w-full md:w-auto"
               >
                 Refresh
               </button>
               <button
                 onClick={createEvent}
                 disabled={eventsLoading || creatingEvent}
-                className="px-3 py-2 text-sm border rounded"
+                className="px-3 py-2 text-sm border rounded w-full md:w-auto"
               >
                 {creatingEvent ? 'Creating…' : 'Create event'}
               </button>
@@ -367,7 +367,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   value={eventTitle}
                   onChange={(e) => setEventTitle(e.target.value)}
                   placeholder="Event title"
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                 />
               </div>
               <div>
@@ -376,7 +376,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   value={eventDescription}
                   onChange={(e) => setEventDescription(e.target.value)}
                   placeholder="Optional description"
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                   rows={3}
                 />
               </div>
@@ -387,7 +387,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   value={eventPhone}
                   onChange={(e) => setEventPhone(e.target.value)}
                   placeholder="Phone for payments"
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                 />
               </div>
               <label className="flex items-center gap-2 text-sm">
@@ -405,22 +405,22 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   value={layoutUrl}
                   onChange={(e) => setLayoutUrl(e.target.value)}
                   placeholder="https://example.com/layout.jpg"
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                 />
                 <div className="text-xs text-gray-500 mt-1">
                   Use this image as the table layout background.
                 </div>
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-wrap gap-2 flex-col md:flex-row">
                   <button
                     onClick={saveLayout}
                     disabled={savingLayout}
-                    className="bg-blue-600 text-white px-3 py-2 rounded text-sm"
+                    className="bg-blue-600 text-white px-3 py-2 rounded text-sm w-full md:w-auto"
                   >
                     {savingLayout ? 'Saving…' : 'Save'}
                   </button>
                   <button
                     onClick={() => setLayoutUrl(selectedEvent?.layoutImageUrl || '')}
-                    className="px-3 py-2 text-sm border rounded"
+                    className="px-3 py-2 text-sm border rounded w-full md:w-auto"
                   >
                     Reset
                   </button>
