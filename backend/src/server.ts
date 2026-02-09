@@ -48,25 +48,12 @@ if (token && chatId) {
   console.log('[Bootstrap] Telegram notifiers disabled: missing env vars');
 }
 
-const allowedOrigins = [
-  'https://web.telegram.org',
-  'https://t.me',
-];
-const vercelOrigin = /^https:\/\/.+\.vercel\.app$/;
-
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || vercelOrigin.test(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error('Not allowed by CORS'));
-  },
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.options('*', cors());
 app.use(bodyParser.json());
 app.use('/auth', authRoutes);
 app.use('/me', meRoutes);
