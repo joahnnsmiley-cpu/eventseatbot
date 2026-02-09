@@ -594,6 +594,14 @@ function App() {
           )}
         </div>
         <p className="text-sm text-gray-600 mb-4">Список опубликованных событий</p>
+        {isAdmin && (
+          <div className="mb-4 flex items-center gap-2 text-xs text-gray-600">
+            <span>Админ доступ активен.</span>
+            <button onClick={() => setView('admin')} className="text-xs px-2 py-1 rounded border">
+              Открыть админку
+            </button>
+          </div>
+        )}
 
         {!tgAvailable && (
           <div className="text-xs text-gray-500 mb-4">
