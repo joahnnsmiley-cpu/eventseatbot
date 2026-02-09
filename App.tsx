@@ -3,6 +3,7 @@ import * as StorageService from './services/storageService';
 import AdminPanel from './components/AdminPanel';
 import AuthService from './services/authService';
 import SeatMap from './components/SeatMap';
+import SeatPicker from './components/SeatPicker';
 import type { Booking, EventData, Table } from './types';
 
 declare global {
@@ -57,6 +58,8 @@ function App() {
   const [eventLoading, setEventLoading] = useState(false);
   const [eventError, setEventError] = useState<string | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+  /** UI-only: selected seat indices per table. Main map displays; panel SeatPicker toggles. */
+  const [selectedSeatsByTable, setSelectedSeatsByTable] = useState<Record<string, number[]>>({});
   const [seatsRequested, setSeatsRequested] = useState(1);
   const eventRequestRef = useRef(0);
   const [selectionAdjusted, setSelectionAdjusted] = useState(false);
@@ -339,6 +342,7 @@ function App() {
           {selectedEvent && (
             <SeatMap
               event={selectedEvent}
+              selectedSeatsByTable={selectedSeatsByTable}
               onTableSelect={(tableId) => {
                 setSelectedTableId(tableId);
                 setView('seats');
@@ -401,6 +405,24 @@ function App() {
 
               <div className="bg-white rounded border p-4">
                 <div className="text-sm font-semibold mb-2">Select seats</div>
+                <SeatPicker
+                  table={selectedTable}
+                  selectedIndices={selectedSeatsByTable[selectedTableId!] ?? []}
+                  onToggleSeat={(seatIndex) => {
+                    if (!selectedTableId) return;
+                    setSelectedSeatsByTable((prev) => {
+                      const arr = prev[selectedTableId] ?? [];
+                      const set = new Set(arr);
+                      if (set.has(seatIndex)) set.delete(seatIndex);
+                      else set.add(seatIndex);
+                      return { ...prev, [selectedTableId]: [...set].sort((a, b) => a - b) };
+                    });
+                  }}
+                />
+              </div>
+
+              <div className="bg-white rounded border p-4">
+                <div className="text-sm font-semibold mb-2">Number of seats</div>
                 <div className="flex items-center gap-2">
                   <button
                     className="px-3 py-2 rounded border text-sm"

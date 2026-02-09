@@ -31,10 +31,12 @@ export type SeatSelectionState = {
   activeTableId?: string | null;
 };
 
+/** selectedSeatsByTable[tableId] = selected seat indices. Main map displays only; panel SeatPicker toggles. */
 interface SeatMapProps {
   event: EventData;
   isEditable?: boolean; // For Admin
   seatState?: SeatSelectionState;
+  selectedSeatsByTable?: Record<string, number[]>;
   onSeatToggle?: (seat: SeatModel) => void;
   onSelectedSeatsChange?: (selectedSeats: string[]) => void;
   onTableAdd?: (x: number, y: number) => void;
@@ -50,7 +52,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
   onSelectedSeatsChange,
   onTableAdd,
   onTableDelete,
-  onTableSelect
+  onTableSelect,
+  selectedSeatsByTable,
 }) => {
   const selectedSeats = seatState?.selectedSeats ?? [];
   // Always an array: prefer seatState, then event.tables, never undefined (so no silent blank screen)
@@ -63,9 +66,6 @@ const SeatMap: React.FC<SeatMapProps> = ({
   const selectedSet = new Set(selectedSeats);
   const backgroundUrl = (event?.layoutImageUrl ?? '').trim();
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
-
-  /** UI-only seat selection (user view): key = "tableId-seatIndex". Not stored in table object. */
-  const [selectedSeatKeys, setSelectedSeatKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!backgroundUrl) {
@@ -178,28 +178,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
               >
                 <SeatsLayer
                   seatsTotal={table.seatsTotal}
-                  selectedIndices={
-                    isEditable
-                      ? undefined
-                      : new Set(
-                          Array.from({ length: table.seatsTotal }, (_, i) => i).filter((i) =>
-                            selectedSeatKeys.has(`${table.id}-${i}`)
-                          )
-                        )
-                  }
-                  onSeatClick={
-                    isEditable
-                      ? undefined
-                      : (index) => {
-                          const key = `${table.id}-${index}`;
-                          setSelectedSeatKeys((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(key)) next.delete(key);
-                            else next.add(key);
-                            return next;
-                          });
-                        }
-                  }
+                  selectedIndices={new Set(selectedSeatsByTable?.[table.id] ?? [])}
                 />
               </div>
               <div className="table-label">

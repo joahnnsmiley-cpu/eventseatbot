@@ -1,0 +1,37 @@
+import React from 'react';
+import SeatsLayer from './SeatsLayer';
+import type { Table } from '../types';
+
+interface SeatPickerProps {
+  table: Table;
+  selectedIndices: number[];
+  onToggleSeat: (seatIndex: number) => void;
+}
+
+/**
+ * Renders the selected table only, with large clickable seats.
+ * Used inside the table panel; seat selection happens here only.
+ */
+const SeatPicker: React.FC<SeatPickerProps> = ({ table, selectedIndices, onToggleSeat }) => {
+  const isRect = table.shape === 'rect';
+  const bg = table.color ?? '#3b82f6';
+  const count = Math.max(0, Number(table.seatsTotal) || 0);
+  const selectedSet = new Set(selectedIndices);
+
+  return (
+    <div className="seat-picker">
+      <div
+        className={`seat-picker__table table-shape ${isRect ? 'rect' : 'circle'}`}
+        style={{ backgroundColor: bg }}
+      >
+        <SeatsLayer
+          seatsTotal={count}
+          selectedIndices={selectedSet}
+          onSeatClick={onToggleSeat}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default SeatPicker;
