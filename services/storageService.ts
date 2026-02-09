@@ -73,18 +73,30 @@ export const createPendingBooking = async (payload: {
   phone: string;
 }): Promise<{ id: string }> => {
   const apiBaseUrl = getApiBaseUrl();
-  const res = await fetch(`${apiBaseUrl}/public/bookings`, {
+  const url = `${apiBaseUrl}/public/bookings`;
+  const body = JSON.stringify(payload);
+  console.log('[createPendingBooking] request', { method: 'POST', url, payload });
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body,
   });
+  const text = await res.text();
+  let data: { id?: string; ok?: boolean; error?: string } = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    console.warn('[createPendingBooking] response not JSON', { status: res.status, text: text.slice(0, 200) });
+  }
+  console.log('[createPendingBooking] response', { status: res.status, ok: res.ok, data });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    const error: Error & { status?: number } = new Error(err.error || 'Failed to create booking');
+    const error: Error & { status?: number } = new Error(
+      (data && typeof data.error === 'string' ? data.error : null) || res.statusText || 'Failed to create booking'
+    );
     error.status = res.status;
     throw error;
   }
-  return res.json();
+  return { id: data.id ?? 'temp', ...data } as { id: string };
 };
 
 export const getMyBookings = async (): Promise<Booking[]> => {

@@ -148,6 +148,9 @@ router.get('/view/:id', (req: Request, res: Response) => {
 // POST /public/bookings — create pending booking (no payment, no seat blocking)
 // Body: { eventId, tableId, seats: number[], phone }
 router.post('/bookings', (req: Request, res: Response) => {
+  // TEMP: return success unconditionally to verify connection (remove this block to restore full logic)
+  return res.status(200).json({ ok: true, id: 'temp-' + Date.now() });
+
   const { eventId, tableId, seats, phone } = req.body || {};
   if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
   const normalizedPhone = typeof phone === 'string' ? phone.trim() : '';
