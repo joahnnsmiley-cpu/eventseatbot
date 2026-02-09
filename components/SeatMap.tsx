@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { EventData } from '../types';
-import SeatsLayer from './SeatsLayer';
 
 type SeatStatus = 'available' | 'reserved' | 'sold';
 
@@ -175,17 +174,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
               <div
                 className={`table-shape ${isRect ? 'rect' : 'circle'}`}
                 style={{ backgroundColor: bg, cursor: isSoldOut ? 'not-allowed' : 'pointer' }}
-              >
-                <SeatsLayer
-                  seatsTotal={table.seatsTotal}
-                  tableShape={(table as any).shape === 'rect' ? 'rect' : 'circle'}
-                  sizePercent={Number((table as any).sizePercent) || 5}
-                  selectedIndices={new Set(selectedSeatsByTable?.[table.id] ?? [])}
-                />
-              </div>
+              />
               <div className="table-label">
                 <div className="font-semibold">Table {table.number}</div>
-                <div className="text-[10px] text-white/90">Free {table.seatsAvailable}</div>
+                <div className="text-[10px] text-white/90">{table.seatsAvailable} / {table.seatsTotal}</div>
               </div>
             {isEditable && (
               <button

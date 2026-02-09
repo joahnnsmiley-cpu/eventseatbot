@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 
-const SEAT_RADIUS_PX = 4;
-const PADDING_PX = 4;
+const DEFAULT_SEAT_RADIUS_PX = 4;
+const DEFAULT_PADDING_PX = 4;
 
 interface SeatsLayerProps {
   seatsTotal: number;
@@ -10,6 +10,10 @@ interface SeatsLayerProps {
   sizePercent?: number;
   /** Override table size in px (e.g. SeatPicker uses 200). */
   tableSizePx?: number;
+  /** Seat radius in px (e.g. 12 for SeatPicker 24px seats). Larger = more margin from table edge for circle. */
+  seatRadiusPx?: number;
+  /** Padding from table edge for circle layout. */
+  paddingPx?: number;
   selectedIndices?: Set<number>;
   onSeatClick?: (index: number) => void;
 }
@@ -17,7 +21,9 @@ interface SeatsLayerProps {
 function getSeatPositions(
   count: number,
   shape: 'circle' | 'rect',
-  tableSizePx: number
+  tableSizePx: number,
+  seatRadiusPx: number,
+  paddingPx: number
 ): { x: number; y: number }[] {
   if (count <= 0) return [];
   const positions: { x: number; y: number }[] = [];
@@ -25,7 +31,7 @@ function getSeatPositions(
   const centerY = tableSizePx / 2;
 
   if (shape === 'circle') {
-    const radius = Math.max(0, centerX - SEAT_RADIUS_PX - PADDING_PX);
+    const radius = Math.max(0, centerX - seatRadiusPx - paddingPx);
     for (let i = 0; i < count; i++) {
       const angle = (2 * Math.PI / count) * i - Math.PI / 2;
       const x = centerX + radius * Math.cos(angle);
@@ -35,39 +41,29 @@ function getSeatPositions(
     return positions;
   }
 
-  // rect: perimeter layout
-  const w = tableSizePx;
-  const h = tableSizePx;
-  const perimeter = 2 * (w + h);
-  const step = perimeter / count;
+  // rect: internal grid layout (e.g. 2x2, 3x2, 4x2)
+  const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
+  const rows = Math.max(1, Math.ceil(count / cols));
+  const cellW = tableSizePx / cols;
+  const cellH = tableSizePx / rows;
   for (let i = 0; i < count; i++) {
-    const d = i * step;
-    let x: number;
-    let y: number;
-    if (d < w) {
-      x = d;
-      y = 0;
-    } else if (d < w + h) {
-      x = w;
-      y = d - w;
-    } else if (d < 2 * w + h) {
-      x = 2 * w + h - d;
-      y = h;
-    } else {
-      x = 0;
-      y = 2 * (w + h) - d;
-    }
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = (col + 0.5) * cellW;
+    const y = (row + 0.5) * cellH;
     positions.push({ x, y });
   }
   return positions;
 }
 
-/** Renders seat dots inside table-shape. Radial (circle) or perimeter (rect) layout. */
+/** Renders seat dots inside table-shape. Circle = radial; rect = internal grid. Used only in SeatPicker. */
 const SeatsLayer: React.FC<SeatsLayerProps> = ({
   seatsTotal,
   tableShape,
   sizePercent = 5,
   tableSizePx,
+  seatRadiusPx = DEFAULT_SEAT_RADIUS_PX,
+  paddingPx = DEFAULT_PADDING_PX,
   selectedIndices,
   onSeatClick,
 }) => {
@@ -77,8 +73,8 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
 
   const sizePx = tableSizePx ?? 24 + (Number(sizePercent) || 5) * 4;
   const positions = useMemo(
-    () => getSeatPositions(count, tableShape, sizePx),
-    [count, tableShape, sizePx]
+    () => getSeatPositions(count, tableShape, sizePx, seatRadiusPx, paddingPx),
+    [count, tableShape, sizePx, seatRadiusPx, paddingPx]
   );
 
   return (

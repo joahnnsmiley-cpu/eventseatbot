@@ -28,6 +28,8 @@ const SeatPicker: React.FC<SeatPickerProps> = ({ table, selectedIndices, onToggl
           seatsTotal={count}
           tableShape={isRect ? 'rect' : 'circle'}
           tableSizePx={200}
+          seatRadiusPx={12}
+          paddingPx={12}
           selectedIndices={selectedSet}
           onSeatClick={onToggleSeat}
         />
