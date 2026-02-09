@@ -15,7 +15,10 @@ export const getEvent = async (eventId: string): Promise<EventData> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/public/events/${eventId}`);
   if (!res.ok) throw new Error('Failed to load event');
-  return res.json();
+  const data = await res.json();
+  // Normalize so frontend always has tables array (API returns tables; ensure it's never missing)
+  const tables = Array.isArray(data.tables) ? data.tables : [];
+  return { ...data, tables } as EventData;
 };
 
 export const createBooking = async (

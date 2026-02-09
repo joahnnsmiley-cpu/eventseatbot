@@ -52,10 +52,15 @@ const SeatMap: React.FC<SeatMapProps> = ({
   onTableSelect
 }) => {
   const selectedSeats = seatState?.selectedSeats ?? [];
-  const tables = seatState?.tables ?? event.tables;
+  // Always an array: prefer seatState, then event.tables, never undefined (so no silent blank screen)
+  const tables = Array.isArray(seatState?.tables)
+    ? seatState.tables
+    : Array.isArray(event?.tables)
+      ? event.tables
+      : [];
   const seats = seatState?.seats ?? [];
   const selectedSet = new Set(selectedSeats);
-  const backgroundUrl = (event.layoutImageUrl || '').trim();
+  const backgroundUrl = (event?.layoutImageUrl ?? '').trim();
 
   useEffect(() => {
     console.log('[SEATING VIEW] layoutImageUrl =', event.layoutImageUrl);
@@ -88,6 +93,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
     <div
       className="relative w-full overflow-hidden bg-gray-100 rounded-lg border border-gray-300"
       style={{
+        width: '100%',
+        minHeight: 300,
         cursor: isEditable ? 'crosshair' : 'default',
         backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
         backgroundRepeat: 'no-repeat',
@@ -96,19 +103,23 @@ const SeatMap: React.FC<SeatMapProps> = ({
       }}
       onClick={handleMapClick}
     >
+      {/* Debug: confirm tables data (remove once validated) */}
+      <div className="text-[10px] text-gray-400 p-1 break-all" aria-hidden="true">
+        tables: {JSON.stringify(tables)}
+      </div>
+
       {!backgroundUrl && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
-          {console.log('[SEATING VIEW] No layout image because layoutImageUrl is empty/undefined')}
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
           No layout image
         </div>
       )}
 
-        {/* Tables */}
-        {tables.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
-            No tables yet. Please check back later.
-          </div>
-        )}
+      {/* Layout container always visible; show placeholder only when no tables */}
+      {tables.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
+          No tables yet. Please check back later.
+        </div>
+      )}
       {tables.map((table) => {
         const x = typeof table.x === 'number' ? table.x : table.centerX;
         const y = typeof table.y === 'number' ? table.y : table.centerY;
