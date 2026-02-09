@@ -100,7 +100,7 @@ runTest('create payment: initial status is pending', () => {
       eventId: 'confirm-test-evt-1',
       tableId: 'table-1',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 5000,
     },
   ];
@@ -126,7 +126,7 @@ runTest('create payment: emits paymentCreated notification', () => {
       eventId: 'confirm-test-evt-2',
       tableId: 'table-2',
       seatsBooked: 3,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 7500,
     },
   ];
@@ -165,7 +165,7 @@ runTest('admin confirm: updates payment status to paid', () => {
       eventId: 'confirm-test-evt-3',
       tableId: 'table-3',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 4000,
     },
   ];
@@ -198,7 +198,7 @@ runTest('admin confirm: marking payment paid updates booking', () => {
       eventId: 'confirm-test-evt-3',
       tableId: 'table-3',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 4000,
     },
   ];
@@ -232,7 +232,7 @@ runTest('admin confirm: emits paymentConfirmed notification', () => {
       eventId: 'confirm-test-evt-5',
       tableId: 'table-5',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 8000,
     },
   ];
@@ -272,7 +272,7 @@ runTest('paymentConfirmed: includes bookingId, amount, confirmedBy, confirmedAt'
       eventId: 'confirm-test-evt-6',
       tableId: 'table-6',
       seatsBooked: 4,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 12000,
     },
   ];
@@ -312,7 +312,7 @@ runTest('admin confirm: double confirm returns 409 conflict', () => {
       eventId: 'confirm-test-evt-7',
       tableId: 'table-7',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 3000,
     },
   ];
@@ -350,7 +350,7 @@ runTest('expiration: paid booking does NOT expire', () => {
       eventId: 'confirm-test-evt-8',
       tableId: 'table-8',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 5500,
     },
   ];
@@ -372,7 +372,7 @@ runTest('expiration: paid booking does NOT expire', () => {
     const expiredCount = expireStaleBookings();
 
     assertEquals(expiredCount, 0, 'Should NOT expire paid booking');
-    assertEquals(booking.status, 'confirmed', 'Booking should still be confirmed (not cancelled)');
+    assertEquals(booking.status, 'reserved', 'Booking should still be reserved (not expired)');
   } finally {
     (bookingDb as any).getBookings = originalGetBookings;
   }
@@ -395,7 +395,7 @@ runTest('expiration: pending payment booking expires normally', () => {
       eventId: 'confirm-test-evt-9',
       tableId: 'table-9',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       expiresAt: new Date(Date.now() - 60 * 1000).toISOString(), // 1 minute ago (expired)
       totalAmount: 2500,
     },
@@ -450,7 +450,7 @@ runTest('notifier errors: paymentCreated errors do not break flow', () => {
       eventId: 'confirm-test-evt-10',
       tableId: 'table-10',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 9000,
     },
   ];
@@ -486,7 +486,7 @@ runTest('notifier errors: paymentConfirmed errors do not break flow', () => {
       eventId: 'confirm-test-evt-11',
       tableId: 'table-11',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 11000,
     },
   ];

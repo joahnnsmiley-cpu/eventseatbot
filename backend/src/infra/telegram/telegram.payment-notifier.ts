@@ -4,7 +4,7 @@
  */
 
 import type { PaymentCreatedEvent, PaymentConfirmedEvent, PaymentEventNotifier } from '../../domain/payments/payment.events';
-import { TelegramClient, type InlineKeyboard } from './telegram.client';
+import { TelegramClient } from './telegram.client';
 
 export class TelegramPaymentNotifier implements PaymentEventNotifier {
   private client: TelegramClient | null = null;
@@ -28,10 +28,7 @@ export class TelegramPaymentNotifier implements PaymentEventNotifier {
     if (!this.enabled || !this.client) return;
 
     const message = this.formatPaymentCreatedMessage(event);
-    const keyboard = this.createConfirmKeyboard(event);
-
-    // Send message with inline confirm button
-    await this.client.sendMessageWithInlineKeyboard(message, keyboard);
+    await this.client.sendMessage(message);
   }
 
   async paymentConfirmed(event: PaymentConfirmedEvent): Promise<void> {
@@ -75,18 +72,7 @@ export class TelegramPaymentNotifier implements PaymentEventNotifier {
     return message;
   }
 
-  private createConfirmKeyboard(event: PaymentCreatedEvent): InlineKeyboard {
-    return {
-      buttons: [
-        [
-          {
-            text: '✅ Подтвердить оплату',
-            callback_data: `confirm_payment:${event.paymentId}`,
-          },
-        ],
-      ],
-    };
-  }
+  // No inline actions: payment confirmation only via WebApp.
 }
 
 // Export singleton instance

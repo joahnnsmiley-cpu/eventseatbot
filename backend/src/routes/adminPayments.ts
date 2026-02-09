@@ -1,42 +1,33 @@
 /**
  * Admin payment endpoints
- * Manual payment confirmation for confirmed bookings
- * No authentication required yet (auth layer frozen)
+ * Manual payment confirmation for reserved bookings
  */
 
 import { Router, Request, Response } from 'express';
+import { authMiddleware } from '../auth/auth.middleware';
+import { adminOnly } from '../auth/admin.middleware';
 import { getBookings } from '../db';
 import { findPaymentById, type PaymentIntent } from '../domain/payments';
-import { markPaid } from '../domain/payments';
 
 const router = Router();
 
+router.use(authMiddleware, adminOnly);
+
 /**
  * POST /admin/payments/:id/confirm
- * Manually confirm a payment as paid
+ * Informational endpoint (payment confirmation via /admin/bookings/:id/confirm)
  * 
  * Requires:
  * - Payment exists and is pending (409 if already paid/cancelled)
- * - Related booking is confirmed (409 if not)
- * - confirmedBy in request body (admin name)
+ * - Related booking is reserved (409 if not)
  * 
- * Updates:
- * - Payment: status → paid, confirmedBy, confirmedAt, method
- * - Booking: status → paid
- * 
- * Body: { confirmedBy }
+ * Does NOT confirm payments.
  */
 router.post('/payments/:id/confirm', (req: Request, res: Response) => {
   const paymentId = String(req.params.id);
-  const { confirmedBy } = req.body || {};
-
   // Validate input
   if (!paymentId) {
     return res.status(400).json({ error: 'paymentId is required' });
-  }
-
-  if (!confirmedBy) {
-    return res.status(400).json({ error: 'confirmedBy is required in request body' });
   }
 
   try {
@@ -60,20 +51,16 @@ router.post('/payments/:id/confirm', (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Related booking not found' });
     }
 
-    // Booking must be confirmed
-    if (booking.status !== 'confirmed') {
+    // Booking must be reserved
+    if (booking.status !== 'reserved') {
       return res.status(409).json({
-        error: `Booking is not confirmed (current status: ${booking.status})`,
+        error: `Booking is not reserved (current status: ${booking.status})`,
       });
     }
 
-    // Mark payment as paid (will validate and update booking)
-    const result = markPaid(paymentId, confirmedBy);
-    if (!result.success) {
-      return res.status(result.status).json({ error: result.error });
-    }
-
-    res.status(200).json(result.data);
+    return res.status(409).json({
+      error: 'Payment confirmation is only allowed via POST /admin/bookings/:id/confirm',
+    });
   } catch (err) {
     console.error('[AdminPayments] Error confirming payment:', err);
     res.status(500).json({ error: 'Internal server error' });

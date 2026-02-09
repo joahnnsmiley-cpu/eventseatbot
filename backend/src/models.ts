@@ -10,6 +10,15 @@ export interface Seat {
   ticketImagePath?: string;
 }
 
+export interface Ticket {
+  id: string;
+  bookingId: string;
+  eventId: string;
+  seatId?: string;
+  tableId?: string;
+  createdAt: number;
+}
+
 export interface Table {
   id: string;
   // Table number (human-friendly)
@@ -18,6 +27,9 @@ export interface Table {
   seatsTotal: number;
   // Seats currently available (derived or maintained by admin)
   seatsAvailable: number;
+  // Center position as percentages (0-100)
+  x: number;
+  y: number;
   // Center position as percentages (0-100)
   centerX: number;
   centerY: number;
@@ -35,16 +47,18 @@ export interface EventData {
   paymentPhone: string;
   maxSeatsPerBooking: number;
   status?: 'draft' | 'published' | 'archived';
+  layoutImageUrl?: string | null;
   schemaImageUrl?: string | null;
 }
 
-export type BookingStatus = 'pending' | 'confirmed' | 'paid' | 'cancelled';
+export type BookingStatus = 'reserved' | 'paid' | 'expired';
 
 export interface Booking {
   id: string;
   eventId: string;
   userTelegramId: number;
   username: string;
+  userPhone: string;
   seatIds: string[];
   totalAmount: number;
   status: BookingStatus;
@@ -53,6 +67,7 @@ export interface Booking {
   tableId?: string;
   seatsBooked?: number;
   tableBookings?: Array<{ tableId: string; seats: number; totalPrice?: number }>;
+  tickets?: Ticket[];
 }
 
 export interface Admin {

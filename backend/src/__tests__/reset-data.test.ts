@@ -52,7 +52,7 @@ function setupTestFiles(): { dataFile: string; paymentsFile: string } {
       { id: 'evt-002', title: 'Event 2', description: 'Another test' },
     ],
     bookings: [
-      { id: 'bk-001', userId: 'user-1', eventId: 'evt-001', status: 'confirmed' },
+      { id: 'bk-001', userId: 'user-1', eventId: 'evt-001', status: 'reserved' },
       { id: 'bk-002', userId: 'user-2', eventId: 'evt-002', status: 'paid' },
       { id: 'bk-003', userId: 'user-3', eventId: 'evt-001', status: 'expired' },
     ],

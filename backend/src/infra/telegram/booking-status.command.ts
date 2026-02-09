@@ -167,10 +167,9 @@ export function getBookingStatusData(bookingId: string | undefined) {
  */
 function formatBookingStatus(status: string): string {
   const statusMap: Record<string, string> = {
-    active: '🟢 Активна',
-    pending: '🟡 Ожидание',
+    reserved: '🟡 Ожидает оплаты',
+    paid: '✅ Оплачено',
     expired: '⏰ Истекла',
-    cancelled: '❌ Отменена',
   };
 
   return statusMap[status] || status;

@@ -6,7 +6,6 @@
 import {
   createPaymentIntentService,
   findPaymentById,
-  markPaid,
 } from '../domain/payments';
 import * as bookingDb from '../db';
 
@@ -74,16 +73,9 @@ let mockBookingsState: any[] = [];
 
 function handleConfirmPayment(
   paymentId: string,
-  confirmedBy: string | undefined,
+  _confirmedBy: string | undefined,
   mockRes: MockResponse,
 ): void {
-  // Validation
-  if (!confirmedBy) {
-    mockRes.statusCode = 400;
-    mockRes.body = { error: 'confirmedBy is required' };
-    return;
-  }
-
   if (!paymentId) {
     mockRes.statusCode = 400;
     mockRes.body = { error: 'paymentId is required' };
@@ -115,22 +107,14 @@ function handleConfirmPayment(
   }
 
   // Check booking status
-  if (booking.status !== 'confirmed') {
+  if (booking.status !== 'reserved') {
     mockRes.statusCode = 400;
-    mockRes.body = { error: 'Booking must be confirmed' };
+    mockRes.body = { error: 'Booking must be reserved' };
     return;
   }
 
-  // Mark as paid
-  const result = markPaid(paymentId, confirmedBy);
-  if (!result.success) {
-    mockRes.statusCode = result.status || 500;
-    mockRes.body = { error: result.error };
-    return;
-  }
-
-  mockRes.statusCode = 200;
-  mockRes.body = result.data;
+  mockRes.statusCode = 409;
+  mockRes.body = { error: 'Payment confirmation is only allowed via POST /admin/bookings/:id/confirm' };
 }
 
 // ============================================
@@ -139,13 +123,13 @@ function handleConfirmPayment(
 
 console.log('\n📋 Admin Payment Confirmation Tests\n');
 
-runTest('POST /admin/payments/:id/confirm marks payment as paid', () => {
+runTest('POST /admin/payments/:id/confirm is not allowed', () => {
   // Setup mock bookings
   mockBookingsState = [
     {
       id: 'test-bk-1',
       eventId: 'test-evt',
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 1000,
     },
   ];
@@ -161,22 +145,20 @@ runTest('POST /admin/payments/:id/confirm marks payment as paid', () => {
     const mockRes = createMockResponse();
     handleConfirmPayment(paymentId, 'admin@example.com', mockRes);
 
-    assertEquals(mockRes.statusCode, 200, `Should return 200, got ${mockRes.statusCode}: ${JSON.stringify(mockRes.body)}`);
-    assertEquals(mockRes.body.status, 'paid', 'Status should be paid');
-    assertEquals(mockRes.body.confirmedBy, 'admin@example.com', 'Should track confirmedBy');
-    assert(mockRes.body.confirmedAt, 'Should have confirmedAt timestamp');
+    assertEquals(mockRes.statusCode, 409, `Should return 409, got ${mockRes.statusCode}: ${JSON.stringify(mockRes.body)}`);
+    assert(mockRes.body.error, 'Should return error message');
   } finally {
     // Restore original getBookings
     (bookingDb as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('POST /admin/payments/:id/confirm requires confirmedBy', () => {
+runTest('POST /admin/payments/:id/confirm ignores confirmedBy', () => {
   mockBookingsState = [
     {
       id: 'test-bk-2',
       eventId: 'test-evt',
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 1000,
     },
   ];
@@ -190,7 +172,7 @@ runTest('POST /admin/payments/:id/confirm requires confirmedBy', () => {
     const mockRes = createMockResponse();
     handleConfirmPayment(paymentId, undefined, mockRes);
 
-    assertEquals(mockRes.statusCode, 400, 'Should return 400');
+    assertEquals(mockRes.statusCode, 409, 'Should return 409');
     assert(mockRes.body.error, 'Should have error message');
   } finally {
     (bookingDb as any).getBookings = originalGetBookings;
@@ -204,12 +186,12 @@ runTest('POST /admin/payments/:id/confirm returns 404 for missing payment', () =
   assertEquals(mockRes.statusCode, 404, 'Should return 404');
 });
 
-runTest('POST /admin/payments/:id/confirm returns 409 for already paid payment', () => {
+runTest('POST /admin/payments/:id/confirm returns 409 even for pending payment', () => {
   mockBookingsState = [
     {
       id: 'test-bk-3',
       eventId: 'test-evt',
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 1000,
     },
   ];
@@ -220,27 +202,22 @@ runTest('POST /admin/payments/:id/confirm returns 409 for already paid payment',
     const createResult = createPaymentIntentService('test-bk-3', 1000);
     const paymentId = createResult.data!.id;
 
-    // First confirm - should succeed
+    // First confirm - should be rejected
     const mockRes1 = createMockResponse();
     handleConfirmPayment(paymentId, 'admin@example.com', mockRes1);
-    assertEquals(mockRes1.statusCode, 200, `First confirm should succeed, got ${mockRes1.statusCode}: ${JSON.stringify(mockRes1.body)}`);
-
-    // Second confirm - should fail with 409
-    const mockRes2 = createMockResponse();
-    handleConfirmPayment(paymentId, 'admin@example.com', mockRes2);
-    assertEquals(mockRes2.statusCode, 409, 'Should return 409 on double confirm');
+    assertEquals(mockRes1.statusCode, 409, `Should return 409, got ${mockRes1.statusCode}: ${JSON.stringify(mockRes1.body)}`);
   } finally {
     (bookingDb as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('POST /admin/payments/:id/confirm requires confirmed booking', () => {
-  // Setup with non-confirmed booking
+runTest('POST /admin/payments/:id/confirm requires reserved booking', () => {
+  // Setup with non-reserved booking
   mockBookingsState = [
     {
       id: 'test-bk-pending',
       eventId: 'test-evt',
-      status: 'pending', // Not confirmed
+      status: 'expired', // Not reserved
       totalAmount: 1000,
     },
   ];
@@ -255,18 +232,18 @@ runTest('POST /admin/payments/:id/confirm requires confirmed booking', () => {
     handleConfirmPayment(paymentId, 'admin@example.com', mockRes);
 
     assertEquals(mockRes.statusCode, 400, 'Should return 400');
-    assert(mockRes.body.error.includes('confirmed'), 'Error should mention booking status');
+    assert(mockRes.body.error.includes('reserved'), 'Error should mention booking status');
   } finally {
     (bookingDb as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('Confirmed payment has correct audit fields', () => {
+runTest('POST /admin/payments/:id/confirm does not modify payment', () => {
   mockBookingsState = [
     {
       id: 'test-bk-4',
       eventId: 'test-evt',
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 1000,
     },
   ];
@@ -280,11 +257,8 @@ runTest('Confirmed payment has correct audit fields', () => {
     const mockRes = createMockResponse();
     handleConfirmPayment(paymentId, 'jane.admin@company.com', mockRes);
 
-    assertEquals(mockRes.statusCode, 200, 'Should succeed');
-    assertEquals(mockRes.body.method, 'manual', 'Should have method: manual');
-    assertEquals(mockRes.body.confirmedBy, 'jane.admin@company.com', 'Should track confirmedBy');
-    assert(typeof mockRes.body.confirmedAt === 'string', 'confirmedAt should be ISO string');
-    assert(mockRes.body.status === 'paid', 'Status should be paid');
+    assertEquals(mockRes.statusCode, 409, 'Should return 409');
+    assert(mockRes.body.error, 'Should return error message');
   } finally {
     (bookingDb as any).getBookings = originalGetBookings;
   }

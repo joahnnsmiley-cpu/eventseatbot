@@ -91,7 +91,7 @@ runTest('createPaymentIntent emits paymentCreated event', () => {
       eventId: 'test-evt-1',
       tableId: 'table-1',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 5000,
     },
   ];
@@ -124,7 +124,7 @@ runTest('paymentCreated event includes bookingId', () => {
       eventId: 'test-evt-2',
       tableId: 'table-2',
       seatsBooked: 3,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 7500,
     },
   ];
@@ -152,7 +152,7 @@ runTest('paymentCreated event includes paymentId', () => {
       eventId: 'test-evt-2b',
       tableId: 'table-2b',
       seatsBooked: 3,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 7500,
     },
   ];
@@ -181,7 +181,7 @@ runTest('paymentCreated event includes eventId', () => {
       eventId: 'my-event-123',
       tableId: 'table-3',
       seatsBooked: 4,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 10000,
     },
   ];
@@ -209,7 +209,7 @@ runTest('paymentCreated event includes tableId', () => {
       eventId: 'test-evt-4',
       tableId: 'table-vip-5',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 8000,
     },
   ];
@@ -237,7 +237,7 @@ runTest('paymentCreated event includes seatsBooked', () => {
       eventId: 'test-evt-5',
       tableId: 'table-5',
       seatsBooked: 6,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 15000,
     },
   ];
@@ -265,7 +265,7 @@ runTest('paymentCreated event includes amount', () => {
       eventId: 'test-evt-6',
       tableId: 'table-6',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 12500,
     },
   ];
@@ -293,7 +293,7 @@ runTest('paymentCreated event has method:manual', () => {
       eventId: 'test-evt-7',
       tableId: 'table-7',
       seatsBooked: 1,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 3000,
     },
   ];
@@ -321,7 +321,7 @@ runTest('paymentCreated event includes Russian instruction', () => {
       eventId: 'test-evt-8',
       tableId: 'table-8',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 6000,
     },
   ];
@@ -364,7 +364,7 @@ runTest('notifier errors do not break payment creation', () => {
       eventId: 'test-evt-9',
       tableId: 'table-9',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       totalAmount: 4000,
     },
   ];

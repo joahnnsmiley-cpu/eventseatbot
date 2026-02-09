@@ -58,11 +58,11 @@ export const decodeToken = (t: string | null) => {
   }
 };
 
-export const loginWithTelegram = async (telegramId: number) => {
+export const loginWithTelegram = async (telegramId: number, initData: string) => {
   const res = await fetch(`${API_BASE}/auth/telegram`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ telegramId }),
+    body: JSON.stringify({ telegramId, initData }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

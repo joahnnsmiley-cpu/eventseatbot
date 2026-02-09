@@ -101,7 +101,7 @@ async function runTests() {
     events.push(testEvent);
     db.saveEvents(events);
 
-    // Add an expired confirmed booking
+    // Add an expired reserved booking
     const now = new Date();
     const createdAt = new Date(now.getTime() - 20 * 60 * 1000); // 20 minutes ago
     const expiresAt = calculateBookingExpiration(createdAt.getTime());
@@ -111,7 +111,7 @@ async function runTests() {
       eventId: 'exp-test-evt-1',
       tableId: 'exp-test-tbl-1',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       createdAt: createdAt.getTime(),
       expiresAt,
       userTelegramId: 0,
@@ -210,7 +210,7 @@ async function runTests() {
         eventId: 'exp-test-evt-2',
         tableId: i === 1 ? 'exp-test-tbl-2a' : 'exp-test-tbl-2b',
         seatsBooked: i,
-        status: 'confirmed',
+        status: 'reserved',
         createdAt: createdAt.getTime(),
         expiresAt,
         userTelegramId: 0,
@@ -247,7 +247,7 @@ async function runTests() {
   });
 
   // Test 3: Non-expired bookings do not emit events
-  await runTest('non-expired confirmed bookings do not emit events', async () => {
+  await runTest('non-expired reserved bookings do not emit events', async () => {
     setBookingEventNotifier(mockNotifier);
     mockNotifier.reset();
 
@@ -296,7 +296,7 @@ async function runTests() {
       eventId: 'exp-test-evt-3',
       tableId: 'exp-test-tbl-3',
       seatsBooked: 1,
-      status: 'confirmed',
+      status: 'reserved',
       createdAt: createdAt.getTime(),
       expiresAt,
       userTelegramId: 0,
@@ -370,7 +370,7 @@ async function runTests() {
       eventId: 'exp-test-evt-4',
       tableId: 'exp-test-tbl-4',
       seatsBooked: 5,
-      status: 'confirmed',
+      status: 'reserved',
       createdAt: createdAt.getTime(),
       expiresAt,
       userTelegramId: 0,
@@ -447,7 +447,7 @@ async function runTests() {
       eventId: 'exp-test-evt-5',
       tableId: 'exp-test-tbl-5',
       seatsBooked: 2,
-      status: 'paid', // NOT "confirmed"
+      status: 'paid', // NOT "reserved"
       createdAt: createdAt.getTime(),
       expiresAt,
       userTelegramId: 0,
@@ -533,7 +533,7 @@ async function runTests() {
       eventId: 'exp-test-evt-6',
       tableId: 'exp-test-tbl-6',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       createdAt: createdAt.getTime(),
       expiresAt,
       userTelegramId: 0,
@@ -635,7 +635,7 @@ async function runTests() {
       eventId: 'exp-test-evt-7',
       tableId: 'exp-test-tbl-7',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       createdAt: createdAt.getTime(),
       expiresAt,
       userTelegramId: 0,
@@ -661,9 +661,9 @@ async function runTests() {
     const finalBookings = db.getBookings();
     const finalBooking = finalBookings.find((b: any) => b.id === 'exp-test-bk-7');
 
-    if (finalBooking?.status !== 'cancelled') {
+    if (finalBooking?.status !== 'expired') {
       throw new Error(
-        `Expected booking to be cancelled despite notifier error, got status: ${finalBooking?.status}`,
+        `Expected booking to be expired despite notifier error, got status: ${finalBooking?.status}`,
       );
     }
   });
@@ -715,7 +715,7 @@ async function runTests() {
       eventId: 'exp-test-evt-8',
       tableId: 'exp-test-tbl-8',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       createdAt: new Date('2026-02-07T11:40:00Z').getTime(),
       expiresAt,
       userTelegramId: 0,
@@ -735,13 +735,13 @@ async function runTests() {
       );
     }
 
-    // Verify booking was cancelled
+    // Verify booking was expired
     const finalBookings = db.getBookings();
     const finalBooking = finalBookings.find((b: any) => b.id === 'exp-test-bk-8');
 
-    if (finalBooking?.status !== 'cancelled') {
+    if (finalBooking?.status !== 'expired') {
       throw new Error(
-        `Expected booking cancelled with injected time, got status: ${finalBooking?.status}`,
+        `Expected booking expired with injected time, got status: ${finalBooking?.status}`,
       );
     }
   });
@@ -797,7 +797,7 @@ async function runTests() {
       eventId: 'exp-test-evt-9',
       tableId: 'exp-test-tbl-9',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       createdAt: createdAt.getTime(),
       expiresAt,
       userTelegramId: 0,
@@ -819,13 +819,13 @@ async function runTests() {
       throw new Error(`Expected 1 booking to expire with pending payment, got ${expiredCount}`);
     }
 
-    // Verify booking was cancelled
+    // Verify booking was expired
     const finalBookings = db.getBookings();
     const finalBooking = finalBookings.find((b: any) => b.id === bookingId);
 
-    if (finalBooking?.status !== 'cancelled') {
+    if (finalBooking?.status !== 'expired') {
       throw new Error(
-        `Expected booking cancelled with pending payment, got status: ${finalBooking?.status}`,
+        `Expected booking expired with pending payment, got status: ${finalBooking?.status}`,
       );
     }
 
@@ -888,7 +888,7 @@ async function runTests() {
       eventId: 'exp-test-evt-10',
       tableId: 'exp-test-tbl-10',
       seatsBooked: 2,
-      status: 'confirmed',
+      status: 'reserved',
       createdAt: createdAt.getTime(),
       expiresAt,
       userTelegramId: 0,
@@ -915,13 +915,13 @@ async function runTests() {
       throw new Error(`Expected 0 bookings to expire with paid payment, got ${expiredCount}`);
     }
 
-    // Verify booking is STILL confirmed (not cancelled)
+    // Verify booking is STILL reserved (not expired)
     const finalBookings = db.getBookings();
     const finalBooking = finalBookings.find((b: any) => b.id === bookingId);
 
-    if (finalBooking?.status !== 'confirmed') {
+    if (finalBooking?.status !== 'reserved') {
       throw new Error(
-        `Expected booking still confirmed with paid payment, got status: ${finalBooking?.status}`,
+        `Expected booking still reserved with paid payment, got status: ${finalBooking?.status}`,
       );
     }
 

@@ -138,7 +138,7 @@ runTest('paymentCreated message includes inline button for confirmation', () => 
         eventId: 'inline-test-evt-1',
         tableId: 'table-1',
         seatsBooked: 2,
-        status: 'confirmed',
+        status: 'reserved',
         totalAmount: 5000,
       },
     ];
@@ -181,7 +181,7 @@ runTest('Callback successfully confirms pending payment', () => {
         eventId: 'inline-test-evt-2',
         tableId: 'table-2',
         seatsBooked: 3,
-        status: 'confirmed',
+        status: 'reserved',
         totalAmount: 7500,
       },
     ];
@@ -227,7 +227,7 @@ runTest('Second callback for same payment is rejected (double confirm prevention
         eventId: 'inline-test-evt-3',
         tableId: 'table-3',
         seatsBooked: 1,
-        status: 'confirmed',
+        status: 'reserved',
         totalAmount: 3000,
       },
     ];
@@ -271,7 +271,7 @@ runTest('Callback from unauthorized chat is silently ignored', () => {
         eventId: 'inline-test-evt-4',
         tableId: 'table-4',
         seatsBooked: 2,
-        status: 'confirmed',
+        status: 'reserved',
         totalAmount: 6000,
       },
     ];
@@ -325,7 +325,7 @@ runTest('Notifier errors do not prevent payment creation', () => {
         eventId: 'inline-test-evt-5',
         tableId: 'table-5',
         seatsBooked: 4,
-        status: 'confirmed',
+        status: 'reserved',
         totalAmount: 10000,
       },
     ];
@@ -357,7 +357,7 @@ runTest('All Telegram communication is mocked (no real API calls)', () => {
         eventId: 'inline-test-evt-6',
         tableId: 'table-6',
         seatsBooked: 2,
-        status: 'confirmed',
+        status: 'reserved',
         totalAmount: 5000,
       },
     ];
@@ -400,7 +400,7 @@ runTest('Complete flow: payment created -> button shown -> callback confirms', (
         eventId: 'inline-test-evt-e2e',
         tableId: 'table-e2e',
         seatsBooked: 2,
-        status: 'confirmed',
+        status: 'reserved',
         totalAmount: 5000,
       },
     ];

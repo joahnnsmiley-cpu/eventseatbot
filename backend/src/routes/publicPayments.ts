@@ -7,7 +7,6 @@ import { Router, Request, Response } from 'express';
 import { getBookings } from '../db';
 import {
   createPaymentIntentService,
-  markPaid,
   cancelPayment,
   type PaymentIntent,
 } from '../domain/payments';
@@ -16,7 +15,7 @@ const router = Router();
 
 /**
  * POST /public/payments
- * Create a payment intent for a confirmed booking
+ * Create a payment intent for a reserved booking
  * Body: { bookingId, amount }
  */
 router.post('/payments', (req: Request, res: Response) => {
@@ -34,10 +33,10 @@ router.post('/payments', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Booking not found' });
   }
 
-  // Validate booking is confirmed
-  if (booking.status !== 'confirmed') {
+  // Validate booking is reserved
+  if (booking.status !== 'reserved') {
     return res.status(400).json({
-      error: 'Booking must be confirmed to create a payment intent',
+      error: 'Booking must be reserved to create a payment intent',
     });
   }
 
@@ -52,27 +51,17 @@ router.post('/payments', (req: Request, res: Response) => {
 
 /**
  * POST /public/payments/:id/pay
- * Mark payment as paid with manual confirmation
- * Body: { confirmedBy }
+ * Payment confirmation is not allowed via public API.
  */
 router.post('/payments/:id/pay', (req: Request, res: Response) => {
   const paymentId = String(req.params.id);
-  const { confirmedBy } = req.body || {};
-
   if (!paymentId) {
     return res.status(400).json({ error: 'paymentId is required' });
   }
 
-  if (!confirmedBy) {
-    return res.status(400).json({ error: 'confirmedBy is required in request body' });
-  }
-
-  const result = markPaid(paymentId, confirmedBy);
-  if (!result.success) {
-    return res.status(result.status).json({ error: result.error });
-  }
-
-  res.status(result.status).json(result.data);
+  return res.status(409).json({
+    error: 'Payment confirmation is only allowed via POST /admin/bookings/:id/confirm',
+  });
 });
 
 /**

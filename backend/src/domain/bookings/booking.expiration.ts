@@ -49,8 +49,8 @@ export function hasPaymentPaid(bookingId: string): boolean {
 }
 
 /**
- * Expire stale confirmed bookings
- * - Find all confirmed bookings with expiresAt < now
+ * Expire stale reserved bookings
+ * - Find all reserved bookings with expiresAt < now
  * - Skip bookings with paid payments (never expire if paid)
  * - Cancel each booking and restore table seats
  * - Idempotent and never throws
@@ -63,10 +63,10 @@ export function expireStaleBookings(now: Date = new Date()): number {
     const events = getEvents();
     let expiredCount = 0;
 
-    // Find confirmed bookings that have expired
+    // Find reserved bookings that have expired
     const staleBookings = bookings.filter((b: any) => {
       return (
-        b.status === 'confirmed' &&
+        b.status === 'reserved' &&
         b.expiresAt &&
         new Date(b.expiresAt) <= now &&
         !hasPaymentPaid(b.id) // Do NOT expire if payment is paid
@@ -94,7 +94,13 @@ export function expireStaleBookings(now: Date = new Date()): number {
         }
 
         // Cancel the booking
-        updateBookingStatus(booking.id, 'cancelled');
+        updateBookingStatus(booking.id, 'expired');
+        console.log(JSON.stringify({
+          action: 'booking_expired',
+          bookingId: booking.id,
+          eventId: booking.eventId,
+          timestamp: new Date().toISOString(),
+        }));
         
         // Emit booking cancelled event with expired reason (fire-and-forget)
         emitBookingCancelled({

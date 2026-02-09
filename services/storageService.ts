@@ -41,6 +41,27 @@ export const createBooking = async (
   return data.booking || data;
 };
 
+export const createTableBooking = async (payload: {
+  eventId: string;
+  tableId: string;
+  seatsRequested: number;
+  userPhone: string;
+}): Promise<any> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/public/bookings/table`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const error: Error & { status?: number } = new Error(err.error || 'Failed to create booking');
+    error.status = res.status;
+    throw error;
+  }
+  return res.json();
+};
+
 export const getMyBookings = async (): Promise<Booking[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/me/bookings`, { headers: AuthService.getAuthHeader() });

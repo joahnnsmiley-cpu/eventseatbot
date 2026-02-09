@@ -4,6 +4,34 @@ import type { Database, EventData, Booking, BookingStatus } from './models';
 
 const DATA_FILE = path.join(__dirname, '..', 'data.json');
 
+const normalizeTableCoordinates = (t: any) => {
+  if (!t || typeof t !== 'object') return false;
+  const hasX = typeof t.x === 'number' && Number.isFinite(t.x);
+  const hasY = typeof t.y === 'number' && Number.isFinite(t.y);
+  const hasCenterX = typeof t.centerX === 'number' && Number.isFinite(t.centerX);
+  const hasCenterY = typeof t.centerY === 'number' && Number.isFinite(t.centerY);
+  let changed = false;
+
+  if (!hasX && hasCenterX) {
+    t.x = t.centerX;
+    changed = true;
+  }
+  if (!hasY && hasCenterY) {
+    t.y = t.centerY;
+    changed = true;
+  }
+  if (!hasCenterX && hasX) {
+    t.centerX = t.x;
+    changed = true;
+  }
+  if (!hasCenterY && hasY) {
+    t.centerY = t.y;
+    changed = true;
+  }
+
+  return changed;
+};
+
 const ensureFile = () => {
   if (!fs.existsSync(DATA_FILE)) {
     const initial: Database = {
@@ -28,6 +56,20 @@ const readDb = (): Database => {
         migrationHappened = true;
         console.warn(`Migrated persisted event ${ev.id || '<unknown>'}: set schemaImageUrl=null`);
       }
+      if (ev && typeof ev.layoutImageUrl === 'undefined') {
+        ev.layoutImageUrl = null;
+        migrationHappened = true;
+        console.warn(`Migrated persisted event ${ev.id || '<unknown>'}: set layoutImageUrl=null`);
+      }
+      if (ev && Array.isArray(ev.tables)) {
+        ev.tables.forEach((t: any, ti: number) => {
+          const changed = normalizeTableCoordinates(t);
+          if (changed) {
+            migrationHappened = true;
+            console.warn(`Migrated persisted event ${ev.id || '<unknown>'}: normalized table coords ${ti}`);
+          }
+        });
+      }
     });
   }
 
@@ -38,6 +80,8 @@ const readDb = (): Database => {
     if (typeof t.number !== 'number' || Number.isNaN(t.number)) errs.push(`tables[${tableIdx}].number must be a number`);
     if (typeof t.seatsTotal !== 'number' || Number.isNaN(t.seatsTotal) || t.seatsTotal <= 0) errs.push(`tables[${tableIdx}].seatsTotal must be a number > 0`);
     if (typeof t.seatsAvailable !== 'number' || Number.isNaN(t.seatsAvailable) || t.seatsAvailable < 0) errs.push(`tables[${tableIdx}].seatsAvailable must be a number >= 0`);
+    if (typeof t.x !== 'number' || Number.isNaN(t.x) || t.x < 0 || t.x > 100) errs.push(`tables[${tableIdx}].x must be between 0 and 100`);
+    if (typeof t.y !== 'number' || Number.isNaN(t.y) || t.y < 0 || t.y > 100) errs.push(`tables[${tableIdx}].y must be between 0 and 100`);
     if (typeof t.centerX !== 'number' || Number.isNaN(t.centerX) || t.centerX < 0 || t.centerX > 100) errs.push(`tables[${tableIdx}].centerX must be between 0 and 100`);
     if (typeof t.centerY !== 'number' || Number.isNaN(t.centerY) || t.centerY < 0 || t.centerY > 100) errs.push(`tables[${tableIdx}].centerY must be between 0 and 100`);
     return errs;
@@ -53,6 +97,7 @@ const readDb = (): Database => {
     if (!Array.isArray(e.tables)) errs.push('tables must be an array');
     else {
       e.tables.forEach((t: any, ti: number) => {
+        normalizeTableCoordinates(t);
         const terrs = validateTable(t, e.id || `events[${idx}]`, ti);
         errs.push(...terrs.map(x => `tables[${ti}]: ${x}`));
       });
@@ -86,6 +131,8 @@ const writeDb = (db: Database) => {
     if (typeof t.number !== 'number' || Number.isNaN(t.number)) errs.push(`tables[${tableIdx}].number must be a number`);
     if (typeof t.seatsTotal !== 'number' || Number.isNaN(t.seatsTotal) || t.seatsTotal <= 0) errs.push(`tables[${tableIdx}].seatsTotal must be a number > 0`);
     if (typeof t.seatsAvailable !== 'number' || Number.isNaN(t.seatsAvailable) || t.seatsAvailable < 0) errs.push(`tables[${tableIdx}].seatsAvailable must be a number >= 0`);
+    if (typeof t.x !== 'number' || Number.isNaN(t.x) || t.x < 0 || t.x > 100) errs.push(`tables[${tableIdx}].x must be between 0 and 100`);
+    if (typeof t.y !== 'number' || Number.isNaN(t.y) || t.y < 0 || t.y > 100) errs.push(`tables[${tableIdx}].y must be between 0 and 100`);
     if (typeof t.centerX !== 'number' || Number.isNaN(t.centerX) || t.centerX < 0 || t.centerX > 100) errs.push(`tables[${tableIdx}].centerX must be between 0 and 100`);
     if (typeof t.centerY !== 'number' || Number.isNaN(t.centerY) || t.centerY < 0 || t.centerY > 100) errs.push(`tables[${tableIdx}].centerY must be between 0 and 100`);
     return errs;
@@ -101,6 +148,7 @@ const writeDb = (db: Database) => {
     if (!Array.isArray(e.tables)) errs.push('tables must be an array');
     else {
       e.tables.forEach((t: any, ti: number) => {
+        normalizeTableCoordinates(t);
         const terrs = validateTable(t, ti);
         errs.push(...terrs.map(x => `tables[${ti}]: ${x}`));
       });

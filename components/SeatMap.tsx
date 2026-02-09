@@ -1,30 +1,72 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { EventData } from '../types';
+
+type SeatStatus = 'available' | 'reserved' | 'sold';
+
+export type SeatModel = {
+  id: string;
+  tableId: string;
+  number: number;
+  price: number;
+  status: SeatStatus;
+};
+
+export type TableModel = {
+  id: string;
+  number: number;
+  seatsTotal: number;
+  seatsAvailable: number;
+  x?: number;
+  y?: number;
+  centerX: number;
+  centerY: number;
+  shape?: string;
+};
+
+export type SeatSelectionState = {
+  tables: TableModel[];
+  seats: SeatModel[];
+  selectedSeats: string[]; // Array of "tableId-seatId"
+  activeTableId?: string | null;
+};
 
 interface SeatMapProps {
   event: EventData;
   isEditable?: boolean; // For Admin
-  onSeatSelect?: (seatId: string, tableId: string, price: number) => void;
-  selectedSeats?: string[]; // Array of "tableId-seatId"
+  seatState?: SeatSelectionState;
+  onSeatToggle?: (seat: SeatModel) => void;
+  onSelectedSeatsChange?: (selectedSeats: string[]) => void;
   onTableAdd?: (x: number, y: number) => void;
   onTableDelete?: (tableId: string) => void;
-  onTableClick?: (tableId: string) => void;
+  onTableSelect?: (tableId: string) => void;
 }
 
 const SeatMap: React.FC<SeatMapProps> = ({ 
   event, 
   isEditable = false, 
-  onSeatSelect, 
-  selectedSeats = [],
+  seatState,
+  onSeatToggle,
+  onSelectedSeatsChange,
   onTableAdd,
   onTableDelete,
-  onTableClick
+  onTableSelect
 }) => {
-  const [scale, setScale] = useState(1);
+  const selectedSeats = seatState?.selectedSeats ?? [];
+  const tables = seatState?.tables ?? event.tables;
+  const seats = seatState?.seats ?? [];
+  const selectedSet = new Set(selectedSeats);
+  const backgroundUrl = (event.layoutImageUrl || event.schemaImageUrl || event.imageUrl || '').trim();
 
-  // Simple zoom handling
-  const handleZoom = (delta: number) => {
-    setScale(prev => Math.min(Math.max(prev + delta, 0.5), 3));
+  const canSelectSeat = (seat: SeatModel) => seat.status === 'available';
+
+  const toggleSeat = (seat: SeatModel) => {
+    if (!canSelectSeat(seat)) return;
+    const key = `${seat.tableId}-${seat.id}`;
+    const next = selectedSet.has(key)
+      ? selectedSeats.filter((id) => id !== key)
+      : [...selectedSeats, key];
+    onSelectedSeatsChange?.(next);
+    onSeatToggle?.(seat);
   };
 
   const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -40,59 +82,112 @@ const SeatMap: React.FC<SeatMapProps> = ({
 
   return (
     <div className="relative w-full overflow-hidden bg-gray-100 rounded-lg h-[60vh] border border-gray-300">
-      
-      {/* Zoom Controls */}
-      <div className="absolute top-2 right-2 z-10 flex flex-col gap-2">
-        <button onClick={() => handleZoom(0.2)} className="bg-white p-2 rounded-full shadow text-gray-700 hover:bg-gray-50"><i className="fas fa-plus"></i></button>
-        <button onClick={() => handleZoom(-0.2)} className="bg-white p-2 rounded-full shadow text-gray-700 hover:bg-gray-50"><i className="fas fa-minus"></i></button>
-      </div>
-
-      <div 
-        className="w-full h-full overflow-auto relative touch-auto"
+      <div
+        className="w-full h-full relative"
         style={{ cursor: isEditable ? 'crosshair' : 'default' }}
+        onClick={handleMapClick}
       >
-        <div 
-          className="relative origin-top-left transition-transform duration-200 ease-out"
-          style={{ 
-            width: '1000px', // Fixed base width for calculation consistency
-            height: '750px', 
-            transform: `scale(${scale})` 
-          }}
-          onClick={handleMapClick}
-        >
-          {/* Floor Plan Image */}
-          <img 
-            src={event.imageUrl} 
-            alt="Floor Plan" 
-            className="absolute inset-0 w-full h-full object-cover opacity-80 pointer-events-none"
+        {backgroundUrl ? (
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `url(${backgroundUrl})`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center',
+              backgroundSize: '100% 100%',
+            }}
           />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
+            No layout image
+          </div>
+        )}
 
-          {/* Tables (new model) */}
-          {event.tables.map((table) => (
+        {/* Tables */}
+        {tables.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
+            No tables yet. Please check back later.
+          </div>
+        )}
+        {tables.map((table) => {
+          const x = typeof table.x === 'number' ? table.x : table.centerX;
+          const y = typeof table.y === 'number' ? table.y : table.centerY;
+          const isSoldOut = !isEditable && table.seatsAvailable === 0;
+          return (
             <div
               key={table.id}
-              className={`table-node absolute flex flex-col items-center justify-center transform -translate-x-1/2 -translate-y-1/2 ${!isEditable && table.seatsAvailable === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              style={{ left: `${table.centerX}%`, top: `${table.centerY}%` }}
-              onClick={(e) => { e.stopPropagation(); if (!isEditable && onTableClick) onTableClick(table.id); }}
+              className={`table-node absolute transform -translate-x-1/2 -translate-y-1/2 ${isSoldOut ? 'opacity-60' : ''}`}
+              style={{ left: `${x}%`, top: `${y}%` }}
             >
-              <div className="relative w-24 h-24 bg-white/90 rounded-full shadow-lg border-2 border-gray-400 flex items-center justify-center group">
-                <div className="text-center">
-                  <div className="font-bold text-gray-800 text-sm">{table.number}</div>
-                  <div className="text-xs text-gray-500">{table.seatsAvailable}/{table.seatsTotal}</div>
-                </div>
-                {isEditable && (
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); onTableDelete && onTableDelete(table.id); }}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <i className="fas fa-times"></i>
-                  </button>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onTableSelect) onTableSelect(table.id);
+                }}
+                disabled={isSoldOut}
+                className={`min-w-[64px] min-h-[64px] px-2 py-1 rounded-full border-2 shadow bg-white/90 text-gray-800 text-xs flex flex-col items-center justify-center gap-1 ${
+                  isSoldOut ? 'cursor-not-allowed border-gray-300' : 'cursor-pointer border-blue-500'
+                }`}
+                aria-label={`Table ${table.number}, free ${table.seatsAvailable}`}
+              >
+                <span className="font-semibold">Table {table.number}</span>
+                <span className="text-[10px] text-gray-600">Free {table.seatsAvailable}</span>
+              </button>
+              {isEditable && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onTableDelete && onTableDelete(table.id); }}
+                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md"
+                >
+                  ×
+                </button>
+              )}
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
+
+      {!isEditable && seats.length > 0 && (
+        <div className="absolute bottom-0 left-0 right-0 bg-white/95 border-t border-gray-200 p-3">
+          <div className="text-xs text-gray-600 mb-2">Места</div>
+          <div className="flex flex-wrap gap-2">
+            {seats.map((seat) => {
+              const key = `${seat.tableId}-${seat.id}`;
+              const isSelected = selectedSet.has(key);
+              const isDisabled = seat.status !== 'available';
+              const baseClass = 'w-10 h-10 rounded-md text-xs font-semibold flex items-center justify-center';
+              const statusClass = isSelected
+                ? 'bg-blue-600 text-white'
+                : seat.status === 'available'
+                  ? 'bg-green-500 text-white'
+                  : seat.status === 'reserved'
+                    ? 'bg-yellow-400 text-gray-900'
+                    : 'bg-red-500 text-white';
+
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => toggleSeat(seat)}
+                  disabled={isDisabled && !isSelected}
+                  className={`${baseClass} ${statusClass} ${isDisabled && !isSelected ? 'opacity-60 cursor-not-allowed' : 'active:scale-95'}`}
+                  aria-pressed={isSelected}
+                  aria-disabled={isDisabled && !isSelected}
+                  title={`${seat.tableId} • ${seat.number}`}
+                >
+                  {seat.number}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-gray-600">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded-sm inline-block" />доступно</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-400 rounded-sm inline-block" />зарезервировано</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded-sm inline-block" />продано</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-blue-600 rounded-sm inline-block" />выбрано</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

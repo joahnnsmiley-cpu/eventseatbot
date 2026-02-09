@@ -58,10 +58,10 @@ runTest('parseCommand: /booking_status without bookingId returns unknown', () =>
 });
 
 // ============================================================================
-// Test 2: Confirmed booking (no payment)
+// Test 2: Reserved booking (no payment)
 // ============================================================================
 
-runTest('formatBookingStatusMessageSecure: confirmed booking without payment', () => {
+runTest('formatBookingStatusMessageSecure: reserved booking without payment', () => {
   const originalEnv = process.env.TELEGRAM_ADMIN_CHAT_ID;
   const originalGetStatus = bookingStatus.getBookingStatus;
 
@@ -69,19 +69,19 @@ runTest('formatBookingStatusMessageSecure: confirmed booking without payment', (
 
   try {
     (bookingStatus as any).getBookingStatus = () => ({
-      bookingId: 'bk-confirmed-001',
+      bookingId: 'bk-reserved-001',
       eventId: 'evt-2026-gala',
-      status: 'confirmed',
+      status: 'reserved',
       seatsBooked: 2,
       expiresAt: Date.now() + 3600000, // 1 hour from now
       payment: null,
     });
 
-    const message = formatBookingStatusMessageSecure('123456789', 'bk-confirmed-001');
+    const message = formatBookingStatusMessageSecure('123456789', 'bk-reserved-001');
 
     assert(message.length > 0, 'Should return non-empty message for authorized chat');
     assert(message.includes('СТАТУС БРОНИРОВАНИЯ'), 'Should include header');
-    assert(message.includes('bk-confirmed-001'), 'Should include booking ID');
+    assert(message.includes('bk-reserved-001'), 'Should include booking ID');
     assert(message.includes('evt-2026-gala'), 'Should include event ID');
     assert(message.includes('2'), 'Should include seat count');
     assert(message.includes('Истекает через'), 'Should show expiration countdown');
@@ -108,7 +108,7 @@ runTest('formatBookingStatusMessageSecure: paid booking with confirmation', () =
     (bookingStatus as any).getBookingStatus = () => ({
       bookingId: 'bk-paid-001',
       eventId: 'evt-2026-gala',
-      status: 'confirmed',
+      status: 'reserved',
       seatsBooked: 4,
       expiresAt: Date.now() + 7200000, // 2 hours from now
       payment: {
@@ -178,7 +178,7 @@ runTest('formatBookingStatusMessageSecure: pending payment (not yet paid)', () =
     (bookingStatus as any).getBookingStatus = () => ({
       bookingId: 'bk-pending-001',
       eventId: 'evt-2026-gala',
-      status: 'confirmed',
+      status: 'reserved',
       seatsBooked: 3,
       expiresAt: Date.now() + 1800000, // 30 minutes from now
       payment: {
@@ -295,7 +295,7 @@ runTest('formatBookingStatusMessageSecure: shows hours and minutes countdown', (
     (bookingStatus as any).getBookingStatus = () => ({
       bookingId: 'bk-time-001',
       eventId: 'evt-time',
-      status: 'confirmed',
+      status: 'reserved',
       expiresAt: expiresAt,
       payment: null,
     });
@@ -322,7 +322,7 @@ runTest('formatBookingStatusMessageSecure: shows only minutes when less than 1 h
     (bookingStatus as any).getBookingStatus = () => ({
       bookingId: 'bk-mins-001',
       eventId: 'evt-mins',
-      status: 'confirmed',
+      status: 'reserved',
       expiresAt: expiresAt,
       payment: null,
     });
@@ -353,7 +353,7 @@ runTest('formatBookingStatusMessageSecure: handles missing seats gracefully', ()
     (bookingStatus as any).getBookingStatus = () => ({
       bookingId: 'bk-no-seats',
       eventId: 'evt-2026',
-      status: 'confirmed',
+      status: 'reserved',
       expiresAt: Date.now() + 3600000,
       // seatsBooked is undefined
       payment: null,
@@ -416,7 +416,7 @@ runTest('formatBookingStatusMessageSecure: uses plain text (no markdown)', () =>
     (bookingStatus as any).getBookingStatus = () => ({
       bookingId: 'bk-text-001',
       eventId: 'evt-text',
-      status: 'confirmed',
+      status: 'reserved',
       seatsBooked: 2,
       expiresAt: Date.now() + 3600000,
       payment: {

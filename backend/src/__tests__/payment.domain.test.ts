@@ -68,7 +68,7 @@ function setupMockBooking(): string {
   mockBookings.push({
     id: bookingId,
     eventId: 'evt-test',
-    status: 'confirmed',
+    status: 'reserved',
     totalAmount: 1000,
   });
   return bookingId;
@@ -259,9 +259,9 @@ async function runTests(): Promise<void> {
     const updateCall = bookingUpdateCalls.find((c) => c.bookingId === bookingId);
     assert(!updateCall, 'Should NOT update booking on cancel');
 
-    // Booking should remain confirmed
+    // Booking should remain reserved
     const booking = mockBookings.find((b) => b.id === bookingId);
-    assertEquals(booking.status, 'confirmed', 'Booking should remain confirmed');
+    assertEquals(booking.status, 'reserved', 'Booking should remain reserved');
   });
 
   // ============================================

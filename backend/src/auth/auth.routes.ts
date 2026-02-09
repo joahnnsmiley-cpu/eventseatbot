@@ -47,10 +47,15 @@ router.post('/dev-user-login', (req, res) => {
 router.post('/telegram', (req, res) => {
   // Guard against missing body (ensure JSON parsing worked) and accept fallback query params
   const body = req && typeof req.body === 'object' ? req.body : {};
+  const initData = typeof body.initData === 'string' ? body.initData : '';
   let rawId: unknown = body.telegramId ?? body.telegram_id ?? body.userId ?? body.user_id ?? body.id ?? req.query?.telegramId ?? req.query?.telegram_id ?? req.query?.userId ?? req.query?.user_id ?? req.query?.id;
 
   if (rawId === undefined || rawId === null) {
     return res.status(400).json({ error: 'telegramId is required and must be provided in the request body or query string' });
+  }
+
+  if (!initData) {
+    return res.status(400).json({ error: 'initData is required' });
   }
 
   // Normalize: accept numbers or numeric strings; trim strings
@@ -69,7 +74,7 @@ router.post('/telegram', (req, res) => {
     return res.status(500).json({ error: 'Server misconfiguration: JWT secret not set' });
   }
 
-  const adminIds = (process.env.ADMIN_TELEGRAM_IDS || '')
+  const adminIds = (process.env.ADMINS_IDS || '')
     .split(',')
     .map((id) => id.trim())
     .filter(Boolean);

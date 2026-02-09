@@ -98,6 +98,7 @@ const seedTestEvent = () => {
     date: new Date().toISOString(),
     imageUrl: 'https://picsum.photos/800/600',
     schemaImageUrl: null,
+    layoutImageUrl: null,
     paymentPhone: '79990000000',
     maxSeatsPerBooking: 4,
     tables: [],
@@ -126,7 +127,7 @@ app.get('/events/:eventId', (req, res) => {
 // ==============================
 // CREATE BOOKING (user-facing)
 // ==============================
-app.post('/bookings', authMiddleware, (req: AuthRequest, res) => {
+app.post('/bookings', authMiddleware, async (req: AuthRequest, res) => {
   const user = req.user;
   const userIdVal = user?.id ?? user?.sub ?? user?.userId;
   if (!userIdVal) return res.status(401).json({ error: 'Unauthorized' });
@@ -134,8 +135,10 @@ app.post('/bookings', authMiddleware, (req: AuthRequest, res) => {
 
   const body = req.body || {};
   const eventId = body.eventId as string | undefined;
+  const userPhone = typeof body.userPhone === 'string' ? body.userPhone.trim() : '';
 
   if (!eventId) return res.status(400).json({ error: 'eventId is required' });
+  if (!userPhone) return res.status(400).json({ error: 'userPhone is required' });
 
   // Validate event exists
   const event = findEventById(eventId);
@@ -152,64 +155,97 @@ app.post('/bookings', authMiddleware, (req: AuthRequest, res) => {
 
   // Legacy seat-level booking
   if (seatIds && seatIds.length > 0) {
-    const seatsToReserve: any[] = [];
-    for (const seatId of seatIds) {
-      const s = inMemorySeats.find((x) => x.id === seatId && x.eventId === eventId);
-      if (!s) return res.status(400).json({ error: `Seat not found: ${seatId}` });
-      if (s.status !== 'available') return res.status(400).json({ error: `Seat not available: ${seatId}` });
-      seatsToReserve.push(s);
-    }
+    const locks: Map<string, Promise<void>> = (app as any).__seatLocks || new Map();
+    (app as any).__seatLocks = locks;
 
-    const totalPrice = seatsToReserve.reduce((sum, s) => sum + Number(s.price || 0), 0);
-
-    // Reserve seats
-    for (const s of seatsToReserve) s.status = 'reserved';
-
-    const booking: import('./state').InMemoryBooking = {
-      id: uuid(),
-      eventId,
-      userId,
-      seatIds,
-      totalPrice,
-      status: 'reserved',
-      createdAt: now,
-      expiresAt,
+    const runWithLock = async <T,>(key: string, fn: () => Promise<T>) => {
+      const prev = locks.get(key) || Promise.resolve();
+      let release: () => void = () => {};
+      const next = new Promise<void>((r) => { release = r; });
+      locks.set(key, prev.then(() => next));
+      try {
+        await prev;
+        return await fn();
+      } finally {
+        release();
+        if (locks.get(key) === next) locks.delete(key);
+      }
     };
 
-    inMemoryBookings.push(booking);
-
-    // persist booking to DB for longer-term storage (mirror)
     try {
-      addBooking({
-        id: booking.id,
-        eventId: booking.eventId,
-        userTelegramId: Number(userId) || 0,
-        username: (req.user && (req.user as any).username) || '',
-        seatIds: booking.seatIds,
-        totalAmount: booking.totalPrice,
-        status: 'pending',
-        createdAt: booking.createdAt,
-      } as any);
-    } catch {}
-
-    // Expire reservation after 15 minutes if still reserved
-    setTimeout(() => {
-      const b = inMemoryBookings.find((x) => x.id === booking.id);
-      if (!b) return;
-      if (b.status === 'reserved') {
-        for (const sid of b.seatIds) {
-          const s = inMemorySeats.find((x) => x.id === sid && x.eventId === b.eventId);
-          if (s && s.status === 'reserved') s.status = 'available';
+      const result = await runWithLock(eventId, async () => {
+        const seatsToReserve: any[] = [];
+        for (const seatId of seatIds) {
+          const s = inMemorySeats.find((x) => x.id === seatId && x.eventId === eventId);
+          if (!s) return { status: 400, body: { error: `Seat not found: ${seatId}` } };
+          if (s.status !== 'available') return { status: 400, body: { error: `Seat not available: ${seatId}` } };
+          seatsToReserve.push(s);
         }
-        b.status = 'cancelled';
-      }
-    }, expiresAt - now);
 
-    const paymentInstructions = event
-      ? `Pay ${booking.totalPrice} ₽ to ${event.paymentPhone || 'the provided payment method'}`
-      : `Pay ${booking.totalPrice} ₽`;
+        const totalPrice = seatsToReserve.reduce((sum, s) => sum + Number(s.price || 0), 0);
 
-    return res.status(201).json({ booking, paymentInstructions });
+        // Reserve seats
+        for (const s of seatsToReserve) s.status = 'reserved';
+
+        const booking: import('./state').InMemoryBooking = {
+          id: uuid(),
+          eventId,
+          userId,
+          userPhone,
+          seatIds,
+          totalPrice,
+          status: 'reserved',
+          createdAt: now,
+          expiresAt,
+        };
+
+        inMemoryBookings.push(booking);
+        console.log(JSON.stringify({
+          action: 'booking_created',
+          bookingId: booking.id,
+          eventId: booking.eventId,
+          timestamp: new Date().toISOString(),
+        }));
+
+        // persist booking to DB for longer-term storage (mirror)
+        try {
+          addBooking({
+            id: booking.id,
+            eventId: booking.eventId,
+            userTelegramId: Number(userId) || 0,
+            username: (req.user && (req.user as any).username) || '',
+            userPhone,
+            seatIds: booking.seatIds,
+            totalAmount: booking.totalPrice,
+            status: 'reserved',
+            createdAt: booking.createdAt,
+          } as any);
+        } catch {}
+
+        // Expire reservation after 15 minutes if still reserved
+        setTimeout(() => {
+          const b = inMemoryBookings.find((x) => x.id === booking.id);
+          if (!b) return;
+          if (b.status === 'reserved') {
+            for (const sid of b.seatIds) {
+              const s = inMemorySeats.find((x) => x.id === sid && x.eventId === b.eventId);
+              if (s && s.status === 'reserved') s.status = 'available';
+            }
+            b.status = 'expired';
+          }
+        }, expiresAt - now);
+
+        const paymentInstructions = event
+          ? `Pay ${booking.totalPrice} ₽ to ${event.paymentPhone || 'the provided payment method'}`
+          : `Pay ${booking.totalPrice} ₽`;
+
+        return { status: 201, body: { booking, paymentInstructions } };
+      });
+
+      return res.status(result.status).json(result.body);
+    } catch (err) {
+      return res.status(500).json({ error: 'Internal server error' });
+    }
   }
 
   // Table-level booking
@@ -249,6 +285,7 @@ app.post('/bookings', authMiddleware, (req: AuthRequest, res) => {
       id: uuid(),
       eventId: event.id,
       userId,
+      userPhone,
       seatIds: [],
       totalPrice,
       status: 'reserved',
@@ -258,6 +295,12 @@ app.post('/bookings', authMiddleware, (req: AuthRequest, res) => {
     } as any;
 
     inMemoryBookings.push(bookingRecord);
+    console.log(JSON.stringify({
+      action: 'booking_created',
+      bookingId: bookingRecord.id,
+      eventId: bookingRecord.eventId,
+      timestamp: new Date().toISOString(),
+    }));
 
     // persist to DB (mirror) — include tableBookings in db record if possible
     try {
@@ -266,9 +309,10 @@ app.post('/bookings', authMiddleware, (req: AuthRequest, res) => {
         eventId: bookingRecord.eventId,
         userTelegramId: Number(userId) || 0,
         username: (req.user && (req.user as any).username) || '',
+        userPhone,
         seatIds: [],
         totalAmount: bookingRecord.totalPrice,
-        status: 'pending',
+        status: 'reserved',
         createdAt: bookingRecord.createdAt,
         // store tableBookings under a custom field for compatibility
         tableBookings: bookingRecord.tableBookings,
@@ -290,7 +334,7 @@ app.post('/bookings', authMiddleware, (req: AuthRequest, res) => {
           }
           saveEvents(evs);
         }
-        b.status = 'cancelled';
+        b.status = 'expired';
       }
     }, expiresAt - now);
 

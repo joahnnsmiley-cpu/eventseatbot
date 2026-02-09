@@ -48,6 +48,25 @@ const respondBadRequest = (res: Response, err: Error, payload: unknown) => {
 
 const toEvent = (e: EventData): Event => ({ id: e.id, title: e.title, description: e.description, date: e.date });
 
+const normalizeTables = (tables: unknown): EventData['tables'] => {
+  if (!Array.isArray(tables)) return [];
+  return tables.map((t) => {
+    if (!t || typeof t !== 'object') return t as any;
+    const table = { ...(t as any) };
+    const hasX = typeof table.x === 'number' && Number.isFinite(table.x);
+    const hasY = typeof table.y === 'number' && Number.isFinite(table.y);
+    const hasCenterX = typeof table.centerX === 'number' && Number.isFinite(table.centerX);
+    const hasCenterY = typeof table.centerY === 'number' && Number.isFinite(table.centerY);
+
+    if (!hasX && hasCenterX) table.x = table.centerX;
+    if (!hasY && hasCenterY) table.y = table.centerY;
+    if (!hasCenterX && hasX) table.centerX = table.x;
+    if (!hasCenterY && hasY) table.centerY = table.y;
+
+    return table;
+  });
+};
+
 // GET /admin/events
 router.get('/events', (_req: Request, res: Response) => {
   const events = getEvents().map(toEvent);
@@ -79,6 +98,7 @@ router.post('/events', (req: Request, res: Response) => {
   const coverImageUrl = typeof req.body.coverImageUrl === 'string' ? req.body.coverImageUrl : undefined;
   const imageUrl = typeof req.body.imageUrl === 'string' ? req.body.imageUrl : coverImageUrl || '';
   const schemaImageUrl = typeof req.body.schemaImageUrl === 'string' ? req.body.schemaImageUrl : undefined;
+  const layoutImageUrl = typeof req.body.layoutImageUrl === 'string' ? req.body.layoutImageUrl : undefined;
 
   // Convert to EventData with sensible defaults so storage remains compatible
   const eventData: EventData = {
@@ -88,9 +108,10 @@ router.post('/events', (req: Request, res: Response) => {
     date: newEvent.date,
     imageUrl,
     schemaImageUrl,
+    layoutImageUrl: typeof layoutImageUrl === 'undefined' ? null : layoutImageUrl,
     paymentPhone: req.body.paymentPhone || '',
     maxSeatsPerBooking: Number(req.body.maxSeatsPerBooking) || 0,
-    tables: req.body.tables || [],
+    tables: normalizeTables(req.body.tables),
   };
 
   upsertEvent(eventData);
@@ -150,9 +171,12 @@ router.put('/events/:id', (req: Request, res: Response) => {
   if (typeof req.body.imageUrl === 'string') existing.imageUrl = req.body.imageUrl;
   if (typeof req.body.coverImageUrl === 'string') existing.imageUrl = req.body.coverImageUrl;
   if (typeof req.body.schemaImageUrl === 'string') existing.schemaImageUrl = req.body.schemaImageUrl;
+  if (req.body.layoutImageUrl === null || typeof req.body.layoutImageUrl === 'string') {
+    existing.layoutImageUrl = req.body.layoutImageUrl;
+  }
   if (typeof req.body.paymentPhone === 'string') existing.paymentPhone = req.body.paymentPhone;
   if (typeof req.body.maxSeatsPerBooking !== 'undefined') existing.maxSeatsPerBooking = Number(req.body.maxSeatsPerBooking) || 0;
-  if (Array.isArray(req.body.tables)) existing.tables = req.body.tables;
+  if (Array.isArray(req.body.tables)) existing.tables = normalizeTables(req.body.tables);
 
   upsertEvent(existing);
   res.json(toEvent(existing));

@@ -146,11 +146,13 @@ router.get('/view/:id', (req: Request, res: Response) => {
 export default router;
 
 // POST /public/bookings/table
-// Create a confirmed booking for a table (public read-only booking endpoint)
+// Create a reserved booking for a table (public read-only booking endpoint)
 // Body: { eventId, tableId, seatsRequested }
 router.post('/bookings/table', async (req: Request, res: Response) => {
-  const { eventId, tableId, seatsRequested } = req.body || {};
+  const { eventId, tableId, seatsRequested, userPhone } = req.body || {};
   if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
+  const normalizedUserPhone = typeof userPhone === 'string' ? userPhone.trim() : '';
+  if (!normalizedUserPhone) return res.status(400).json({ error: 'userPhone is required' });
   const seats = Number(seatsRequested) || 0;
   if (!Number.isFinite(seats) || seats <= 0) return res.status(400).json({ error: 'seatsRequested must be a positive number' });
 
@@ -197,9 +199,10 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
         eventId,
         tableId,
         seatsBooked: seats,
-        status: 'confirmed',
+        status: 'reserved',
         createdAt: createdAtMs,
-        expiresAt: calculateBookingExpiration(createdAtMs), // Set expiration for confirmed bookings
+        expiresAt: calculateBookingExpiration(createdAtMs), // Set expiration for reserved bookings
+        userPhone: normalizedUserPhone,
       } as any;
 
       try { addBooking(booking); } catch {}
@@ -221,7 +224,7 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
 });
 
 // POST /public/bookings/:id/cancel
-// Cancel a confirmed booking and restore seatsAvailable on the related table.
+// Cancel a reserved booking and restore seatsAvailable on the related table.
 router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
   const bookingId = String(req.params.id);
   if (!bookingId) return res.status(400).json({ error: 'bookingId is required' });
@@ -256,7 +259,7 @@ router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
       const bookings = getBookings();
       const booking = bookings.find((b: any) => b.id === bookingId);
       if (!booking) return { status: 404, body: { error: 'Booking not found' } };
-      if (booking.status !== 'confirmed') return { status: 409, body: { error: 'Booking is not confirmed or already cancelled' } };
+      if (booking.status !== 'reserved') return { status: 409, body: { error: 'Booking is not reserved or already expired' } };
 
       // find event and table
       const events = getEvents();
@@ -272,7 +275,7 @@ router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
       saveEvents(events);
 
       // mark booking cancelled
-      const updated = updateBookingStatus(bookingId, 'cancelled');
+      const updated = updateBookingStatus(bookingId, 'expired');
       if (!updated) return { status: 500, body: { error: 'Failed to update booking status' } };
 
       // Emit booking cancelled event (fire-and-forget)

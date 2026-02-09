@@ -12,7 +12,7 @@ import {
   type PaymentIntent,
   type PaymentStatus,
 } from './payment.repository';
-import { getBookings, updateBookingStatus as updateBooking } from '../../db';
+import { getBookings } from '../../db';
 import { emitPaymentCreated, emitPaymentConfirmed } from './payment.events';
 
 /**
@@ -159,14 +159,6 @@ export function markPaid(
         status: 500,
         error: 'Failed to update payment status',
       };
-    }
-
-    // Soft coupling: update booking status to paid
-    try {
-      updateBooking(payment.bookingId, 'paid');
-    } catch (err) {
-      console.error('[PaymentService] Failed to update booking status:', err);
-      // Continue anyway - payment is already marked paid
     }
 
     // Emit payment confirmed event (fire-and-forget, errors don't affect API)

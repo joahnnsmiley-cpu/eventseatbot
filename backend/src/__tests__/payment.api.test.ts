@@ -4,7 +4,7 @@
  */
 
 import { Request, Response } from 'express';
-import { createPaymentIntentService, markPaid, cancelPayment } from '../domain/payments';
+import { createPaymentIntentService, cancelPayment } from '../domain/payments';
 import * as bookingDb from '../db';
 
 interface TestResult {
@@ -84,7 +84,7 @@ const mockBookings: any[] = [];
 const originalGetBookings = bookingDb.getBookings;
 const originalUpdateBookingStatus = bookingDb.updateBookingStatus;
 
-function setupMockBooking(status: string = 'confirmed'): string {
+function setupMockBooking(status: string = 'reserved'): string {
   const bookingId = 'bk-api-test-' + Date.now();
   mockBookings.length = 0;
   mockBookings.push({
@@ -126,9 +126,9 @@ function handleCreatePayment(req: Request, res: Response): any {
     return res.status(404).json({ error: 'Booking not found' });
   }
 
-  if (booking.status !== 'confirmed') {
+  if (booking.status !== 'reserved') {
     return res.status(400).json({
-      error: 'Booking must be confirmed to create a payment intent',
+      error: 'Booking must be reserved to create a payment intent',
     });
   }
 
@@ -142,22 +142,14 @@ function handleCreatePayment(req: Request, res: Response): any {
 
 function handleMarkPaid(req: Request, res: Response): any {
   const paymentId = String(req.params.id);
-  const { confirmedBy } = req.body || {};
 
   if (!paymentId) {
     return res.status(400).json({ error: 'paymentId is required' });
   }
 
-  if (!confirmedBy) {
-    return res.status(400).json({ error: 'confirmedBy is required in request body' });
-  }
-
-  const result = markPaid(paymentId, confirmedBy);
-  if (!result.success) {
-    return res.status(result.status).json({ error: result.error });
-  }
-
-  res.status(result.status).json(result.data);
+  return res.status(409).json({
+    error: 'Payment confirmation is only allowed via POST /admin/bookings/:id/confirm',
+  });
 }
 
 function handleCancelPayment(req: Request, res: Response): any {
@@ -183,8 +175,8 @@ async function runTests(): Promise<void> {
   console.log('\n📋 Payment API Endpoint Tests\n');
 
   // Test 1: POST /public/payments with valid booking
-  await runTest('POST /public/payments creates payment for confirmed booking', async () => {
-    const bookingId = setupMockBooking('confirmed');
+  await runTest('POST /public/payments creates payment for reserved booking', async () => {
+    const bookingId = setupMockBooking('reserved');
     const [res, mockRes] = createMockResponse();
     const req = { body: { bookingId, amount: 1000 } } as Request;
 
@@ -206,8 +198,8 @@ async function runTests(): Promise<void> {
     assert(mockRes.body.error, 'Should have error');
   });
 
-  // Test 3: POST /public/payments with non-confirmed booking
-  await runTest('POST /public/payments returns 400 for non-confirmed booking', async () => {
+  // Test 3: POST /public/payments with non-reserved booking
+  await runTest('POST /public/payments returns 400 for non-reserved booking', async () => {
     const bookingId = setupMockBooking('paid');
     const [res, mockRes] = createMockResponse();
     const req = { body: { bookingId, amount: 1000 } } as Request;
@@ -217,8 +209,8 @@ async function runTests(): Promise<void> {
     assertEquals(mockRes.statusCode, 400, 'Should return 400');
   });
 
-  // Test 4: POST /public/payments/:id/pay marks as paid
-  await runTest('POST /public/payments/:id/pay marks payment as paid', async () => {
+  // Test 4: POST /public/payments/:id/pay is not allowed
+  await runTest('POST /public/payments/:id/pay returns 409', async () => {
     const bookingId = setupMockBooking();
     const createReq = { body: { bookingId, amount: 1000 } } as Request;
     const [createRes, createMockRes] = createMockResponse();
@@ -232,13 +224,12 @@ async function runTests(): Promise<void> {
 
     handleMarkPaid(payReq, payRes);
 
-    assertEquals(payMockRes.statusCode, 200, 'Should return 200');
-    assertEquals(payMockRes.body.status, 'paid', 'Should be paid');
-    assertEquals(payMockRes.body.confirmedBy, 'admin-user', 'Should have confirmedBy');
+    assertEquals(payMockRes.statusCode, 409, 'Should return 409');
+    assert(payMockRes.body.error, 'Should return error');
   });
 
-  // Test 5: POST /public/payments/:id/pay twice returns 409
-  await runTest('POST /public/payments/:id/pay twice returns 409', async () => {
+  // Test 5: POST /public/payments/:id/pay repeated calls return 409
+  await runTest('POST /public/payments/:id/pay repeated calls return 409', async () => {
     const bookingId = setupMockBooking();
     const createReq = { body: { bookingId, amount: 1000 } } as Request;
     const [createRes, createMockRes] = createMockResponse();
@@ -250,13 +241,13 @@ async function runTests(): Promise<void> {
     const [payRes1, payMockRes1] = createMockResponse();
     const payReq1 = { params: { id: paymentId }, body: { confirmedBy: 'admin-user' } } as any as Request;
     handleMarkPaid(payReq1, payRes1);
-    assertEquals(payMockRes1.statusCode, 200, 'First pay should succeed');
+    assertEquals(payMockRes1.statusCode, 409, 'First pay should return 409');
 
-    // Second pay - should fail because missing confirmedBy
+    // Second pay
     const [payRes2, payMockRes2] = createMockResponse();
     const payReq2 = { params: { id: paymentId } } as any as Request;
     handleMarkPaid(payReq2, payRes2);
-    assertEquals(payMockRes2.statusCode, 400, 'Second pay without confirmedBy should return 400');
+    assertEquals(payMockRes2.statusCode, 409, 'Second pay should return 409');
   });
 
   // Test 6: POST /public/payments/:id/cancel cancels payment

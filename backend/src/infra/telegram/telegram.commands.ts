@@ -8,8 +8,7 @@
  * Parsed command from text message
  */
 export interface ParsedCommand {
-  type: 'pending_payments' | 'confirm_payment' | 'booking_status' | 'unknown' | 'empty';
-  paymentId?: string;
+  type: 'pending_payments' | 'booking_status' | 'unknown' | 'empty';
   bookingId?: string;
 }
 
@@ -17,7 +16,6 @@ export interface ParsedCommand {
  * Parse text message for Telegram commands
  * Supported commands:
  * - /pending_payments - List all pending payments
- * - /confirm_payment <paymentId> - Confirm a specific payment
  * - /booking_status <bookingId> - Get booking status
  * 
  * Returns { type: 'unknown' } for unrecognized commands
@@ -50,21 +48,6 @@ export function parseCommand(text: string | undefined | null): ParsedCommand {
     // Handle /pending_payments command
     if (command === '/pending_payments') {
       return { type: 'pending_payments' };
-    }
-
-    // Handle /confirm_payment command
-    if (command === '/confirm_payment') {
-      const paymentId = parts[1];
-      
-      if (!paymentId) {
-        // Missing argument
-        return { type: 'unknown' };
-      }
-
-      return {
-        type: 'confirm_payment',
-        paymentId,
-      };
     }
 
     // Handle /booking_status command

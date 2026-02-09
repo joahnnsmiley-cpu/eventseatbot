@@ -1,330 +1,363 @@
-import React, { useEffect, useState } from 'react';
-import { EventData } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
 import * as StorageService from '../services/storageService';
+import { EventData } from '../types';
 
-const genId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2);
-
-type FormState = {
-  id?: string;
-  title: string;
-  description: string;
-  date: string;
-  imageUrl?: string;
-  schemaImageUrl?: string | null;
-  paymentPhone?: string;
-  maxSeatsPerBooking?: number;
-  tables?: any[]; // Table[] — kept loose here to avoid strict coupling
+type AdminBooking = {
+  id: string;
+  event: { id: string; title?: string; date?: string };
+  seatIds?: string[];
+  tableBookings?: Array<{ tableId: string; seats: number }>;
+  userTelegramId?: number;
+  userPhone?: string;
+  totalAmount?: number;
+  status?: string;
+  expiresAt?: string | number;
 };
 
-const emptyForm = (): FormState => ({ title: '', description: '', date: '', imageUrl: '', schemaImageUrl: null, paymentPhone: '', maxSeatsPerBooking: 4 });
+type AdminEventSummary = {
+  id: string;
+  title?: string;
+  date?: string;
+  description?: string;
+};
 
 const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
-  const [events, setEvents] = useState<EventData[] | null>(null);
+  const [mode, setMode] = useState<'bookings' | 'layout'>('bookings');
+  const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [events, setEvents] = useState<AdminEventSummary[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null);
+  const [layoutUrl, setLayoutUrl] = useState('');
+  const [savingLayout, setSavingLayout] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [form, setForm] = useState<FormState>(emptyForm());
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
-
-  const [markupOpen, setMarkupOpen] = useState(false);
-  const [draftTables, setDraftTables] = useState<any[]>([]);
-
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+  const toFriendlyError = (e: unknown) => {
+    const raw = e instanceof Error ? e.message : String(e);
+    if (raw === 'Forbidden') return 'Access denied. Please sign in again.';
+    if (raw.toLowerCase().includes('not found')) return 'Not found. Please refresh and try again.';
+    if (raw.toLowerCase().includes('expired')) return 'Booking expired. It can no longer be confirmed.';
+    if (raw.toLowerCase().includes('only reserved')) return 'Only reserved bookings can be confirmed.';
+    return 'Something went wrong. Please retry.';
+  };
+  const isExpired = (expiresAt?: string | number) => {
+    if (!expiresAt) return false;
+    const ts = typeof expiresAt === 'string' ? new Date(expiresAt).getTime() : Number(expiresAt);
+    if (!Number.isFinite(ts)) return false;
+    return Date.now() > ts;
+  };
 
   const load = async () => {
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
     try {
-      const data = await StorageService.getAdminEvents();
-      setEvents(data);
+      const data = await StorageService.getAdminBookings();
+      setBookings(Array.isArray(data) ? data : []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toFriendlyError(e));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadEvents = async () => {
+    setEventsLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const data = await StorageService.getAdminEvents();
+      setEvents(Array.isArray(data) ? (data as AdminEventSummary[]) : []);
+    } catch (e) {
+      setError(toFriendlyError(e));
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  const loadEvent = async (eventId: string) => {
+    if (!eventId) return;
+    setEventsLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const ev = await StorageService.getAdminEvent(eventId);
+      setSelectedEvent(ev);
+      setLayoutUrl(ev?.layoutImageUrl || '');
+    } catch (e) {
+      setError(toFriendlyError(e));
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  const saveLayout = async () => {
+    if (!selectedEvent?.id) return;
+    setSavingLayout(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const updated = await StorageService.updateAdminEvent(selectedEvent.id, {
+        layoutImageUrl: layoutUrl ? layoutUrl.trim() : null,
+      });
+      setSelectedEvent({ ...selectedEvent, ...updated, layoutImageUrl: layoutUrl ? layoutUrl.trim() : null });
+    } catch (e) {
+      setError(toFriendlyError(e));
+    } finally {
+      setSavingLayout(false);
     }
   };
 
   useEffect(() => {
     load();
+    loadEvents();
   }, []);
 
-  const openCreate = () => {
-    setForm({ ...emptyForm(), tables: [] });
-    setFormErrors({});
-    setIsFormOpen(true);
+  const formatSeats = (b: AdminBooking) => {
+    if (Array.isArray(b.seatIds) && b.seatIds.length > 0) {
+      return b.seatIds.join(', ');
+    }
+    if (Array.isArray(b.tableBookings) && b.tableBookings.length > 0) {
+      return b.tableBookings.map((tb) => `${tb.tableId} × ${tb.seats}`).join(', ');
+    }
+    return '—';
   };
 
-  const openEdit = async (evt: EventData, openMarkup = false) => {
-    setLoading(true);
+  const confirmBooking = async (bookingId: string) => {
+    setConfirmingId(bookingId);
     setError(null);
+    setSuccessMessage(null);
     try {
-      const full = await StorageService.getAdminEvent(evt.id);
-      setForm({
-        id: full.id,
-        title: full.title,
-        description: full.description,
-        date: full.date,
-        imageUrl: full.imageUrl,
-        schemaImageUrl: full.schemaImageUrl ?? null,
-        paymentPhone: full.paymentPhone,
-        maxSeatsPerBooking: full.maxSeatsPerBooking,
-        tables: full.tables,
-      });
-      setDraftTables(full.tables);
-      setFormErrors({});
-      setIsFormOpen(true);
-      if (openMarkup) {
-        setMarkupOpen(true);
-      }
+      await StorageService.confirmBooking(bookingId);
+      setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: 'paid' } : b)));
+      setSuccessMessage('Payment confirmed.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toFriendlyError(e));
     } finally {
-      setLoading(false);
+      setConfirmingId(null);
     }
   };
 
-  const validate = (values: FormState) => {
-    const errs: Record<string, string> = {};
-    if (!values.title || values.title.trim().length < 3) errs.title = 'Title is required (min 3 chars)';
-    if (!values.description || values.description.trim().length < 10) errs.description = 'Description is required (min 10 chars)';
-    if (!values.date || Number.isNaN(Date.parse(values.date))) errs.date = 'Valid date is required (YYYY-MM-DD)';
-    if (typeof values.maxSeatsPerBooking !== 'undefined' && Number(values.maxSeatsPerBooking) < 1) errs.maxSeatsPerBooking = 'Must be at least 1';
-    return errs;
-  };
-
-  const submit = async () => {
-    setFormErrors({});
-    const errs = validate(form);
-    if (Object.keys(errs).length) {
-      setFormErrors(errs);
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const schemaImageUrl = form.schemaImageUrl && form.schemaImageUrl.trim().length > 0 ? form.schemaImageUrl : null;
-      if (form.id) {
-        await StorageService.updateAdminEvent(form.id, {
-          title: form.title,
-          description: form.description,
-          date: form.date,
-          imageUrl: form.imageUrl,
-          schemaImageUrl,
-          paymentPhone: form.paymentPhone,
-          maxSeatsPerBooking: form.maxSeatsPerBooking,
-          tables: form.tables || draftTables || [],
-        });
-      } else {
-        await StorageService.createAdminEvent({
-          title: form.title,
-          description: form.description,
-          date: form.date,
-          imageUrl: form.imageUrl,
-          schemaImageUrl,
-          paymentPhone: form.paymentPhone,
-          maxSeatsPerBooking: form.maxSeatsPerBooking,
-          tables: form.tables || draftTables || [],
-        });
-      }
-      await load();
-      setIsFormOpen(false);
-      setDraftTables([]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const confirmDelete = (id: string) => {
-    setDeletingId(id);
-  };
-
-  const doDelete = async () => {
-    if (!deletingId) return;
-    setDeleteLoading(true);
-    try {
-      await StorageService.deleteAdminEvent(deletingId);
-      setDeletingId(null);
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
+  const hasBookings = useMemo(() => bookings.length > 0, [bookings.length]);
+  const hasEvents = useMemo(() => events.length > 0, [events.length]);
+  const previewUrl = (selectedEvent?.layoutImageUrl || selectedEvent?.schemaImageUrl || selectedEvent?.imageUrl || '').trim();
+  const tables = Array.isArray(selectedEvent?.tables) ? selectedEvent?.tables : [];
 
   return (
     <div className="p-4 bg-gray-50 min-h-screen">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Admin — Events</h1>
+        <h1 className="text-2xl font-semibold">Admin</h1>
         <div className="flex items-center gap-2">
           {onBack && (
-            <button onClick={onBack} className="text-sm text-gray-600">Exit</button>
+            <button
+              onClick={onBack}
+              disabled={loading || eventsLoading || savingLayout || confirmingId !== null}
+              className="text-sm text-gray-600"
+            >
+              Exit
+            </button>
           )}
-          <button onClick={openCreate} className="bg-blue-600 text-white px-3 py-2 rounded">New Event</button>
+          <button
+            onClick={() => {
+              if (mode === 'bookings') load();
+              if (mode === 'layout') loadEvents();
+            }}
+            disabled={loading || eventsLoading}
+            className="bg-blue-600 text-white px-3 py-2 rounded"
+          >
+            Reload
+          </button>
         </div>
       </div>
 
-      {loading && <div className="text-sm text-gray-500">Loading events…</div>}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setMode('bookings')}
+          className={`px-3 py-2 rounded text-sm ${mode === 'bookings' ? 'bg-gray-900 text-white' : 'bg-white border text-gray-700'}`}
+        >
+          Bookings
+        </button>
+        <button
+          onClick={() => setMode('layout')}
+          className={`px-3 py-2 rounded text-sm ${mode === 'layout' ? 'bg-gray-900 text-white' : 'bg-white border text-gray-700'}`}
+        >
+          Venue layout
+        </button>
+      </div>
+
+      {loading && <div className="text-sm text-gray-500">Loading bookings…</div>}
       {error && <div className="text-sm text-red-600 mb-4">{error}</div>}
+      {successMessage && <div className="text-sm text-green-700 mb-4">{successMessage}</div>}
 
-      {!loading && events && (
-        <div className="grid grid-cols-1 gap-4">
-          {events.map(evt => (
-            <div key={evt.id} className="bg-white p-4 rounded shadow-sm border flex justify-between items-start gap-4">
-              <div>
-                <h2 className="font-bold text-lg">{evt.title}</h2>
-                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{evt.description}</p>
-                <div className="text-xs text-gray-500 mt-2">{evt.date}</div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <button onClick={() => { void openEdit(evt); }} className="px-3 py-1 bg-gray-100 rounded text-sm">Edit</button>
-                  <button onClick={() => { void openEdit(evt, true); }} className="px-3 py-1 bg-gray-100 rounded text-sm">Layout</button>
-                <button onClick={() => confirmDelete(evt.id)} className="px-3 py-1 bg-red-50 text-red-600 rounded text-sm">Delete</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {mode === 'bookings' && (
+        <>
+          {!loading && !hasBookings && (
+            <div className="text-sm text-gray-600">No bookings yet.</div>
+          )}
 
-      {/* Form Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl bg-white rounded shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">{form.id ? 'Edit Event' : 'Create Event'}</h3>
-            <div className="grid grid-cols-1 gap-3">
-              <label className="flex flex-col">
-                <span className="text-sm font-medium">Title</span>
-                <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="border p-2 rounded" />
-                {formErrors.title && <span className="text-xs text-red-600">{formErrors.title}</span>}
-              </label>
-
-              <label className="flex flex-col">
-                <span className="text-sm font-medium">Description</span>
-                <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="border p-2 rounded" rows={4} />
-                {formErrors.description && <span className="text-xs text-red-600">{formErrors.description}</span>}
-              </label>
-
-              <div className="grid grid-cols-2 gap-3">
-                <label className="flex flex-col">
-                  <span className="text-sm font-medium">Date</span>
-                  <input value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} placeholder="YYYY-MM-DD" className="border p-2 rounded" />
-                  {formErrors.date && <span className="text-xs text-red-600">{formErrors.date}</span>}
-                </label>
-                <label className="flex flex-col">
-                  <span className="text-sm font-medium">Payment Phone</span>
-                  <input value={form.paymentPhone} onChange={e => setForm({ ...form, paymentPhone: e.target.value })} className="border p-2 rounded" />
-                </label>
-              </div>
-
-              <label className="flex flex-col">
-                <span className="text-sm font-medium">Image URL</span>
-                <input value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} className="border p-2 rounded" />
-              </label>
-
-              <label className="flex flex-col">
-                <span className="text-sm font-medium">Schema image URL</span>
-                <input
-                  value={form.schemaImageUrl ?? ''}
-                  onChange={e => setForm({ ...form, schemaImageUrl: e.target.value })}
-                  className="border p-2 rounded"
-                />
-              </label>
-
-              <div className="mt-2">
-                <button type="button" onClick={() => { setDraftTables(form.tables || []); setMarkupOpen(true); }} className="px-3 py-2 bg-gray-100 rounded">Edit Layout</button>
-                <span className="text-sm text-gray-500 ml-2">Open layout markup to add tables on the event image.</span>
-              </div>
-
-              <label className="flex flex-col">
-                <span className="text-sm font-medium">Max Seats Per Booking</span>
-                <input type="number" value={form.maxSeatsPerBooking} onChange={e => setForm({ ...form, maxSeatsPerBooking: Number(e.target.value) })} className="border p-2 rounded" />
-                {formErrors.maxSeatsPerBooking && <span className="text-xs text-red-600">{formErrors.maxSeatsPerBooking}</span>}
-              </label>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setIsFormOpen(false)} className="px-3 py-2 rounded border">Cancel</button>
-              <button onClick={submit} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded">{saving ? 'Saving…' : 'Save'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Markup Modal */}
-      {markupOpen && (
-        <div className="fixed inset-0 z-60 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white max-w-3xl w-full rounded shadow overflow-hidden">
-            <div className="p-4 border-b flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <h4 className="font-semibold">Layout Markup</h4>
-                <span className="text-sm text-gray-500">Click on the image to create a table</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => { setMarkupOpen(false); }} className="px-3 py-1 border rounded">Close</button>
-                <button onClick={() => { setForm({ ...form, tables: draftTables }); setMarkupOpen(false); }} className="px-3 py-1 bg-blue-600 text-white rounded">Apply</button>
-              </div>
-            </div>
-            <div className="p-4">
-              {form.schemaImageUrl ? (
-                <div className="relative bg-gray-100" style={{ aspectRatio: '16/9' }}>
-                  <img src={form.schemaImageUrl} alt="layout" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} onClick={(e) => {
-                    // compute click position in percent
-                    const rect = (e.target as HTMLImageElement).getBoundingClientRect();
-                    const x = (e.clientX - rect.left) / rect.width * 100;
-                    const y = (e.clientY - rect.top) / rect.height * 100;
-                    const numStr = window.prompt('Table number (numeric)');
-                    if (!numStr) return;
-                    const seatsStr = window.prompt('Seats count for this table');
-                    if (!seatsStr) return;
-                    const num = Number(numStr);
-                    const seatsTotal = Number(seatsStr);
-                    if (!Number.isFinite(num) || !Number.isFinite(seatsTotal)) return;
-                    const tbl = {
-                      id: genId(),
-                      number: num,
-                      seatsTotal: seatsTotal,
-                      seatsAvailable: seatsTotal,
-                      centerX: Math.max(0, Math.min(100, x)),
-                      centerY: Math.max(0, Math.min(100, y)),
-                      shape: 'round',
-                    };
-                    setDraftTables(prev => [...prev, tbl]);
-                  }} />
-
-                  {/* overlays */}
-                  {draftTables.map(t => (
-                    <div key={t.id} style={{ position: 'absolute', left: `${t.centerX}%`, top: `${t.centerY}%`, transform: 'translate(-50%, -50%)' }}>
-                      <div className="relative">
-                        <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">{t.number}</div>
-                        <button onClick={() => setDraftTables(prev => prev.filter(x => x.id !== t.id))} className="absolute -top-2 -right-2 bg-white rounded-full p-1 text-xs border">✕</button>
-                      </div>
+          {!loading && hasBookings && (
+            <div className="grid grid-cols-1 gap-4">
+              {bookings.map((b) => (
+                <div key={b.id} className="bg-white p-4 rounded shadow-sm border flex justify-between items-start gap-4">
+                  <div className="min-w-0">
+                    <div className="font-semibold">{b.event?.title || 'Event'}</div>
+                    <div className="text-xs text-gray-500">{b.event?.date || ''}</div>
+                    <div className="text-sm text-gray-700 mt-2">
+                      Seats: <span className="font-medium">{formatSeats(b)}</span>
                     </div>
-                  ))}
+                    <div className="text-sm text-gray-700 mt-1">
+                      Phone: <span className="font-medium">{b.userPhone || '—'}</span>
+                    </div>
+                    <div className="text-sm text-gray-700 mt-1">
+                      Status: <span className="font-medium">{b.status || '—'}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      Booking ID: {b.id}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Telegram ID: {typeof b.userTelegramId === 'number' ? b.userTelegramId : '—'}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Expires: {b.expiresAt ? String(b.expiresAt) : '—'}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {b.status === 'paid' && (
+                      <div className="text-xs text-green-700">Payment confirmed</div>
+                    )}
+                    {b.status === 'reserved' && (
+                      <>
+                        <button
+                          onClick={() => confirmBooking(b.id)}
+                          disabled={confirmingId === b.id || confirmingId !== null || isExpired(b.expiresAt)}
+                          className={`px-3 py-1 rounded text-sm ${
+                            confirmingId === b.id || confirmingId !== null || isExpired(b.expiresAt)
+                              ? 'bg-gray-300 text-gray-700'
+                              : 'bg-green-600 text-white'
+                          }`}
+                        >
+                          {confirmingId === b.id ? 'Confirming…' : isExpired(b.expiresAt) ? 'Expired' : 'Confirm payment'}
+                        </button>
+                        {confirmingId !== null && confirmingId !== b.id && !isExpired(b.expiresAt) && (
+                          <div className="text-xs text-gray-500">Another confirmation is in progress</div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <div className="p-6 text-center text-sm text-gray-600">Схема зала не загружена</div>
-              )}
+              ))}
             </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
 
-      {/* Delete Confirmation */}
-      {deletingId && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-4">
-          <div className="bg-white p-6 rounded shadow max-w-sm w-full">
-            <h4 className="font-semibold mb-2">Delete event?</h4>
-            <p className="text-sm text-gray-600 mb-4">This action cannot be undone. Are you sure you want to delete this event?</p>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setDeletingId(null)} className="px-3 py-2 border rounded">Cancel</button>
-              <button onClick={doDelete} disabled={deleteLoading} className="px-3 py-2 bg-red-600 text-white rounded">{deleteLoading ? 'Deleting…' : 'Delete'}</button>
+      {mode === 'layout' && (
+        <div className="grid grid-cols-1 gap-4">
+          <div className="bg-white p-4 rounded border">
+            <div className="text-sm font-semibold mb-2">Select event</div>
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedEventId}
+                onChange={(e) => {
+                  const nextId = e.target.value;
+                  setSelectedEventId(nextId);
+                  setSelectedEvent(null);
+                  if (nextId) loadEvent(nextId);
+                }}
+                className="border rounded px-2 py-2 text-sm w-full"
+              >
+                <option value="">— Choose event —</option>
+                {events.map((ev) => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.title || ev.id}
+                  </option>
+                ))}
+              </select>
+              <button onClick={loadEvents} className="px-3 py-2 text-sm border rounded">Refresh</button>
             </div>
+            {eventsLoading && (
+              <div className="text-xs text-gray-500 mt-2">Loading events…</div>
+            )}
+            {!eventsLoading && !hasEvents && (
+              <div className="text-xs text-gray-500 mt-2">No events found.</div>
+            )}
           </div>
+
+          {selectedEvent && (
+            <div className="bg-white p-4 rounded border space-y-4">
+              <div>
+                <div className="text-sm font-semibold mb-1">Layout image URL</div>
+                <input
+                  type="text"
+                  value={layoutUrl}
+                  onChange={(e) => setLayoutUrl(e.target.value)}
+                  placeholder="https://example.com/layout.jpg"
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Use this image as the table layout background.
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={saveLayout}
+                    disabled={savingLayout}
+                    className="bg-blue-600 text-white px-3 py-2 rounded text-sm"
+                  >
+                    {savingLayout ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setLayoutUrl(selectedEvent?.layoutImageUrl || '')}
+                    className="px-3 py-2 text-sm border rounded"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-sm font-semibold mb-2">Layout preview</div>
+                <div className="relative w-full h-80 border rounded bg-gray-100 overflow-hidden">
+                  {previewUrl ? (
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        backgroundImage: `url(${previewUrl})`,
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'center',
+                        backgroundSize: '100% 100%',
+                      }}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
+                      No layout image URL
+                    </div>
+                  )}
+
+                  {tables.map((table) => {
+                    const x = typeof table.x === 'number' ? table.x : table.centerX;
+                    const y = typeof table.y === 'number' ? table.y : table.centerY;
+                    return (
+                      <div
+                        key={table.id}
+                        className="absolute -translate-x-1/2 -translate-y-1/2"
+                        style={{ left: `${x}%`, top: `${y}%` }}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center shadow">
+                          {table.number}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Tables are positioned using percentage coordinates (0–100).
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -332,4 +365,3 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 };
 
 export default AdminPanel;
-// duplicate block removed to avoid redeclaration
