@@ -17,6 +17,7 @@ router.get('/events', (_req: Request, res: Response) => {
       date: e.date,
       coverImageUrl: e.imageUrl || e.schemaImageUrl || null,
       schemaImageUrl: e.schemaImageUrl || e.imageUrl || null,
+      layoutImageUrl: typeof e.layoutImageUrl === 'undefined' ? null : e.layoutImageUrl,
       tables: Array.isArray(e.tables) ? e.tables : [],
     }));
     return res.json(mapped ?? []);
@@ -38,6 +39,7 @@ router.get('/events/:id', (req: Request, res: Response) => {
     date: ev.date,
     coverImageUrl: ev.imageUrl || ev.schemaImageUrl || null,
     schemaImageUrl: ev.schemaImageUrl || ev.imageUrl || null,
+    layoutImageUrl: typeof ev.layoutImageUrl === 'undefined' ? null : ev.layoutImageUrl,
     tables: Array.isArray(ev.tables) ? ev.tables : [],
   };
   res.json(mapped);

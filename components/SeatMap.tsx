@@ -55,7 +55,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
   const tables = seatState?.tables ?? event.tables;
   const seats = seatState?.seats ?? [];
   const selectedSet = new Set(selectedSeats);
-  const backgroundUrl = (event.layoutImageUrl || event.schemaImageUrl || event.imageUrl || '').trim();
+  const backgroundUrl = (event.layoutImageUrl || '').trim();
 
   const canSelectSeat = (seat: SeatModel) => seat.status === 'available';
 
