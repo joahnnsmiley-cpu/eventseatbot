@@ -58,9 +58,8 @@ function App() {
   const [eventLoading, setEventLoading] = useState(false);
   const [eventError, setEventError] = useState<string | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
-  /** UI-only: selected seat indices per table. Main map displays; panel SeatPicker toggles. */
+  /** UI-only: selected seat indices per table. Source of truth for seat count; SeatPicker and +/- sync to this. */
   const [selectedSeatsByTable, setSelectedSeatsByTable] = useState<Record<string, number[]>>({});
-  const [seatsRequested, setSeatsRequested] = useState(1);
   const eventRequestRef = useRef(0);
   const [selectionAdjusted, setSelectionAdjusted] = useState(false);
   const selectionAdjustedTimerRef = useRef<number | null>(null);
@@ -374,7 +373,6 @@ function App() {
               onClick={() => {
                 setView('layout');
                 setSelectedTableId(null);
-                setSeatsRequested(1);
               }}
               disabled={bookingLoading}
               className="text-xs px-2 py-1 rounded border"
@@ -425,26 +423,58 @@ function App() {
                 <div className="text-sm font-semibold mb-2">Number of seats</div>
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
                     className="px-3 py-2 rounded border text-sm"
-                    onClick={() => setSeatsRequested((prev) => Math.max(1, prev - 1))}
-                    disabled={selectedTable.seatsAvailable === 0}
+                    onClick={() => {
+                      if (!selectedTableId) return;
+                      const selected = selectedSeatsByTable[selectedTableId] ?? [];
+                      if (selected.length === 0) return;
+                      const sorted = [...selected].sort((a, b) => a - b);
+                      const removed = sorted[sorted.length - 1];
+                      setSelectedSeatsByTable((prev) => ({
+                        ...prev,
+                        [selectedTableId]: sorted.slice(0, -1),
+                      }));
+                    }}
+                    disabled={(selectedSeatsByTable[selectedTableId] ?? []).length === 0}
                   >
                     -
                   </button>
                   <input
                     type="number"
-                    min={1}
-                    max={selectedTable.seatsAvailable}
-                    value={seatsRequested}
-                    onChange={(e) => {
-                      const next = Number(e.target.value) || 1;
-                      const bounded = Math.min(Math.max(1, next), Math.max(1, selectedTable.seatsAvailable));
-                      setSeatsRequested(bounded);
-                    }}
-                    className="w-20 text-center border rounded px-2 py-2 text-sm"
-                    disabled={selectedTable.seatsAvailable === 0}
+                    readOnly
+                    min={0}
+                    max={selectedTable.seatsTotal}
+                    value={(selectedSeatsByTable[selectedTableId] ?? []).length}
+                    className="w-20 text-center border rounded px-2 py-2 text-sm bg-gray-50"
+                    tabIndex={-1}
+                    aria-label="Selected seat count"
                   />
-                  <span className="text-xs text-gray-500">/ {selectedTable.seatsAvailable}</span>
+                  <button
+                    type="button"
+                    className="px-3 py-2 rounded border text-sm"
+                    onClick={() => {
+                      if (!selectedTableId) return;
+                      const selected = selectedSeatsByTable[selectedTableId] ?? [];
+                      const total = selectedTable.seatsTotal;
+                      if (selected.length >= total) return;
+                      const set = new Set(selected);
+                      let freeIndex = 0;
+                      while (set.has(freeIndex) && freeIndex < total) freeIndex++;
+                      if (freeIndex >= total) return;
+                      setSelectedSeatsByTable((prev) => ({
+                        ...prev,
+                        [selectedTableId]: [...selected, freeIndex].sort((a, b) => a - b),
+                      }));
+                    }}
+                    disabled={
+                      (selectedSeatsByTable[selectedTableId] ?? []).length >= selectedTable.seatsTotal ||
+                      selectedTable.seatsAvailable === 0
+                    }
+                  >
+                    +
+                  </button>
+                  <span className="text-xs text-gray-500">/ {selectedTable.seatsTotal}</span>
                 </div>
                 {selectedTable.seatsAvailable === 0 && (
                   <div className="text-xs text-gray-600 mt-2">
@@ -481,12 +511,21 @@ function App() {
 
               <button
                 className="w-full bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-                disabled={selectedTable.seatsAvailable === 0 || bookingLoading}
+                disabled={
+                  selectedTable.seatsAvailable === 0 ||
+                  bookingLoading ||
+                  (selectedSeatsByTable[selectedTableId] ?? []).length === 0
+                }
                 onClick={async () => {
                   if (!selectedEventId || !selectedTableId) return;
                   const normalizedPhone = userPhone.trim();
                   if (!normalizedPhone) {
                     setBookingError('Add a phone number to continue.');
+                    return;
+                  }
+                  const selectedCount = (selectedSeatsByTable[selectedTableId] ?? []).length;
+                  if (selectedCount === 0) {
+                    setBookingError('Select at least one seat.');
                     return;
                   }
                   setBookingLoading(true);
@@ -495,11 +534,10 @@ function App() {
                     await StorageService.createTableBooking({
                       eventId: selectedEventId,
                       tableId: selectedTableId,
-                      seatsRequested,
+                      seatsRequested: selectedCount,
                       userPhone: normalizedPhone,
                     });
                     setSelectedTableId(null);
-                    setSeatsRequested(1);
                     setSelectedEventId(null);
                     setSelectedEvent(null);
                     setView('my-bookings');
