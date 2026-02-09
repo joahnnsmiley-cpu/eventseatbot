@@ -47,30 +47,31 @@ const readDb = (): Database => {
   ensureFile();
   const raw = fs.readFileSync(DATA_FILE, 'utf-8');
   const parsed = JSON.parse(raw) as Database;
-  // Migrate old events: if `schemaImageUrl` missing, set to null (idempotent)
+  // Migrate old events: map schemaImageUrl -> layoutImageUrl safely (idempotent)
   let migrationHappened = false;
   if (Array.isArray((parsed as any).events)) {
     (parsed as any).events.forEach((ev: any) => {
-      if (ev && typeof ev.schemaImageUrl === 'undefined') {
-        ev.schemaImageUrl = null;
+      if (
+        ev &&
+        typeof ev.layoutImageUrl === 'undefined' &&
+        typeof ev.schemaImageUrl !== 'undefined' &&
+        ev.schemaImageUrl !== null
+      ) {
+        ev.layoutImageUrl = ev.schemaImageUrl;
         migrationHappened = true;
-        console.warn(`Migrated persisted event ${ev.id || '<unknown>'}: set schemaImageUrl=null`);
-      }
-      if (ev && typeof ev.layoutImageUrl === 'undefined') {
-        ev.layoutImageUrl = null;
-        migrationHappened = true;
-        console.warn(`Migrated persisted event ${ev.id || '<unknown>'}: set layoutImageUrl=null`);
       }
       if (ev && Array.isArray(ev.tables)) {
         ev.tables.forEach((t: any, ti: number) => {
           const changed = normalizeTableCoordinates(t);
           if (changed) {
             migrationHappened = true;
-            console.warn(`Migrated persisted event ${ev.id || '<unknown>'}: normalized table coords ${ti}`);
           }
         });
       }
     });
+  }
+  if (migrationHappened) {
+    console.info('[DB] Applied safe layoutImageUrl migration');
   }
 
   // Validate events on read — fail fast if corrupted
