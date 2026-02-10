@@ -159,6 +159,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         tables: selectedEvent?.tables ?? [],
       };
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
+      // Never use PUT response: it returns reduced shape (toEvent) without tables and would overwrite state.
       const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
       setSelectedEvent(refreshed);
       setLayoutUrl(refreshed?.layoutImageUrl || '');
@@ -234,6 +235,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         tables: newTables,
       };
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
+      // Never use PUT response: it returns reduced shape (toEvent) without tables and would overwrite state.
       const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
       setSelectedEvent(refreshed);
       setLayoutUrl(refreshed?.layoutImageUrl || '');

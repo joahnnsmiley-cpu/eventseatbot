@@ -20,7 +20,8 @@ import type { EventData } from '../models';
   and get explicit approval before changing the routes in this folder.
 */
 
-// Simple Event shape for admin CRUD
+// Simple Event shape for admin CRUD (PUT response only — no tables).
+// Frontend must NOT use PUT /admin/events/:id response as EventData; use GET to get full event including tables.
 export interface Event {
   id: string;
   title: string;
@@ -46,6 +47,7 @@ const respondBadRequest = (res: Response, err: Error, payload: unknown) => {
   return res.status(400).json(payload);
 };
 
+/** Reduced shape for PUT response only. No tables — client must GET the event to refresh full EventData. */
 const toEvent = (e: EventData): Event => ({ id: e.id, title: e.title, description: e.description, date: e.date });
 
 /** Normalize table rows to EventData.tables shape. Accepts frontend Table (id, x, y, centerX, centerY, seatsTotal, seatsAvailable, shape, sizePercent, isAvailable, color). Fills x/y from centerX/centerY and vice versa; maps seatsCount → seatsTotal when missing. */
