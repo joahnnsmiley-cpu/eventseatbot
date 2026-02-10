@@ -196,12 +196,20 @@ router.put('/events/:id', async (req: Request, res: Response) => {
       error: 'Empty tables payload would wipe existing tables',
     });
   }
+  if (req.body.published === true && !Array.isArray(req.body.tables)) {
+    return res.status(400).json({
+      error: 'Publishing requires tables to be sent',
+    });
+  }
   // Allow publishing via status in body from draft or archived
   const requestedStatus = typeof req.body.status === 'string' ? req.body.status : undefined;
 
   if (requestedStatus === 'published' && (existing.status === 'draft' || existing.status === 'archived')) {
     existing.status = 'published';
     existing.published = true;
+    if (Array.isArray(req.body.tables)) {
+      existing.tables = normalizeTables(req.body.tables);
+    }
     await db.upsertEvent(existing);
     return res.json(toEvent(existing));
   }

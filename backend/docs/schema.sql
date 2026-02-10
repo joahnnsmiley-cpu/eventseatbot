@@ -25,12 +25,11 @@ CREATE TABLE IF NOT EXISTS events (
   layout_image_url TEXT,
   organizer_phone TEXT,
   published BOOLEAN DEFAULT false,
-  tables JSONB,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-COMMENT ON TABLE events IS 'Events; tables are stored in event_tables for normalization';
+COMMENT ON TABLE events IS 'Events; tables are normalized in event_tables and read via join in findEventById';
 
 -- -----------------------------------------------------------------------------
 -- event_tables: tables belonging to an event (seats layout)
@@ -85,6 +84,5 @@ CREATE INDEX IF NOT EXISTS idx_bookings_table_id ON bookings(table_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
 
 -- -----------------------------------------------------------------------------
--- Migration: add tables (jsonb, nullable) to events if missing (run in SQL Editor)
--- -----------------------------------------------------------------------------
--- ALTER TABLE events ADD COLUMN IF NOT EXISTS tables JSONB;
+-- Tables are normalized: stored in event_tables, read via join in findEventById.
+-- If events had a tables JSONB column, drop it: ALTER TABLE events DROP COLUMN IF EXISTS tables;

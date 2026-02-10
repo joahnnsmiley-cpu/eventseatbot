@@ -504,12 +504,17 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   <button
                     type="button"
                     onClick={async () => {
-                      if (!selectedEventId) return;
+                      if (!selectedEventId || !selectedEvent) return;
                       setStatusActionLoading(true);
                       setError(null);
                       setSuccessMessage(null);
                       try {
-                        await StorageService.publishAdminEvent(selectedEventId);
+                        const rawTables = selectedEvent?.tables ?? [];
+                        const payload = {
+                          status: 'published' as const,
+                          tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
+                        };
+                        await StorageService.updateAdminEvent(selectedEvent.id, payload);
                         setSuccessMessage(UI_TEXT.admin.eventPublished);
                         await loadEvent(selectedEventId);
                       } catch (e) {
@@ -554,12 +559,17 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   <button
                     type="button"
                     onClick={async () => {
-                      if (!selectedEventId) return;
+                      if (!selectedEventId || !selectedEvent) return;
                       setStatusActionLoading(true);
                       setError(null);
                       setSuccessMessage(null);
                       try {
-                        await StorageService.publishAdminEvent(selectedEventId);
+                        const rawTables = selectedEvent?.tables ?? [];
+                        const payload = {
+                          status: 'published' as const,
+                          tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
+                        };
+                        await StorageService.updateAdminEvent(selectedEvent.id, payload);
                         setSuccessMessage(UI_TEXT.admin.eventPublishedAgain);
                         await loadEvent(selectedEventId);
                       } catch (e) {

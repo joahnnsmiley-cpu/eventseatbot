@@ -36,7 +36,7 @@ export const getEvent = async (eventId: string): Promise<EventData> => {
   const res = await fetch(`${apiBaseUrl}/public/events/${eventId}`);
   if (!res.ok) throw new Error('Failed to load event');
   const data = await res.json();
-  // Normalize so frontend always has tables array (API returns tables; ensure it's never missing)
+  // Tables from backend (event_tables join only); normalize to array so frontend never relies on raw shape.
   const tables = Array.isArray(data.tables) ? data.tables : [];
   return { ...data, tables } as EventData;
 };
@@ -160,15 +160,17 @@ export const confirmBooking = async (bookingId: string): Promise<void> => {
   if (!res.ok) await handleAuthError(res, 'Failed to confirm booking');
 };
 
-// Admin events API
+// Admin events API — tables are always from backend (event_tables join), never from events.tables jsonb.
 export const getAdminEvents = async (): Promise<EventData[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/admin/events`, { headers: AuthService.getAuthHeader() });
   if (!res.ok) await handleAuthError(res, 'Failed to load admin events');
-  return res.json();
+  const data = await res.json();
+  const list = Array.isArray(data) ? data : [];
+  return list.map((e: EventData) => ({ ...e, tables: Array.isArray(e.tables) ? e.tables : [] }));
 };
 
-/** GET /admin/events/:id — full EventData with tables. Never use /events/:id or list endpoint. */
+/** GET /admin/events/:id — full EventData with tables (from backend event_tables join). Never use PUT response or list as source of tables. */
 export const getAdminEvent = async (id: string): Promise<EventData> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(id)}`, {

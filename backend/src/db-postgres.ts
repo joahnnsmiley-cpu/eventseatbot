@@ -7,6 +7,11 @@
 import { supabase } from './supabaseClient';
 import type { EventData, Booking, Admin, Table, BookingStatus } from './models';
 
+// NOTE:
+// Event tables are stored in a separate table (event_tables).
+// events.tables (jsonb) is NOT used and must remain NULL.
+// All reads must join event_tables via findEventById / getEvents.
+
 // ---- Row types (snake_case from DB) ----
 type EventsRow = {
   id: string;
@@ -220,6 +225,7 @@ export async function upsertEvent(event: EventData): Promise<void> {
         size_percent: t.sizePercent ?? null,
         shape: t.shape ?? null,
         color: t.color ?? null,
+        // requires column event_tables.is_available (see migration)
         is_available: t.isAvailable ?? false,
       });
 

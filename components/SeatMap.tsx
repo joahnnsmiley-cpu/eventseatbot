@@ -58,7 +58,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
   selectedSeatsByTable,
 }) => {
   const selectedSeats = seatState?.selectedSeats ?? [];
-  // Always an array: prefer seatState, then event.tables, never undefined (so no silent blank screen)
+  // Tables from EventData (backend event_tables join). Prefer seatState.tables, else event.tables; never undefined.
   const tables = Array.isArray(seatState?.tables)
     ? seatState.tables
     : Array.isArray(event?.tables)
