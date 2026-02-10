@@ -177,7 +177,10 @@ export async function saveEvents(events: EventData[]): Promise<void> {
   const { data: existing } = await supabase.from('events').select('id');
   const existingIds = new Set((existing ?? []).map((r: { id: string }) => r.id));
   for (const eid of existingIds) {
-    if (!ids.has(eid)) await supabase.from('events').delete().eq('id', eid);
+    if (!ids.has(eid)) {
+      const { error } = await supabase.from('events').delete().eq('id', eid);
+      if (error) throw error;
+    }
   }
   for (const event of events) {
     await upsertEvent(event);
@@ -196,25 +199,38 @@ export async function upsertEvent(event: EventData): Promise<void> {
     organizer_phone: event.paymentPhone || null,
     published: event.published ?? false,
   };
-  await supabase.from('events').upsert(row, { onConflict: 'id' });
+  const { error: upsertErr } = await supabase.from('events').upsert(row, { onConflict: 'id' });
+  if (upsertErr) throw upsertErr;
 
-  await supabase.from('event_tables').delete().eq('event_id', event.id);
+  const { error: delTablesErr } = await supabase.from('event_tables').delete().eq('event_id', event.id);
+  if (delTablesErr) throw delTablesErr;
   for (const t of event.tables ?? []) {
-    await supabase.from('event_tables').insert({
-      id: t.id,
-      event_id: event.id,
-      number: t.number,
-      seats_total: t.seatsTotal,
-      seats_available: t.seatsAvailable,
-      x: t.x,
-      y: t.y,
-      center_x: t.centerX,
-      center_y: t.centerY,
-      size_percent: t.sizePercent ?? null,
-      shape: t.shape ?? null,
-      color: t.color ?? null,
-      is_available: t.isAvailable ?? false,
-    });
+    const { error } = await supabase
+      .from('event_tables')
+      .insert({
+        id: t.id,
+        event_id: event.id,
+        number: t.number ?? 1,
+        seats_total: t.seatsTotal,
+        seats_available: t.seatsAvailable ?? t.seatsTotal,
+        x: t.x,
+        y: t.y,
+        center_x: t.centerX,
+        center_y: t.centerY,
+        size_percent: t.sizePercent ?? null,
+        shape: t.shape ?? null,
+        color: t.color ?? null,
+        is_available: t.isAvailable ?? false,
+      });
+
+    if (error) {
+      console.error('[EVENT_TABLE INSERT FAILED]', {
+        eventId: event.id,
+        table: t,
+        error,
+      });
+      throw error;
+    }
   }
 
   const { data: checkRows } = await supabase
@@ -244,7 +260,7 @@ export async function addBooking(booking: Booking): Promise<void> {
   const expiresAt = booking.expiresAt != null
     ? (typeof booking.expiresAt === 'number' ? new Date(booking.expiresAt).toISOString() : booking.expiresAt)
     : null;
-  await supabase.from('bookings').insert({
+  const { error } = await supabase.from('bookings').insert({
     id: booking.id,
     event_id: booking.eventId,
     table_id: booking.tableId ?? null,
@@ -256,6 +272,7 @@ export async function addBooking(booking: Booking): Promise<void> {
     created_at: new Date(booking.createdAt).toISOString(),
     expires_at: expiresAt,
   });
+  if (error) throw error;
 }
 
 export async function saveBookings(bookings: Booking[]): Promise<void> {
@@ -275,7 +292,8 @@ export async function setBookings(bookings: Booking[]): Promise<void> {
 export async function updateBookingStatus(bookingId: string, status: BookingStatus): Promise<Booking | undefined> {
   if (!supabase) return undefined;
   const { data, error } = await supabase.from('bookings').update({ status }).eq('id', bookingId).select().single();
-  if (error || !data) return undefined;
+  if (error) throw error;
+  if (!data) return undefined;
   return bookingsRowToBooking(data as BookingsRow);
 }
 
@@ -292,6 +310,7 @@ export async function setAdmins(ids: number[]): Promise<void> {
   const { error: delErr } = await supabase.from('admins').delete().neq('id', 0);
   if (delErr) throw delErr;
   for (const id of ids) {
-    await supabase.from('admins').insert({ id });
+    const { error } = await supabase.from('admins').insert({ id });
+    if (error) throw error;
   }
 }

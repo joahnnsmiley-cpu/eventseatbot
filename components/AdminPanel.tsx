@@ -16,6 +16,23 @@ type AdminBooking = {
   expiresAt?: string | number;
 };
 
+/** Ensure required table fields for backend; defaults so nothing is undefined. */
+function tableForBackend(t: Table, index: number): Table {
+  const x = typeof t.x === 'number' ? t.x : (typeof t.centerX === 'number' ? t.centerX : 50);
+  const y = typeof t.y === 'number' ? t.y : (typeof t.centerY === 'number' ? t.centerY : 50);
+  return {
+    ...t,
+    id: t.id || `tbl-${Date.now()}-${index}`,
+    number: typeof t.number === 'number' ? t.number : index + 1,
+    seatsTotal: typeof t.seatsTotal === 'number' ? t.seatsTotal : 4,
+    seatsAvailable: typeof t.seatsAvailable === 'number' ? t.seatsAvailable : (typeof t.seatsTotal === 'number' ? t.seatsTotal : 4),
+    x,
+    y,
+    centerX: typeof t.centerX === 'number' ? t.centerX : x,
+    centerY: typeof t.centerY === 'number' ? t.centerY : y,
+  };
+}
+
 const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [mode, setMode] = useState<'bookings' | 'layout'>('bookings');
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
@@ -150,13 +167,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setError(null);
     setSuccessMessage(null);
     try {
+      const rawTables = selectedEvent?.tables ?? [];
       const payload: Partial<EventData> = {
         title: eventTitle.trim(),
         description: eventDescription.trim(),
         paymentPhone: eventPhone.trim(),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
-        tables: selectedEvent?.tables ?? [],
+        tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
       };
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
       // Never use PUT response: it returns reduced shape (toEvent) without tables and would overwrite state.
@@ -232,7 +250,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         paymentPhone: eventPhone.trim(),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
-        tables: newTables,
+        tables: newTables.map((t, idx) => tableForBackend(t, idx)),
       };
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
       // Never use PUT response: it returns reduced shape (toEvent) without tables and would overwrite state.
@@ -572,9 +590,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   <button
                     onClick={() => {
                       const nextId = `tbl-${Date.now()}`;
+                      const count = tables?.length ?? 0;
                       const newTable: Table = {
                         id: nextId,
-                        number: tables.length + 1,
+                        number: count + 1,
                         seatsTotal: 4,
                         seatsAvailable: 4,
                         x: 50,
