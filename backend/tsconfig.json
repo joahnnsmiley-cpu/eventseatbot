@@ -38,6 +38,8 @@
     "resolveJsonModule": true
   },
   "exclude": [
+    "scripts",
+    "dist",
     "node_modules",
     "src/__tests__/**",
     "**/*.test.ts",

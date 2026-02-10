@@ -65,6 +65,29 @@ const events = Array.isArray(data.events) ? data.events : [];
 const bookings = Array.isArray(data.bookings) ? data.bookings : [];
 
 async function run(): Promise<void> {
+  // Clear existing data (order respects FKs: bookings → event_tables → events → admins)
+  const { error: errBookings } = await supabase.from('bookings').delete().neq('id', '');
+  if (errBookings) {
+    console.error('bookings delete error:', errBookings);
+    throw errBookings;
+  }
+  const { error: errEventTables } = await supabase.from('event_tables').delete().neq('id', '');
+  if (errEventTables) {
+    console.error('event_tables delete error:', errEventTables);
+    throw errEventTables;
+  }
+  const { error: errEvents } = await supabase.from('events').delete().neq('id', '');
+  if (errEvents) {
+    console.error('events delete error:', errEvents);
+    throw errEvents;
+  }
+  const { error: errAdmins } = await supabase.from('admins').delete().gte('id', 0);
+  if (errAdmins) {
+    console.error('admins delete error:', errAdmins);
+    throw errAdmins;
+  }
+  console.log('[Import] Cleared existing Supabase tables');
+
   let adminsCount = 0;
   let eventsCount = 0;
   let eventTablesCount = 0;
