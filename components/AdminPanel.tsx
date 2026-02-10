@@ -232,7 +232,15 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       if (e instanceof Error && e.message) {
         console.error('[AdminPanel] Backend message:', e.message);
       }
-      setError(toFriendlyError(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      const isForbidden =
+        msg === 'Forbidden' ||
+        msg.toLowerCase().includes('forbidden') ||
+        msg.toLowerCase().includes('published') ||
+        msg.toLowerCase().includes('cannot be modified');
+      setError(
+        isForbidden ? 'Событие опубликовано и не может быть изменено.' : toFriendlyError(e),
+      );
     } finally {
       setSavingLayout(false);
     }

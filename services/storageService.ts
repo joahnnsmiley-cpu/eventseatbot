@@ -2,6 +2,26 @@ import { EventData, Booking } from '../types';
 import AuthService from './authService';
 import { getApiBaseUrl } from '@/config/api';
 
+type ErrorBody = { error?: string };
+
+/**
+ * Handle failed response for authenticated requests.
+ * - 401: logout + throw (invalid/expired token).
+ * - 403, 409, 422, etc.: throw with message from body, no logout.
+ */
+async function handleAuthError(res: Response, defaultMessage: string): Promise<never> {
+  const err = (await res.json().catch(() => ({}))) as ErrorBody;
+  const msg = err?.error;
+  if (res.status === 401) {
+    AuthService.logout();
+    throw new Error(msg || 'Unauthorized');
+  }
+  if (res.status === 403) {
+    throw new Error(msg || 'Forbidden');
+  }
+  throw new Error(msg || defaultMessage);
+}
+
 export const getEvents = async (): Promise<EventData[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/public/events`);
@@ -31,14 +51,7 @@ export const createBooking = async (
     headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
     body: JSON.stringify({ eventId, seatIds: seatFullIds }),
   });
-  if (!res.ok) {
-    if (res.status === 403) {
-      AuthService.logout();
-      throw new Error('Forbidden');
-    }
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to create booking');
-  }
+  if (!res.ok) await handleAuthError(res, 'Failed to create booking');
   // Server responds with { booking, paymentInstructions }
   const data = await res.json();
   return data.booking || data;
@@ -117,26 +130,14 @@ export const createPendingBooking = async (payload: {
 export const getMyBookings = async (): Promise<Booking[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/me/bookings`, { headers: AuthService.getAuthHeader() });
-  if (!res.ok) {
-    if (res.status === 403) {
-      AuthService.logout();
-      throw new Error('Forbidden');
-    }
-    throw new Error('Failed to load bookings');
-  }
+  if (!res.ok) await handleAuthError(res, 'Failed to load bookings');
   return res.json();
 };
 
 export const getMyTickets = async (): Promise<Booking[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/me/tickets`, { headers: AuthService.getAuthHeader() });
-  if (!res.ok) {
-    if (res.status === 403) {
-      AuthService.logout();
-      throw new Error('Forbidden');
-    }
-    throw new Error('Failed to load tickets');
-  }
+  if (!res.ok) await handleAuthError(res, 'Failed to load tickets');
   return res.json();
 };
 
@@ -146,13 +147,7 @@ export const getAdminBookings = async (status?: string): Promise<Booking[]> => {
   const url = new URL(`${apiBaseUrl}/admin/bookings`);
   if (status) url.searchParams.set('status', status);
   const res = await fetch(url.toString(), { headers: AuthService.getAuthHeader() });
-  if (!res.ok) {
-    if (res.status === 403) {
-      AuthService.logout();
-      throw new Error('Forbidden');
-    }
-    throw new Error('Failed to load admin bookings');
-  }
+  if (!res.ok) await handleAuthError(res, 'Failed to load admin bookings');
   return res.json();
 };
 
@@ -162,40 +157,21 @@ export const confirmBooking = async (bookingId: string): Promise<void> => {
     method: 'POST',
     headers: AuthService.getAuthHeader(),
   });
-  if (!res.ok) {
-    if (res.status === 403) {
-      AuthService.logout();
-      throw new Error('Forbidden');
-    }
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to confirm booking');
-  }
+  if (!res.ok) await handleAuthError(res, 'Failed to confirm booking');
 };
 
 // Admin events API
 export const getAdminEvents = async (): Promise<EventData[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/admin/events`, { headers: AuthService.getAuthHeader() });
-  if (!res.ok) {
-    if (res.status === 403) {
-      AuthService.logout();
-      throw new Error('Forbidden');
-    }
-    throw new Error('Failed to load admin events');
-  }
+  if (!res.ok) await handleAuthError(res, 'Failed to load admin events');
   return res.json();
 };
 
 export const getAdminEvent = async (id: string): Promise<EventData> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(id)}`, { headers: AuthService.getAuthHeader() });
-  if (!res.ok) {
-    if (res.status === 403) {
-      AuthService.logout();
-      throw new Error('Forbidden');
-    }
-    throw new Error('Failed to load admin event');
-  }
+  if (!res.ok) await handleAuthError(res, 'Failed to load admin event');
   return res.json();
 };
 
@@ -206,14 +182,7 @@ export const createAdminEvent = async (payload: Partial<EventData>): Promise<Eve
     headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    if (res.status === 403) {
-      AuthService.logout();
-      throw new Error('Forbidden');
-    }
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to create event');
-  }
+  if (!res.ok) await handleAuthError(res, 'Failed to create event');
   return res.json();
 };
 
@@ -224,14 +193,7 @@ export const updateAdminEvent = async (id: string, payload: Partial<EventData>):
     headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    if (res.status === 403) {
-      AuthService.logout();
-      throw new Error('Forbidden');
-    }
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to update event');
-  }
+  if (!res.ok) await handleAuthError(res, 'Failed to update event');
   return res.json();
 };
 
@@ -241,14 +203,7 @@ export const deleteAdminEvent = async (id: string): Promise<void> => {
     method: 'DELETE',
     headers: AuthService.getAuthHeader(),
   });
-  if (!res.ok) {
-    if (res.status === 403) {
-      AuthService.logout();
-      throw new Error('Forbidden');
-    }
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to delete event');
-  }
+  if (!res.ok) await handleAuthError(res, 'Failed to delete event');
 };
 
 // Client больше не управляет lock-ами; это делает backend.
