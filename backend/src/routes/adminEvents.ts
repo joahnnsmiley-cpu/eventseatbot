@@ -48,6 +48,7 @@ const respondBadRequest = (res: Response, err: Error, payload: unknown) => {
 
 const toEvent = (e: EventData): Event => ({ id: e.id, title: e.title, description: e.description, date: e.date });
 
+/** Normalize table rows to EventData.tables shape. Accepts frontend Table (id, x, y, centerX, centerY, seatsTotal, seatsAvailable, shape, sizePercent, isAvailable, color). Fills x/y from centerX/centerY and vice versa; maps seatsCount → seatsTotal when missing. */
 const normalizeTables = (tables: unknown): EventData['tables'] => {
   if (!Array.isArray(tables)) return [];
   return tables.map((t) => {
@@ -62,6 +63,10 @@ const normalizeTables = (tables: unknown): EventData['tables'] => {
     if (!hasY && hasCenterY) table.y = table.centerY;
     if (!hasCenterX && hasX) table.centerX = table.x;
     if (!hasCenterY && hasY) table.centerY = table.y;
+
+    if (typeof table.seatsTotal !== 'number' && typeof table.seatsCount === 'number' && Number.isFinite(table.seatsCount)) {
+      table.seatsTotal = table.seatsCount;
+    }
 
     return table;
   });
@@ -113,7 +118,12 @@ router.post('/events', async (req: Request, res: Response) => {
     layoutImageUrl: typeof layoutImageUrl === 'undefined' ? null : layoutImageUrl,
     paymentPhone: req.body.paymentPhone || '',
     maxSeatsPerBooking: Number(req.body.maxSeatsPerBooking) || 0,
-    tables: normalizeTables(req.body.tables),
+    tables: (() => {
+      console.log('normalizeTables input', req.body.tables);
+      const out = normalizeTables(req.body.tables);
+      console.log('normalizeTables output', out);
+      return out;
+    })(),
     status,
     published,
   };
@@ -167,8 +177,15 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   }
   const existing = await db.findEventById(id);
   if (!existing) return res.status(404).json({ error: 'Event not found' });
-  if (Array.isArray(req.body.tables) && req.body.tables.length === 0 && existing.tables?.length) {
-    return res.status(400).json({ error: 'Empty tables payload would wipe existing tables' });
+  if (
+    Array.isArray(req.body.tables) &&
+    req.body.tables.length === 0 &&
+    Array.isArray(existing.tables) &&
+    existing.tables.length > 0
+  ) {
+    return res.status(400).json({
+      error: 'Empty tables payload would wipe existing tables',
+    });
   }
   // Allow publishing via status in body from draft or archived
   const requestedStatus = typeof req.body.status === 'string' ? req.body.status : undefined;
@@ -241,8 +258,21 @@ router.put('/events/:id', async (req: Request, res: Response) => {
         }
       }
     }
+    console.log('normalizeTables input', req.body.tables);
     existing.tables = normalizeTables(req.body.tables);
+    console.log('normalizeTables output', existing.tables);
   }
+
+  if (!existing.tables || existing.tables.length === 0) {
+    return res.status(400).json({
+      error: 'Tables normalization resulted in empty list',
+    });
+  }
+
+  console.log(
+    '[PUT EVENT] tables in payload:',
+    Array.isArray(req.body.tables) ? req.body.tables.length : 'NO FIELD',
+  );
 
   await db.upsertEvent(existing);
   res.json(toEvent(existing));

@@ -36,8 +36,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
   const [statusActionLoading, setStatusActionLoading] = useState(false);
-  /** True if when we loaded this event it had at least one table (so we know "empty" = user deleted all). */
-  const [hadTablesWhenLoaded, setHadTablesWhenLoaded] = useState(false);
 
   useEffect(() => {
     if (!layoutUrl?.trim()) {
@@ -106,7 +104,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     try {
       const ev = await StorageService.getAdminEvent(eventId);
       setSelectedEvent(ev);
-      setHadTablesWhenLoaded((ev?.tables?.length ?? 0) > 0);
       setLayoutUrl(ev?.layoutImageUrl || '');
       setEventTitle(ev?.title || '');
       setEventDescription(ev?.description || '');
@@ -153,46 +150,17 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setError(null);
     setSuccessMessage(null);
     try {
-      const tables = selectedEvent?.tables ?? [];
-      const tablesPayload = tables.map((t, idx) => {
-        const seatsTotal = Math.max(0, Number(t.seatsTotal) ?? 0);
-        const seatsAvailable = Math.min(seatsTotal, Number(t.seatsAvailable) ?? seatsTotal);
-        const x = Math.min(100, Math.max(0, Number(t.x ?? t.centerX) ?? 0));
-        const y = Math.min(100, Math.max(0, Number(t.y ?? t.centerY) ?? 0));
-        const sizePercent = Math.min(20, Math.max(1, Number(t.sizePercent) ?? 5));
-        return {
-          id: t.id,
-          number: idx + 1,
-          seatsTotal,
-          seatsAvailable,
-          x,
-          y,
-          centerX: x,
-          centerY: y,
-          sizePercent,
-          shape: t.shape || 'circle',
-          color: t.color || '#3b82f6',
-          isAvailable: t.isAvailable === true,
-        };
-      });
       const payload: Partial<EventData> = {
         title: eventTitle.trim(),
         description: eventDescription.trim(),
         paymentPhone: eventPhone.trim(),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
+        tables: selectedEvent?.tables ?? [],
       };
-      if (selectedEvent.tables !== undefined) {
-        if (tables.length > 0) {
-          payload.tables = tablesPayload as any;
-        } else if (hadTablesWhenLoaded) {
-          payload.tables = [];
-        }
-      }
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
       const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
       setSelectedEvent(refreshed);
-      setHadTablesWhenLoaded((refreshed?.tables?.length ?? 0) > 0);
       setLayoutUrl(refreshed?.layoutImageUrl || '');
       setEventTitle(refreshed?.title || '');
       setEventDescription(refreshed?.description || '');
@@ -257,45 +225,17 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setError(null);
     setSuccessMessage(null);
     try {
-      const tablesPayload = newTables.map((t, idx) => {
-        const seatsTotal = Math.max(0, Number(t.seatsTotal) ?? 0);
-        const seatsAvailable = Math.min(seatsTotal, Number(t.seatsAvailable) ?? seatsTotal);
-        const x = Math.min(100, Math.max(0, Number(t.x ?? t.centerX) ?? 0));
-        const y = Math.min(100, Math.max(0, Number(t.y ?? t.centerY) ?? 0));
-        const sizePercent = Math.min(20, Math.max(1, Number(t.sizePercent) ?? 5));
-        return {
-          id: t.id,
-          number: idx + 1,
-          seatsTotal,
-          seatsAvailable,
-          x,
-          y,
-          centerX: x,
-          centerY: y,
-          sizePercent,
-          shape: t.shape || 'circle',
-          color: t.color || '#3b82f6',
-          isAvailable: t.isAvailable === true,
-        };
-      });
       const payload: Partial<EventData> = {
         title: eventTitle.trim(),
         description: eventDescription.trim(),
         paymentPhone: eventPhone.trim(),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
+        tables: newTables,
       };
-      if (selectedEvent.tables !== undefined) {
-        if (newTables.length > 0) {
-          payload.tables = tablesPayload as any;
-        } else if (hadTablesWhenLoaded) {
-          payload.tables = [];
-        }
-      }
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
       const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
       setSelectedEvent(refreshed);
-      setHadTablesWhenLoaded((refreshed?.tables?.length ?? 0) > 0);
       setLayoutUrl(refreshed?.layoutImageUrl || '');
       setEventTitle(refreshed?.title || '');
       setEventDescription(refreshed?.description || '');
