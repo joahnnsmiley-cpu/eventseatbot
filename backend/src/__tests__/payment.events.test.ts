@@ -10,7 +10,7 @@ import {
   type PaymentCreatedEvent,
   type PaymentConfirmedEvent,
 } from '../domain/payments';
-import * as bookingDb from '../db';
+import { db } from '../db';
 
 interface TestResult {
   name: string;
@@ -20,9 +20,9 @@ interface TestResult {
 
 const results: TestResult[] = [];
 
-function runTest(name: string, fn: () => void): void {
+async function runTest(name: string, fn: () => void | Promise<void>): Promise<void> {
   try {
-    fn();
+    await fn();
     results.push({ name, passed: true });
     console.log(`✓ ${name}`);
   } catch (error) {
@@ -78,11 +78,12 @@ const mockNotifier = new MockPaymentNotifier();
 setPaymentEventNotifier(mockNotifier);
 
 // Store original getBookings
-const originalGetBookings = (bookingDb as any).getBookings;
+const originalGetBookings = db.getBookings;
 
+;(async () => {
 console.log('\n📋 Payment Creation Event Tests\n');
 
-runTest('createPaymentIntent emits paymentCreated event', () => {
+await runTest('createPaymentIntent emits paymentCreated event', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -97,10 +98,10 @@ runTest('createPaymentIntent emits paymentCreated event', () => {
   ];
 
   // Mock getBookings to return our test data
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const result = createPaymentIntentService('test-bk-evt-1', 5000);
+    const result = await createPaymentIntentService('test-bk-evt-1', 5000);
     assert(result.success, 'Should create payment');
 
     assertEquals(mockNotifier.calls.length, 1, 'Should emit one event');
@@ -111,11 +112,11 @@ runTest('createPaymentIntent emits paymentCreated event', () => {
       'Should emit paymentCreated',
     );
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('paymentCreated event includes bookingId', () => {
+await runTest('paymentCreated event includes bookingId', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -129,21 +130,21 @@ runTest('paymentCreated event includes bookingId', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    createPaymentIntentService('test-bk-evt-2', 7500);
+    await createPaymentIntentService('test-bk-evt-2', 7500);
 
     assert(mockNotifier.calls[0], 'Should have first call');
     assert(mockNotifier.calls[0]!.event === 'paymentCreated', 'Should emit paymentCreated');
     const event = mockNotifier.calls[0]!.data as PaymentCreatedEvent;
     assertEquals(event.bookingId, 'test-bk-evt-2', 'Should include bookingId');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('paymentCreated event includes paymentId', () => {
+await runTest('paymentCreated event includes paymentId', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -157,10 +158,10 @@ runTest('paymentCreated event includes paymentId', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    createPaymentIntentService('test-bk-evt-2b', 7500);
+    await createPaymentIntentService('test-bk-evt-2b', 7500);
 
     assert(mockNotifier.calls[0], 'Should have first call');
     assert(mockNotifier.calls[0]!.event === 'paymentCreated', 'Should emit paymentCreated');
@@ -168,11 +169,11 @@ runTest('paymentCreated event includes paymentId', () => {
     assert(event.paymentId, 'Should include paymentId');
     assert(event.paymentId.length > 0, 'paymentId should not be empty');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('paymentCreated event includes eventId', () => {
+await runTest('paymentCreated event includes eventId', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -186,21 +187,21 @@ runTest('paymentCreated event includes eventId', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    createPaymentIntentService('test-bk-evt-3', 10000);
+    await createPaymentIntentService('test-bk-evt-3', 10000);
 
     assert(mockNotifier.calls[0], 'Should have first call');
     assert(mockNotifier.calls[0]!.event === 'paymentCreated', 'Should emit paymentCreated');
     const event = mockNotifier.calls[0]!.data as PaymentCreatedEvent;
     assertEquals(event.eventId, 'my-event-123', 'Should include eventId');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('paymentCreated event includes tableId', () => {
+await runTest('paymentCreated event includes tableId', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -214,21 +215,21 @@ runTest('paymentCreated event includes tableId', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    createPaymentIntentService('test-bk-evt-4', 8000);
+    await createPaymentIntentService('test-bk-evt-4', 8000);
 
     assert(mockNotifier.calls[0], 'Should have first call');
     assert(mockNotifier.calls[0]!.event === 'paymentCreated', 'Should emit paymentCreated');
     const event = mockNotifier.calls[0]!.data as PaymentCreatedEvent;
     assertEquals(event.tableId, 'table-vip-5', 'Should include tableId');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('paymentCreated event includes seatsBooked', () => {
+await runTest('paymentCreated event includes seatsBooked', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -242,21 +243,21 @@ runTest('paymentCreated event includes seatsBooked', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    createPaymentIntentService('test-bk-evt-5', 15000);
+    await createPaymentIntentService('test-bk-evt-5', 15000);
 
     assert(mockNotifier.calls[0], 'Should have first call');
     assert(mockNotifier.calls[0]!.event === 'paymentCreated', 'Should emit paymentCreated');
     const event = mockNotifier.calls[0]!.data as PaymentCreatedEvent;
     assertEquals(event.seatsBooked, 6, 'Should include seatsBooked');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('paymentCreated event includes amount', () => {
+await runTest('paymentCreated event includes amount', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -270,21 +271,21 @@ runTest('paymentCreated event includes amount', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    createPaymentIntentService('test-bk-evt-6', 12500);
+    await createPaymentIntentService('test-bk-evt-6', 12500);
 
     assert(mockNotifier.calls[0], 'Should have first call');
     assert(mockNotifier.calls[0]!.event === 'paymentCreated', 'Should emit paymentCreated');
     const event = mockNotifier.calls[0]!.data as PaymentCreatedEvent;
     assertEquals(event.amount, 12500, 'Should include amount');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('paymentCreated event has method:manual', () => {
+await runTest('paymentCreated event has method:manual', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -298,21 +299,21 @@ runTest('paymentCreated event has method:manual', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    createPaymentIntentService('test-bk-evt-7', 3000);
+    await createPaymentIntentService('test-bk-evt-7', 3000);
 
     assert(mockNotifier.calls[0], 'Should have first call');
     assert(mockNotifier.calls[0]!.event === 'paymentCreated', 'Should emit paymentCreated');
     const event = mockNotifier.calls[0]!.data as PaymentCreatedEvent;
     assertEquals(event.method, 'manual', 'Should have method: manual');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('paymentCreated event includes Russian instruction', () => {
+await runTest('paymentCreated event includes Russian instruction', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -326,10 +327,10 @@ runTest('paymentCreated event includes Russian instruction', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    createPaymentIntentService('test-bk-evt-8', 6000);
+    await createPaymentIntentService('test-bk-evt-8', 6000);
 
     assert(mockNotifier.calls[0], 'Should have first call');
     assert(mockNotifier.calls[0]!.event === 'paymentCreated', 'Should emit paymentCreated');
@@ -340,11 +341,11 @@ runTest('paymentCreated event includes Russian instruction', () => {
       'Should include Russian instruction',
     );
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('notifier errors do not break payment creation', () => {
+await runTest('notifier errors do not break payment creation', async () => {
   mockNotifier.reset();
 
   // Mock a notifier that throws
@@ -369,27 +370,27 @@ runTest('notifier errors do not break payment creation', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const result = createPaymentIntentService('test-bk-evt-9', 4000);
+    const result = await createPaymentIntentService('test-bk-evt-9', 4000);
     
     // Payment creation should still succeed despite notifier error
     assert(result.success, 'Should still create payment despite notifier error');
     assertEquals(result.status, 201, 'Should have 201 status');
     assert(result.data, 'Should return payment data');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
     // Restore mock notifier
     setPaymentEventNotifier(mockNotifier);
   }
 });
 
-runTest('no event emitted when booking not found', () => {
+await await runTest('no event emitted when booking not found', async () => {
   mockNotifier.reset();
 
   // Try to create payment for non-existent booking
-  const result = createPaymentIntentService('nonexistent-booking-id', 5000);
+  const result = await createPaymentIntentService('nonexistent-booking-id', 5000);
 
   // Creation should succeed
   assert(result.success, 'Should create payment');
@@ -418,3 +419,4 @@ if (failed > 0) {
   console.log('✅ All tests passed!');
   process.exit(0);
 }
+})();

@@ -2,7 +2,7 @@
  * Booking expiration utilities
  */
 
-import { getEvents, getBookings, updateBookingStatus, saveEvents } from '../../db';
+import { db } from '../../db';
 import { emitBookingCancelled } from './booking.events';
 import { findPaymentsByBookingId } from '../payments/payment.repository';
 
@@ -57,10 +57,10 @@ export function hasPaymentPaid(bookingId: string): boolean {
  * @param now - Current timestamp (defaults to Date.now())
  * @returns Number of bookings expired
  */
-export function expireStaleBookings(now: Date = new Date()): number {
+export async function expireStaleBookings(now: Date = new Date()): Promise<number> {
   try {
-    const bookings = getBookings();
-    const events = getEvents();
+    const bookings = await db.getBookings();
+    const events = await db.getEvents();
     let expiredCount = 0;
 
     // Find reserved bookings that have expired
@@ -94,7 +94,7 @@ export function expireStaleBookings(now: Date = new Date()): number {
         }
 
         // Cancel the booking
-        updateBookingStatus(booking.id, 'expired');
+        await db.updateBookingStatus(booking.id, 'expired');
         console.log(JSON.stringify({
           action: 'booking_expired',
           bookingId: booking.id,
@@ -119,7 +119,7 @@ export function expireStaleBookings(now: Date = new Date()): number {
     // Persist events if any seats were restored
     if (expiredCount > 0) {
       try {
-        saveEvents(events);
+        await db.saveEvents(events);
       } catch (err) {
         console.error('[BookingExpiration] Failed to persist events after expiring bookings:', err);
       }

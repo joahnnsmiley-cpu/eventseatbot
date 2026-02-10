@@ -3,7 +3,7 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import { v4 as uuid } from 'uuid';
 import type { EventData } from './models';
-import { getEvents, findEventById, saveEvents, getBookings, addBooking, upsertEvent } from './db';
+import { db } from './db';
 import { bot, notifyAdminsAboutBooking, notifyUser } from './bot';
 import adminEventsRouter from './routes/adminEvents';
 import adminSeatsRouter, { seats as inMemorySeats } from './routes/adminSeats';
@@ -49,6 +49,21 @@ if (token && chatId) {
   console.log('[Bootstrap] Telegram notifiers disabled: missing env vars');
 }
 
+// Storage state on boot — warn if empty (ephemeral disk loses data on restart/redeploy)
+void (async () => {
+  try {
+    const events = await db.getEvents();
+    const bookings = await db.getBookings();
+    if (events.length === 0 && bookings.length === 0) {
+      console.warn('[Storage] Boot: storage is empty (no events, no bookings). Data is stored in a local file and will be lost on instance restart/redeploy.');
+    } else {
+      console.log('[Storage] Boot: events=%d, bookings=%d', events.length, bookings.length);
+    }
+  } catch (e) {
+    console.error('[Storage] Boot: failed to read storage', e);
+  }
+})();
+
 // CORS before any routes — required for Telegram WebApp cross-origin POST (e.g. /public/bookings)
 app.use(cors({
   origin: '*',
@@ -78,7 +93,7 @@ app.post('/telegram/webhook', (req, res) => {
  * Body: JSON { eventId, tableId, seats: number[], phone } or raw string (JSON).
  * Creates pending booking and returns { ok: true }.
  */
-app.post('/telegram/webapp', (req, res) => {
+app.post('/telegram/webapp', async (req, res) => {
   try {
     let payload: { eventId?: string; tableId?: string; seats?: number[]; phone?: string };
     if (typeof req.body === 'string') {
@@ -89,7 +104,7 @@ app.post('/telegram/webapp', (req, res) => {
       res.status(400).json({ error: 'Invalid body' });
       return;
     }
-    createPendingBookingFromWebAppPayload({
+    await createPendingBookingFromWebAppPayload({
       eventId: String(payload.eventId ?? ''),
       tableId: String(payload.tableId ?? ''),
       seats: Array.isArray(payload.seats) ? payload.seats : [],
@@ -103,12 +118,12 @@ app.post('/telegram/webapp', (req, res) => {
 });
 
 // Seed a single published event for dev/preview or explicit flag.
-const seedTestEvent = () => {
+const seedTestEvent = async () => {
   const shouldSeed = process.env.SEED_TEST_EVENT === 'true' || process.env.NODE_ENV !== 'production';
   if (!shouldSeed) return;
 
   const seedId = 'seed-public-event';
-  const existing = findEventById(seedId);
+  const existing = await db.findEventById(seedId);
   if (existing) return;
 
   const base: EventData = {
@@ -126,17 +141,17 @@ const seedTestEvent = () => {
     published: false,
   };
 
-  upsertEvent(base);
-  upsertEvent({ ...base, status: 'published', published: true });
+  await db.upsertEvent(base);
+  await db.upsertEvent({ ...base, status: 'published', published: true });
 };
 
-seedTestEvent();
+void seedTestEvent();
 
 // ==============================
 // EVENTS
 // ==============================
-app.get('/events', (_req, res) => {
-  const events = getEvents()
+app.get('/events', async (_req, res) => {
+  const events = (await db.getEvents())
     .filter((e: any) => e?.published === true || e?.status === 'published')
     .map((e: any) => ({
       ...e,
@@ -145,8 +160,8 @@ app.get('/events', (_req, res) => {
   res.json(events);
 });
 
-app.get('/events/:eventId', (req, res) => {
-  const event = findEventById(req.params.eventId);
+app.get('/events/:eventId', async (req, res) => {
+  const event = await db.findEventById(req.params.eventId);
   if (!event) return res.status(404).json({ error: 'Event not found' });
   if ((event as any).published !== true && (event as any).status !== 'published') {
     return res.status(404).json({ error: 'Event not found' });
@@ -175,7 +190,7 @@ app.post('/bookings', authMiddleware, async (req: AuthRequest, res) => {
   if (!userPhone) return res.status(400).json({ error: 'userPhone is required' });
 
   // Validate event exists
-  const event = findEventById(eventId);
+  const event = await db.findEventById(eventId);
   if (!event) return res.status(404).json({ error: 'Event not found' });
 
   // Support two booking types for compatibility:
@@ -245,7 +260,7 @@ app.post('/bookings', authMiddleware, async (req: AuthRequest, res) => {
 
         // persist booking to DB for longer-term storage (mirror)
         try {
-          addBooking({
+          await db.addBooking({
             id: booking.id,
             eventId: booking.eventId,
             userTelegramId: Number(userId) || 0,
@@ -302,20 +317,20 @@ app.post('/bookings', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // Apply updates atomically
-    const events = getEvents();
-    const evIdx = events.findIndex((e) => e.id === event.id);
+    const events = await db.getEvents();
+    const evIdx = events.findIndex((e: EventData) => e.id === event.id);
     if (evIdx === -1) return res.status(500).json({ error: 'Event not found in storage' });
 
     for (const up of updates) {
       const evt = events[evIdx];
       if (!evt || !evt.tables) continue;
-      const table = evt.tables.find((t) => t.id === up.tableId);
+      const table = evt.tables.find((t: { id: string }) => t.id === up.tableId);
       if (!table) continue;
       table.seatsAvailable = Math.max(0, table.seatsAvailable - up.seats);
     }
 
     // persist updated events
-    saveEvents(events);
+    await db.saveEvents(events);
 
     const singleTable = updates.length === 1 ? updates[0] : null;
     const bookingRecord = {
@@ -343,7 +358,7 @@ app.post('/bookings', authMiddleware, async (req: AuthRequest, res) => {
 
     // persist to DB (mirror) — include tableBookings in db record if possible
     try {
-      addBooking({
+      await db.addBooking({
         id: bookingRecord.id,
         eventId: bookingRecord.eventId,
         userTelegramId: Number(userId) || 0,
@@ -359,19 +374,19 @@ app.post('/bookings', authMiddleware, async (req: AuthRequest, res) => {
     } catch {}
 
     // Expire reservation after 15 minutes if still reserved — restore seatsAvailable
-    setTimeout(() => {
+    setTimeout(async () => {
       const b = inMemoryBookings.find((x) => x.id === bookingRecord.id);
       if (!b) return;
       if (b.status === 'reserved') {
         // restore seats
-        const evs = getEvents();
+        const evs = await db.getEvents();
         const idx = evs.findIndex((e) => e.id === bookingRecord.eventId);
         if (idx !== -1 && evs[idx]?.tables) {
           for (const tb of (b.tableBookings || [])) {
             const table = evs[idx].tables?.find((t) => t.id === tb.tableId);
             if (table) table.seatsAvailable = Math.min(table.seatsTotal, table.seatsAvailable + tb.seats);
           }
-          saveEvents(evs);
+          await db.saveEvents(evs);
         }
         b.status = 'expired';
       }
@@ -390,12 +405,12 @@ app.post('/bookings', authMiddleware, async (req: AuthRequest, res) => {
 // ==============================
 // MY BOOKINGS
 // ==============================
-app.get('/bookings/my', (req, res) => {
+app.get('/bookings/my', async (req, res) => {
   const telegramUserId = Number(req.query.telegramUserId);
   if (!telegramUserId) {
     return res.status(400).json({ error: 'telegramUserId is required' });
   }
-  const all = getBookings();
+  const all = await db.getBookings();
   const mine = all.filter((b) => b.userTelegramId === telegramUserId);
   res.json(mine);
 });

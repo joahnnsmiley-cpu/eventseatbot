@@ -1,14 +1,13 @@
 import { Router, Request, Response } from 'express';
-import { getEvents, findEventById } from '../db';
-import { getBookings, updateBookingStatus, saveEvents, addBooking } from '../db';
+import { db } from '../db';
 import { emitBookingCreated, emitBookingCancelled, calculateBookingExpiration } from '../domain/bookings';
 
 const router = Router();
 
 // Return published events only
-router.get('/events', (_req: Request, res: Response) => {
+router.get('/events', async (_req: Request, res: Response) => {
   try {
-    const events = getEvents().filter((e: any) => (e as any).published === true || (e as any).status === 'published');
+    const events = (await db.getEvents()).filter((e: any) => (e as any).published === true || (e as any).status === 'published');
     // map to safe public shape
     const mapped = events.map((e: any) => ({
       id: e.id,
@@ -28,9 +27,9 @@ router.get('/events', (_req: Request, res: Response) => {
 });
 
 // Return a single published event
-router.get('/events/:id', (req: Request, res: Response) => {
+router.get('/events/:id', async (req: Request, res: Response) => {
   const id = req.params.id;
-  const ev = findEventById(id as string) as any;
+  const ev = (await db.findEventById(id as string)) as any;
   if (!ev || (ev.published !== true && ev.status !== 'published')) return res.status(404).json({ error: 'Event not found' });
   const mapped = {
     id: ev.id,
@@ -147,7 +146,7 @@ router.get('/view/:id', (req: Request, res: Response) => {
 
 // POST /public/bookings — create pending booking (no payment, no seat blocking)
 // Body: { eventId, tableId, seats: number[], phone }
-router.post('/bookings', (req: Request, res: Response): void => {
+router.post('/bookings', async (req: Request, res: Response) => {
   console.log('BOOKINGS HIT', req.body);
   try {
     const { eventId, tableId, seats, phone } = req.body || {};
@@ -166,7 +165,7 @@ router.post('/bookings', (req: Request, res: Response): void => {
       return;
     }
 
-    const ev = findEventById(String(eventId)) as any;
+    const ev = (await db.findEventById(String(eventId))) as any;
     if (!ev || (ev.published !== true && ev.status !== 'published')) {
       res.status(404).json({ error: 'Event not found' });
       return;
@@ -193,7 +192,7 @@ router.post('/bookings', (req: Request, res: Response): void => {
       seatIds: [],
       totalAmount: 0,
     } as any;
-    addBooking(booking);
+    await db.addBooking(booking);
     res.status(201).json({ ok: true, id: booking.id });
   } catch (e) {
     console.error('BOOKINGS ERROR', e);
@@ -232,7 +231,7 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
 
   try {
     const result = await runWithLock(eventId, async () => {
-      const events = getEvents();
+      const events = await db.getEvents();
       const ev = events.find((e: any) => e.id === eventId);
       if (!ev) return { status: 404, body: { error: 'Event not found' } };
       if (ev.status !== 'published') return { status: 403, body: { error: 'Event is not published' } };
@@ -246,7 +245,7 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
       // persist
       // saveEvents expects full events array
       const saveable = events;
-      saveEvents(saveable);
+      await db.saveEvents(saveable);
 
       // create booking record
       const createdAtMs = Date.now();
@@ -261,7 +260,7 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
         userPhone: normalizedUserPhone,
       } as any;
 
-      try { addBooking(booking); } catch {}
+      try { await db.addBooking(booking); } catch {}
 
       // Emit booking created event (fire-and-forget)
       emitBookingCreated({
@@ -305,20 +304,20 @@ router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
 
   try {
     // Need to find booking to get eventId
-    const all = getBookings();
+    const all = await db.getBookings();
     const bk = all.find((b: any) => b.id === bookingId);
     if (!bk) return res.status(404).json({ error: 'Booking not found' });
     const eventId = bk.eventId;
 
     const result = await runWithLock(eventId, async () => {
       // re-read fresh state
-      const bookings = getBookings();
+      const bookings = await db.getBookings();
       const booking = bookings.find((b: any) => b.id === bookingId);
       if (!booking) return { status: 404, body: { error: 'Booking not found' } };
       if (booking.status !== 'reserved') return { status: 409, body: { error: 'Booking is not reserved or already expired' } };
 
       // find event and table
-      const events = getEvents();
+      const events = await db.getEvents();
       const ev = events.find((e: any) => e.id === booking.eventId);
       if (!ev) return { status: 500, body: { error: 'Related event not found' } };
       const tbl = Array.isArray(ev.tables) ? ev.tables.find((t: any) => t.id === booking.tableId) : null;
@@ -328,10 +327,10 @@ router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
       tbl.seatsAvailable = Math.min(tbl.seatsTotal, (Number(tbl.seatsAvailable) || 0) + (Number(booking.seatsBooked) || 0));
 
       // persist events first
-      saveEvents(events);
+      await db.saveEvents(events);
 
       // mark booking cancelled
-      const updated = updateBookingStatus(bookingId, 'expired');
+      const updated = await db.updateBookingStatus(bookingId, 'expired');
       if (!updated) return { status: 500, body: { error: 'Failed to update booking status' } };
 
       // Emit booking cancelled event (fire-and-forget)

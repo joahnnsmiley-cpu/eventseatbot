@@ -12,7 +12,7 @@ import {
 import { setPaymentEventNotifier, type PaymentEventNotifier, type PaymentCreatedEvent } from '../domain/payments/payment.events';
 import { TelegramPaymentNotifier } from '../infra/telegram/telegram.payment-notifier';
 import { parseCallback, formatCallbackResponseMessage } from '../infra/telegram/telegram.callbacks';
-import * as bookingDb from '../db';
+import { db } from '../db';
 
 let testsPassed = 0;
 let testsFailed = 0;
@@ -92,7 +92,7 @@ const originalFetch = (global as any).fetch;
 // SETUP
 // ============================================================================
 
-const originalGetBookings = (bookingDb as any).getBookings;
+const originalGetBookings = db.getBookings;
 let mockBookingsState: any[] = [];
 
 function setupPaymentNotifier() {
@@ -111,13 +111,13 @@ function setupPaymentNotifier() {
 function resetMocks() {
   mockTelegramCalls.length = 0;
   mockBookingsState = [];
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 }
 
 function cleanupNotifier(env: { originalEnv: string; originalChatId: string }) {
   setEnv('TELEGRAM_BOT_TOKEN', env.originalEnv || undefined);
   setEnv('TELEGRAM_ADMIN_CHAT_ID', env.originalChatId || undefined);
-  (bookingDb as any).getBookings = originalGetBookings;
+  (db as any).getBookings = originalGetBookings;
 }
 
 console.log('\n📋 Inline Payment Confirmation Integration Tests\n');

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuid } from 'uuid';
 import { authMiddleware } from '../auth/auth.middleware';
 import { adminOnly } from '../auth/admin.middleware';
-import { getEvents, saveEvents, upsertEvent, findEventById } from '../db';
+import { db } from '../db';
 import type { EventData } from '../models';
 
 /*
@@ -68,20 +68,20 @@ const normalizeTables = (tables: unknown): EventData['tables'] => {
 };
 
 // GET /admin/events
-router.get('/events', (_req: Request, res: Response) => {
-  const events = getEvents().map(toEvent);
+router.get('/events', async (_req: Request, res: Response) => {
+  const events = (await db.getEvents()).map(toEvent);
   res.json(events);
 });
 
 // GET /admin/events/:id
-router.get('/events/:id', (req: Request, res: Response) => {
+router.get('/events/:id', async (req: Request, res: Response) => {
   const id = normalizeId(req.params.id);
 
   if (!id) {
     return respondBadRequest(res, new Error('Event id is required'), { error: 'Event id is required' });
   }
 
-  const existing = findEventById(id);
+  const existing = await db.findEventById(id);
   if (!existing) return res.status(404).json({ error: 'Event not found' });
 
   // Allow admin to read events regardless of status.
@@ -89,7 +89,7 @@ router.get('/events/:id', (req: Request, res: Response) => {
 });
 
 // POST /admin/events
-router.post('/events', (req: Request, res: Response) => {
+router.post('/events', async (req: Request, res: Response) => {
   const id = uuid();
   const title = typeof req.body.title === 'string' ? req.body.title : '';
   const description = typeof req.body.description === 'string' ? req.body.description : '';
@@ -116,18 +116,18 @@ router.post('/events', (req: Request, res: Response) => {
     published,
   };
 
-  upsertEvent(eventData);
+  await db.upsertEvent(eventData);
   res.status(201).json(newEvent);
 });
 
 // POST /admin/events/:id/publish
-router.post('/events/:id/publish', (req: Request, res: Response) => {
+router.post('/events/:id/publish', async (req: Request, res: Response) => {
   const id = normalizeId(req.params.id);
 
   if (!id) {
     return respondBadRequest(res, new Error('Event id is required'), { error: 'Event id is required' });
   }
-  const existing = findEventById(id);
+  const existing = await db.findEventById(id);
   if (!existing) return res.status(404).json({ error: 'Event not found' });
 
   if (existing.status === 'published') {
@@ -140,25 +140,25 @@ router.post('/events/:id/publish', (req: Request, res: Response) => {
 
   existing.status = 'published';
   existing.published = true;
-  upsertEvent(existing);
+  await db.upsertEvent(existing);
   return res.status(200).json(existing);
 });
 
 // PUT /admin/events/:id
-router.put('/events/:id', (req: Request, res: Response) => {
+router.put('/events/:id', async (req: Request, res: Response) => {
   const id = normalizeId(req.params.id);
 
   if (!id) {
     return respondBadRequest(res, new Error('Event id is required'), { error: 'Event id is required' });
   }
-  const existing = findEventById(id);
+  const existing = await db.findEventById(id);
   if (!existing) return res.status(404).json({ error: 'Event not found' });
   // Allow publishing the event via status change from draft -> published
   const requestedStatus = typeof req.body.status === 'string' ? req.body.status : undefined;
 
   if (requestedStatus === 'published' && existing.status === 'draft') {
     existing.status = 'published';
-    upsertEvent(existing);
+    await db.upsertEvent(existing);
     return res.json(toEvent(existing));
   }
 
@@ -182,21 +182,21 @@ router.put('/events/:id', (req: Request, res: Response) => {
   if (typeof req.body.maxSeatsPerBooking !== 'undefined') existing.maxSeatsPerBooking = Number(req.body.maxSeatsPerBooking) || 0;
   if (Array.isArray(req.body.tables)) existing.tables = normalizeTables(req.body.tables);
 
-  upsertEvent(existing);
+  await db.upsertEvent(existing);
   res.json(toEvent(existing));
 });
 
 // DELETE /admin/events/:id
-router.delete('/events/:id', (req: Request, res: Response) => {
+router.delete('/events/:id', async (req: Request, res: Response) => {
   const rawId = req.params.id;
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
-  const events = getEvents();
+  const events = await db.getEvents();
   const idx = events.findIndex((e) => e.id === id);
   if (idx === -1) return res.status(404).json({ error: 'Event not found' });
   const existing = events[idx];
   if ((existing as any).status === 'published') return res.status(403).json({ error: 'Event is published and cannot be deleted' });
   events.splice(idx, 1);
-  saveEvents(events);
+  await db.saveEvents(events);
   res.json({ ok: true });
 });
 

@@ -1,0 +1,83 @@
+-- =============================================================================
+-- Supabase / PostgreSQL schema — mirrors data.json (events, tables, bookings, admins)
+-- Run this in the Supabase SQL editor to create tables. No RLS, triggers, or payments.
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- admins: Telegram users allowed to access admin panel (JWT + admin list)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS admins (
+  id BIGINT PRIMARY KEY,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+COMMENT ON TABLE admins IS 'Telegram chat IDs with admin access';
+
+-- -----------------------------------------------------------------------------
+-- events: one row per event (gala, concert, etc.)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS events (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  date TIMESTAMPTZ,
+  image_url TEXT,
+  layout_image_url TEXT,
+  organizer_phone TEXT,
+  published BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+COMMENT ON TABLE events IS 'Events; tables are stored in event_tables for normalization';
+
+-- -----------------------------------------------------------------------------
+-- event_tables: tables belonging to an event (seats layout)
+-- Tables are in a separate table (not embedded in events) so we can query,
+-- index, and reference them from bookings; same structure as data.json tables array.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS event_tables (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  number INTEGER NOT NULL,
+  seats_total INTEGER NOT NULL,
+  seats_available INTEGER NOT NULL,
+  x INTEGER,
+  y INTEGER,
+  center_x INTEGER,
+  center_y INTEGER,
+  size_percent INTEGER,
+  shape TEXT,
+  color TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+COMMENT ON TABLE event_tables IS 'Tables per event; separated from events so bookings can reference table_id and we can index by event_id';
+COMMENT ON COLUMN event_tables.shape IS 'e.g. circle | rect';
+
+CREATE INDEX IF NOT EXISTS idx_event_tables_event_id ON event_tables(event_id);
+
+-- -----------------------------------------------------------------------------
+-- bookings: one row per booking (pending, confirmed, cancelled)
+-- seat_indices is an array of seat positions at the table (e.g. [0, 1, 2])
+-- so we know which seats are taken without storing per-seat rows.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS bookings (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  table_id TEXT REFERENCES event_tables(id) ON DELETE CASCADE,
+  user_telegram_id BIGINT,
+  user_phone TEXT,
+  seat_indices INTEGER[],
+  seats_booked INTEGER,
+  status TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  expires_at TIMESTAMPTZ
+);
+
+COMMENT ON TABLE bookings IS 'Bookings; status: pending | confirmed | cancelled (plus reserved | paid | expired in app)';
+COMMENT ON COLUMN bookings.seat_indices IS 'Array of seat indices at the table (e.g. [0,1,2]); avoids per-seat rows while recording which seats are booked';
+
+CREATE INDEX IF NOT EXISTS idx_bookings_event_id ON bookings(event_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_table_id ON bookings(table_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);

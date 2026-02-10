@@ -3,7 +3,7 @@
  * Fetches and formats booking status with payment info for admin notification
  */
 
-import { getBookingStatus } from '../../domain/bookings/booking.status';
+import { getBookingStatus, type BookingStatusResult } from '../../domain/bookings/booking.status';
 import { isAuthorizedAdminChat, logUnauthorizedCommand } from './telegram.security';
 
 /**
@@ -12,10 +12,10 @@ import { isAuthorizedAdminChat, logUnauthorizedCommand } from './telegram.securi
  * Returns a human-readable message with booking and payment status if authorized
  * Returns error message if booking not found
  */
-export function formatBookingStatusMessageSecure(
+export async function formatBookingStatusMessageSecure(
   chatId: number | string | null | undefined,
   bookingId: string,
-): string {
+): Promise<string> {
   // Check authorization
   if (!isAuthorizedAdminChat(chatId)) {
     logUnauthorizedCommand(chatId, `/booking_status ${bookingId}`);
@@ -32,7 +32,7 @@ export function formatBookingStatusMessageSecure(
  * Returns error message if booking not found
  * Never throws
  */
-export function formatBookingStatusMessage(bookingId: string | undefined): string {
+export async function formatBookingStatusMessage(bookingId: string | undefined): Promise<string> {
   try {
     // Validate bookingId
     if (!bookingId || bookingId.trim().length === 0) {
@@ -46,7 +46,7 @@ export function formatBookingStatusMessage(bookingId: string | undefined): strin
     const trimmed = bookingId.trim();
 
     // Get booking status
-    const booking = getBookingStatus(trimmed);
+    const booking = await getBookingStatus(trimmed);
 
     // If booking not found, return error message
     if (!booking) {
@@ -149,12 +149,12 @@ function formatPaymentBlock(payment: {
  * Returns booking status object or null if not found
  * Never throws
  */
-export function getBookingStatusData(bookingId: string | undefined) {
+export async function getBookingStatusData(bookingId: string | undefined): Promise<BookingStatusResult | null> {
   try {
     if (!bookingId) {
       return null;
     }
-    return getBookingStatus(bookingId.trim());
+    return await getBookingStatus(bookingId.trim());
   } catch (err) {
     // Never throw - log and return null
     console.error('[BookingStatusCommand] Error getting booking status:', err);

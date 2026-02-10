@@ -4,7 +4,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { getBookings } from '../db';
+import { db } from '../db';
 import {
   createPaymentIntentService,
   cancelPayment,
@@ -18,7 +18,7 @@ const router = Router();
  * Create a payment intent for a reserved booking
  * Body: { bookingId, amount }
  */
-router.post('/payments', (req: Request, res: Response) => {
+router.post('/payments', async (req: Request, res: Response) => {
   const { bookingId, amount } = req.body || {};
 
   // Validate input
@@ -27,7 +27,7 @@ router.post('/payments', (req: Request, res: Response) => {
   }
 
   // Validate booking exists
-  const bookings = getBookings();
+  const bookings = await db.getBookings();
   const booking = bookings.find((b: any) => b.id === bookingId);
   if (!booking) {
     return res.status(404).json({ error: 'Booking not found' });
@@ -41,7 +41,7 @@ router.post('/payments', (req: Request, res: Response) => {
   }
 
   // Create payment intent
-  const result = createPaymentIntentService(bookingId, amount);
+  const result = await createPaymentIntentService(bookingId, amount);
   if (!result.success) {
     return res.status(result.status).json({ error: result.error });
   }

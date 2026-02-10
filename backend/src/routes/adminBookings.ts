@@ -4,7 +4,7 @@ import { authMiddleware } from '../auth/auth.middleware';
 import { adminOnly } from '../auth/admin.middleware';
 import { inMemoryBookings } from '../state';
 import { seats as inMemorySeats } from './adminSeats';
-import { getBookings, saveBookings, getEvents } from '../db';
+import { db } from '../db';
 import { notifyUser } from '../bot';
 import type { Ticket } from '../models';
 
@@ -13,9 +13,9 @@ const router = Router();
 router.use(authMiddleware, adminOnly);
 
 // GET /admin/bookings
-router.get('/bookings', (_req: Request, res: Response) => {
-  const bookings = getBookings();
-  const events = getEvents();
+router.get('/bookings', async (_req: Request, res: Response) => {
+  const bookings = await db.getBookings();
+  const events = await db.getEvents();
 
   const result = bookings.map((b) => {
     const ev = events.find((e) => e.id === b.eventId);
@@ -109,12 +109,12 @@ router.post('/bookings/:id/confirm', async (req: Request, res: Response) => {
   let persistedBooking: { userTelegramId?: number } | undefined;
   // mirror status and tickets to persisted DB if present
   try {
-    const dbBookings = getBookings();
+    const dbBookings = await db.getBookings();
     const dbBooking = dbBookings.find((b) => b.id === booking.id);
     if (dbBooking) {
       dbBooking.status = 'paid';
-      dbBooking.tickets = tickets;
-      saveBookings(dbBookings);
+      (dbBooking as any).tickets = tickets;
+      await db.saveBookings(dbBookings);
       persistedBooking = dbBooking;
     }
   } catch {}

@@ -5,7 +5,7 @@
 
 import { expireStaleBookings, calculateBookingExpiration, getBookingTtlMinutes } from '../domain/bookings/booking.expiration';
 import { setBookingEventNotifier, type BookingEventNotifier, type BookingCancelledEvent } from '../domain/bookings';
-import * as db from '../db';
+import { db } from '../db';
 import { createPaymentIntent, updatePaymentStatus } from '../domain/payments/payment.repository';
 
 interface TestResult {
@@ -73,8 +73,8 @@ async function runTests() {
     mockNotifier.reset();
 
     // Create expired booking in memory
-    const events = db.getEvents();
-    const bookings = db.getBookings();
+    const events = await await db.getEvents();
+    const bookings = await await db.getBookings();
 
     // Add a test event with a table
     const testEvent = {
@@ -99,7 +99,7 @@ async function runTests() {
       ],
     } as any;
     events.push(testEvent);
-    db.saveEvents(events);
+    await await db.saveEvents(events);
 
     // Add an expired reserved booking
     const now = new Date();
@@ -120,10 +120,10 @@ async function runTests() {
       totalAmount: 0,
     } as any;
     bookings.push(testBooking);
-    db.saveBookings(bookings);
+    await await db.saveBookings(bookings);
 
     // Call expireStaleBookings
-    const expiredCount = expireStaleBookings(now);
+    const expiredCount = await expireStaleBookings(now);
 
     // Verify 1 booking expired
     if (expiredCount !== 1) {
@@ -156,13 +156,13 @@ async function runTests() {
     setBookingEventNotifier(mockNotifier);
     mockNotifier.reset();
 
-    const events = db.getEvents();
-    const bookings = db.getBookings();
+    const events = await db.getEvents();
+    const bookings = await db.getBookings();
 
     // Clear previous test data
-    db.setBookings([]);
+    await db.setBookings([]);
     const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-2');
-    db.saveEvents(cleanEvents);
+    await db.saveEvents(cleanEvents);
 
     // Add test event
     const testEvent = {
@@ -194,16 +194,16 @@ async function runTests() {
         },
       ],
     } as any;
-    const allEvents = db.getEvents();
+    const allEvents = await db.getEvents();
     allEvents.push(testEvent);
-    db.saveEvents(allEvents);
+    await db.saveEvents(allEvents);
 
     // Add 3 expired bookings
     const now = new Date();
     const createdAt = new Date(now.getTime() - 20 * 60 * 1000);
     const expiresAt = calculateBookingExpiration(createdAt.getTime());
 
-    const allBookings = db.getBookings();
+    const allBookings = await db.getBookings();
     for (let i = 1; i <= 3; i++) {
       allBookings.push({
         id: `exp-test-bk-2-${i}`,
@@ -219,10 +219,10 @@ async function runTests() {
         totalAmount: 0,
       } as any);
     }
-    db.setBookings(allBookings);
+    await db.setBookings(allBookings);
 
     // Call expireStaleBookings
-    const expiredCount = expireStaleBookings(now);
+    const expiredCount = await expireStaleBookings(now);
 
     // Verify 3 bookings expired
     if (expiredCount !== 3) {
@@ -251,13 +251,13 @@ async function runTests() {
     setBookingEventNotifier(mockNotifier);
     mockNotifier.reset();
 
-    const events = db.getEvents();
-    const bookings = db.getBookings();
+    const events = await db.getEvents();
+    const bookings = await db.getBookings();
 
     // Clear
-    db.setBookings([]);
+    await db.setBookings([]);
     const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-3');
-    db.saveEvents(cleanEvents);
+    await db.saveEvents(cleanEvents);
 
     // Add test event
     const testEvent = {
@@ -281,16 +281,16 @@ async function runTests() {
         },
       ],
     } as any;
-    const allEvents = db.getEvents();
+    const allEvents = await db.getEvents();
     allEvents.push(testEvent);
-    db.saveEvents(allEvents);
+    await db.saveEvents(allEvents);
 
     // Add a FUTURE booking (not expired)
     const now = new Date();
     const createdAt = new Date(now.getTime() - 5 * 60 * 1000); // only 5 minutes ago (default TTL is 15)
     const expiresAt = calculateBookingExpiration(createdAt.getTime());
 
-    const allBookings = db.getBookings();
+    const allBookings = await db.getBookings();
     allBookings.push({
       id: 'exp-test-bk-3',
       eventId: 'exp-test-evt-3',
@@ -304,10 +304,10 @@ async function runTests() {
       seatIds: [],
       totalAmount: 0,
     } as any);
-    db.setBookings(allBookings);
+    await db.setBookings(allBookings);
 
     // Call expireStaleBookings
-    const expiredCount = expireStaleBookings(now);
+    const expiredCount = await expireStaleBookings(now);
 
     // Verify 0 bookings expired
     if (expiredCount !== 0) {
@@ -328,10 +328,10 @@ async function runTests() {
     mockNotifier.reset();
 
     // Clear
-    db.setBookings([]);
-    const events = db.getEvents();
+    await db.setBookings([]);
+    const events = await db.getEvents();
     const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-4');
-    db.saveEvents(cleanEvents);
+    await db.saveEvents(cleanEvents);
 
     // Add test event
     const testEvent = {
@@ -355,16 +355,16 @@ async function runTests() {
         },
       ],
     } as any;
-    const allEvents = db.getEvents();
+    const allEvents = await db.getEvents();
     allEvents.push(testEvent);
-    db.saveEvents(allEvents);
+    await db.saveEvents(allEvents);
 
     // Add expired booking
     const now = new Date();
     const createdAt = new Date(now.getTime() - 20 * 60 * 1000);
     const expiresAt = calculateBookingExpiration(createdAt.getTime());
 
-    const allBookings = db.getBookings();
+    const allBookings = await db.getBookings();
     allBookings.push({
       id: 'exp-test-bk-4',
       eventId: 'exp-test-evt-4',
@@ -378,13 +378,13 @@ async function runTests() {
       seatIds: [],
       totalAmount: 0,
     } as any);
-    db.setBookings(allBookings);
+    await db.setBookings(allBookings);
 
     // Run expiration
-    expireStaleBookings(now);
+    await expireStaleBookings(now);
 
     // Verify seats restored
-    const updatedEvents = db.getEvents();
+    const updatedEvents = await db.getEvents();
     const updatedEvent = updatedEvents.find((e: any) => e.id === 'exp-test-evt-4');
     const table = (updatedEvent as any)?.tables?.[0];
 
@@ -405,10 +405,10 @@ async function runTests() {
     mockNotifier.reset();
 
     // Clear
-    db.setBookings([]);
-    const events = db.getEvents();
+    await db.setBookings([]);
+    const events = await db.getEvents();
     const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-5');
-    db.saveEvents(cleanEvents);
+    await db.saveEvents(cleanEvents);
 
     // Add test event
     const testEvent = {
@@ -432,16 +432,16 @@ async function runTests() {
         },
       ],
     } as any;
-    const allEvents = db.getEvents();
+    const allEvents = await db.getEvents();
     allEvents.push(testEvent);
-    db.saveEvents(allEvents);
+    await db.saveEvents(allEvents);
 
     // Add paid booking (status: paid)
     const now = new Date();
     const createdAt = new Date(now.getTime() - 20 * 60 * 1000);
     const expiresAt = calculateBookingExpiration(createdAt.getTime());
 
-    const allBookings = db.getBookings();
+    const allBookings = await db.getBookings();
     allBookings.push({
       id: 'exp-test-bk-5',
       eventId: 'exp-test-evt-5',
@@ -455,10 +455,10 @@ async function runTests() {
       seatIds: [],
       totalAmount: 100,
     } as any);
-    db.setBookings(allBookings);
+    await db.setBookings(allBookings);
 
     // Run expiration
-    const expiredCount = expireStaleBookings(now);
+    const expiredCount = await expireStaleBookings(now);
 
     // Verify booking was NOT expired
     if (expiredCount !== 0) {
@@ -468,7 +468,7 @@ async function runTests() {
     }
 
     // Verify booking still has status: paid
-    const updatedBookings = db.getBookings();
+    const updatedBookings = await db.getBookings();
     const updatedBooking = updatedBookings.find((b: any) => b.id === 'exp-test-bk-5');
 
     if (updatedBooking?.status !== 'paid') {
@@ -491,10 +491,10 @@ async function runTests() {
     mockNotifier.reset();
 
     // Clear
-    db.setBookings([]);
-    const events = db.getEvents();
+    await db.setBookings([]);
+    const events = await db.getEvents();
     const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-6');
-    db.saveEvents(cleanEvents);
+    await db.saveEvents(cleanEvents);
 
     // Add test event
     const testEvent = {
@@ -518,16 +518,16 @@ async function runTests() {
         },
       ],
     } as any;
-    const allEvents = db.getEvents();
+    const allEvents = await db.getEvents();
     allEvents.push(testEvent);
-    db.saveEvents(allEvents);
+    await db.saveEvents(allEvents);
 
     // Add expired booking
     const now = new Date();
     const createdAt = new Date(now.getTime() - 20 * 60 * 1000);
     const expiresAt = calculateBookingExpiration(createdAt.getTime());
 
-    const allBookings = db.getBookings();
+    const allBookings = await db.getBookings();
     allBookings.push({
       id: 'exp-test-bk-6',
       eventId: 'exp-test-evt-6',
@@ -541,10 +541,10 @@ async function runTests() {
       seatIds: [],
       totalAmount: 0,
     } as any);
-    db.setBookings(allBookings);
+    await db.setBookings(allBookings);
 
     // First run
-    const expiredCount1 = expireStaleBookings(now);
+    const expiredCount1 = await expireStaleBookings(now);
     const notifCount1 = mockNotifier.callCount.bookingCancelled;
 
     if (expiredCount1 !== 1) {
@@ -552,7 +552,7 @@ async function runTests() {
     }
 
     // Second run (same time, already cancelled)
-    const expiredCount2 = expireStaleBookings(now);
+    const expiredCount2 = await expireStaleBookings(now);
     const notifCount2 = mockNotifier.callCount.bookingCancelled;
 
     // Second run should find 0 bookings to expire (already cancelled)
@@ -570,7 +570,7 @@ async function runTests() {
     }
 
     // Verify seats only restored once
-    const finalEvents = db.getEvents();
+    const finalEvents = await db.getEvents();
     const finalEvent = finalEvents.find((e: any) => e.id === 'exp-test-evt-6');
     const finalTable = (finalEvent as any)?.tables?.[0];
 
@@ -593,10 +593,10 @@ async function runTests() {
     setBookingEventNotifier(throwingNotifier);
 
     // Clear and setup test data
-    db.setBookings([]);
-    const events = db.getEvents();
+    await db.setBookings([]);
+    const events = await db.getEvents();
     const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-7');
-    db.saveEvents(cleanEvents);
+    await db.saveEvents(cleanEvents);
 
     // Add test event
     const testEvent = {
@@ -620,16 +620,16 @@ async function runTests() {
         },
       ],
     } as any;
-    const allEvents = db.getEvents();
+    const allEvents = await db.getEvents();
     allEvents.push(testEvent);
-    db.saveEvents(allEvents);
+    await db.saveEvents(allEvents);
 
     // Add expired booking
     const now = new Date();
     const createdAt = new Date(now.getTime() - 20 * 60 * 1000);
     const expiresAt = calculateBookingExpiration(createdAt.getTime());
 
-    const allBookings = db.getBookings();
+    const allBookings = await db.getBookings();
     allBookings.push({
       id: 'exp-test-bk-7',
       eventId: 'exp-test-evt-7',
@@ -643,12 +643,12 @@ async function runTests() {
       seatIds: [],
       totalAmount: 0,
     } as any);
-    db.setBookings(allBookings);
+    await db.setBookings(allBookings);
 
     // Should NOT throw even though notifier throws
     let threw = false;
     try {
-      expireStaleBookings(now);
+      await expireStaleBookings(now);
     } catch {
       threw = true;
     }
@@ -658,7 +658,7 @@ async function runTests() {
     }
 
     // Verify booking was still expired and seats restored
-    const finalBookings = db.getBookings();
+    const finalBookings = await db.getBookings();
     const finalBooking = finalBookings.find((b: any) => b.id === 'exp-test-bk-7');
 
     if (finalBooking?.status !== 'expired') {
@@ -674,10 +674,10 @@ async function runTests() {
     mockNotifier.reset();
 
     // Clear
-    db.setBookings([]);
-    const events = db.getEvents();
+    await db.setBookings([]);
+    const events = await db.getEvents();
     const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-8');
-    db.saveEvents(cleanEvents);
+    await db.saveEvents(cleanEvents);
 
     // Add test event
     const testEvent = {
@@ -701,15 +701,15 @@ async function runTests() {
         },
       ],
     } as any;
-    const allEvents = db.getEvents();
+    const allEvents = await db.getEvents();
     allEvents.push(testEvent);
-    db.saveEvents(allEvents);
+    await db.saveEvents(allEvents);
 
     // Add booking that expires at specific time
     const injectedNow = new Date('2026-02-07T12:00:00Z');
     const expiresAt = '2026-02-07T11:50:00Z'; // 10 minutes before injectedNow
 
-    const allBookings = db.getBookings();
+    const allBookings = await db.getBookings();
     allBookings.push({
       id: 'exp-test-bk-8',
       eventId: 'exp-test-evt-8',
@@ -723,10 +723,10 @@ async function runTests() {
       seatIds: [],
       totalAmount: 0,
     } as any);
-    db.setBookings(allBookings);
+    await db.setBookings(allBookings);
 
     // Pass injected "now" - no real timers used
-    const expiredCount = expireStaleBookings(injectedNow);
+    const expiredCount = await expireStaleBookings(injectedNow);
 
     // Verify it respects the injected time
     if (expiredCount !== 1) {
@@ -736,7 +736,7 @@ async function runTests() {
     }
 
     // Verify booking was expired
-    const finalBookings = db.getBookings();
+    const finalBookings = await db.getBookings();
     const finalBooking = finalBookings.find((b: any) => b.id === 'exp-test-bk-8');
 
     if (finalBooking?.status !== 'expired') {
@@ -751,13 +751,13 @@ async function runTests() {
     setBookingEventNotifier(mockNotifier);
     mockNotifier.reset();
 
-    const events = db.getEvents();
-    const bookings = db.getBookings();
+    const events = await db.getEvents();
+    const bookings = await db.getBookings();
 
     // Clear previous test data
-    db.setBookings([]);
+    await db.setBookings([]);
     const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-9');
-    db.saveEvents(cleanEvents);
+    await db.saveEvents(cleanEvents);
 
     // Add test event
     const testEvent = {
@@ -781,9 +781,9 @@ async function runTests() {
         },
       ],
     } as any;
-    const allEvents = db.getEvents();
+    const allEvents = await db.getEvents();
     allEvents.push(testEvent);
-    db.saveEvents(allEvents);
+    await db.saveEvents(allEvents);
 
     // Add expired booking
     const now = new Date();
@@ -791,7 +791,7 @@ async function runTests() {
     const expiresAt = calculateBookingExpiration(createdAt.getTime());
 
     const bookingId = 'exp-test-bk-9';
-    const allBookings = db.getBookings();
+    const allBookings = await db.getBookings();
     allBookings.push({
       id: bookingId,
       eventId: 'exp-test-evt-9',
@@ -805,14 +805,14 @@ async function runTests() {
       seatIds: [],
       totalAmount: 5000,
     } as any);
-    db.setBookings(allBookings);
+    await db.setBookings(allBookings);
 
     // Create a PENDING payment for this booking
     const paymentId = 'exp-test-payment-9';
     createPaymentIntent(paymentId, bookingId, 5000);
 
     // Call expireStaleBookings
-    const expiredCount = expireStaleBookings(now);
+    const expiredCount = await expireStaleBookings(now);
 
     // Verify booking still expires (pending payment doesn't prevent expiration)
     if (expiredCount !== 1) {
@@ -820,7 +820,7 @@ async function runTests() {
     }
 
     // Verify booking was expired
-    const finalBookings = db.getBookings();
+    const finalBookings = await db.getBookings();
     const finalBooking = finalBookings.find((b: any) => b.id === bookingId);
 
     if (finalBooking?.status !== 'expired') {
@@ -842,13 +842,13 @@ async function runTests() {
     setBookingEventNotifier(mockNotifier);
     mockNotifier.reset();
 
-    const events = db.getEvents();
-    const bookings = db.getBookings();
+    const events = await db.getEvents();
+    const bookings = await db.getBookings();
 
     // Clear previous test data
-    db.setBookings([]);
+    await db.setBookings([]);
     const cleanEvents = events.filter((e: any) => e.id !== 'exp-test-evt-10');
-    db.saveEvents(cleanEvents);
+    await db.saveEvents(cleanEvents);
 
     // Add test event
     const testEvent = {
@@ -872,9 +872,9 @@ async function runTests() {
         },
       ],
     } as any;
-    const allEvents = db.getEvents();
+    const allEvents = await db.getEvents();
     allEvents.push(testEvent);
-    db.saveEvents(allEvents);
+    await db.saveEvents(allEvents);
 
     // Add expired booking
     const now = new Date();
@@ -882,7 +882,7 @@ async function runTests() {
     const expiresAt = calculateBookingExpiration(createdAt.getTime());
 
     const bookingId = 'exp-test-bk-10';
-    const allBookings = db.getBookings();
+    const allBookings = await db.getBookings();
     allBookings.push({
       id: bookingId,
       eventId: 'exp-test-evt-10',
@@ -896,7 +896,7 @@ async function runTests() {
       seatIds: [],
       totalAmount: 6000,
     } as any);
-    db.setBookings(allBookings);
+    await db.setBookings(allBookings);
 
     // Create a PAID payment for this booking
     const paymentId = 'exp-test-payment-10';
@@ -908,7 +908,7 @@ async function runTests() {
     });
 
     // Call expireStaleBookings
-    const expiredCount = expireStaleBookings(now);
+    const expiredCount = await expireStaleBookings(now);
 
     // Verify NO bookings expired (paid payment prevents expiration)
     if (expiredCount !== 0) {
@@ -916,7 +916,7 @@ async function runTests() {
     }
 
     // Verify booking is STILL reserved (not expired)
-    const finalBookings = db.getBookings();
+    const finalBookings = await db.getBookings();
     const finalBooking = finalBookings.find((b: any) => b.id === bookingId);
 
     if (finalBooking?.status !== 'reserved') {

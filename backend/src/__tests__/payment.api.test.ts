@@ -5,7 +5,7 @@
 
 import { Request, Response } from 'express';
 import { createPaymentIntentService, cancelPayment } from '../domain/payments';
-import * as bookingDb from '../db';
+import { db } from '../db';
 
 interface TestResult {
   name: string;
@@ -81,8 +81,8 @@ function createMockResponse(): [Response, MockResponse] {
 
 const mockBookings: any[] = [];
 
-const originalGetBookings = bookingDb.getBookings;
-const originalUpdateBookingStatus = bookingDb.updateBookingStatus;
+const originalGetBookings = db.getBookings;
+const originalUpdateBookingStatus = db.updateBookingStatus;
 
 function setupMockBooking(status: string = 'reserved'): string {
   const bookingId = 'bk-api-test-' + Date.now();
@@ -96,31 +96,31 @@ function setupMockBooking(status: string = 'reserved'): string {
   return bookingId;
 }
 
-(bookingDb as any).getBookings = () => mockBookings;
+(db as any).getBookings = () => Promise.resolve(mockBookings);
 
 let bookingUpdateCalls: Array<{ bookingId: string; status: string }> = [];
 
-(bookingDb as any).updateBookingStatus = (bookingId: string, status: string) => {
+(db as any).updateBookingStatus = (bookingId: string, status: string) => {
   bookingUpdateCalls.push({ bookingId, status });
   const booking = mockBookings.find((b) => b.id === bookingId);
   if (booking) {
     booking.status = status;
   }
-  return booking;
+  return Promise.resolve(booking);
 };
 
 // ============================================
 // SIMULATED ENDPOINT LOGIC
 // ============================================
 
-function handleCreatePayment(req: Request, res: Response): any {
+async function handleCreatePayment(req: Request, res: Response): Promise<any> {
   const { bookingId, amount } = req.body || {};
 
   if (!bookingId || !amount) {
     return res.status(400).json({ error: 'bookingId and amount are required' });
   }
 
-  const bookings = bookingDb.getBookings();
+  const bookings = await db.getBookings();
   const booking = bookings.find((b: any) => b.id === bookingId);
   if (!booking) {
     return res.status(404).json({ error: 'Booking not found' });
@@ -132,7 +132,7 @@ function handleCreatePayment(req: Request, res: Response): any {
     });
   }
 
-  const result = createPaymentIntentService(bookingId, amount);
+  const result = await createPaymentIntentService(bookingId, amount);
   if (!result.success) {
     return res.status(result.status).json({ error: result.error });
   }
@@ -180,7 +180,7 @@ async function runTests(): Promise<void> {
     const [res, mockRes] = createMockResponse();
     const req = { body: { bookingId, amount: 1000 } } as Request;
 
-    handleCreatePayment(req, res);
+    await handleCreatePayment(req, res);
 
     assertEquals(mockRes.statusCode, 201, 'Should return 201');
     assert(mockRes.body.id, 'Should have payment id');
@@ -192,7 +192,7 @@ async function runTests(): Promise<void> {
     const [res, mockRes] = createMockResponse();
     const req = { body: { bookingId: 'nonexistent', amount: 1000 } } as Request;
 
-    handleCreatePayment(req, res);
+    await handleCreatePayment(req, res);
 
     assertEquals(mockRes.statusCode, 404, 'Should return 404');
     assert(mockRes.body.error, 'Should have error');
@@ -204,7 +204,7 @@ async function runTests(): Promise<void> {
     const [res, mockRes] = createMockResponse();
     const req = { body: { bookingId, amount: 1000 } } as Request;
 
-    handleCreatePayment(req, res);
+    await handleCreatePayment(req, res);
 
     assertEquals(mockRes.statusCode, 400, 'Should return 400');
   });
@@ -215,7 +215,7 @@ async function runTests(): Promise<void> {
     const createReq = { body: { bookingId, amount: 1000 } } as Request;
     const [createRes, createMockRes] = createMockResponse();
 
-    handleCreatePayment(createReq, createRes);
+    await handleCreatePayment(createReq, createRes);
     const paymentId = createMockRes.body.id;
 
     // Now pay with confirmedBy
@@ -234,7 +234,7 @@ async function runTests(): Promise<void> {
     const createReq = { body: { bookingId, amount: 1000 } } as Request;
     const [createRes, createMockRes] = createMockResponse();
 
-    handleCreatePayment(createReq, createRes);
+    await handleCreatePayment(createReq, createRes);
     const paymentId = createMockRes.body.id;
 
     // First pay
@@ -256,7 +256,7 @@ async function runTests(): Promise<void> {
     const createReq = { body: { bookingId, amount: 1000 } } as Request;
     const [createRes, createMockRes] = createMockResponse();
 
-    handleCreatePayment(createReq, createRes);
+    await handleCreatePayment(createReq, createRes);
     const paymentId = createMockRes.body.id;
 
     // Cancel
@@ -275,7 +275,7 @@ async function runTests(): Promise<void> {
     const createReq = { body: { bookingId, amount: 1000 } } as Request;
     const [createRes, createMockRes] = createMockResponse();
 
-    handleCreatePayment(createReq, createRes);
+    await handleCreatePayment(createReq, createRes);
     const paymentId = createMockRes.body.id;
 
     // Cancel
@@ -297,7 +297,7 @@ async function runTests(): Promise<void> {
     const createReq = { body: { bookingId, amount: 1000 } } as Request;
     const [createRes, createMockRes] = createMockResponse();
 
-    handleCreatePayment(createReq, createRes);
+    await handleCreatePayment(createReq, createRes);
     const paymentId = createMockRes.body.id;
 
     bookingUpdateCalls = [];

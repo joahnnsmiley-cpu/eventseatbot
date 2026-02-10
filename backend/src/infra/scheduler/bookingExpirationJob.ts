@@ -30,7 +30,7 @@ export function startBookingExpirationJob(): void {
 
   intervalHandle = setInterval(async () => {
     try {
-      const expiredCount = expireStaleBookings();
+      const expiredCount = await expireStaleBookings();
       if (expiredCount > 0) {
         console.log(`[BookingExpirationJob] Expired ${expiredCount} stale bookings`);
       }

@@ -6,7 +6,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/auth.middleware';
 import { adminOnly } from '../auth/admin.middleware';
-import { getBookings } from '../db';
+import { db } from '../db';
 import { findPaymentById, type PaymentIntent } from '../domain/payments';
 
 const router = Router();
@@ -23,7 +23,7 @@ router.use(authMiddleware, adminOnly);
  * 
  * Does NOT confirm payments.
  */
-router.post('/payments/:id/confirm', (req: Request, res: Response) => {
+router.post('/payments/:id/confirm', async (req: Request, res: Response) => {
   const paymentId = String(req.params.id);
   // Validate input
   if (!paymentId) {
@@ -45,7 +45,7 @@ router.post('/payments/:id/confirm', (req: Request, res: Response) => {
     }
 
     // Find related booking
-    const bookings = getBookings();
+    const bookings = await db.getBookings();
     const booking = bookings.find((b: any) => b.id === payment.bookingId);
     if (!booking) {
       return res.status(404).json({ error: 'Related booking not found' });

@@ -12,7 +12,7 @@ import {
   type PaymentIntent,
   type PaymentStatus,
 } from './payment.repository';
-import { getBookings } from '../../db';
+import { db } from '../../db';
 import { emitPaymentCreated, emitPaymentConfirmed } from './payment.events';
 
 /**
@@ -31,10 +31,10 @@ export interface ServiceResponse<T> {
  * - Emits paymentCreated event (fire-and-forget, errors don't break API)
  * - Returns the created payment intent
  */
-export function createPaymentIntent(
+export async function createPaymentIntent(
   bookingId: string,
   amount: number,
-): ServiceResponse<PaymentIntent> {
+): Promise<ServiceResponse<PaymentIntent>> {
   if (!bookingId || !amount || amount <= 0) {
     return {
       success: false,
@@ -48,7 +48,7 @@ export function createPaymentIntent(
     const payment = repoCreate(id, bookingId, amount);
     
     // Emit payment created event (fire-and-forget, errors don't affect API)
-    const bookings = getBookings();
+    const bookings = await db.getBookings();
     const booking = bookings.find((b: any) => b.id === bookingId);
     if (booking) {
       emitPaymentCreated({
@@ -86,11 +86,11 @@ export function createPaymentIntent(
  * - Cannot mark paid if booking is already paid (409)
  * - If not found, returns 404
  */
-export function markPaid(
+export async function markPaid(
   paymentId: string,
   confirmedBy: string,
   method: 'manual' = 'manual',
-): ServiceResponse<PaymentIntent> {
+): Promise<ServiceResponse<PaymentIntent>> {
   if (!paymentId || !confirmedBy) {
     return {
       success: false,
@@ -128,7 +128,7 @@ export function markPaid(
     }
 
     // Validate booking state
-    const bookings = getBookings();
+    const bookings = await db.getBookings();
     const booking = bookings.find((b: any) => b.id === payment.bookingId);
     if (!booking) {
       return {

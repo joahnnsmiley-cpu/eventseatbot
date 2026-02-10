@@ -7,7 +7,7 @@ import {
   createPaymentIntentService,
   findPaymentById,
 } from '../domain/payments';
-import * as bookingDb from '../db';
+import { db } from '../db';
 
 interface TestResult {
   name: string;
@@ -17,9 +17,9 @@ interface TestResult {
 
 const results: TestResult[] = [];
 
-function runTest(name: string, fn: () => void): void {
+async function runTest(name: string, fn: () => void | Promise<void>): Promise<void> {
   try {
-    fn();
+    await fn();
     results.push({ name, passed: true });
     console.log(`✓ ${name}`);
   } catch (error) {
@@ -62,7 +62,7 @@ function createMockResponse(): MockResponse {
 }
 
 // Store original getBookings
-const originalGetBookings = (bookingDb as any).getBookings;
+const originalGetBookings = db.getBookings;
 
 // Mock bookings for testing
 let mockBookingsState: any[] = [];
@@ -71,11 +71,11 @@ let mockBookingsState: any[] = [];
 // ENDPOINT HANDLER (mirrors actual route)
 // ============================================
 
-function handleConfirmPayment(
+async function handleConfirmPayment(
   paymentId: string,
   _confirmedBy: string | undefined,
   mockRes: MockResponse,
-): void {
+): Promise<void> {
   if (!paymentId) {
     mockRes.statusCode = 400;
     mockRes.body = { error: 'paymentId is required' };
@@ -98,7 +98,7 @@ function handleConfirmPayment(
   }
 
   // Find related booking - uses the mocked getBookings
-  const bookings = (bookingDb as any).getBookings();
+  const bookings = (db as any).getBookings ? await (db as any).getBookings() : await originalGetBookings();
   const booking = bookings.find((b: any) => b.id === payment.bookingId);
   if (!booking) {
     mockRes.statusCode = 404;
@@ -121,9 +121,10 @@ function handleConfirmPayment(
 // TESTS
 // ============================================
 
+(async () => {
 console.log('\n📋 Admin Payment Confirmation Tests\n');
 
-runTest('POST /admin/payments/:id/confirm is not allowed', () => {
+await runTest('POST /admin/payments/:id/confirm is not allowed', async () => {
   // Setup mock bookings
   mockBookingsState = [
     {
@@ -135,25 +136,25 @@ runTest('POST /admin/payments/:id/confirm is not allowed', () => {
   ];
 
   // Mock getBookings to return our test data
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const createResult = createPaymentIntentService('test-bk-1', 1000);
+    const createResult = await createPaymentIntentService('test-bk-1', 1000);
     assert(createResult.success, `Should create payment: ${createResult.error}`);
     const paymentId = createResult.data!.id;
 
     const mockRes = createMockResponse();
-    handleConfirmPayment(paymentId, 'admin@example.com', mockRes);
+    await handleConfirmPayment(paymentId, 'admin@example.com', mockRes);
 
     assertEquals(mockRes.statusCode, 409, `Should return 409, got ${mockRes.statusCode}: ${JSON.stringify(mockRes.body)}`);
     assert(mockRes.body.error, 'Should return error message');
   } finally {
     // Restore original getBookings
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('POST /admin/payments/:id/confirm ignores confirmedBy', () => {
+await runTest('POST /admin/payments/:id/confirm ignores confirmedBy', async () => {
   mockBookingsState = [
     {
       id: 'test-bk-2',
@@ -163,30 +164,30 @@ runTest('POST /admin/payments/:id/confirm ignores confirmedBy', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const createResult = createPaymentIntentService('test-bk-2', 1000);
+    const createResult = await createPaymentIntentService('test-bk-2', 1000);
     const paymentId = createResult.data!.id;
 
     const mockRes = createMockResponse();
-    handleConfirmPayment(paymentId, undefined, mockRes);
+    await handleConfirmPayment(paymentId, undefined, mockRes);
 
     assertEquals(mockRes.statusCode, 409, 'Should return 409');
     assert(mockRes.body.error, 'Should have error message');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('POST /admin/payments/:id/confirm returns 404 for missing payment', () => {
+await runTest('POST /admin/payments/:id/confirm returns 404 for missing payment', async () => {
   const mockRes = createMockResponse();
-  handleConfirmPayment('nonexistent-id', 'admin@example.com', mockRes);
+  await handleConfirmPayment('nonexistent-id', 'admin@example.com', mockRes);
 
   assertEquals(mockRes.statusCode, 404, 'Should return 404');
 });
 
-runTest('POST /admin/payments/:id/confirm returns 409 even for pending payment', () => {
+await runTest('POST /admin/payments/:id/confirm returns 409 even for pending payment', async () => {
   mockBookingsState = [
     {
       id: 'test-bk-3',
@@ -196,22 +197,22 @@ runTest('POST /admin/payments/:id/confirm returns 409 even for pending payment',
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const createResult = createPaymentIntentService('test-bk-3', 1000);
+    const createResult = await createPaymentIntentService('test-bk-3', 1000);
     const paymentId = createResult.data!.id;
 
     // First confirm - should be rejected
     const mockRes1 = createMockResponse();
-    handleConfirmPayment(paymentId, 'admin@example.com', mockRes1);
+    await handleConfirmPayment(paymentId, 'admin@example.com', mockRes1);
     assertEquals(mockRes1.statusCode, 409, `Should return 409, got ${mockRes1.statusCode}: ${JSON.stringify(mockRes1.body)}`);
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('POST /admin/payments/:id/confirm requires reserved booking', () => {
+await runTest('POST /admin/payments/:id/confirm requires reserved booking', async () => {
   // Setup with non-reserved booking
   mockBookingsState = [
     {
@@ -222,23 +223,23 @@ runTest('POST /admin/payments/:id/confirm requires reserved booking', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const createResult = createPaymentIntentService('test-bk-pending', 1000);
+    const createResult = await createPaymentIntentService('test-bk-pending', 1000);
     const paymentId = createResult.data!.id;
 
     const mockRes = createMockResponse();
-    handleConfirmPayment(paymentId, 'admin@example.com', mockRes);
+    await handleConfirmPayment(paymentId, 'admin@example.com', mockRes);
 
     assertEquals(mockRes.statusCode, 400, 'Should return 400');
     assert(mockRes.body.error.includes('reserved'), 'Error should mention booking status');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('POST /admin/payments/:id/confirm does not modify payment', () => {
+await runTest('POST /admin/payments/:id/confirm does not modify payment', async () => {
   mockBookingsState = [
     {
       id: 'test-bk-4',
@@ -248,19 +249,19 @@ runTest('POST /admin/payments/:id/confirm does not modify payment', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const createResult = createPaymentIntentService('test-bk-4', 1000);
+    const createResult = await createPaymentIntentService('test-bk-4', 1000);
     const paymentId = createResult.data!.id;
 
     const mockRes = createMockResponse();
-    handleConfirmPayment(paymentId, 'jane.admin@company.com', mockRes);
+    await handleConfirmPayment(paymentId, 'jane.admin@company.com', mockRes);
 
     assertEquals(mockRes.statusCode, 409, 'Should return 409');
     assert(mockRes.body.error, 'Should return error message');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
@@ -284,3 +285,4 @@ if (failed > 0) {
   console.log('✅ All tests passed!');
   process.exit(0);
 }
+})();

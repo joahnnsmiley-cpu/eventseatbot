@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware, AuthRequest } from '../auth/auth.middleware';
-import { getBookings, getEvents } from '../db';
+import { db } from '../db';
 
 const router = Router();
 
@@ -57,12 +57,12 @@ const mapBooking = (b: any, events: any[]) => {
 /**
  * All bookings (reserved + paid)
  */
-router.get('/bookings', authMiddleware, (req: AuthRequest, res) => {
+router.get('/bookings', authMiddleware, async (req: AuthRequest, res) => {
   const user = req.user;
   if (!user || typeof user.id === 'undefined') return res.status(401).json({ error: 'Unauthorized' });
   const userId = String(user.id);
-  const events = getEvents();
-  const all = getBookings();
+  const events = await db.getEvents();
+  const all = await db.getBookings();
   const userBookings = all.filter(
     (b: any) => String(b.userTelegramId ?? '') === userId && (b.status === 'reserved' || b.status === 'paid'),
   );
@@ -73,12 +73,12 @@ router.get('/bookings', authMiddleware, (req: AuthRequest, res) => {
 /**
  * Purchased tickets (paid)
  */
-router.get('/tickets', authMiddleware, (req: AuthRequest, res) => {
+router.get('/tickets', authMiddleware, async (req: AuthRequest, res) => {
   const user = req.user;
   if (!user || typeof user.id === 'undefined') return res.status(401).json({ error: 'Unauthorized' });
   const userId = String(user.id);
-  const events = getEvents();
-  const all = getBookings();
+  const events = await db.getEvents();
+  const all = await db.getBookings();
   const tickets = all.filter((b: any) => String(b.userTelegramId ?? '') === userId && b.status === 'paid');
 
   res.json(tickets.map((b: any) => mapBooking(b, events)));

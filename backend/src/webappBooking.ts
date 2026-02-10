@@ -2,7 +2,7 @@
  * Create a pending booking from Telegram WebApp payload (eventId, tableId, seats, phone).
  * Used by POST /telegram/webapp and by the bot when it receives web_app_data.
  */
-import { findEventById, addBooking } from './db';
+import { db } from './db';
 import type { Booking } from './models';
 import { v4 as uuid } from 'uuid';
 
@@ -13,7 +13,7 @@ export type WebAppBookingPayload = {
   phone: string;
 };
 
-export function createPendingBookingFromWebAppPayload(payload: WebAppBookingPayload): { id: string } {
+export async function createPendingBookingFromWebAppPayload(payload: WebAppBookingPayload): Promise<{ id: string }> {
   const { eventId, tableId, seats, phone } = payload;
   if (!eventId || !tableId) {
     throw new Error('eventId and tableId are required');
@@ -27,7 +27,7 @@ export function createPendingBookingFromWebAppPayload(payload: WebAppBookingPayl
     throw new Error('seats must be a non-empty array of seat indices');
   }
 
-  const ev = findEventById(String(eventId)) as any;
+  const ev = (await db.findEventById(String(eventId))) as any;
   if (!ev || (ev.published !== true && ev.status !== 'published')) {
     throw new Error('Event not found');
   }
@@ -52,6 +52,6 @@ export function createPendingBookingFromWebAppPayload(payload: WebAppBookingPayl
     seatIds: [],
     totalAmount: 0,
   };
-  addBooking(booking);
+  await db.addBooking(booking);
   return { id: booking.id };
 }

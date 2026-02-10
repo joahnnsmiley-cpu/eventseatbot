@@ -14,7 +14,7 @@ import {
   type PaymentConfirmedEvent,
 } from '../domain/payments';
 import { expireStaleBookings, calculateBookingExpiration } from '../domain/bookings/booking.expiration';
-import * as bookingDb from '../db';
+import { db } from '../db';
 
 interface TestResult {
   name: string;
@@ -24,9 +24,9 @@ interface TestResult {
 
 const results: TestResult[] = [];
 
-function runTest(name: string, fn: () => void): void {
+async function runTest(name: string, fn: () => void | Promise<void>): Promise<void> {
   try {
-    fn();
+    await fn();
     results.push({ name, passed: true });
     console.log(`✓ ${name}`);
   } catch (error) {
@@ -83,15 +83,16 @@ const mockNotifier = new MockPaymentNotifier();
 setPaymentEventNotifier(mockNotifier);
 
 // Store original getBookings
-const originalGetBookings = (bookingDb as any).getBookings;
+const originalGetBookings = db.getBookings;
 
+;(async () => {
 console.log('\n📋 Manual Payment Confirmation Tests\n');
 
 // ============================================
 // TEST 1: Create payment → pending + notification
 // ============================================
 
-runTest('create payment: initial status is pending', () => {
+await runTest('create payment: initial status is pending', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -105,19 +106,19 @@ runTest('create payment: initial status is pending', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const result = createPaymentIntentService('confirm-test-bk-1', 5000);
+    const result = await createPaymentIntentService('confirm-test-bk-1', 5000);
     assert(result.success, 'Should create payment');
     assertEquals(result.status, 201, 'Should return 201');
     assertEquals(result.data?.status, 'pending', 'Status should be pending');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
-runTest('create payment: emits paymentCreated notification', () => {
+await runTest('create payment: emits paymentCreated notification', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -131,10 +132,10 @@ runTest('create payment: emits paymentCreated notification', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    createPaymentIntentService('confirm-test-bk-2', 7500);
+    await createPaymentIntentService('confirm-test-bk-2', 7500);
 
     assertEquals(mockNotifier.calls.length, 1, 'Should emit exactly 1 notification');
     assertEquals(
@@ -148,7 +149,7 @@ runTest('create payment: emits paymentCreated notification', () => {
       'Should include bookingId',
     );
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
@@ -156,7 +157,7 @@ runTest('create payment: emits paymentCreated notification', () => {
 // TEST 2: Admin confirm → payment paid
 // ============================================
 
-runTest('admin confirm: updates payment status to paid', () => {
+await runTest('admin confirm: updates payment status to paid', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -170,18 +171,18 @@ runTest('admin confirm: updates payment status to paid', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const createResult = createPaymentIntentService('confirm-test-bk-3', 4000);
+    const createResult = await createPaymentIntentService('confirm-test-bk-3', 4000);
     const paymentId = createResult.data!.id;
 
-    const confirmResult = markPaid(paymentId, 'admin-user');
+    const confirmResult = await markPaid(paymentId, 'admin-user');
     assert(confirmResult.success, `Should mark as paid: ${confirmResult.error}`);
     assertEquals(confirmResult.status, 200, 'Should return 200');
     assertEquals(confirmResult.data?.status, 'paid', 'Status should be paid');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
@@ -189,7 +190,7 @@ runTest('admin confirm: updates payment status to paid', () => {
 // TEST 3: Booking status updated to paid
 // ============================================
 
-runTest('admin confirm: marking payment paid updates booking', () => {
+await runTest('admin confirm: marking payment paid updates booking', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -203,19 +204,19 @@ runTest('admin confirm: marking payment paid updates booking', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const createResult = createPaymentIntentService('confirm-test-bk-3', 4000);
+    const createResult = await createPaymentIntentService('confirm-test-bk-3', 4000);
     assert(createResult.success, 'Should create payment');
     const paymentId = createResult.data!.id;
 
     // Confirm the payment
-    const confirmResult = markPaid(paymentId, 'admin-user');
+    const confirmResult = await markPaid(paymentId, 'admin-user');
     assert(confirmResult.success, 'Should mark payment as paid');
     assertEquals(confirmResult.data?.status, 'paid', 'Payment status should be paid');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
@@ -223,7 +224,7 @@ runTest('admin confirm: marking payment paid updates booking', () => {
 // TEST 4: Telegram notification sent on confirm
 // ============================================
 
-runTest('admin confirm: emits paymentConfirmed notification', () => {
+await runTest('admin confirm: emits paymentConfirmed notification', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -237,16 +238,16 @@ runTest('admin confirm: emits paymentConfirmed notification', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const createResult = createPaymentIntentService('confirm-test-bk-5', 8000);
+    const createResult = await createPaymentIntentService('confirm-test-bk-5', 8000);
     const paymentId = createResult.data!.id;
 
     // Reset to clear the create notification
     mockNotifier.reset();
 
-    markPaid(paymentId, 'admin-user');
+    await markPaid(paymentId, 'admin-user');
 
     assertEquals(mockNotifier.calls.length, 1, 'Should emit exactly 1 confirmation notification');
     assertEquals(
@@ -255,7 +256,7 @@ runTest('admin confirm: emits paymentConfirmed notification', () => {
       'Should emit paymentConfirmed',
     );
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
@@ -263,7 +264,7 @@ runTest('admin confirm: emits paymentConfirmed notification', () => {
 // TEST 5: Confirmation notification has correct fields
 // ============================================
 
-runTest('paymentConfirmed: includes bookingId, amount, confirmedBy, confirmedAt', () => {
+await runTest('paymentConfirmed: includes bookingId, amount, confirmedBy, confirmedAt', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -277,15 +278,15 @@ runTest('paymentConfirmed: includes bookingId, amount, confirmedBy, confirmedAt'
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const createResult = createPaymentIntentService('confirm-test-bk-6', 12000);
+    const createResult = await createPaymentIntentService('confirm-test-bk-6', 12000);
     const paymentId = createResult.data!.id;
 
     mockNotifier.reset();
 
-    markPaid(paymentId, 'jane.admin@company.com');
+    await markPaid(paymentId, 'jane.admin@company.com');
 
     assert(mockNotifier.calls[0], 'Should have notification');
     const data = mockNotifier.calls[0]!.data as PaymentConfirmedEvent;
@@ -295,7 +296,7 @@ runTest('paymentConfirmed: includes bookingId, amount, confirmedBy, confirmedAt'
     assertEquals(data.confirmedBy, 'jane.admin@company.com', 'Should include confirmedBy');
     assert(typeof data.confirmedAt === 'string', 'Should include confirmedAt as ISO string');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
@@ -303,7 +304,7 @@ runTest('paymentConfirmed: includes bookingId, amount, confirmedBy, confirmedAt'
 // TEST 6: Double confirm → 409
 // ============================================
 
-runTest('admin confirm: double confirm returns 409 conflict', () => {
+await runTest('admin confirm: double confirm returns 409 conflict', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -317,23 +318,23 @@ runTest('admin confirm: double confirm returns 409 conflict', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const createResult = createPaymentIntentService('confirm-test-bk-7', 3000);
+    const createResult = await createPaymentIntentService('confirm-test-bk-7', 3000);
     const paymentId = createResult.data!.id;
 
     // First confirm - should succeed
-    const confirm1 = markPaid(paymentId, 'admin-user');
+    const confirm1 = await markPaid(paymentId, 'admin-user');
     assert(confirm1.success, 'First confirm should succeed');
     assertEquals(confirm1.status, 200, 'Should return 200');
 
     // Second confirm - should fail
-    const confirm2 = markPaid(paymentId, 'admin-user');
+    const confirm2 = await markPaid(paymentId, 'admin-user');
     assert(!confirm2.success, 'Second confirm should fail');
     assertEquals(confirm2.status, 409, 'Should return 409 conflict');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
@@ -341,7 +342,7 @@ runTest('admin confirm: double confirm returns 409 conflict', () => {
 // TEST 7: Paid booking ignored by expiration
 // ============================================
 
-runTest('expiration: paid booking does NOT expire', () => {
+await runTest('expiration: paid booking does NOT expire', async () => {
   mockNotifier.reset();
 
   const mockBookingsState = [
@@ -355,26 +356,26 @@ runTest('expiration: paid booking does NOT expire', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
     // Create and confirm payment
-    const createResult = createPaymentIntentService('confirm-test-bk-8', 5500);
+    const createResult = await createPaymentIntentService('confirm-test-bk-8', 5500);
     const paymentId = createResult.data!.id;
-    markPaid(paymentId, 'admin-user');
+    await markPaid(paymentId, 'admin-user');
 
     // Set booking to be expired
-    const bookings = (bookingDb as any).getBookings();
+    const bookings = await (db as any).getBookings();
     const booking = bookings.find((b: any) => b.id === 'confirm-test-bk-8');
     booking.expiresAt = new Date(Date.now() - 60 * 1000).toISOString(); // 1 minute ago
 
     // Try to expire stale bookings
-    const expiredCount = expireStaleBookings();
+    const expiredCount = await expireStaleBookings();
 
     assertEquals(expiredCount, 0, 'Should NOT expire paid booking');
     assertEquals(booking.status, 'reserved', 'Booking should still be reserved (not expired)');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
   }
 });
 
@@ -382,7 +383,7 @@ runTest('expiration: paid booking does NOT expire', () => {
 // TEST 8: Pending payment booking still expires
 // ============================================
 
-runTest('expiration: pending payment booking expires normally', () => {
+runTest('expiration: pending payment booking expires normally', async () => {
   // This test verifies the booking expiration logic works with pending payments
   // We've already tested this in booking.expiration.test.ts
   // Here we just verify the payment status doesn't affect normal expiration flow
@@ -401,30 +402,30 @@ runTest('expiration: pending payment booking expires normally', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
-  (bookingDb as any).getEvents = () => [
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
+  (db as any).getEvents = () => [
     {
       id: 'confirm-test-evt-9',
       tables: [{ id: 'table-9', seatsAvailable: 2, seatsTotal: 4 }],
     },
   ];
-  (bookingDb as any).saveEvents = () => {};
+  (db as any).saveEvents = () => {};
 
   try {
     // Create payment but do NOT confirm it (status = pending)
-    const createResult = createPaymentIntentService('confirm-test-bk-9', 2500);
+    const createResult = await createPaymentIntentService('confirm-test-bk-9', 2500);
     assert(createResult.success, 'Should create payment');
     assertEquals(createResult.data?.status, 'pending', 'Payment should be pending');
 
     // Try to expire stale bookings
-    const expiredCount = expireStaleBookings();
+    const expiredCount = await expireStaleBookings();
 
     // With pending payment, booking should expire
     assertEquals(expiredCount, 1, 'Should expire booking with pending payment');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
-    delete (bookingDb as any).getEvents;
-    delete (bookingDb as any).saveEvents;
+    (db as any).getBookings = originalGetBookings;
+    delete (db as any).getEvents;
+    delete (db as any).saveEvents;
   }
 });
 
@@ -432,7 +433,7 @@ runTest('expiration: pending payment booking expires normally', () => {
 // TEST 9: Notifier errors do not affect flow
 // ============================================
 
-runTest('notifier errors: paymentCreated errors do not break flow', () => {
+await runTest('notifier errors: paymentCreated errors do not break flow', async () => {
   // Create error-throwing notifier
   const errorNotifier: PaymentEventNotifier = {
     async paymentCreated(): Promise<void> {
@@ -455,20 +456,20 @@ runTest('notifier errors: paymentCreated errors do not break flow', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
     // Payment creation should succeed despite notifier error
-    const result = createPaymentIntentService('confirm-test-bk-10', 9000);
+    const result = await createPaymentIntentService('confirm-test-bk-10', 9000);
     assert(result.success, 'Should still create payment despite notifier error');
     assertEquals(result.status, 201, 'Should return 201');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
     setPaymentEventNotifier(mockNotifier); // Restore mock notifier
   }
 });
 
-runTest('notifier errors: paymentConfirmed errors do not break flow', () => {
+await runTest('notifier errors: paymentConfirmed errors do not break flow', async () => {
   // Create error-throwing notifier
   const errorNotifier: PaymentEventNotifier = {
     async paymentCreated(): Promise<void> {
@@ -491,19 +492,19 @@ runTest('notifier errors: paymentConfirmed errors do not break flow', () => {
     },
   ];
 
-  (bookingDb as any).getBookings = () => mockBookingsState;
+  (db as any).getBookings = () => Promise.resolve(mockBookingsState);
 
   try {
-    const createResult = createPaymentIntentService('confirm-test-bk-11', 11000);
+    const createResult = await createPaymentIntentService('confirm-test-bk-11', 11000);
     const paymentId = createResult.data!.id;
 
     // Confirmation should succeed despite notifier error
-    const confirmResult = markPaid(paymentId, 'admin-user');
+    const confirmResult = await markPaid(paymentId, 'admin-user');
     assert(confirmResult.success, 'Should still confirm payment despite notifier error');
     assertEquals(confirmResult.status, 200, 'Should return 200');
     assertEquals(confirmResult.data?.status, 'paid', 'Payment should be marked as paid');
   } finally {
-    (bookingDb as any).getBookings = originalGetBookings;
+    (db as any).getBookings = originalGetBookings;
     setPaymentEventNotifier(mockNotifier); // Restore mock notifier
   }
 });
@@ -528,3 +529,4 @@ if (failed > 0) {
   console.log('✅ All tests passed!');
   process.exit(0);
 }
+})();

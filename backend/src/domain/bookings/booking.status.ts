@@ -3,7 +3,7 @@
  * Retrieves complete booking status including payment information
  */
 
-import { getBookings } from '../../db';
+import { db } from '../../db';
 import { findPaymentById, getAllPayments } from '../payments';
 import type { Booking } from '../../models';
 
@@ -26,14 +26,14 @@ export interface BookingStatusResult {
  * Returns null if booking not found
  * Never throws
  */
-export function getBookingStatus(bookingId: string | undefined): BookingStatusResult | null {
+export async function getBookingStatus(bookingId: string | undefined): Promise<BookingStatusResult | null> {
   try {
     if (!bookingId) {
       return null;
     }
 
     // Find booking
-    const bookings = getBookings();
+    const bookings = await db.getBookings();
     const booking = bookings.find((b: Booking) => b.id === bookingId);
 
     if (!booking) {

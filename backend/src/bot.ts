@@ -1,5 +1,5 @@
 import { Telegraf, Markup } from 'telegraf';
-import { getAdmins } from './db';
+import { db } from './db';
 import { createPendingBookingFromWebAppPayload } from './webappBooking';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -51,7 +51,7 @@ if (bot) {
     if (!data) return;
     try {
       const payload = JSON.parse(data);
-      const { id } = createPendingBookingFromWebAppPayload({
+      const { id } = await createPendingBookingFromWebAppPayload({
         eventId: String(payload.eventId ?? ''),
         tableId: String(payload.tableId ?? ''),
         seats: Array.isArray(payload.seats) ? payload.seats : [],
@@ -69,7 +69,7 @@ if (bot) {
 
 export const notifyAdminsAboutBooking = async (text: string) => {
   if (!bot) return;
-  const admins = getAdmins();
+  const admins = await db.getAdmins();
   for (const admin of admins) {
     try {
       await bot.telegram.sendMessage(admin.id, text);
