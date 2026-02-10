@@ -1,19 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as StorageService from '../services/storageService';
-import { EventData } from '../types';
+import { EventData, Table } from '../types';
 import { UI_TEXT } from '../constants/uiText';
 import EventCard, { EventCardSkeleton } from './EventCard';
-
-type AdminTable = {
-  id: string;
-  x: number;
-  y: number;
-  seatsCount: number;
-  sizePercent: number;
-  shape: 'circle' | 'rect';
-  color: string;
-  isAvailable: boolean;
-};
 
 type AdminBooking = {
   id: string;
@@ -42,12 +31,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [eventDescription, setEventDescription] = useState('');
   const [eventPhone, setEventPhone] = useState('');
   const [eventPublished, setEventPublished] = useState(false);
-  const [eventTables, setEventTables] = useState<AdminTable[]>([]);
   const [savingLayout, setSavingLayout] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
   const [statusActionLoading, setStatusActionLoading] = useState(false);
+  /** True if when we loaded this event it had at least one table (so we know "empty" = user deleted all). */
+  const [hadTablesWhenLoaded, setHadTablesWhenLoaded] = useState(false);
 
   useEffect(() => {
     if (!layoutUrl?.trim()) {
@@ -116,24 +106,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     try {
       const ev = await StorageService.getAdminEvent(eventId);
       setSelectedEvent(ev);
+      setHadTablesWhenLoaded((ev?.tables?.length ?? 0) > 0);
       setLayoutUrl(ev?.layoutImageUrl || '');
       setEventTitle(ev?.title || '');
       setEventDescription(ev?.description || '');
       setEventPhone(ev?.paymentPhone || '');
       setEventPublished(ev?.published === true);
-      const tables = Array.isArray(ev?.tables) ? ev.tables : [];
-      setEventTables(
-        tables.map((t: any, idx: number) => ({
-          id: typeof t.id === 'string' && t.id ? t.id : `tbl-${idx + 1}`,
-          x: typeof t.x === 'number' ? t.x : Number(t.centerX) || 0,
-          y: typeof t.y === 'number' ? t.y : Number(t.centerY) || 0,
-          seatsCount: typeof t.seatsTotal === 'number' ? t.seatsTotal : Number(t.seatsAvailable) || 0,
-          sizePercent: typeof t.sizePercent === 'number' ? t.sizePercent : 5,
-          shape: t.shape === 'rect' ? 'rect' : 'circle',
-          color: typeof t.color === 'string' && t.color.length > 0 ? t.color : '#3b82f6',
-          isAvailable: t.isAvailable === true,
-        })),
-      );
     } catch (e) {
       console.error('[AdminPanel] Failed to load event', e);
       if (e instanceof Error && e.message) {
@@ -175,12 +153,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setError(null);
     setSuccessMessage(null);
     try {
-      const tablesPayload = eventTables.map((t, idx) => {
-        const seatsTotal = Math.max(0, Number(t.seatsCount) || 0);
-        const seatsAvailable = Math.min(seatsTotal, seatsTotal);
-        const x = Math.min(100, Math.max(0, Number(t.x) || 0));
-        const y = Math.min(100, Math.max(0, Number(t.y) || 0));
-        const sizePercent = Math.min(20, Math.max(1, Number(t.sizePercent) || 5));
+      const tables = selectedEvent?.tables ?? [];
+      const tablesPayload = tables.map((t, idx) => {
+        const seatsTotal = Math.max(0, Number(t.seatsTotal) ?? 0);
+        const seatsAvailable = Math.min(seatsTotal, Number(t.seatsAvailable) ?? seatsTotal);
+        const x = Math.min(100, Math.max(0, Number(t.x ?? t.centerX) ?? 0));
+        const y = Math.min(100, Math.max(0, Number(t.y ?? t.centerY) ?? 0));
+        const sizePercent = Math.min(20, Math.max(1, Number(t.sizePercent) ?? 5));
         return {
           id: t.id,
           number: idx + 1,
@@ -202,29 +181,23 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         paymentPhone: eventPhone.trim(),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
-        tables: tablesPayload as any,
       };
+      if (selectedEvent.tables !== undefined) {
+        if (tables.length > 0) {
+          payload.tables = tablesPayload as any;
+        } else if (hadTablesWhenLoaded) {
+          payload.tables = [];
+        }
+      }
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
       const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
       setSelectedEvent(refreshed);
+      setHadTablesWhenLoaded((refreshed?.tables?.length ?? 0) > 0);
       setLayoutUrl(refreshed?.layoutImageUrl || '');
       setEventTitle(refreshed?.title || '');
       setEventDescription(refreshed?.description || '');
       setEventPhone(refreshed?.paymentPhone || '');
       setEventPublished(refreshed?.published === true);
-      const refreshedTables = Array.isArray(refreshed?.tables) ? refreshed.tables : [];
-      setEventTables(
-        refreshedTables.map((t: any, idx: number) => ({
-          id: typeof t.id === 'string' && t.id ? t.id : `tbl-${idx + 1}`,
-          x: typeof t.x === 'number' ? t.x : Number(t.centerX) || 0,
-          y: typeof t.y === 'number' ? t.y : Number(t.centerY) || 0,
-          seatsCount: typeof t.seatsTotal === 'number' ? t.seatsTotal : Number(t.seatsAvailable) || 0,
-          sizePercent: typeof t.sizePercent === 'number' ? t.sizePercent : 5,
-          shape: t.shape === 'rect' ? 'rect' : 'circle',
-          color: typeof t.color === 'string' && t.color.length > 0 ? t.color : '#3b82f6',
-          isAvailable: t.isAvailable === true,
-        })),
-      );
       setEvents((prev) => prev.map((e) => (e.id === refreshed.id ? { ...e, title: refreshed.title } : e)));
       setError(null);
       setSuccessMessage(UI_TEXT.admin.eventUpdated);
@@ -278,17 +251,18 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   const deleteTable = async (tableId: string) => {
     if (!selectedEvent?.id) return;
-    const newTables = eventTables.filter((it) => it.id !== tableId);
+    const newTables = (selectedEvent.tables ?? []).filter((it) => it.id !== tableId);
+    setSelectedEvent((prev) => (prev ? { ...prev, tables: newTables } : null));
     setSavingLayout(true);
     setError(null);
     setSuccessMessage(null);
     try {
       const tablesPayload = newTables.map((t, idx) => {
-        const seatsTotal = Math.max(0, Number(t.seatsCount) || 0);
-        const seatsAvailable = Math.min(seatsTotal, seatsTotal);
-        const x = Math.min(100, Math.max(0, Number(t.x) || 0));
-        const y = Math.min(100, Math.max(0, Number(t.y) || 0));
-        const sizePercent = Math.min(20, Math.max(1, Number(t.sizePercent) || 5));
+        const seatsTotal = Math.max(0, Number(t.seatsTotal) ?? 0);
+        const seatsAvailable = Math.min(seatsTotal, Number(t.seatsAvailable) ?? seatsTotal);
+        const x = Math.min(100, Math.max(0, Number(t.x ?? t.centerX) ?? 0));
+        const y = Math.min(100, Math.max(0, Number(t.y ?? t.centerY) ?? 0));
+        const sizePercent = Math.min(20, Math.max(1, Number(t.sizePercent) ?? 5));
         return {
           id: t.id,
           number: idx + 1,
@@ -310,29 +284,23 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         paymentPhone: eventPhone.trim(),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
-        tables: tablesPayload as any,
       };
+      if (selectedEvent.tables !== undefined) {
+        if (newTables.length > 0) {
+          payload.tables = tablesPayload as any;
+        } else if (hadTablesWhenLoaded) {
+          payload.tables = [];
+        }
+      }
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
       const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
       setSelectedEvent(refreshed);
+      setHadTablesWhenLoaded((refreshed?.tables?.length ?? 0) > 0);
       setLayoutUrl(refreshed?.layoutImageUrl || '');
       setEventTitle(refreshed?.title || '');
       setEventDescription(refreshed?.description || '');
       setEventPhone(refreshed?.paymentPhone || '');
       setEventPublished(refreshed?.published === true);
-      const refreshedTables = Array.isArray(refreshed?.tables) ? refreshed.tables : [];
-      setEventTables(
-        refreshedTables.map((t: any, idx: number) => ({
-          id: typeof t.id === 'string' && t.id ? t.id : `tbl-${idx + 1}`,
-          x: typeof t.x === 'number' ? t.x : Number(t.centerX) || 0,
-          y: typeof t.y === 'number' ? t.y : Number(t.centerY) || 0,
-          seatsCount: typeof t.seatsTotal === 'number' ? t.seatsTotal : Number(t.seatsAvailable) || 0,
-          sizePercent: typeof t.sizePercent === 'number' ? t.sizePercent : 5,
-          shape: t.shape === 'rect' ? 'rect' : 'circle',
-          color: typeof t.color === 'string' && t.color.length > 0 ? t.color : '#3b82f6',
-          isAvailable: t.isAvailable === true,
-        })),
-      );
       setSuccessMessage(UI_TEXT.tables.tableDeleted);
     } catch (e) {
       console.error('[AdminPanel] Failed to delete table', e);
@@ -364,7 +332,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   const hasBookings = useMemo(() => bookings.length > 0, [bookings.length]);
   const hasEvents = useMemo(() => events.length > 0, [events.length]);
-  const tables = eventTables;
+  const tables: Table[] = selectedEvent?.tables ?? [];
 
   return (
     <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gray-50 min-h-screen">
@@ -662,10 +630,21 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   <button
                     onClick={() => {
                       const nextId = `tbl-${Date.now()}`;
-                      setEventTables((prev) => ([
-                        ...prev,
-                        { id: nextId, x: 50, y: 50, seatsCount: 4, sizePercent: 5, shape: 'circle', color: '#3b82f6', isAvailable: true },
-                      ]));
+                      const newTable: Table = {
+                        id: nextId,
+                        number: tables.length + 1,
+                        seatsTotal: 4,
+                        seatsAvailable: 4,
+                        x: 50,
+                        y: 50,
+                        centerX: 50,
+                        centerY: 50,
+                        sizePercent: 5,
+                        shape: 'circle',
+                        color: '#3b82f6',
+                        isAvailable: true,
+                      };
+                      setSelectedEvent((prev) => (prev ? { ...prev, tables: [...(prev.tables ?? []), newTable] } : null));
                     }}
                     disabled={eventPublished}
                     className="px-2 py-1 text-xs border rounded disabled:opacity-50 disabled:cursor-not-allowed"
@@ -673,18 +652,18 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     {UI_TEXT.tables.addTable}
                   </button>
                 </div>
-                {eventTables.length === 0 && (
+                {tables.length === 0 && (
                   <div className="text-xs text-gray-500">{UI_TEXT.tables.noTablesYet}</div>
                 )}
-                {eventTables.map((t, idx) => (
+                {tables.map((t, idx) => (
                   <div key={t.id} className="flex flex-wrap gap-2 items-center">
                     <div className="text-xs text-gray-500">#{idx + 1}</div>
                     <label className="flex items-center gap-1 text-xs text-gray-600">
                       <input
                         type="checkbox"
-                        checked={t.isAvailable}
+                        checked={t.isAvailable === true}
                         onChange={() => {
-                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, isAvailable: !it.isAvailable } : it));
+                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, isAvailable: !it.isAvailable } : it) } : null);
                         }}
                         className="rounded"
                       />
@@ -696,10 +675,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         type="number"
                         min={0}
                         max={100}
-                        value={t.x}
+                        value={t.x ?? t.centerX ?? 0}
                         onChange={(e) => {
                           const val = Number(e.target.value);
-                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, x: val } : it));
+                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, x: val, centerX: val } : it) } : null);
                         }}
                         disabled={eventPublished}
                         className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
@@ -711,10 +690,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         type="number"
                         min={0}
                         max={100}
-                        value={t.y}
+                        value={t.y ?? t.centerY ?? 0}
                         onChange={(e) => {
                           const val = Number(e.target.value);
-                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, y: val } : it));
+                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, y: val, centerY: val } : it) } : null);
                         }}
                         disabled={eventPublished}
                         className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
@@ -725,10 +704,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       <input
                         type="number"
                         min={0}
-                        value={t.seatsCount}
+                        value={t.seatsTotal}
                         onChange={(e) => {
                           const val = Number(e.target.value);
-                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, seatsCount: val } : it));
+                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, seatsTotal: val, seatsAvailable: val } : it) } : null);
                         }}
                         disabled={eventPublished}
                         className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
@@ -741,23 +720,23 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         min={1}
                         max={20}
                         step={1}
-                        value={t.sizePercent}
+                        value={t.sizePercent ?? 5}
                         onChange={(e) => {
                           const val = Number(e.target.value);
-                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, sizePercent: val } : it));
+                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, sizePercent: val } : it) } : null);
                         }}
                         disabled={eventPublished}
                         className="ml-2 align-middle disabled:opacity-60"
                       />
-                      <span className="ml-1">{t.sizePercent}</span>
+                      <span className="ml-1">{t.sizePercent ?? 5}</span>
                     </label>
                     <label className="text-xs text-gray-600">
                       {UI_TEXT.tables.shape}
                       <select
-                        value={t.shape}
+                        value={t.shape ?? 'circle'}
                         onChange={(e) => {
                           const val = e.target.value === 'rect' ? 'rect' : 'circle';
-                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, shape: val } : it));
+                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, shape: val } : it) } : null);
                         }}
                         disabled={eventPublished}
                         className="ml-1 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
@@ -773,7 +752,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         value={t.color || '#3b82f6'}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, color: val } : it));
+                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, color: val } : it) } : null);
                         }}
                         disabled={eventPublished}
                         className="ml-1 h-7 w-10 border rounded disabled:opacity-60 disabled:cursor-not-allowed"
@@ -852,23 +831,25 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       {UI_TEXT.tables.noLayoutImage}
                     </div>
                   )}
-                  {eventTables.map((t, idx) => {
-                    const isRect = t.shape === 'rect';
+                  {tables.map((t, idx) => {
+                    const isRect = (t.shape ?? 'circle') === 'rect';
                     const bg = t.color || '#3b82f6';
+                    const posX = t.x ?? t.centerX ?? 0;
+                    const posY = t.y ?? t.centerY ?? 0;
                     return (
                       <div
                         key={t.id}
                         className={`table-wrapper ${isRect ? 'rect' : 'circle'}`}
                         style={{
                           position: 'absolute',
-                          left: `${t.x}%`,
-                          top: `${t.y}%`,
+                          left: `${posX}%`,
+                          top: `${posY}%`,
                           transform: 'translate(-50%, -50%)',
-                          ['--size' as string]: Number(t.sizePercent) || 5,
+                          ['--size' as string]: Number(t.sizePercent) ?? 5,
                         }}
                       >
                         <div className={`table-shape ${isRect ? 'rect' : 'circle'}`} style={{ backgroundColor: bg }} />
-                        <div className="table-label">{UI_TEXT.tables.tableLabel.replace('{number}', String(idx + 1)).replace('{seats}', String(t.seatsCount))}</div>
+                        <div className="table-label">{UI_TEXT.tables.tableLabel.replace('{number}', String(idx + 1)).replace('{seats}', String(t.seatsTotal))}</div>
                       </div>
                     );
                   })}

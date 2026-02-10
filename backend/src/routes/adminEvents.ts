@@ -167,6 +167,9 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   }
   const existing = await db.findEventById(id);
   if (!existing) return res.status(404).json({ error: 'Event not found' });
+  if (Array.isArray(req.body.tables) && req.body.tables.length === 0 && existing.tables?.length) {
+    return res.status(400).json({ error: 'Empty tables payload would wipe existing tables' });
+  }
   // Allow publishing via status in body from draft or archived
   const requestedStatus = typeof req.body.status === 'string' ? req.body.status : undefined;
 
