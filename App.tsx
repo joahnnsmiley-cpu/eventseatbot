@@ -517,6 +517,7 @@ function App() {
                   (selectedSeatsByTable[selectedTableId] ?? []).length === 0
                 }
                 onClick={() => {
+                  setBookingError(null);
                   if (!selectedEventId || !selectedTableId) return;
                   const normalizedPhone = userPhone.trim();
                   if (!normalizedPhone) {
