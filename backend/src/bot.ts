@@ -1,5 +1,6 @@
 import { Telegraf, Markup } from 'telegraf';
 import { getAdmins } from './db';
+import { createPendingBookingFromWebAppPayload } from './webappBooking';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:4000';
@@ -41,6 +42,26 @@ if (bot) {
 
   bot.help((ctx) => {
     ctx.reply('Используйте кнопку "🎟 Выбрать место" в сообщении /start.');
+  });
+
+  // Telegram WebApp sendData: booking payload (eventId, tableId, seats, phone)
+  bot.on('message', async (ctx) => {
+    const msg = (ctx.message as { web_app_data?: { data?: string } }) || {};
+    const data = msg.web_app_data?.data;
+    if (!data) return;
+    try {
+      const payload = JSON.parse(data);
+      const { id } = createPendingBookingFromWebAppPayload({
+        eventId: String(payload.eventId ?? ''),
+        tableId: String(payload.tableId ?? ''),
+        seats: Array.isArray(payload.seats) ? payload.seats : [],
+        phone: typeof payload.phone === 'string' ? payload.phone : '',
+      });
+      await ctx.reply(`Бронь создана. ID: ${id}`);
+    } catch (e) {
+      console.error('[bot] web_app_data booking failed', e);
+      await ctx.reply('Не удалось создать бронь. Попробуйте ещё раз.');
+    }
   });
 }
 

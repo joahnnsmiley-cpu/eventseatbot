@@ -21,6 +21,7 @@ import { setPaymentEventNotifier } from './domain/payments';
 import { TelegramBookingNotifier } from './infra/telegram';
 import { TelegramPaymentNotifier } from './infra/telegram/telegram.payment-notifier';
 import { startBookingExpirationJob } from './infra/scheduler';
+import { createPendingBookingFromWebAppPayload } from './webappBooking';
 
 
 const app = express();
@@ -70,6 +71,35 @@ app.post('/telegram/webhook', (req, res) => {
     bot.handleUpdate(req.body);
   }
   res.sendStatus(200);
+});
+
+/**
+ * POST /telegram/webapp — receive Telegram WebApp booking data (from sendData or bot forwarding).
+ * Body: JSON { eventId, tableId, seats: number[], phone } or raw string (JSON).
+ * Creates pending booking and returns { ok: true }.
+ */
+app.post('/telegram/webapp', (req, res) => {
+  try {
+    let payload: { eventId?: string; tableId?: string; seats?: number[]; phone?: string };
+    if (typeof req.body === 'string') {
+      payload = JSON.parse(req.body);
+    } else if (req.body && typeof req.body === 'object') {
+      payload = req.body;
+    } else {
+      res.status(400).json({ error: 'Invalid body' });
+      return;
+    }
+    createPendingBookingFromWebAppPayload({
+      eventId: String(payload.eventId ?? ''),
+      tableId: String(payload.tableId ?? ''),
+      seats: Array.isArray(payload.seats) ? payload.seats : [],
+      phone: typeof payload.phone === 'string' ? payload.phone : '',
+    });
+    res.status(200).json({ ok: true });
+  } catch (e) {
+    console.error('[telegram/webapp]', e);
+    res.status(500).json({ error: 'internal' });
+  }
 });
 
 // Seed a single published event for dev/preview or explicit flag.

@@ -11,6 +11,7 @@ declare global {
     Telegram?: {
       WebApp?: {
         ready?: () => void;
+        sendData?: (data: string) => void;
         initData?: string;
         initDataUnsafe?: {
           user?: {
@@ -515,7 +516,7 @@ function App() {
                   bookingLoading ||
                   (selectedSeatsByTable[selectedTableId] ?? []).length === 0
                 }
-                onClick={async () => {
+                onClick={() => {
                   if (!selectedEventId || !selectedTableId) return;
                   const normalizedPhone = userPhone.trim();
                   if (!normalizedPhone) {
@@ -527,38 +528,27 @@ function App() {
                     setBookingError('Select at least one seat.');
                     return;
                   }
-                  setBookingLoading(true);
-                  setBookingError(null);
-                  try {
-                    const { id } = await StorageService.createPendingBooking({
-                      eventId: selectedEventId,
-                      tableId: selectedTableId,
-                      seats: [...seats],
-                      phone: normalizedPhone,
-                    });
-                    setSelectedSeatsByTable((prev) => {
-                      const next = { ...prev };
-                      delete next[selectedTableId];
-                      return next;
-                    });
-                    setSelectedTableId(null);
-                    setSelectedEvent(null);
-                    setBookingSuccessMessage(`Booking created. ID: ${id}`);
-                    setView('my-bookings');
-                    await loadMyBookings();
-                  } catch (e) {
-                    const err = e as Error & { status?: number };
-                    if (err.status === 409) {
-                      setBookingError('Seats just ran out. Refresh and try another table.');
-                      if (selectedEventId) loadEvent(selectedEventId, true);
-                    } else if (err.status === 400 || err.status === 422) {
-                      setBookingError(err.message || 'Check your details and try again.');
-                    } else {
-                      setBookingError(err.message || 'Connection issue. Try again.');
-                    }
-                  } finally {
-                    setBookingLoading(false);
+                  const tg = window.Telegram?.WebApp;
+                  if (!tg?.sendData) {
+                    setBookingError('Open in Telegram to book.');
+                    return;
                   }
+                  const payload = {
+                    eventId: selectedEventId,
+                    tableId: selectedTableId,
+                    seats: [...seats],
+                    phone: normalizedPhone,
+                  };
+                  tg.sendData(JSON.stringify(payload));
+                  setSelectedSeatsByTable((prev) => {
+                    const next = { ...prev };
+                    delete next[selectedTableId];
+                    return next;
+                  });
+                  setSelectedTableId(null);
+                  setSelectedEvent(null);
+                  setBookingSuccessMessage('Booking sent. Check Telegram.');
+                  setView('my-bookings');
                 }}
               >
                 {bookingLoading ? 'Booking…' : 'Continue / Book'}
