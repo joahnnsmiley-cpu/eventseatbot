@@ -41,6 +41,8 @@ export interface EventData {
   maxSeatsPerBooking: number;
   published?: boolean;
   status?: 'draft' | 'published' | 'archived';
+  /** Задел: позже backend будет отдавать adminTelegramId; UI уже готов к нему. */
+  adminTelegramId?: string;
 }
 
 export interface Booking {

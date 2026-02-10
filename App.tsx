@@ -348,12 +348,15 @@ function App() {
 
           {selectedEvent && (
             <>
-              {/* Основной визуал — афиша (imageUrl); layoutImageUrl только внутри SeatMap как подложка зала */}
+              {/* Порядок: 1. Название 2. Афиша 3. Рассадка 4. Описание 5. Контакт организатора */}
+              <h1 className="text-xl font-semibold text-gray-900 mb-3">
+                {selectedEvent.title?.trim() || UI_TEXT.event.eventFallback}
+              </h1>
               {selectedEvent.imageUrl?.trim() && (
                 <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-100 mb-4">
                   <img
                     src={selectedEvent.imageUrl.trim()}
-                    alt=""
+                    alt={selectedEvent.title?.trim() || UI_TEXT.event.eventFallback}
                     className="w-full h-auto max-h-48 object-cover object-center"
                   />
                 </div>
@@ -367,6 +370,36 @@ function App() {
                   if (selectedEventId) loadEvent(selectedEventId, true);
                 }}
               />
+              {/* Описание и контакт — после рассадки */}
+              {selectedEvent.description != null && selectedEvent.description.trim() !== '' && (
+                <p className="text-sm text-gray-700 whitespace-pre-wrap mt-4 mb-4">
+                  {selectedEvent.description.trim()}
+                </p>
+              )}
+              {/* Блок контакта: только если есть adminTelegramId или заглушка; без пустых ссылок */}
+              {(() => {
+                const placeholder = 'eventseatbot_support'; // TODO: set to null when backend sends adminTelegramId
+                const raw = selectedEvent.adminTelegramId ?? placeholder;
+                const contactTarget = typeof raw === 'string' ? raw.trim() : '';
+                if (!contactTarget) return null;
+                const username = contactTarget.replace(/^@/, '');
+                const href = /^\d+$/.test(username)
+                  ? `https://t.me/+${username}`
+                  : `https://t.me/${username}`;
+                return (
+                  <div className="mt-4 mb-4 p-3 rounded-lg border border-gray-200 bg-white space-y-2">
+                    <p className="text-sm text-gray-700">{UI_TEXT.event.contactOrganizerPrompt}</p>
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#0088cc] rounded-lg hover:opacity-90"
+                    >
+                      {UI_TEXT.event.contactOrganizerButton}
+                    </a>
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
