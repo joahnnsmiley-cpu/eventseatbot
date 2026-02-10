@@ -128,6 +128,7 @@ export async function getEvents(): Promise<EventData[]> {
   if (eventsErr) throw eventsErr;
   if (!eventsRows?.length) return [];
 
+  // Load all event_tables and group by event_id so each event gets its tables
   const { data: tablesRows, error: tablesErr } = await supabase.from('event_tables').select('*');
   if (tablesErr) throw tablesErr;
   const tablesByEventId = (tablesRows ?? []).reduce<Record<string, EventTablesRow[]>>((acc, r) => {
@@ -139,20 +140,35 @@ export async function getEvents(): Promise<EventData[]> {
   }, {});
 
   return (eventsRows as EventsRow[]).map((row) => {
-    const tables = (tablesByEventId[row.id] ?? []).map(eventTablesRowToTable);
-    return eventsRowToEvent(row, tables);
+    const event = eventsRowToEvent(row, []);
+    // For each event: always set event.tables from event_tables (no fallback)
+    const tablesFromEventTables = (tablesByEventId[event.id] ?? []).map((r) => eventTablesRowToTable(r as EventTablesRow));
+    event.tables = tablesFromEventTables;
+    return event;
   });
 }
 
 export async function findEventById(id: string): Promise<EventData | undefined> {
   if (!supabase) return undefined;
+  // 1. Read event from events
   const { data: eventRow, error: eventErr } = await supabase.from('events').select('*').eq('id', id).single();
   if (eventErr || !eventRow) return undefined;
 
-  const { data: tablesRows, error: tablesErr } = await supabase.from('event_tables').select('*').eq('event_id', id);
+  const event = eventsRowToEvent(eventRow as EventsRow, []);
+
+  // 2. Always rebuild tables from event_tables (no event.tables ?? [])
+  const { data: tablesRows, error: tablesErr } = await supabase
+    .from('event_tables')
+    .select('*')
+    .eq('event_id', event.id);
   if (tablesErr) return undefined;
-  const tables = (tablesRows ?? []).map((r) => eventTablesRowToTable(r as EventTablesRow));
-  return eventsRowToEvent(eventRow as EventsRow, tables);
+
+  // 3. Map event_tables rows to Table[]
+  const tablesFromEventTables = (tablesRows ?? []).map((r) => eventTablesRowToTable(r as EventTablesRow));
+
+  // 4. Assign: always from event_tables
+  event.tables = tablesFromEventTables;
+  return event;
 }
 
 export async function saveEvents(events: EventData[]): Promise<void> {

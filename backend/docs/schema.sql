@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS events (
   layout_image_url TEXT,
   organizer_phone TEXT,
   published BOOLEAN DEFAULT false,
+  tables JSONB,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -82,3 +83,8 @@ COMMENT ON COLUMN bookings.seat_indices IS 'Array of seat indices at the table (
 CREATE INDEX IF NOT EXISTS idx_bookings_event_id ON bookings(event_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_table_id ON bookings(table_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
+
+-- -----------------------------------------------------------------------------
+-- Migration: add tables (jsonb, nullable) to events if missing (run in SQL Editor)
+-- -----------------------------------------------------------------------------
+-- ALTER TABLE events ADD COLUMN IF NOT EXISTS tables JSONB;
