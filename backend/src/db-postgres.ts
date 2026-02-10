@@ -18,7 +18,9 @@ type EventsRow = {
   title: string;
   description: string | null;
   date: string | null;
+  /** image_url — poster (event banner / cover image); not used as layout. */
   image_url: string | null;
+  /** layout_image_url — seating map only (рассадка); not for poster/cover. */
   layout_image_url: string | null;
   organizer_phone: string | null;
   published: boolean | null;
@@ -68,7 +70,9 @@ function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
     title: row.title,
     description: row.description ?? '',
     date: row.date ?? new Date().toISOString(),
+    // image_url → imageUrl: poster (banner/cover); not layout
     imageUrl: row.image_url ?? '',
+    // layout_image_url → layoutImageUrl: seating only (рассадка)
     layoutImageUrl: row.layout_image_url ?? null,
     schemaImageUrl: null,
     paymentPhone: row.organizer_phone ?? '',
@@ -194,6 +198,7 @@ export async function saveEvents(events: EventData[]): Promise<void> {
 
 export async function upsertEvent(event: EventData): Promise<void> {
   if (!supabase) return;
+  // image_url — poster (event banner / cover image); layout_image_url — seating only (рассадка)
   const row: Omit<EventsRow, 'created_at' | 'updated_at'> = {
     id: event.id,
     title: event.title,

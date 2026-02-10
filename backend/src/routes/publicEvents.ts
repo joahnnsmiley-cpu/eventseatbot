@@ -8,7 +8,7 @@ const router = Router();
 router.get('/events', async (_req: Request, res: Response) => {
   try {
     const events = (await db.getEvents()).filter((e: any) => (e as any).published === true || (e as any).status === 'published');
-    // map to safe public shape
+    // map to safe public shape; image_url → cover (poster); layout_image_url → seating only (рассадка)
     const mapped = events.map((e: any) => ({
       id: e.id,
       title: e.title,
@@ -31,6 +31,7 @@ router.get('/events/:id', async (req: Request, res: Response) => {
   const id = req.params.id;
   const ev = (await db.findEventById(id as string)) as any;
   if (!ev || (ev.published !== true && ev.status !== 'published')) return res.status(404).json({ error: 'Event not found' });
+  // image_url → cover (poster); layout_image_url → seating only (рассадка)
   const mapped = {
     id: ev.id,
     title: ev.title,

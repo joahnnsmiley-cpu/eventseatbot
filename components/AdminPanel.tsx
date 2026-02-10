@@ -44,6 +44,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [selectedEventId, setSelectedEventId] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null);
   const [layoutUrl, setLayoutUrl] = useState('');
+  const [eventPosterUrl, setEventPosterUrl] = useState('');
   const [eventTitle, setEventTitle] = useState('');
   const [eventDescription, setEventDescription] = useState('');
   const [eventPhone, setEventPhone] = useState('');
@@ -122,6 +123,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       const ev = await StorageService.getAdminEvent(eventId);
       setSelectedEvent(ev);
       setLayoutUrl(ev?.layoutImageUrl || '');
+      setEventPosterUrl(ev?.imageUrl ?? '');
       setEventTitle(ev?.title || '');
       setEventDescription(ev?.description || '');
       setEventPhone(ev?.paymentPhone || '');
@@ -172,6 +174,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         title: eventTitle.trim(),
         description: eventDescription.trim(),
         paymentPhone: eventPhone.trim(),
+        imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
         tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
@@ -181,6 +184,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
       setSelectedEvent(refreshed);
       setLayoutUrl(refreshed?.layoutImageUrl || '');
+      setEventPosterUrl(refreshed?.imageUrl ?? '');
       setEventTitle(refreshed?.title || '');
       setEventDescription(refreshed?.description || '');
       setEventPhone(refreshed?.paymentPhone || '');
@@ -248,6 +252,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         title: eventTitle.trim(),
         description: eventDescription.trim(),
         paymentPhone: eventPhone.trim(),
+        imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
         tables: newTables.map((t, idx) => tableForBackend(t, idx)),
@@ -257,6 +262,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
       setSelectedEvent(refreshed);
       setLayoutUrl(refreshed?.layoutImageUrl || '');
+      setEventPosterUrl(refreshed?.imageUrl ?? '');
       setEventTitle(refreshed?.title || '');
       setEventDescription(refreshed?.description || '');
       setEventPhone(refreshed?.paymentPhone || '');
@@ -750,6 +756,19 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     })()}
                   </div>
                 ))}
+              </div>
+              <div>
+                <div className="text-sm font-semibold mb-1">{UI_TEXT.event.posterLabel}</div>
+                <input
+                  type="text"
+                  value={eventPosterUrl}
+                  onChange={(e) => setEventPosterUrl(e.target.value)}
+                  placeholder={UI_TEXT.event.posterPlaceholder}
+                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  URL изображения афиши (обложка события).
+                </div>
               </div>
               <div>
                 <div className="text-sm font-semibold mb-1">{UI_TEXT.tables.layoutImageUrl}</div>

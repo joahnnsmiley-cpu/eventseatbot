@@ -109,9 +109,11 @@ router.post('/events', async (req: Request, res: Response) => {
   const description = typeof req.body.description === 'string' ? req.body.description : '';
   const date = typeof req.body.date === 'string' ? req.body.date : new Date().toISOString();
   const newEvent: Event = { id, title, description, date };
+  // image_url — poster (event banner / cover image); not layout
   const coverImageUrl = typeof req.body.coverImageUrl === 'string' ? req.body.coverImageUrl : undefined;
   const imageUrl = typeof req.body.imageUrl === 'string' ? req.body.imageUrl : coverImageUrl || '';
   const schemaImageUrl = typeof req.body.schemaImageUrl === 'string' ? req.body.schemaImageUrl : undefined;
+  // layout_image_url — seating only (рассадка)
   const layoutImageUrl = typeof req.body.layoutImageUrl === 'string' ? req.body.layoutImageUrl : undefined;
   const published = typeof req.body.published === 'boolean' ? req.body.published : false;
   const status = published ? 'published' as const : 'draft' as const;
@@ -237,7 +239,7 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   if (typeof req.body.title === 'string') existing.title = req.body.title;
   if (typeof req.body.description === 'string') existing.description = req.body.description;
   if (typeof req.body.date === 'string') existing.date = req.body.date;
-  // allow optional other fields to be updated if provided
+  // image_url — poster (banner/cover); layout_image_url — seating only (рассадка)
   if (typeof req.body.imageUrl === 'string') existing.imageUrl = req.body.imageUrl;
   if (typeof req.body.coverImageUrl === 'string') existing.imageUrl = req.body.coverImageUrl;
   if (typeof req.body.schemaImageUrl === 'string') existing.schemaImageUrl = req.body.schemaImageUrl;

@@ -28,7 +28,13 @@ export const getEvents = async (): Promise<EventData[]> => {
   if (!res.ok) throw new Error('Failed to load events');
   if (res.status === 204) return [];
   const data = await res.json();
-  return Array.isArray(data) ? data : [];
+  const list = Array.isArray(data) ? data : [];
+  // Public API returns coverImageUrl; normalize to imageUrl (poster) for cards
+  return list.map((e: EventData & { coverImageUrl?: string | null }) => ({
+    ...e,
+    imageUrl: e.imageUrl ?? e.coverImageUrl ?? null,
+    tables: Array.isArray(e.tables) ? e.tables : [],
+  }));
 };
 
 export const getEvent = async (eventId: string): Promise<EventData> => {
@@ -36,9 +42,10 @@ export const getEvent = async (eventId: string): Promise<EventData> => {
   const res = await fetch(`${apiBaseUrl}/public/events/${eventId}`);
   if (!res.ok) throw new Error('Failed to load event');
   const data = await res.json();
-  // Tables from backend (event_tables join only); normalize to array so frontend never relies on raw shape.
+  // Public API returns coverImageUrl; normalize to imageUrl (poster). Tables from event_tables.
   const tables = Array.isArray(data.tables) ? data.tables : [];
-  return { ...data, tables } as EventData;
+  const imageUrl = data.imageUrl ?? data.coverImageUrl ?? null;
+  return { ...data, imageUrl, tables } as EventData;
 };
 
 export const createBooking = async (

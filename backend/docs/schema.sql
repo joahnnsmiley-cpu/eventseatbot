@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS events (
   title TEXT NOT NULL,
   description TEXT,
   date TIMESTAMPTZ,
-  image_url TEXT,
-  layout_image_url TEXT,
+  image_url TEXT,           -- poster (event banner / cover image); not used as layout
+  layout_image_url TEXT,    -- seating map only (рассадка); not for poster/cover
   organizer_phone TEXT,
   published BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS events (
 );
 
 COMMENT ON TABLE events IS 'Events; tables are normalized in event_tables and read via join in findEventById';
+COMMENT ON COLUMN events.image_url IS 'Poster (event banner / cover image); not layout';
+COMMENT ON COLUMN events.layout_image_url IS 'Seating map only (рассадка); not for poster/cover';
 
 -- -----------------------------------------------------------------------------
 -- event_tables: tables belonging to an event (seats layout)

@@ -48,7 +48,8 @@ export interface EventData {
   title: string;
   description: string;
   date: string;
-  imageUrl: string;
+  /** imageUrl — афиша события (poster / cover). */
+  imageUrl?: string | null;
   tables: Table[];
   paymentPhone: string;
   maxSeatsPerBooking: number;
@@ -56,6 +57,7 @@ export interface EventData {
   status?: EventStatus;
   /** Kept for backward compatibility; sync with status (status === 'published' ⇔ published === true). */
   published?: boolean;
+  /** layoutImageUrl — подложка зала (seating map background). */
   layoutImageUrl?: string | null;
   schemaImageUrl?: string | null;
 }

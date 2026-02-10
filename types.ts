@@ -31,7 +31,9 @@ export interface EventData {
   title: string;
   description: string;
   date: string;
-  imageUrl: string; // Floor plan background
+  /** imageUrl — афиша события (poster / cover). */
+  imageUrl?: string | null;
+  /** layoutImageUrl — подложка зала (seating map background). */
   layoutImageUrl?: string | null;
   schemaImageUrl?: string | null;
   tables: Table[];

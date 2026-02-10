@@ -347,15 +347,27 @@ function App() {
           )}
 
           {selectedEvent && (
-            <SeatMap
-              event={selectedEvent}
-              selectedSeatsByTable={selectedSeatsByTable}
-              onTableSelect={(tableId) => {
-                setSelectedTableId(tableId);
-                setView('seats');
-                if (selectedEventId) loadEvent(selectedEventId, true);
-              }}
-            />
+            <>
+              {/* Основной визуал — афиша (imageUrl); layoutImageUrl только внутри SeatMap как подложка зала */}
+              {selectedEvent.imageUrl?.trim() && (
+                <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-100 mb-4">
+                  <img
+                    src={selectedEvent.imageUrl.trim()}
+                    alt=""
+                    className="w-full h-auto max-h-48 object-cover object-center"
+                  />
+                </div>
+              )}
+              <SeatMap
+                event={selectedEvent}
+                selectedSeatsByTable={selectedSeatsByTable}
+                onTableSelect={(tableId) => {
+                  setSelectedTableId(tableId);
+                  setView('seats');
+                  if (selectedEventId) loadEvent(selectedEventId, true);
+                }}
+              />
+            </>
           )}
         </div>
       </div>
