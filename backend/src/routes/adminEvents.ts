@@ -80,7 +80,7 @@ router.get('/events', async (_req: Request, res: Response) => {
   res.json(events);
 });
 
-// GET /admin/events/:id
+// GET /admin/events/:id — full EventData with tables via findEventById; no filtering by published
 router.get('/events/:id', async (req: Request, res: Response) => {
   const id = normalizeId(req.params.id);
 
@@ -91,7 +91,14 @@ router.get('/events/:id', async (req: Request, res: Response) => {
   const existing = await db.findEventById(id);
   if (!existing) return res.status(404).json({ error: 'Event not found' });
 
-  // Allow admin to read events regardless of status.
+  console.log(
+    '[GET ADMIN EVENT]',
+    'event_id:',
+    existing.id,
+    'tables length:',
+    Array.isArray(existing.tables) ? existing.tables.length : 'NO TABLES',
+  );
+
   res.json(existing);
 });
 

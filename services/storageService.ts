@@ -168,11 +168,17 @@ export const getAdminEvents = async (): Promise<EventData[]> => {
   return res.json();
 };
 
+/** GET /admin/events/:id — full EventData with tables. Never use /events/:id or list endpoint. */
 export const getAdminEvent = async (id: string): Promise<EventData> => {
   const apiBaseUrl = getApiBaseUrl();
-  const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(id)}`, { headers: AuthService.getAuthHeader() });
+  const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: AuthService.getAuthHeader(),
+  });
   if (!res.ok) await handleAuthError(res, 'Failed to load admin event');
-  return res.json();
+  const data = await res.json();
+  const tables = Array.isArray(data.tables) ? data.tables : [];
+  return { ...data, tables } as EventData;
 };
 
 export const createAdminEvent = async (payload: Partial<EventData>): Promise<EventData> => {

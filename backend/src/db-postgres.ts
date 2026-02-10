@@ -216,6 +216,19 @@ export async function upsertEvent(event: EventData): Promise<void> {
       is_available: t.isAvailable ?? false,
     });
   }
+
+  const { data: checkRows } = await supabase
+    .from('event_tables')
+    .select('id')
+    .eq('event_id', event.id);
+
+  console.log(
+    '[UPSERT EVENT]',
+    'event_id:',
+    event.id,
+    'tables written:',
+    checkRows?.length,
+  );
 }
 
 // ---- Bookings ----
