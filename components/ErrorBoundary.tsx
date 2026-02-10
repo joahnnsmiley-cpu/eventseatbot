@@ -1,4 +1,5 @@
 import React from 'react';
+import { UI_TEXT } from '../constants/uiText';
 
 type ErrorBoundaryState = {
   error: Error | null;
@@ -19,8 +20,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     if (this.state.error) {
       return (
         <div style={{ padding: 24, fontFamily: 'sans-serif' }}>
-          <h1>Something went wrong</h1>
-          <div>Please refresh the page and try again.</div>
+          <h1>{UI_TEXT.common.somethingWentWrong}</h1>
+          <div>{UI_TEXT.common.refreshPageAndRetry}</div>
         </div>
       );
     }

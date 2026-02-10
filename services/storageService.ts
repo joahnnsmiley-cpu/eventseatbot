@@ -197,6 +197,26 @@ export const updateAdminEvent = async (id: string, payload: Partial<EventData>):
   return res.json();
 };
 
+export const publishAdminEvent = async (id: string): Promise<EventData> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(id)}/publish`, {
+    method: 'POST',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) await handleAuthError(res, 'Failed to publish event');
+  return res.json();
+};
+
+export const archiveAdminEvent = async (id: string): Promise<EventData> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(id)}/archive`, {
+    method: 'POST',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) await handleAuthError(res, 'Failed to archive event');
+  return res.json();
+};
+
 export const deleteAdminEvent = async (id: string): Promise<void> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(id)}`, {

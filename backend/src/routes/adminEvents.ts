@@ -67,9 +67,9 @@ const normalizeTables = (tables: unknown): EventData['tables'] => {
   });
 };
 
-// GET /admin/events
+// GET /admin/events — return full EventData[] for admin list (e.g. EventCard with layoutImageUrl, status)
 router.get('/events', async (_req: Request, res: Response) => {
-  const events = (await db.getEvents()).map(toEvent);
+  const events = await db.getEvents();
   res.json(events);
 });
 
@@ -100,6 +100,7 @@ router.post('/events', async (req: Request, res: Response) => {
   const schemaImageUrl = typeof req.body.schemaImageUrl === 'string' ? req.body.schemaImageUrl : undefined;
   const layoutImageUrl = typeof req.body.layoutImageUrl === 'string' ? req.body.layoutImageUrl : undefined;
   const published = typeof req.body.published === 'boolean' ? req.body.published : false;
+  const status = published ? 'published' as const : 'draft' as const;
 
   // Convert to EventData with sensible defaults so storage remains compatible
   const eventData: EventData = {
@@ -113,6 +114,7 @@ router.post('/events', async (req: Request, res: Response) => {
     paymentPhone: req.body.paymentPhone || '',
     maxSeatsPerBooking: Number(req.body.maxSeatsPerBooking) || 0,
     tables: normalizeTables(req.body.tables),
+    status,
     published,
   };
 
@@ -134,17 +136,29 @@ router.post('/events/:id/publish', async (req: Request, res: Response) => {
     return res.status(409).json({ error: 'Event is already published' });
   }
 
-  if (existing.status && existing.status !== 'draft') {
-    return res.status(409).json({ error: 'Event cannot be published from current status' });
-  }
-
   existing.status = 'published';
   existing.published = true;
   await db.upsertEvent(existing);
   return res.status(200).json(existing);
 });
 
-// PUT /admin/events/:id
+// POST /admin/events/:id/archive
+router.post('/events/:id/archive', async (req: Request, res: Response) => {
+  const id = normalizeId(req.params.id);
+
+  if (!id) {
+    return respondBadRequest(res, new Error('Event id is required'), { error: 'Event id is required' });
+  }
+  const existing = await db.findEventById(id);
+  if (!existing) return res.status(404).json({ error: 'Event not found' });
+
+  existing.status = 'archived';
+  existing.published = false;
+  await db.upsertEvent(existing);
+  return res.status(200).json(existing);
+});
+
+// PUT /admin/events/:id — forbid modification only when status === 'published'; allow when draft or archived
 router.put('/events/:id', async (req: Request, res: Response) => {
   const id = normalizeId(req.params.id);
 
@@ -153,17 +167,33 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   }
   const existing = await db.findEventById(id);
   if (!existing) return res.status(404).json({ error: 'Event not found' });
-  // Allow publishing the event via status change from draft -> published
+  // Allow publishing via status in body from draft or archived
   const requestedStatus = typeof req.body.status === 'string' ? req.body.status : undefined;
 
-  if (requestedStatus === 'published' && existing.status === 'draft') {
+  if (requestedStatus === 'published' && (existing.status === 'draft' || existing.status === 'archived')) {
     existing.status = 'published';
+    existing.published = true;
     await db.upsertEvent(existing);
     return res.json(toEvent(existing));
   }
 
-  // Once published, the event must not be modified
+  // When published, only table isAvailable can be updated; other fields are readonly
   if (existing.status === 'published') {
+    if (Array.isArray(req.body.tables)) {
+      const tables = existing.tables ?? [];
+      for (let i = 0; i < req.body.tables.length; i++) {
+        const bt = req.body.tables[i];
+        if (bt && typeof bt.id === 'string') {
+          const idx = tables.findIndex((t: any) => t.id === bt.id);
+          if (idx !== -1) {
+            (tables[idx] as any).isAvailable = bt.isAvailable === true;
+          }
+        }
+      }
+      existing.tables = tables;
+      await db.upsertEvent(existing);
+      return res.json(toEvent(existing));
+    }
     return res.status(403).json({ error: 'Event is published and cannot be modified' });
   }
 
@@ -177,27 +207,42 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   if (req.body.layoutImageUrl === null || typeof req.body.layoutImageUrl === 'string') {
     existing.layoutImageUrl = req.body.layoutImageUrl;
   }
-  if (typeof req.body.published === 'boolean') existing.published = req.body.published;
+  if (typeof req.body.published === 'boolean') {
+    existing.published = req.body.published;
+    existing.status = req.body.published ? 'published' : 'draft';
+  }
+  const requestedStatusPut = typeof req.body.status === 'string' && (req.body.status === 'draft' || req.body.status === 'published' || req.body.status === 'archived') ? req.body.status : undefined;
+  if (requestedStatusPut !== undefined) {
+    existing.status = requestedStatusPut;
+    existing.published = requestedStatusPut === 'published';
+  }
   if (typeof req.body.paymentPhone === 'string') existing.paymentPhone = req.body.paymentPhone;
   if (typeof req.body.maxSeatsPerBooking !== 'undefined') existing.maxSeatsPerBooking = Number(req.body.maxSeatsPerBooking) || 0;
-  if (Array.isArray(req.body.tables)) existing.tables = normalizeTables(req.body.tables);
+  if (Array.isArray(req.body.tables)) {
+    const existingTableIds = new Set((existing.tables ?? []).map((t: any) => t.id).filter(Boolean));
+    const newTableIds = new Set(req.body.tables.map((t: any) => t?.id).filter(Boolean));
+    const removedTableIds = [...existingTableIds].filter((tid) => !newTableIds.has(tid));
+    if (removedTableIds.length > 0) {
+      const allBookings = await db.getBookings();
+      const eventBookings = allBookings.filter((b: any) => b.eventId === id);
+      for (const tableId of removedTableIds) {
+        const hasBookings = eventBookings.some(
+          (b: any) =>
+            b.tableId === tableId ||
+            (Array.isArray(b.tableBookings) && b.tableBookings.some((tb: any) => tb.tableId === tableId))
+        );
+        if (hasBookings) {
+          return res.status(409).json({
+            error: 'Cannot delete table: it has bookings',
+          });
+        }
+      }
+    }
+    existing.tables = normalizeTables(req.body.tables);
+  }
 
   await db.upsertEvent(existing);
   res.json(toEvent(existing));
-});
-
-// DELETE /admin/events/:id
-router.delete('/events/:id', async (req: Request, res: Response) => {
-  const rawId = req.params.id;
-  const id = Array.isArray(rawId) ? rawId[0] : rawId;
-  const events = await db.getEvents();
-  const idx = events.findIndex((e) => e.id === id);
-  if (idx === -1) return res.status(404).json({ error: 'Event not found' });
-  const existing = events[idx];
-  if ((existing as any).status === 'published') return res.status(403).json({ error: 'Event is published and cannot be deleted' });
-  events.splice(idx, 1);
-  await db.saveEvents(events);
-  res.json({ ok: true });
 });
 
 export default router;

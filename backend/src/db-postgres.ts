@@ -34,6 +34,7 @@ type EventTablesRow = {
   size_percent: number | null;
   shape: string | null;
   color: string | null;
+  is_available: boolean | null;
   created_at?: string;
 };
 
@@ -79,6 +80,7 @@ function eventTablesRowToTable(row: EventTablesRow): Table {
     number: row.number,
     seatsTotal: row.seats_total,
     seatsAvailable: row.seats_available,
+    isAvailable: row.is_available ?? false,
     x: row.x ?? 0,
     y: row.y ?? 0,
     centerX: row.center_x ?? row.x ?? 0,
@@ -195,6 +197,7 @@ export async function upsertEvent(event: EventData): Promise<void> {
       size_percent: t.sizePercent ?? null,
       shape: t.shape ?? null,
       color: t.color ?? null,
+      is_available: t.isAvailable ?? false,
     });
   }
 }

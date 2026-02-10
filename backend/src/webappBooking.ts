@@ -35,6 +35,9 @@ export async function createPendingBookingFromWebAppPayload(payload: WebAppBooki
   if (!tbl) {
     throw new Error('Table not found');
   }
+  if (tbl.isAvailable !== true) {
+    throw new Error('Table is not available for sale');
+  }
 
   const id = uuid();
   const createdAt = Date.now();

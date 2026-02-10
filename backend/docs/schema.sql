@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS event_tables (
   size_percent INTEGER,
   shape TEXT,
   color TEXT,
+  is_available BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

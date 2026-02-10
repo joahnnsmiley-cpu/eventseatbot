@@ -113,6 +113,11 @@ app.post('/telegram/webapp', async (req, res) => {
     res.status(200).json({ ok: true });
   } catch (e) {
     console.error('[telegram/webapp]', e);
+    const msg = e instanceof Error ? e.message : '';
+    if (msg === 'Table is not available for sale') {
+      res.status(403).json({ error: 'Table is not available for sale' });
+      return;
+    }
     res.status(500).json({ error: 'internal' });
   }
 });
@@ -310,6 +315,7 @@ app.post('/bookings', authMiddleware, async (req: AuthRequest, res) => {
       if (!tableId || seatsRequested <= 0) return res.status(400).json({ error: 'Invalid tableBookings entries' });
       const table = event.tables.find((t) => t.id === tableId);
       if (!table) return res.status(400).json({ error: `Table not found: ${tableId}` });
+      if ((table as any).isAvailable !== true) return res.status(403).json({ error: 'Table is not available for sale' });
       if (table.seatsAvailable < seatsRequested) return res.status(400).json({ error: `Not enough seats available at table ${table.number}` });
       const tbPrice = Number(tb.totalPrice) || 0;
       updates.push({ tableId, seats: seatsRequested, totalPrice: tbPrice });

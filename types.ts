@@ -15,6 +15,8 @@ export interface Table {
   number: number; // human-friendly table number
   seatsTotal: number;
   seatsAvailable: number;
+  /** When absent, treat as false. */
+  isAvailable?: boolean;
   x?: number; // Percentage 0-100
   y?: number; // Percentage 0-100
   centerX: number; // Percentage 0-100

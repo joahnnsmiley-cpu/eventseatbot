@@ -175,6 +175,10 @@ router.post('/bookings', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Table not found' });
       return;
     }
+    if (tbl.isAvailable !== true) {
+      res.status(403).json({ error: 'Table is not available for sale' });
+      return;
+    }
 
     const id = (require('uuid').v4)();
     const createdAt = Date.now();
@@ -237,6 +241,7 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
       if (ev.status !== 'published') return { status: 403, body: { error: 'Event is not published' } };
       const tbl = Array.isArray(ev.tables) ? ev.tables.find((t: any) => t.id === tableId) : null;
       if (!tbl) return { status: 400, body: { error: 'Table not found' } };
+      if (tbl.isAvailable !== true) return { status: 403, body: { error: 'Table is not available for sale' } };
       if (typeof tbl.seatsAvailable !== 'number') tbl.seatsAvailable = Number(tbl.seatsAvailable) || 0;
       if (tbl.seatsAvailable < seats) return { status: 409, body: { error: 'Not enough seats available' } };
 

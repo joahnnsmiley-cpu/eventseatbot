@@ -32,6 +32,13 @@ const normalizeTableCoordinates = (t: any) => {
   return changed;
 };
 
+/** Backward compat: derive status from published when missing, and published from status when missing. */
+function normalizeEventStatus(ev: EventData): EventData {
+  const published = ev.published ?? (ev.status === 'published');
+  const status = ev.status ?? (published ? 'published' : 'draft');
+  return { ...ev, status, published };
+}
+
 const ensureFile = () => {
   if (!fs.existsSync(DATA_FILE)) {
     const initial: Database = {
@@ -174,7 +181,7 @@ const writeDb = (db: Database) => {
 };
 
 export const getEvents = (): EventData[] => {
-  return readDb().events;
+  return readDb().events.map(normalizeEventStatus);
 };
 
 export const saveEvents = (events: EventData[]) => {
@@ -219,7 +226,8 @@ export const upsertEvent = (event: EventData) => {
 };
 
 export const findEventById = (id: string): EventData | undefined => {
-  return getEvents().find((e) => e.id === id);
+  const ev = readDb().events.find((e) => e.id === id);
+  return ev ? normalizeEventStatus(ev) : undefined;
 };
 
 export const addBooking = (booking: Booking) => {

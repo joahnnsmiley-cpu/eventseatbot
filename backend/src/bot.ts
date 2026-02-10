@@ -60,6 +60,11 @@ if (bot) {
       await ctx.reply(`Бронь создана. ID: ${id}`);
     } catch (e) {
       console.error('[bot] web_app_data booking failed', e);
+      const msg = e instanceof Error ? e.message : '';
+      if (msg === 'Table is not available for sale') {
+        await ctx.reply('Этот стол недоступен для продажи.');
+        return;
+      }
       await ctx.reply('Не удалось создать бронь. Попробуйте ещё раз.');
     }
   });

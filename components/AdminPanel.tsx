@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as StorageService from '../services/storageService';
 import { EventData } from '../types';
+import { UI_TEXT } from '../constants/uiText';
+import EventCard, { EventCardSkeleton } from './EventCard';
 
 type AdminTable = {
   id: string;
@@ -10,6 +12,7 @@ type AdminTable = {
   sizePercent: number;
   shape: 'circle' | 'rect';
   color: string;
+  isAvailable: boolean;
 };
 
 type AdminBooking = {
@@ -24,13 +27,6 @@ type AdminBooking = {
   expiresAt?: string | number;
 };
 
-type AdminEventSummary = {
-  id: string;
-  title?: string;
-  date?: string;
-  description?: string;
-};
-
 const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [mode, setMode] = useState<'bookings' | 'layout'>('bookings');
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
@@ -38,7 +34,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [eventsLoading, setEventsLoading] = useState(false);
-  const [events, setEvents] = useState<AdminEventSummary[]>([]);
+  const [events, setEvents] = useState<EventData[]>([]);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null);
   const [layoutUrl, setLayoutUrl] = useState('');
@@ -51,6 +47,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
+  const [statusActionLoading, setStatusActionLoading] = useState(false);
 
   useEffect(() => {
     if (!layoutUrl?.trim()) {
@@ -69,11 +66,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   const toFriendlyError = (e: unknown) => {
     const raw = e instanceof Error ? e.message : String(e);
-    if (raw === 'Forbidden') return 'Access denied. Please sign in again.';
-    if (raw.toLowerCase().includes('not found')) return 'Not found. Please refresh and try again.';
-    if (raw.toLowerCase().includes('expired')) return 'Booking expired. It can no longer be confirmed.';
-    if (raw.toLowerCase().includes('only reserved')) return 'Only reserved bookings can be confirmed.';
-    return 'Something went wrong. Please retry.';
+    if (raw === 'Forbidden') return UI_TEXT.common.errors.forbidden;
+    if (raw.toLowerCase().includes('not found')) return UI_TEXT.common.errors.notFound;
+    if (raw.toLowerCase().includes('expired')) return UI_TEXT.common.errors.expired;
+    if (raw.toLowerCase().includes('only reserved')) return UI_TEXT.common.errors.onlyReserved;
+    if (raw.includes('Cannot delete table') || raw.includes('it has bookings')) return UI_TEXT.common.errors.deleteTableWithBookings;
+    return UI_TEXT.common.errors.default;
   };
   const isExpired = (expiresAt?: string | number) => {
     if (!expiresAt) return false;
@@ -102,7 +100,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setSuccessMessage(null);
     try {
       const data = await StorageService.getAdminEvents();
-      setEvents(Array.isArray(data) ? (data as AdminEventSummary[]) : []);
+      setEvents(Array.isArray(data) ? (data as EventData[]) : []);
     } catch (e) {
       setError(toFriendlyError(e));
     } finally {
@@ -133,6 +131,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           sizePercent: typeof t.sizePercent === 'number' ? t.sizePercent : 5,
           shape: t.shape === 'rect' ? 'rect' : 'circle',
           color: typeof t.color === 'string' && t.color.length > 0 ? t.color : '#3b82f6',
+          isAvailable: t.isAvailable === true,
         })),
       );
     } catch (e) {
@@ -151,14 +150,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setError(null);
     setSuccessMessage(null);
     try {
-      const created = await StorageService.createAdminEvent({ title: 'New event', status: 'draft' } as any);
+      const created = await StorageService.createAdminEvent({ title: UI_TEXT.event.newEventTitle, status: 'draft' } as any);
       await loadEvents();
       if (created?.id) {
         setSelectedEventId(created.id);
         await loadEvent(created.id);
       }
       setError(null);
-      setSuccessMessage('Event created.');
+      setSuccessMessage(UI_TEXT.admin.eventCreated);
     } catch (e) {
       console.error('[AdminPanel] Failed to create event', e);
       if (e instanceof Error && e.message) {
@@ -194,6 +193,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           sizePercent,
           shape: t.shape || 'circle',
           color: t.color || '#3b82f6',
+          isAvailable: t.isAvailable === true,
         };
       });
       const payload: Partial<EventData> = {
@@ -222,11 +222,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           sizePercent: typeof t.sizePercent === 'number' ? t.sizePercent : 5,
           shape: t.shape === 'rect' ? 'rect' : 'circle',
           color: typeof t.color === 'string' && t.color.length > 0 ? t.color : '#3b82f6',
+          isAvailable: t.isAvailable === true,
         })),
       );
       setEvents((prev) => prev.map((e) => (e.id === refreshed.id ? { ...e, title: refreshed.title } : e)));
       setError(null);
-      setSuccessMessage('Event updated.');
+      setSuccessMessage(UI_TEXT.admin.eventUpdated);
     } catch (e) {
       console.error('[AdminPanel] Failed to save event', e);
       if (e instanceof Error && e.message) {
@@ -239,7 +240,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         msg.toLowerCase().includes('published') ||
         msg.toLowerCase().includes('cannot be modified');
       setError(
-        isForbidden ? 'Событие опубликовано и не может быть изменено.' : toFriendlyError(e),
+        isForbidden ? UI_TEXT.event.publishedWarning : toFriendlyError(e),
       );
     } finally {
       setSavingLayout(false);
@@ -261,6 +262,86 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return '—';
   };
 
+  const tableIdsWithBookings = useMemo(() => {
+    const set = new Set<string>();
+    if (!selectedEventId) return set;
+    for (const b of bookings) {
+      if (b.event?.id !== selectedEventId) continue;
+      if (Array.isArray(b.tableBookings)) {
+        for (const tb of b.tableBookings) {
+          if (typeof tb?.tableId === 'string') set.add(tb.tableId);
+        }
+      }
+    }
+    return set;
+  }, [bookings, selectedEventId]);
+
+  const deleteTable = async (tableId: string) => {
+    if (!selectedEvent?.id) return;
+    const newTables = eventTables.filter((it) => it.id !== tableId);
+    setSavingLayout(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const tablesPayload = newTables.map((t, idx) => {
+        const seatsTotal = Math.max(0, Number(t.seatsCount) || 0);
+        const seatsAvailable = Math.min(seatsTotal, seatsTotal);
+        const x = Math.min(100, Math.max(0, Number(t.x) || 0));
+        const y = Math.min(100, Math.max(0, Number(t.y) || 0));
+        const sizePercent = Math.min(20, Math.max(1, Number(t.sizePercent) || 5));
+        return {
+          id: t.id,
+          number: idx + 1,
+          seatsTotal,
+          seatsAvailable,
+          x,
+          y,
+          centerX: x,
+          centerY: y,
+          sizePercent,
+          shape: t.shape || 'circle',
+          color: t.color || '#3b82f6',
+          isAvailable: t.isAvailable === true,
+        };
+      });
+      const payload: Partial<EventData> = {
+        title: eventTitle.trim(),
+        description: eventDescription.trim(),
+        paymentPhone: eventPhone.trim(),
+        layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
+        published: eventPublished,
+        tables: tablesPayload as any,
+      };
+      await StorageService.updateAdminEvent(selectedEvent.id, payload);
+      const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
+      setSelectedEvent(refreshed);
+      setLayoutUrl(refreshed?.layoutImageUrl || '');
+      setEventTitle(refreshed?.title || '');
+      setEventDescription(refreshed?.description || '');
+      setEventPhone(refreshed?.paymentPhone || '');
+      setEventPublished(refreshed?.published === true);
+      const refreshedTables = Array.isArray(refreshed?.tables) ? refreshed.tables : [];
+      setEventTables(
+        refreshedTables.map((t: any, idx: number) => ({
+          id: typeof t.id === 'string' && t.id ? t.id : `tbl-${idx + 1}`,
+          x: typeof t.x === 'number' ? t.x : Number(t.centerX) || 0,
+          y: typeof t.y === 'number' ? t.y : Number(t.centerY) || 0,
+          seatsCount: typeof t.seatsTotal === 'number' ? t.seatsTotal : Number(t.seatsAvailable) || 0,
+          sizePercent: typeof t.sizePercent === 'number' ? t.sizePercent : 5,
+          shape: t.shape === 'rect' ? 'rect' : 'circle',
+          color: typeof t.color === 'string' && t.color.length > 0 ? t.color : '#3b82f6',
+          isAvailable: t.isAvailable === true,
+        })),
+      );
+      setSuccessMessage(UI_TEXT.tables.tableDeleted);
+    } catch (e) {
+      console.error('[AdminPanel] Failed to delete table', e);
+      setError(toFriendlyError(e));
+    } finally {
+      setSavingLayout(false);
+    }
+  };
+
   const confirmBooking = async (bookingId: string) => {
     setConfirmingId(bookingId);
     setError(null);
@@ -269,7 +350,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       await StorageService.confirmBooking(bookingId);
       setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: 'paid' } : b)));
       setError(null);
-      setSuccessMessage('Payment confirmed.');
+      setSuccessMessage(UI_TEXT.booking.paymentConfirmed);
     } catch (e) {
       console.error('[AdminPanel] Failed to confirm payment', e);
       if (e instanceof Error && e.message) {
@@ -286,9 +367,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const tables = eventTables;
 
   return (
-    <div className="p-4 bg-gray-50 min-h-screen">
+    <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gray-50 min-h-screen">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Admin</h1>
+        <h1 className="text-2xl font-semibold">{UI_TEXT.admin.title}</h1>
         <div className="flex items-center gap-2">
           {onBack && (
             <button
@@ -296,7 +377,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               disabled={loading || eventsLoading || savingLayout || confirmingId !== null}
               className="text-sm text-gray-600"
             >
-              Exit
+              {UI_TEXT.admin.exit}
             </button>
           )}
           <button
@@ -307,7 +388,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             disabled={loading || eventsLoading}
             className="bg-blue-600 text-white px-3 py-2 rounded"
           >
-            Reload
+            {UI_TEXT.admin.reload}
           </button>
         </div>
       </div>
@@ -317,24 +398,24 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           onClick={() => setMode('bookings')}
           className={`px-3 py-2 rounded text-sm ${mode === 'bookings' ? 'bg-gray-900 text-white' : 'bg-white border text-gray-700'}`}
         >
-          Bookings
+          {UI_TEXT.admin.bookings}
         </button>
         <button
           onClick={() => setMode('layout')}
           className={`px-3 py-2 rounded text-sm ${mode === 'layout' ? 'bg-gray-900 text-white' : 'bg-white border text-gray-700'}`}
         >
-          Venue layout
+          {UI_TEXT.admin.venueLayout}
         </button>
       </div>
 
-      {loading && <div className="text-sm text-gray-500">Loading bookings…</div>}
+      {loading && <div className="text-sm text-gray-500">{UI_TEXT.admin.loadingBookings}</div>}
       {error && <div className="text-sm text-red-600 mb-4">{error}</div>}
       {successMessage && <div className="text-sm text-green-700 mb-4">{successMessage}</div>}
 
       {mode === 'bookings' && (
         <>
           {!loading && !hasBookings && (
-            <div className="text-sm text-gray-600">No bookings yet.</div>
+            <div className="text-sm text-gray-600">{UI_TEXT.admin.noBookings}</div>
           )}
 
           {!loading && hasBookings && (
@@ -342,30 +423,30 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               {bookings.map((b) => (
                 <div key={b.id} className="bg-white p-4 rounded shadow-sm border flex justify-between items-start gap-4">
                   <div className="min-w-0">
-                    <div className="font-semibold">{b.event?.title || 'Event'}</div>
+                    <div className="font-semibold">{b.event?.title || UI_TEXT.event.eventFallback}</div>
                     <div className="text-xs text-gray-500">{b.event?.date || ''}</div>
                     <div className="text-sm text-gray-700 mt-2">
-                      Seats: <span className="font-medium">{formatSeats(b)}</span>
+                      {UI_TEXT.booking.seats} <span className="font-medium">{formatSeats(b)}</span>
                     </div>
                     <div className="text-sm text-gray-700 mt-1">
-                      Phone: <span className="font-medium">{b.userPhone || '—'}</span>
+                      {UI_TEXT.booking.phone} <span className="font-medium">{b.userPhone || '—'}</span>
                     </div>
                     <div className="text-sm text-gray-700 mt-1">
-                      Status: <span className="font-medium">{b.status || '—'}</span>
+                      {UI_TEXT.booking.status} <span className="font-medium">{UI_TEXT.booking.statusLabels[b.status ?? ''] ?? b.status ?? '—'}</span>
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
-                      Booking ID: {b.id}
+                      {UI_TEXT.booking.bookingId} {b.id}
                     </div>
                     <div className="text-xs text-gray-500">
-                      Telegram ID: {typeof b.userTelegramId === 'number' ? b.userTelegramId : '—'}
+                      {UI_TEXT.booking.telegramId}: {typeof b.userTelegramId === 'number' ? b.userTelegramId : '—'}
                     </div>
                     <div className="text-xs text-gray-500">
-                      Expires: {b.expiresAt ? String(b.expiresAt) : '—'}
+                      {UI_TEXT.booking.expires}: {b.expiresAt ? String(b.expiresAt) : '—'}
                     </div>
                   </div>
                   <div className="flex flex-col gap-2">
                     {b.status === 'paid' && (
-                      <div className="text-xs text-green-700">Payment confirmed</div>
+                      <div className="text-xs text-green-700">{UI_TEXT.booking.paymentConfirmed}</div>
                     )}
                     {b.status === 'reserved' && (
                       <>
@@ -378,10 +459,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                               : 'bg-green-600 text-white'
                           }`}
                         >
-                          {confirmingId === b.id ? 'Confirming…' : isExpired(b.expiresAt) ? 'Expired' : 'Confirm payment'}
+                          {confirmingId === b.id ? UI_TEXT.booking.confirming : isExpired(b.expiresAt) ? UI_TEXT.booking.expired : UI_TEXT.booking.confirmPayment}
                         </button>
                         {confirmingId !== null && confirmingId !== b.id && !isExpired(b.expiresAt) && (
-                          <div className="text-xs text-gray-500">Another confirmation is in progress</div>
+                          <div className="text-xs text-gray-500">{UI_TEXT.booking.anotherConfirmInProgress}</div>
                         )}
                       </>
                     )}
@@ -396,81 +477,176 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       {mode === 'layout' && (
         <div className="grid grid-cols-1 gap-4">
           <div className="bg-white p-4 rounded border">
-            <div className="text-sm font-semibold mb-2">Select event</div>
-            <div className="flex flex-wrap items-center gap-2 md:flex-row flex-col">
-              <select
-                value={selectedEventId}
-                onChange={(e) => {
-                  const nextId = e.target.value;
-                  setSelectedEventId(nextId);
-                  setSelectedEvent(null);
-                  setError(null);
-                  setSuccessMessage(null);
-                  if (nextId) loadEvent(nextId);
-                }}
-                className="border rounded px-2 py-2 text-sm w-full max-w-full"
-              >
-                <option value="">— Choose event —</option>
-                {events.map((ev) => (
-                  <option key={ev.id} value={ev.id}>
-                    {ev.title || ev.id}
-                  </option>
-                ))}
-              </select>
+            <div className="flex flex-wrap items-center gap-2 mb-4">
               <button
                 onClick={loadEvents}
                 disabled={eventsLoading || creatingEvent}
-                className="px-3 py-2 text-sm border rounded w-full md:w-auto"
+                className="px-3 py-2 text-sm border rounded"
               >
-                Refresh
+                {UI_TEXT.admin.refresh}
               </button>
               <button
                 onClick={createEvent}
                 disabled={eventsLoading || creatingEvent}
-                className="px-3 py-2 text-sm border rounded w-full md:w-auto"
+                className="px-3 py-2 text-sm border rounded"
               >
-                {creatingEvent ? 'Creating…' : 'Create event'}
+                {creatingEvent ? UI_TEXT.admin.creatingEvent : UI_TEXT.admin.createEvent}
               </button>
             </div>
             {eventsLoading && (
-              <div className="text-xs text-gray-500 mt-2">Loading events…</div>
+              <div className="space-y-3 mt-2" aria-label={UI_TEXT.admin.loadingEvents}>
+                <EventCardSkeleton />
+                <EventCardSkeleton />
+                <EventCardSkeleton />
+                <EventCardSkeleton />
+              </div>
             )}
             {!eventsLoading && !hasEvents && (
-              <div className="text-xs text-gray-500 mt-2">No events found.</div>
+              <div className="py-8 text-center">
+                <p className="text-base text-gray-600 mb-4">{UI_TEXT.admin.emptyEventsList}</p>
+                <button
+                  type="button"
+                  onClick={createEvent}
+                  disabled={creatingEvent}
+                  className="px-4 py-2.5 text-sm font-medium rounded-lg border border-blue-500 text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-[0.98] transition-colors min-h-[44px]"
+                >
+                  {creatingEvent ? UI_TEXT.admin.creatingEvent : UI_TEXT.admin.createEvent}
+                </button>
+              </div>
+            )}
+            {!eventsLoading && hasEvents && (
+              <div className="space-y-3">
+                {events.map((ev) => (
+                  <EventCard
+                    key={ev.id}
+                    event={ev}
+                    mode="admin"
+                    selected={ev.id === selectedEventId}
+                    onClick={() => {
+                      setSelectedEventId(ev.id);
+                      setSelectedEvent(null);
+                      setError(null);
+                      setSuccessMessage(null);
+                      loadEvent(ev.id);
+                    }}
+                  />
+                ))}
+              </div>
             )}
           </div>
 
           {selectedEvent && (
             <div className="bg-white p-4 rounded border space-y-4">
               <div>
-                <div className="text-sm font-semibold mb-1">Title</div>
+                <div className="text-sm font-semibold mb-1">{UI_TEXT.event.title}</div>
                 <input
                   type="text"
                   value={eventTitle}
                   onChange={(e) => setEventTitle(e.target.value)}
-                  placeholder="Event title"
+                  placeholder={UI_TEXT.event.titlePlaceholder}
                   className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                 />
               </div>
               <div>
-                <div className="text-sm font-semibold mb-1">Description</div>
+                <div className="text-sm font-semibold mb-1">{UI_TEXT.event.description}</div>
                 <textarea
                   value={eventDescription}
                   onChange={(e) => setEventDescription(e.target.value)}
-                  placeholder="Optional description"
+                  placeholder={UI_TEXT.event.descriptionPlaceholder}
                   className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                   rows={3}
                 />
               </div>
               <div>
-                <div className="text-sm font-semibold mb-1">Organizer phone</div>
+                <div className="text-sm font-semibold mb-1">{UI_TEXT.event.organizerPhone}</div>
                 <input
                   type="text"
                   value={eventPhone}
                   onChange={(e) => setEventPhone(e.target.value)}
-                  placeholder="Phone for payments"
+                  placeholder={UI_TEXT.event.phonePlaceholder}
                   className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                 />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-gray-600">{UI_TEXT.admin.statusLabel}</span>
+                <span className="text-sm font-medium">
+                  {selectedEvent?.status === 'published' ? UI_TEXT.admin.published : selectedEvent?.status === 'archived' ? UI_TEXT.admin.archived : UI_TEXT.admin.draft}
+                </span>
+                {selectedEvent?.status === 'draft' && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!selectedEventId) return;
+                      setStatusActionLoading(true);
+                      setError(null);
+                      setSuccessMessage(null);
+                      try {
+                        await StorageService.publishAdminEvent(selectedEventId);
+                        setSuccessMessage(UI_TEXT.admin.eventPublished);
+                        await loadEvent(selectedEventId);
+                      } catch (e) {
+                        console.error('[AdminPanel] Publish failed', e);
+                        setError(toFriendlyError(e));
+                      } finally {
+                        setStatusActionLoading(false);
+                      }
+                    }}
+                    disabled={statusActionLoading}
+                    className="px-3 py-1.5 text-sm border rounded bg-green-100 border-green-300 disabled:opacity-50"
+                  >
+                    {statusActionLoading ? '…' : UI_TEXT.admin.publishEvent}
+                  </button>
+                )}
+                {selectedEvent?.status === 'published' && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!selectedEventId) return;
+                      setStatusActionLoading(true);
+                      setError(null);
+                      setSuccessMessage(null);
+                      try {
+                        await StorageService.archiveAdminEvent(selectedEventId);
+                        setSuccessMessage(UI_TEXT.admin.eventArchived);
+                        await loadEvent(selectedEventId);
+                      } catch (e) {
+                        console.error('[AdminPanel] Archive failed', e);
+                        setError(toFriendlyError(e));
+                      } finally {
+                        setStatusActionLoading(false);
+                      }
+                    }}
+                    disabled={statusActionLoading}
+                    className="px-3 py-1.5 text-sm border rounded bg-amber-100 border-amber-300 disabled:opacity-50"
+                  >
+                    {statusActionLoading ? '…' : UI_TEXT.admin.archiveEvent}
+                  </button>
+                )}
+                {selectedEvent?.status === 'archived' && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!selectedEventId) return;
+                      setStatusActionLoading(true);
+                      setError(null);
+                      setSuccessMessage(null);
+                      try {
+                        await StorageService.publishAdminEvent(selectedEventId);
+                        setSuccessMessage(UI_TEXT.admin.eventPublishedAgain);
+                        await loadEvent(selectedEventId);
+                      } catch (e) {
+                        console.error('[AdminPanel] Publish again failed', e);
+                        setError(toFriendlyError(e));
+                      } finally {
+                        setStatusActionLoading(false);
+                      }
+                    }}
+                    disabled={statusActionLoading}
+                    className="px-3 py-1.5 text-sm border rounded bg-green-100 border-green-300 disabled:opacity-50"
+                  >
+                    {statusActionLoading ? '…' : UI_TEXT.admin.publishAgain}
+                  </button>
+                )}
               </div>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -478,30 +654,42 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   checked={eventPublished}
                   onChange={(e) => setEventPublished(e.target.checked)}
                 />
-                Published
+                {UI_TEXT.admin.publishedCheckbox}
               </label>
               <div className="border rounded p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold">Tables</div>
+                  <div className="text-sm font-semibold">{UI_TEXT.tables.tables}</div>
                   <button
                     onClick={() => {
                       const nextId = `tbl-${Date.now()}`;
                       setEventTables((prev) => ([
                         ...prev,
-                        { id: nextId, x: 50, y: 50, seatsCount: 4, sizePercent: 5, shape: 'circle', color: '#3b82f6' },
+                        { id: nextId, x: 50, y: 50, seatsCount: 4, sizePercent: 5, shape: 'circle', color: '#3b82f6', isAvailable: true },
                       ]));
                     }}
-                    className="px-2 py-1 text-xs border rounded"
+                    disabled={eventPublished}
+                    className="px-2 py-1 text-xs border rounded disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Add table
+                    {UI_TEXT.tables.addTable}
                   </button>
                 </div>
                 {eventTables.length === 0 && (
-                  <div className="text-xs text-gray-500">No tables yet. Add one to place seats.</div>
+                  <div className="text-xs text-gray-500">{UI_TEXT.tables.noTablesYet}</div>
                 )}
                 {eventTables.map((t, idx) => (
                   <div key={t.id} className="flex flex-wrap gap-2 items-center">
                     <div className="text-xs text-gray-500">#{idx + 1}</div>
+                    <label className="flex items-center gap-1 text-xs text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={t.isAvailable}
+                        onChange={() => {
+                          setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, isAvailable: !it.isAvailable } : it));
+                        }}
+                        className="rounded"
+                      />
+                      {UI_TEXT.tables.available}
+                    </label>
                     <label className="text-xs text-gray-600">
                       X
                       <input
@@ -513,7 +701,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           const val = Number(e.target.value);
                           setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, x: val } : it));
                         }}
-                        className="ml-1 w-20 border rounded px-2 py-1 text-xs"
+                        disabled={eventPublished}
+                        className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
                     <label className="text-xs text-gray-600">
@@ -527,11 +716,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           const val = Number(e.target.value);
                           setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, y: val } : it));
                         }}
-                        className="ml-1 w-20 border rounded px-2 py-1 text-xs"
+                        disabled={eventPublished}
+                        className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
                     <label className="text-xs text-gray-600">
-                      Seats
+                      {UI_TEXT.tables.seats}
                       <input
                         type="number"
                         min={0}
@@ -540,11 +730,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           const val = Number(e.target.value);
                           setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, seatsCount: val } : it));
                         }}
-                        className="ml-1 w-20 border rounded px-2 py-1 text-xs"
+                        disabled={eventPublished}
+                        className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
                     <label className="text-xs text-gray-600">
-                      Size (%)
+                      {UI_TEXT.tables.sizePercent}
                       <input
                         type="range"
                         min={1}
@@ -555,26 +746,28 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           const val = Number(e.target.value);
                           setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, sizePercent: val } : it));
                         }}
-                        className="ml-2 align-middle"
+                        disabled={eventPublished}
+                        className="ml-2 align-middle disabled:opacity-60"
                       />
                       <span className="ml-1">{t.sizePercent}</span>
                     </label>
                     <label className="text-xs text-gray-600">
-                      Shape
+                      {UI_TEXT.tables.shape}
                       <select
                         value={t.shape}
                         onChange={(e) => {
                           const val = e.target.value === 'rect' ? 'rect' : 'circle';
                           setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, shape: val } : it));
                         }}
-                        className="ml-1 border rounded px-2 py-1 text-xs"
+                        disabled={eventPublished}
+                        className="ml-1 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        <option value="circle">Circle</option>
-                        <option value="rect">Rectangle</option>
+                        <option value="circle">{UI_TEXT.tables.shapeCircle}</option>
+                        <option value="rect">{UI_TEXT.tables.shapeRect}</option>
                       </select>
                     </label>
                     <label className="text-xs text-gray-600">
-                      Table color
+                      {UI_TEXT.tables.tableColor}
                       <input
                         type="color"
                         value={t.color || '#3b82f6'}
@@ -582,23 +775,43 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           const val = e.target.value;
                           setEventTables((prev) => prev.map((it) => it.id === t.id ? { ...it, color: val } : it));
                         }}
-                        className="ml-1 h-7 w-10 border rounded"
+                        disabled={eventPublished}
+                        className="ml-1 h-7 w-10 border rounded disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
+                    {(() => {
+                      const canDelete = selectedEvent?.status !== 'published' && !tableIdsWithBookings.has(t.id);
+                      const hasBookings = tableIdsWithBookings.has(t.id);
+                      return (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!canDelete) return;
+                            if (!window.confirm(UI_TEXT.tables.deleteConfirm)) return;
+                            await deleteTable(t.id);
+                          }}
+                          disabled={!canDelete || savingLayout}
+                          title={hasBookings ? UI_TEXT.tables.deleteWithBookingsTooltip : undefined}
+                          className="px-2 py-1 text-xs border rounded text-red-700 border-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          🗑 {UI_TEXT.tables.delete}
+                        </button>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
               <div>
-                <div className="text-sm font-semibold mb-1">Layout image URL</div>
+                <div className="text-sm font-semibold mb-1">{UI_TEXT.tables.layoutImageUrl}</div>
                 <input
                   type="text"
                   value={layoutUrl}
                   onChange={(e) => setLayoutUrl(e.target.value)}
-                  placeholder="https://example.com/layout.jpg"
+                  placeholder={UI_TEXT.tables.layoutImagePlaceholder}
                   className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                 />
                 <div className="text-xs text-gray-500 mt-1">
-                  Use this image as the table layout background.
+                  {UI_TEXT.tables.layoutImageHint}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2 flex-col md:flex-row">
                   <button
@@ -606,19 +819,19 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     disabled={savingLayout}
                     className="bg-blue-600 text-white px-3 py-2 rounded text-sm w-full md:w-auto"
                   >
-                    {savingLayout ? 'Saving…' : 'Save'}
+                    {savingLayout ? UI_TEXT.common.saving : UI_TEXT.common.save}
                   </button>
                   <button
                     onClick={() => setLayoutUrl(selectedEvent?.layoutImageUrl || '')}
                     className="px-3 py-2 text-sm border rounded w-full md:w-auto"
                   >
-                    Reset
+                    {UI_TEXT.common.reset}
                   </button>
                 </div>
               </div>
 
               <div>
-                <div className="text-sm font-semibold mb-2">Layout preview</div>
+                <div className="text-sm font-semibold mb-2">{UI_TEXT.tables.layoutPreview}</div>
                 {/* Layout container: same aspect ratio as image so admin and user coordinates match 1:1. */}
                 <div
                   className="relative w-full border rounded bg-gray-100 overflow-hidden"
@@ -636,7 +849,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 >
                   {!layoutUrl && (
                     <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
-                      No layout image URL
+                      {UI_TEXT.tables.noLayoutImage}
                     </div>
                   )}
                   {eventTables.map((t, idx) => {
@@ -655,13 +868,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         }}
                       >
                         <div className={`table-shape ${isRect ? 'rect' : 'circle'}`} style={{ backgroundColor: bg }} />
-                        <div className="table-label">Table {idx + 1} — {t.seatsCount} seats</div>
+                        <div className="table-label">{UI_TEXT.tables.tableLabel.replace('{number}', String(idx + 1)).replace('{seats}', String(t.seatsCount))}</div>
                       </div>
                     );
                   })}
                 </div>
                 <div className="text-xs text-gray-500 mt-2">
-                  Enter a layout image URL above; preview updates instantly. Tables are positioned using percentage coordinates (0–100).
+                  {UI_TEXT.tables.layoutHint}
                 </div>
               </div>
             </div>

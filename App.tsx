@@ -4,7 +4,9 @@ import AdminPanel from './components/AdminPanel';
 import AuthService from './services/authService';
 import SeatMap from './components/SeatMap';
 import SeatPicker from './components/SeatPicker';
+import EventCard, { EventCardSkeleton } from './components/EventCard';
 import type { Booking, EventData, Table } from './types';
+import { UI_TEXT } from './constants/uiText';
 
 declare global {
   interface Window {
@@ -33,12 +35,6 @@ type TgUser = {
   last_name?: string;
 };
 
-type PublicEvent = {
-  id: string;
-  title?: string;
-  date?: string;
-};
-
 function App() {
   const [tgAvailable, setTgAvailable] = useState(false);
   const [tgInitData, setTgInitData] = useState('');
@@ -50,7 +46,7 @@ function App() {
   const [tokenRole, setTokenRole] = useState<string | null>(null);
   const [view, setView] = useState<'events' | 'layout' | 'seats' | 'my-bookings' | 'admin'>('events');
 
-  const [events, setEvents] = useState<PublicEvent[]>([]);
+  const [events, setEvents] = useState<EventData[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +82,10 @@ function App() {
     } else {
       setTgAvailable(false);
     }
+  }, []);
+
+  useEffect(() => {
+    document.title = UI_TEXT.app.appTitle;
   }, []);
 
   useEffect(() => {
@@ -148,7 +148,7 @@ function App() {
         setIsAdmin(data?.role === 'admin');
         setAuthRole(data?.role ?? null);
       } catch {
-        setAuthError('Unable to verify access. Please open the app from Telegram.');
+        setAuthError(UI_TEXT.common.errors.unableToVerifyAccess);
       } finally {
         setAuthLoading(false);
       }
@@ -161,10 +161,11 @@ function App() {
     setError(null);
     try {
       const data = await StorageService.getEvents();
-      setEvents(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setEvents(list);
       setHasLoaded(true);
     } catch (e) {
-      setError('Не удалось загрузить события. Попробуйте ещё раз.');
+      setError(UI_TEXT.common.errors.loadEventsFailed);
       setHasLoaded(true);
     } finally {
       setLoading(false);
@@ -184,9 +185,9 @@ function App() {
       if (!silent) {
         const msg = e instanceof Error ? e.message : String(e);
         if (msg === 'Forbidden') {
-          setMyBookingsError('Please log in to view your bookings.');
+          setMyBookingsError(UI_TEXT.common.errors.pleaseLogInToViewBookings);
         } else {
-          setMyBookingsError('Could not load bookings. Please retry.');
+          setMyBookingsError(UI_TEXT.common.errors.couldNotLoadBookings);
         }
       } else {
         setBookingsStale(true);
@@ -209,7 +210,7 @@ function App() {
       if (reqId !== eventRequestRef.current) return;
       setSelectedEvent(ev);
     } catch (e) {
-      setEventError('Could not load event. Tap Refresh to try again.');
+      setEventError(UI_TEXT.common.errors.couldNotLoadEvent);
     } finally {
       if (!silent) setEventLoading(false);
     }
@@ -229,6 +230,12 @@ function App() {
     if (!selectedEvent || !selectedTableId) return null;
     return selectedEvent.tables?.find((t) => t.id === selectedTableId) ?? null;
   }, [selectedEvent, selectedTableId]);
+
+  const publishedEvents = useMemo(() => {
+    return events.filter(
+      (e) => e.status !== 'archived' && (e.published === true || e.status === 'published' || !e.status)
+    );
+  }, [events]);
 
   useEffect(() => {
     if (!selectedTable || !selectedTableId) return;
@@ -324,19 +331,19 @@ function App() {
               }}
               className="text-xs px-2 py-1 rounded border"
             >
-              Back
+              {UI_TEXT.app.back}
             </button>
-            <div className="text-xs text-gray-500">{selectedEvent?.title || 'Event'}</div>
+            <div className="text-xs text-gray-500">{selectedEvent?.title || UI_TEXT.app.event}</div>
             <button onClick={() => selectedEventId && loadEvent(selectedEventId)} className="text-xs px-2 py-1 rounded border">
-              Refresh
+              {UI_TEXT.app.refresh}
             </button>
           </div>
 
-          {eventLoading && <div className="text-xs text-gray-500">Loading layout…</div>}
+          {eventLoading && <div className="text-xs text-gray-500">{UI_TEXT.app.loadingLayout}</div>}
           {eventError && <div className="text-xs text-red-600 mb-3">{eventError}</div>}
 
           {!selectedEvent && (
-            <div className="text-xs text-gray-500">Loading event…</div>
+            <div className="text-xs text-gray-500">{UI_TEXT.app.loadingEvent}</div>
           )}
 
           {selectedEvent && (
@@ -359,7 +366,7 @@ function App() {
     return (
       <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
         <div className="p-4">
-          <div className="text-xs text-gray-500">Returning to layout…</div>
+          <div className="text-xs text-gray-500">{UI_TEXT.app.returningToLayout}</div>
         </div>
       </div>
     );
@@ -378,35 +385,41 @@ function App() {
               disabled={bookingLoading}
               className="text-xs px-2 py-1 rounded border"
             >
-              Back
+              {UI_TEXT.app.back}
             </button>
-            <div className="text-xs text-gray-500">{selectedEvent.title || 'Event'}</div>
+            <div className="text-xs text-gray-500">{selectedEvent.title || UI_TEXT.app.event}</div>
             <button
               onClick={() => selectedEventId && loadEvent(selectedEventId)}
               disabled={bookingLoading}
               className="text-xs px-2 py-1 rounded border"
             >
-              Refresh
+              {UI_TEXT.app.refresh}
             </button>
           </div>
 
-          {eventLoading && <div className="text-xs text-gray-500">Loading seats…</div>}
+          {eventLoading && <div className="text-xs text-gray-500">{UI_TEXT.app.loadingSeats}</div>}
           {eventError && <div className="text-xs text-red-600 mb-3">{eventError}</div>}
 
           {selectedTable ? (
             <div className="space-y-4">
               <div className="bg-white rounded border p-4">
-                <div className="text-sm font-semibold">Table {selectedTable.number}</div>
+                <div className="text-sm font-semibold">{UI_TEXT.tables.table} {selectedTable.number}</div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Free seats: {selectedTable.seatsAvailable} / {selectedTable.seatsTotal}
+                  {UI_TEXT.app.freeSeats} {selectedTable.seatsAvailable} / {selectedTable.seatsTotal}
                 </div>
+                {selectedTable.isAvailable !== true && (
+                  <div className="text-xs text-amber-600 mt-2">
+                    {UI_TEXT.app.tableNotAvailableForSale}
+                  </div>
+                )}
               </div>
 
               <div className="bg-white rounded border p-4">
-                <div className="text-sm font-semibold mb-2">Select seats</div>
+                <div className="text-sm font-semibold mb-2">{UI_TEXT.app.selectSeats}</div>
                 <SeatPicker
                   table={selectedTable}
                   selectedIndices={selectedSeatsByTable[selectedTableId!] ?? []}
+                  tableDisabled={selectedTable.isAvailable !== true}
                   onToggleSeat={(seatIndex) => {
                     if (!selectedTableId) return;
                     setSelectedSeatsByTable((prev) => {
@@ -421,7 +434,7 @@ function App() {
               </div>
 
               <div className="bg-white rounded border p-4">
-                <div className="text-sm font-semibold mb-2">Number of seats</div>
+                <div className="text-sm font-semibold mb-2">{UI_TEXT.app.numberOfSeats}</div>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -436,7 +449,7 @@ function App() {
                         [selectedTableId]: sorted.slice(0, -1),
                       }));
                     }}
-                    disabled={(selectedSeatsByTable[selectedTableId] ?? []).length === 0}
+                    disabled={(selectedSeatsByTable[selectedTableId] ?? []).length === 0 || selectedTable.isAvailable !== true}
                   >
                     -
                   </button>
@@ -448,7 +461,7 @@ function App() {
                     value={(selectedSeatsByTable[selectedTableId] ?? []).length}
                     className="w-20 text-center border rounded px-2 py-2 text-sm bg-gray-50"
                     tabIndex={-1}
-                    aria-label="Selected seat count"
+                    aria-label={UI_TEXT.app.selectedSeatCount}
                   />
                   <button
                     type="button"
@@ -469,7 +482,8 @@ function App() {
                     }}
                     disabled={
                       (selectedSeatsByTable[selectedTableId] ?? []).length >= selectedTable.seatsTotal ||
-                      selectedTable.seatsAvailable === 0
+                      selectedTable.seatsAvailable === 0 ||
+                      selectedTable.isAvailable !== true
                     }
                   >
                     +
@@ -478,23 +492,23 @@ function App() {
                 </div>
                 {selectedTable.seatsAvailable === 0 && (
                   <div className="text-xs text-gray-600 mt-2">
-                    This table is fully booked. Go back and choose another.
+                    {UI_TEXT.app.tableFullyBooked}
                   </div>
                 )}
                 {selectionAdjusted && (
                   <div className="text-xs text-amber-600 mt-2">
-                    Availability updated. Your selection was adjusted.
+                    {UI_TEXT.app.selectionAdjusted}
                   </div>
                 )}
               </div>
 
               <div className="bg-white rounded border p-4">
-                <div className="text-sm font-semibold mb-2">Contact phone</div>
+                <div className="text-sm font-semibold mb-2">{UI_TEXT.app.contactPhone}</div>
                 <input
                   type="tel"
                   value={userPhone}
                   onChange={(e) => setUserPhone(e.target.value)}
-                  placeholder="+7 999 000-00-00"
+                  placeholder={UI_TEXT.app.phonePlaceholder}
                   className="w-full border rounded px-3 py-2 text-sm"
                   disabled={bookingLoading}
                 />
@@ -505,13 +519,14 @@ function App() {
 
               <div className="bg-white rounded border p-4">
                 <div className="text-xs text-gray-500">
-                  Availability refreshes automatically while you are here.
+                  {UI_TEXT.app.availabilityRefreshes}
                 </div>
               </div>
 
               <button
                 className="w-full bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                 disabled={
+                  selectedTable.isAvailable !== true ||
                   selectedTable.seatsAvailable === 0 ||
                   bookingLoading ||
                   (selectedSeatsByTable[selectedTableId] ?? []).length === 0
@@ -519,19 +534,20 @@ function App() {
                 onClick={() => {
                   setBookingError(null);
                   if (!selectedEventId || !selectedTableId) return;
+                  if (selectedTable.isAvailable !== true) return;
                   const normalizedPhone = userPhone.trim();
                   if (!normalizedPhone) {
-                    setBookingError('Add a phone number to continue.');
+                    setBookingError(UI_TEXT.app.addPhoneToContinue);
                     return;
                   }
                   const seats = selectedSeatsByTable[selectedTableId] ?? [];
                   if (seats.length === 0) {
-                    setBookingError('Select at least one seat.');
+                    setBookingError(UI_TEXT.app.selectAtLeastOneSeat);
                     return;
                   }
                   const tg = window.Telegram?.WebApp;
                   if (!tg?.sendData) {
-                    setBookingError('Open in Telegram to book.');
+                    setBookingError(UI_TEXT.app.openInTelegramToBook);
                     return;
                   }
                   const payload = {
@@ -548,18 +564,18 @@ function App() {
                   });
                   setSelectedTableId(null);
                   setSelectedEvent(null);
-                  setBookingSuccessMessage('Booking sent. Check Telegram.');
+                  setBookingSuccessMessage(UI_TEXT.app.bookingSent);
                   setView('my-bookings');
                 }}
               >
-                {bookingLoading ? 'Booking…' : 'Continue / Book'}
+                {bookingLoading ? UI_TEXT.app.booking : UI_TEXT.app.continueBook}
               </button>
               {bookingLoading && (
-                <div className="text-xs text-gray-500 mt-2">Submitting…</div>
+                <div className="text-xs text-gray-500 mt-2">{UI_TEXT.app.submitting}</div>
               )}
             </div>
           ) : (
-            <div className="text-sm text-gray-600">Table not found. Go back and choose another.</div>
+            <div className="text-sm text-gray-600">{UI_TEXT.app.tableNotFound}</div>
           )}
         </div>
       </div>
@@ -584,7 +600,7 @@ function App() {
             >
               Back
             </button>
-            <div className="text-xs text-gray-500">My bookings</div>
+            <div className="text-xs text-gray-500">{UI_TEXT.app.myBookings}</div>
             <button
               onClick={() => loadMyBookings()}
               disabled={myBookingsLoading}
@@ -597,17 +613,17 @@ function App() {
           {bookingSuccessMessage && (
             <div className="text-sm text-green-700 mb-4">{bookingSuccessMessage}</div>
           )}
-          {myBookingsLoading && <div className="text-xs text-gray-500">Loading bookings…</div>}
+          {myBookingsLoading && <div className="text-xs text-gray-500">{UI_TEXT.app.loadingBookings}</div>}
           {myBookingsError && (
             <div className="text-xs text-red-600 mb-3">
               {myBookingsError}
-              {myBookingsError.includes('log in') && (
+              {(myBookingsError.includes('log in') || myBookingsError.includes('Войдите')) && (
                 <div className="mt-2">
                   <button
                     onClick={() => setView('events')}
                     className="text-xs px-2 py-1 rounded border"
                   >
-                    Back to events
+                    {UI_TEXT.app.backToEvents}
                   </button>
                 </div>
               )}
@@ -615,13 +631,13 @@ function App() {
           )}
           {!myBookingsError && bookingsStale && (
             <div className="text-xs text-gray-500 mb-3">
-              Couldn’t refresh data. Tap Refresh to update.
+              {UI_TEXT.app.couldNotRefresh}
             </div>
           )}
 
           {!myBookingsLoading && !myBookingsError && myBookings.length === 0 && (
             <div className="text-sm text-gray-600">
-              You have no bookings yet. Go back to events to reserve seats.
+              {UI_TEXT.app.noBookingsYet}
             </div>
           )}
 
@@ -629,24 +645,24 @@ function App() {
             {myBookings.map((b) => (
               <div key={b.id} className="bg-white p-3 rounded border">
                 <div className="text-sm font-semibold">
-                  {b.event?.title ? b.event.title : `Booking #${b.id}`}
+                  {b.event?.title ? b.event.title : `${UI_TEXT.app.bookingNumber}${b.id}`}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Status: {b.status}
+                  {UI_TEXT.app.status} {UI_TEXT.booking.statusLabels[b.status] ?? b.status ?? '—'}
                 </div>
                 {b.status === 'reserved' && formatCountdown(b.expiresAt) && (
                   <div className="text-xs text-amber-600">
-                    Expires in: {formatCountdown(b.expiresAt)}
+                    {UI_TEXT.app.expiresIn} {formatCountdown(b.expiresAt)}
                   </div>
                 )}
                 <div className="text-xs text-gray-500">
-                  Seats: {typeof b.seatsCount === 'number'
+                  {UI_TEXT.app.seats} {typeof b.seatsCount === 'number'
                     ? b.seatsCount
                     : Array.isArray(b.seatIds) && b.seatIds.length > 0
                       ? b.seatIds.length
                       : '—'}
                 </div>
-                <div className="text-xs text-gray-500">Total: {b.totalAmount ?? '—'}</div>
+                <div className="text-xs text-gray-500">{UI_TEXT.app.total} {b.totalAmount ?? '—'}</div>
                 {b.status === 'paid' && Array.isArray(b.tickets) && b.tickets.length > 0 && (
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     {b.tickets.map((t) => {
@@ -656,7 +672,7 @@ function App() {
                         <img
                           key={t.id}
                           src={img}
-                          alt="Ticket"
+                          alt={UI_TEXT.app.ticket}
                           className="w-full h-24 object-cover rounded border"
                         />
                       );
@@ -665,7 +681,7 @@ function App() {
                 )}
                 {b.status === 'paid' && (!Array.isArray(b.tickets) || b.tickets.length === 0) && (
                   <div className="text-xs text-gray-600 mt-2">
-                    Tickets will appear here after payment is confirmed.
+                    {UI_TEXT.app.ticketsAfterPayment}
                   </div>
                 )}
               </div>
@@ -678,21 +694,21 @@ function App() {
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
-      <div className="p-4">
+      <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-bold">EventSeatBot</h1>
+          <h1 className="text-2xl font-bold">{UI_TEXT.app.appTitle}</h1>
           {isAdmin && (
             <button onClick={() => setView('admin')} className="text-xs px-2 py-1 rounded border">
-              Admin
+              {UI_TEXT.app.admin}
             </button>
           )}
         </div>
-        <p className="text-sm text-gray-600 mb-4">Список опубликованных событий</p>
+        <p className="text-sm text-gray-600 mb-4">{UI_TEXT.app.publishedEventsList}</p>
         {isAdmin && (
           <div className="mb-4 flex items-center gap-2 text-xs text-gray-600">
-            <span>Админ доступ активен.</span>
+            <span>{UI_TEXT.app.adminAccessActive}</span>
             <button onClick={() => setView('admin')} className="text-xs px-2 py-1 rounded border">
-              Открыть админку
+              {UI_TEXT.app.openAdmin}
             </button>
           </div>
         )}
@@ -707,11 +723,11 @@ function App() {
           if (import.meta.env.MODE === 'production' && !debugFlag) return null;
           return (
             <div className="mb-4 rounded border bg-white p-3 text-xs text-gray-600">
-              <div>Debug admin</div>
-              <div>Telegram user id: {tgUser?.id ?? '—'}</div>
-              <div>isAdmin: {String(isAdmin)}</div>
-              <div>role (login): {authRole ?? '—'}</div>
-              <div>role (token): {tokenRole ?? '—'}</div>
+              <div>{UI_TEXT.app.debugAdmin}</div>
+              <div>{UI_TEXT.app.telegramUserId} {tgUser?.id ?? '—'}</div>
+              <div>{UI_TEXT.app.isAdminLabel} {String(isAdmin)}</div>
+              <div>{UI_TEXT.app.roleLoginLabel} {authRole ?? '—'}</div>
+              <div>{UI_TEXT.app.roleTokenLabel} {tokenRole ?? '—'}</div>
             </div>
           );
         })()}
@@ -741,7 +757,7 @@ function App() {
 
         {tgUser && (
           <div className="text-xs text-gray-500 mb-4">
-            Пользователь: {tgUser.username || tgUser.first_name || tgUser.id}
+            {UI_TEXT.app.user} {tgUser.username || tgUser.first_name || tgUser.id}
           </div>
         )}
 
@@ -750,26 +766,32 @@ function App() {
           className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold"
           disabled={loading}
         >
-          {loading ? 'Загружаем события…' : 'События'}
+          {loading ? UI_TEXT.app.loadingEvents : UI_TEXT.app.events}
         </button>
 
         {error && <div className="text-sm text-red-600 mt-4">{error}</div>}
 
-        <div className="mt-6 space-y-3">
-          {hasLoaded && events.length === 0 && !error && (
-            <div className="text-sm text-gray-600">
-              Пока нет опубликованных событий. Попробуйте снова позже.
+        <div className="mt-6 space-y-4">
+          {loading && (
+            <>
+              <EventCardSkeleton />
+              <EventCardSkeleton />
+              <EventCardSkeleton />
+            </>
+          )}
+          {!loading && hasLoaded && publishedEvents.length === 0 && !error && (
+            <div className="py-8 text-center">
+              <p className="text-base text-gray-600 mb-4">{UI_TEXT.admin.emptyEventsList}</p>
+              <p className="text-sm text-gray-500">{UI_TEXT.app.noPublishedEvents}</p>
             </div>
           )}
-          {events.map((evt) => (
-            <button
+          {!loading && publishedEvents.map((evt) => (
+            <EventCard
               key={evt.id}
+              event={evt}
+              mode="user"
               onClick={() => handleEventSelect(evt.id)}
-              className="w-full text-left bg-white p-3 rounded border active:scale-[0.99]"
-            >
-              <div className="font-semibold">{evt.title || 'Без названия'}</div>
-              <div className="text-xs text-gray-500">{evt.date || ''}</div>
-            </button>
+            />
           ))}
         </div>
       </div>

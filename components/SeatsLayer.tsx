@@ -16,6 +16,8 @@ interface SeatsLayerProps {
   paddingPx?: number;
   selectedIndices?: Set<number>;
   onSeatClick?: (index: number) => void;
+  /** When true, all seats render as sold/occupied and are not clickable. */
+  allSeatsDisabled?: boolean;
 }
 
 function getSeatPositions(
@@ -66,9 +68,10 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
   paddingPx = DEFAULT_PADDING_PX,
   selectedIndices,
   onSeatClick,
+  allSeatsDisabled = false,
 }) => {
   const count = Math.max(0, Number(seatsTotal) || 0);
-  const isInteractive = typeof onSeatClick === 'function';
+  const isInteractive = !allSeatsDisabled && typeof onSeatClick === 'function';
   const selectedSet = selectedIndices ?? new Set<number>();
 
   const sizePx = tableSizePx ?? 24 + (Number(sizePercent) || 5) * 4;
@@ -88,10 +91,11 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
     >
       {positions.map((pos, i) => {
         const isSelected = selectedSet.has(i);
+        const isSold = allSeatsDisabled;
         return (
           <div
             key={i}
-            className={`seat ${isSelected ? 'seat--selected' : ''}`}
+            className={`seat ${isSelected ? 'seat--selected' : ''} ${isSold ? 'seat--sold' : ''}`}
             style={{
               position: 'absolute',
               left: pos.x,

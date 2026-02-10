@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { EventData } from '../types';
+import { UI_TEXT } from '../constants/uiText';
 
 type SeatStatus = 'available' | 'reserved' | 'sold';
 
@@ -16,6 +17,8 @@ export type TableModel = {
   number: number;
   seatsTotal: number;
   seatsAvailable: number;
+  /** When absent, treat as false. */
+  isAvailable?: boolean;
   x?: number;
   y?: number;
   centerX: number;
@@ -138,45 +141,48 @@ const SeatMap: React.FC<SeatMapProps> = ({
       >
       {!backgroundUrl && (
         <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
-          No layout image
+          {UI_TEXT.seatMap.noLayoutImage}
         </div>
       )}
 
       {tables.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
-          No tables yet. Please check back later.
+          {UI_TEXT.seatMap.noTablesYet}
         </div>
       )}
       {tables.map((table) => {
         const x = typeof table.x === 'number' ? table.x : table.centerX;
         const y = typeof table.y === 'number' ? table.y : table.centerY;
+        const isAvailableForSale = (table as any).isAvailable === true;
         const isSoldOut = !isEditable && table.seatsAvailable === 0;
+        const isTableDisabled = !isEditable && (!isAvailableForSale || isSoldOut);
         const isRect = (table as any).shape === 'rect';
         const bg = (table as any).color || '#3b82f6';
         return (
           <div
             key={table.id}
-            className={`table-wrapper ${isRect ? 'rect' : 'circle'} ${isSoldOut ? 'opacity-60' : ''}`}
+            className={`table-wrapper ${isRect ? 'rect' : 'circle'} ${isTableDisabled ? 'opacity-60' : ''}`}
             style={{
               position: 'absolute',
               left: `${x}%`,
               top: `${y}%`,
               transform: 'translate(-50%, -50%)',
               ['--size' as string]: Number((table as any).sizePercent) || 5,
+              cursor: isTableDisabled ? 'not-allowed' : 'pointer',
             }}
             onClick={(e) => {
-                if (isSoldOut) return;
+                if (isTableDisabled) return;
                 e.stopPropagation();
                 if (onTableSelect) onTableSelect(table.id);
               }}
-              aria-label={`Table ${table.number}, free ${table.seatsAvailable}`}
-            >
+            aria-label={`${UI_TEXT.seatMap.tableFree.replace('{number}', String(table.number)).replace('{free}', String(table.seatsAvailable))}${!isAvailableForSale ? UI_TEXT.seatMap.notAvailableForSale : ''}`}
+          >
               <div
                 className={`table-shape ${isRect ? 'rect' : 'circle'}`}
-                style={{ backgroundColor: bg, cursor: isSoldOut ? 'not-allowed' : 'pointer' }}
+                style={{ backgroundColor: bg }}
               />
               <div className="table-label">
-                <div className="font-semibold">Table {table.number}</div>
+                <div className="font-semibold">{UI_TEXT.tables.table} {table.number}</div>
                 <div className="text-[10px] text-white/90">{table.seatsAvailable} / {table.seatsTotal}</div>
               </div>
             {isEditable && (
@@ -193,7 +199,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
 
       {!isEditable && seats.length > 0 && (
         <div className="absolute bottom-0 left-0 right-0 bg-white/95 border-t border-gray-200 p-3">
-          <div className="text-xs text-gray-600 mb-2">Места</div>
+          <div className="text-xs text-gray-600 mb-2">{UI_TEXT.seatMap.seats}</div>
           <div className="flex flex-wrap gap-2">
             {seats.map((seat) => {
               const key = `${seat.tableId}-${seat.id}`;
@@ -217,18 +223,19 @@ const SeatMap: React.FC<SeatMapProps> = ({
                   className={`${baseClass} ${statusClass} ${isDisabled && !isSelected ? 'opacity-60 cursor-not-allowed' : 'active:scale-95'}`}
                   aria-pressed={isSelected}
                   aria-disabled={isDisabled && !isSelected}
-                  title={`${seat.tableId} • ${seat.number}`}
+                  title={`${UI_TEXT.tables.seat} ${seat.number}`}
+                  aria-label={`${UI_TEXT.tables.seat} ${seat.number}`}
                 >
-                  {seat.number}
+                  {UI_TEXT.tables.seat} {seat.number}
                 </button>
               );
             })}
           </div>
           <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-gray-600">
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded-sm inline-block" />доступно</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-400 rounded-sm inline-block" />зарезервировано</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded-sm inline-block" />продано</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-blue-600 rounded-sm inline-block" />выбрано</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded-sm inline-block" />{UI_TEXT.seatMap.available}</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-400 rounded-sm inline-block" />{UI_TEXT.seatMap.reserved}</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded-sm inline-block" />{UI_TEXT.seatMap.sold}</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-blue-600 rounded-sm inline-block" />{UI_TEXT.seatMap.selected}</span>
           </div>
         </div>
       )}

@@ -27,6 +27,8 @@ export interface Table {
   seatsTotal: number;
   // Seats currently available (derived or maintained by admin)
   seatsAvailable: number;
+  /** When absent, treat as false. */
+  isAvailable?: boolean;
   // Center position as percentages (0-100)
   x: number;
   y: number;
@@ -39,6 +41,8 @@ export interface Table {
   color?: string;
 }
 
+export type EventStatus = 'draft' | 'published' | 'archived';
+
 export interface EventData {
   id: string;
   title: string;
@@ -48,7 +52,9 @@ export interface EventData {
   tables: Table[];
   paymentPhone: string;
   maxSeatsPerBooking: number;
-  status?: 'draft' | 'published' | 'archived';
+  /** Canonical state: draft | published | archived. When absent, derived from published (published=true → 'published', false → 'draft'). */
+  status?: EventStatus;
+  /** Kept for backward compatibility; sync with status (status === 'published' ⇔ published === true). */
   published?: boolean;
   layoutImageUrl?: string | null;
   schemaImageUrl?: string | null;

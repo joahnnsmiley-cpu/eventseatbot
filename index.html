@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>EventSeatBot</title>
+    <title>Бронирование мест</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
@@ -111,8 +111,15 @@
       .seat.seat--selected {
         background: #2563eb;
       }
+      .seat.seat--sold {
+        background: #9ca3af;
+        cursor: not-allowed;
+      }
       .seats-layer--interactive .seat {
         cursor: pointer;
+      }
+      .seats-layer--interactive .seat.seat--sold {
+        cursor: not-allowed;
       }
       .seat-picker {
         display: flex;

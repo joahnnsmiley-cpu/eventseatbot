@@ -140,6 +140,7 @@ async function run(): Promise<void> {
         size_percent: t.sizePercent ?? null,
         shape: t.shape ?? null,
         color: t.color ?? null,
+        is_available: (t as { isAvailable?: boolean }).isAvailable ?? false,
       };
       const { error } = await supabase.from('event_tables').insert(row);
       if (error) {
