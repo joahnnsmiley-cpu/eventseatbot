@@ -186,15 +186,6 @@ export async function findEventById(id: string): Promise<EventData | undefined> 
 
 export async function saveEvents(events: EventData[]): Promise<void> {
   if (!supabase) return;
-  const ids = new Set(events.map((e) => e.id));
-  const { data: existing } = await supabase.from('events').select('id');
-  const existingIds = new Set((existing ?? []).map((r: { id: string }) => r.id));
-  for (const eid of existingIds) {
-    if (!ids.has(eid)) {
-      const { error } = await supabase.from('events').delete().eq('id', eid);
-      if (error) throw error;
-    }
-  }
   for (const event of events) {
     await upsertEvent(event);
   }
