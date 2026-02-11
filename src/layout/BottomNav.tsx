@@ -1,4 +1,6 @@
 import React from 'react';
+import { CalendarDays, Ticket, User } from 'lucide-react';
+import { UI_TEXT } from '../../constants/uiText';
 
 export type BottomNavTab = 'events' | 'my-tickets' | 'profile';
 
@@ -20,32 +22,32 @@ export default function BottomNav({
       <button
         type="button"
         onClick={onEventsClick}
-        className={`flex flex-col items-center gap-0.5 text-xs font-medium ${
+        className={`flex flex-col items-center justify-center gap-1 transition-colors duration-200 ${
           activeTab === 'events' ? 'text-[#FFC107]' : 'text-gray-400'
         }`}
       >
-        <span className="text-lg">🏠</span>
-        <span>EVENTS</span>
+        <CalendarDays size={20} strokeWidth={1.8} />
+        <span className="text-[10px] tracking-wide uppercase">{UI_TEXT.nav.events}</span>
       </button>
       <button
         type="button"
         onClick={onMyTicketsClick}
-        className={`flex flex-col items-center gap-0.5 text-xs font-medium ${
+        className={`flex flex-col items-center justify-center gap-1 transition-colors duration-200 ${
           activeTab === 'my-tickets' ? 'text-[#FFC107]' : 'text-gray-400'
         }`}
       >
-        <span className="text-lg">🎟</span>
-        <span>MY TICKETS</span>
+        <Ticket size={20} strokeWidth={1.8} />
+        <span className="text-[10px] tracking-wide uppercase">{UI_TEXT.nav.myTickets}</span>
       </button>
       <button
         type="button"
         onClick={onProfileClick}
-        className={`flex flex-col items-center gap-0.5 text-xs font-medium ${
+        className={`flex flex-col items-center justify-center gap-1 transition-colors duration-200 ${
           activeTab === 'profile' ? 'text-[#FFC107]' : 'text-gray-400'
         }`}
       >
-        <span className="text-lg">👤</span>
-        <span>PROFILE</span>
+        <User size={20} strokeWidth={1.8} />
+        <span className="text-[10px] tracking-wide uppercase">{UI_TEXT.nav.profile}</span>
       </button>
     </nav>
   );

@@ -899,27 +899,35 @@ function App() {
 
   return wrapWithLayout(
     <div className="max-w-md mx-auto min-h-screen relative">
-      <div className="px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-6">
+      <div className="px-4 pt-8 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-extrabold tracking-wide">
-              <span className="text-white">UPCOMING</span>{' '}
-              <span className="text-[#FFC107]">EVENTS</span>
+            <h1 className="text-2xl font-extrabold tracking-wide uppercase">
+              <span className="text-white">ПРЕДСТОЯЩИЕ</span>{" "}
+              <span className="text-[#FFC107]">СОБЫТИЯ</span>
             </h1>
             <p className="text-gray-400 text-sm">
-              Select your exclusive experience.
+              Выберите ваше эксклюзивное событие
             </p>
           </div>
           {isAdmin && (
-            <button onClick={() => setView('admin')} className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400">
+            <button
+              type="button"
+              onClick={() => setView('admin')}
+              className="text-xs px-3 py-1.5 rounded-full border border-white/20 text-gray-300 hover:bg-white/10 transition-all duration-200"
+            >
               {UI_TEXT.app.admin}
             </button>
           )}
         </div>
         {isAdmin && (
-          <div className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
             <span>{UI_TEXT.app.adminAccessActive}</span>
-            <button onClick={() => setView('admin')} className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400">
+            <button
+              type="button"
+              onClick={() => setView('admin')}
+              className="ml-2 text-sm font-medium text-[#FFC107] hover:underline"
+            >
               {UI_TEXT.app.openAdmin}
             </button>
           </div>
@@ -973,19 +981,29 @@ function App() {
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="inline-flex bg-[#111] border border-white/10 rounded-xl p-1">
           <button
+            type="button"
             onClick={loadEvents}
-            className="bg-[#FFC107] text-black px-4 py-2 rounded text-sm font-semibold"
             disabled={loading}
+            className={`rounded-lg px-4 py-2 font-semibold transition-all ${
+              view === 'events'
+                ? 'bg-[#FFC107] text-black'
+                : 'text-gray-400 hover:text-white'
+            }`}
           >
             {loading ? UI_TEXT.app.loadingEvents : UI_TEXT.app.events}
           </button>
           <button
+            type="button"
             onClick={() => setView('my-tickets')}
-            className="px-4 py-2 rounded text-sm font-semibold border border-white/20 text-gray-300"
+            className={`rounded-lg px-4 py-2 font-semibold transition-all ${
+              view === 'my-tickets'
+                ? 'bg-[#FFC107] text-black'
+                : 'text-gray-400 hover:text-white'
+            }`}
           >
-            Мои билеты
+            {UI_TEXT.nav.myTickets}
           </button>
         </div>
 
@@ -1013,7 +1031,7 @@ function App() {
               <>
                 <div>
                   <p className="text-gray-500 text-xs tracking-widest uppercase mb-2">
-                    Featured Event
+                    Главное событие
                   </p>
                   <div
                     className="relative rounded-2xl bg-[#0b0b0b] border border-white/10 p-8 flex flex-col items-center justify-center text-center shadow-[0_0_60px_rgba(255,193,7,0.15)]"
@@ -1031,14 +1049,14 @@ function App() {
                         {fmt.time && <p className="text-gray-400 text-sm mb-2">{fmt.time}</p>}
                       </>
                     )}
-                    <p className="text-gray-500 text-sm">Venue</p>
+                    <p className="text-gray-500 text-sm">Площадка</p>
                   </div>
                 </div>
 
                 {thisMonthEvents.length > 0 && (
                   <div>
                     <p className="text-gray-500 text-xs tracking-widest uppercase mb-2">
-                      This Month
+                      В этом месяце
                     </p>
                     <div className="space-y-3">
                       {thisMonthEvents.map((evt) => {
@@ -1058,7 +1076,7 @@ function App() {
                             <div className="flex-1 p-4 flex items-center justify-between">
                               <div>
                                 <p className="font-bold text-white">{evt.title?.trim() || UI_TEXT.event.eventFallback}</p>
-                                <p className="text-gray-400 text-sm">Venue</p>
+                                <p className="text-gray-400 text-sm">Площадка</p>
                               </div>
                               <svg className="w-5 h-5 text-gray-500 shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

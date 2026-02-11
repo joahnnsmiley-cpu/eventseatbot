@@ -2,6 +2,17 @@
  * User-facing UI strings. Use these keys in components instead of hardcoded text.
  */
 export const UI_TEXT = {
+  events: {
+    upcoming: 'Предстоящие события',
+    subtitle: 'Выберите ваше эксклюзивное событие',
+    featured: 'Главное событие',
+    thisMonth: 'В этом месяце',
+  },
+  nav: {
+    events: 'СОБЫТИЯ',
+    myTickets: 'МОИ БИЛЕТЫ',
+    profile: 'ПРОФИЛЬ',
+  },
   admin: {
     title: 'Админка',
     exit: 'Выход',
