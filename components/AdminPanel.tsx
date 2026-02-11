@@ -132,8 +132,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     try {
       await StorageService.resyncSeats();
       setSuccessMessage(UI_TEXT.admin.resyncSeatsSuccess);
-      load();
-      loadEvents();
+      await loadEvents();
+      await load();
     } catch {
       alert(UI_TEXT.admin.resyncSeatsError);
     } finally {
