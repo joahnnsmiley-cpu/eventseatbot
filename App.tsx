@@ -911,11 +911,11 @@ function App() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
         <div className="relative w-full pt-10 pb-6 text-center">
-          <h1 className="text-5xl leading-tight space-y-2">
-            <span className="block neon-white">
+          <h1 className="leading-tight text-center">
+            <span className="block neon-white text-[32px] sm:text-[48px] tracking-[2px]">
               #НИКТОНЕКРУЧЕ
             </span>
-            <span className="block neon-yellow text-6xl">
+            <span className="block neon-yellow text-[40px] sm:text-[56px] tracking-[3px]">
               КАССА
             </span>
           </h1>
