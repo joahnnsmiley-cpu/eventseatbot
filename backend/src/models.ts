@@ -62,7 +62,7 @@ export interface EventData {
   schemaImageUrl?: string | null;
 }
 
-export type BookingStatus = 'reserved' | 'paid' | 'expired' | 'pending';
+export type BookingStatus = 'reserved' | 'paid' | 'expired' | 'pending' | 'awaiting_confirmation' | 'cancelled';
 
 export interface Booking {
   id: string;
@@ -70,6 +70,7 @@ export interface Booking {
   userTelegramId: number;
   username: string;
   userPhone: string;
+  userComment?: string | null;
   seatIds: string[];
   totalAmount: number;
   status: BookingStatus;

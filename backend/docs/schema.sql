@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   table_id TEXT REFERENCES event_tables(id) ON DELETE CASCADE,
   user_telegram_id BIGINT,
   user_phone TEXT,
+  user_comment TEXT,
   seat_indices INTEGER[],
   seats_booked INTEGER,
   status TEXT NOT NULL,
@@ -78,8 +79,12 @@ CREATE TABLE IF NOT EXISTS bookings (
   expires_at TIMESTAMPTZ
 );
 
-COMMENT ON TABLE bookings IS 'Bookings; status: pending | confirmed | cancelled (plus reserved | paid | expired in app)';
+COMMENT ON TABLE bookings IS 'Bookings; status: pending | confirmed | cancelled (plus reserved | paid | expired | awaiting_confirmation in app)';
 COMMENT ON COLUMN bookings.seat_indices IS 'Array of seat indices at the table (e.g. [0,1,2]); avoids per-seat rows while recording which seats are booked';
+COMMENT ON COLUMN bookings.user_comment IS 'Optional user comment (e.g. for payment reference)';
+
+-- Migration: add user_comment if missing (run in SQL Editor for existing DB)
+-- ALTER TABLE bookings ADD COLUMN IF NOT EXISTS user_comment TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_bookings_event_id ON bookings(event_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_table_id ON bookings(table_id);

@@ -69,6 +69,7 @@ export const createTableBooking = async (payload: {
   tableId: string;
   seatsRequested: number;
   userPhone: string;
+  userComment?: string;
 }): Promise<any> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/public/bookings/table`, {
@@ -81,6 +82,21 @@ export const createTableBooking = async (payload: {
     const error: Error & { status?: number } = new Error(err.error || 'Failed to create booking');
     error.status = res.status;
     throw error;
+  }
+  return res.json();
+};
+
+/** PATCH /public/bookings/:id/status — set booking status to awaiting_confirmation (e.g. after "Я оплатил"). */
+export const updateBookingStatus = async (bookingId: string, status: 'awaiting_confirmation'): Promise<{ ok: boolean; booking: Booking }> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/public/bookings/${encodeURIComponent(bookingId)}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'Failed to update booking status');
   }
   return res.json();
 };

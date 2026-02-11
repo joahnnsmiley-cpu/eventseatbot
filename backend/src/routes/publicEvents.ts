@@ -209,10 +209,11 @@ router.post('/bookings', async (req: Request, res: Response) => {
 // Create a reserved booking for a table (public read-only booking endpoint)
 // Body: { eventId, tableId, seatsRequested }
 router.post('/bookings/table', async (req: Request, res: Response) => {
-  const { eventId, tableId, seatsRequested, userPhone } = req.body || {};
+  const { eventId, tableId, seatsRequested, userPhone, userComment } = req.body || {};
   if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
   const normalizedUserPhone = typeof userPhone === 'string' ? userPhone.trim() : '';
   if (!normalizedUserPhone) return res.status(400).json({ error: 'userPhone is required' });
+  const normalizedUserComment = typeof userComment === 'string' ? userComment.trim() || null : null;
   const seats = Number(seatsRequested) || 0;
   if (!Number.isFinite(seats) || seats <= 0) return res.status(400).json({ error: 'seatsRequested must be a positive number' });
 
@@ -260,10 +261,13 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
         eventId,
         tableId,
         seatsBooked: seats,
+        seats: seats, // alias for frontend
         status: 'reserved',
         createdAt: createdAtMs,
         expiresAt: calculateBookingExpiration(createdAtMs), // Set expiration for reserved bookings
         userPhone: normalizedUserPhone,
+        userComment: normalizedUserComment,
+        tableBookings: [{ tableId, seats }], // full shape for frontend
       } as any;
 
       try { await db.addBooking(booking); } catch {}
@@ -282,6 +286,26 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
   } catch (err) {
     return res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// PATCH /public/bookings/:id/status
+// Allow user to set booking status to awaiting_confirmation (e.g. after "Я оплатил").
+router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
+  const bookingId = String(req.params.id);
+  if (!bookingId) return res.status(400).json({ error: 'bookingId is required' });
+  const { status } = req.body || {};
+  if (status !== 'awaiting_confirmation') return res.status(400).json({ error: 'Allowed status: awaiting_confirmation' });
+
+  const bookings = await db.getBookings();
+  const booking = bookings.find((b: any) => b.id === bookingId);
+  if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  if (booking.status !== 'reserved' && booking.status !== 'pending') {
+    return res.status(409).json({ error: 'Only reserved or pending bookings can be updated' });
+  }
+
+  const updated = await db.updateBookingStatus(bookingId, 'awaiting_confirmation');
+  if (!updated) return res.status(500).json({ error: 'Failed to update booking status' });
+  return res.json({ ok: true, booking: updated });
 });
 
 // POST /public/bookings/:id/cancel

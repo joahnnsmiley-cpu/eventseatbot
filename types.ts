@@ -51,13 +51,14 @@ export interface Booking {
   username?: string;
   userTelegramId?: number;
   userPhone?: string;
+  userComment?: string | null;
   event?: { id: string; title?: string; date?: string };
   table?: { id: string; number?: number; seatsTotal?: number };
   tableBookings?: Array<{ tableId: string; seats: number; table?: { id: string; number?: number; seatsTotal?: number } | null }>;
   seatIds: string[]; // "tableId-seatId"
   seatsCount?: number;
   totalAmount?: number;
-  status: 'reserved' | 'paid' | 'expired';
+  status: 'reserved' | 'paid' | 'expired' | 'awaiting_confirmation';
   createdAt: number;
   expiresAt?: string | number; // ISO string or millis
   tickets?: Array<{

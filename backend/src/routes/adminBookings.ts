@@ -35,6 +35,34 @@ router.get('/bookings', async (_req: Request, res: Response) => {
   res.json(result);
 });
 
+// PATCH /admin/bookings/:id/status
+// Allowed transitions: pending→awaiting_confirmation, awaiting_confirmation→paid, awaiting_confirmation→cancelled
+router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
+  const rawId = req.params.id;
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  const { status } = req.body || {};
+  const allowed = ['awaiting_confirmation', 'paid', 'cancelled'] as const;
+  if (!allowed.includes(status)) return res.status(400).json({ error: 'Allowed status: awaiting_confirmation, paid, cancelled' });
+
+  const bookings = await db.getBookings();
+  const booking = bookings.find((b: any) => b.id === id);
+  if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+  const current = String(booking.status);
+  const validTransitions: Record<string, string[]> = {
+    pending: ['awaiting_confirmation'],
+    awaiting_confirmation: ['paid', 'cancelled'],
+  };
+  const allowedTargets = validTransitions[current];
+  if (!allowedTargets || !allowedTargets.includes(status)) {
+    return res.status(409).json({ error: `Invalid transition: ${current} → ${status}` });
+  }
+
+  const updated = await db.updateBookingStatus(id, status);
+  if (!updated) return res.status(500).json({ error: 'Failed to update booking status' });
+  return res.json(updated);
+});
+
 // POST /admin/bookings/:id/confirm
 router.post('/bookings/:id/confirm', async (req: Request, res: Response) => {
   const rawId = req.params.id;

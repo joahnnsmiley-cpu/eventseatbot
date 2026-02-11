@@ -51,6 +51,7 @@ type BookingsRow = {
   table_id: string | null;
   user_telegram_id: number | null;
   user_phone: string | null;
+  user_comment: string | null;
   seat_indices: number[] | null;
   seats_booked: number | null;
   status: string;
@@ -122,6 +123,7 @@ function bookingsRowToBooking(row: BookingsRow): Booking {
   if (row.table_id != null) booking.tableId = row.table_id;
   if (row.seats_booked != null) booking.seatsBooked = row.seats_booked;
   if (row.seat_indices != null) booking.seatIndices = row.seat_indices;
+  if (row.user_comment != null) booking.userComment = row.user_comment;
   if (expiresAt !== undefined) booking.expiresAt = expiresAt;
   return booking;
 }
@@ -277,6 +279,7 @@ export async function addBooking(booking: Booking): Promise<void> {
     table_id: booking.tableId ?? null,
     user_telegram_id: booking.userTelegramId ?? null,
     user_phone: booking.userPhone ?? null,
+    user_comment: booking.userComment ?? null,
     seat_indices: booking.seatIndices ?? null,
     seats_booked: booking.seatsBooked ?? null,
     status: booking.status,

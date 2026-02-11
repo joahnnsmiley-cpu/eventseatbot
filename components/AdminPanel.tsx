@@ -54,6 +54,16 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
   const [statusActionLoading, setStatusActionLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('');
+
+  const statusStyle: Record<string, string> = {
+    pending: 'bg-gray-200 text-gray-800',
+    awaiting_confirmation: 'bg-amber-100 text-amber-800',
+    paid: 'bg-green-100 text-green-800',
+    cancelled: 'bg-red-100 text-red-800',
+    expired: 'bg-gray-700 text-gray-100',
+    reserved: 'bg-gray-200 text-gray-700',
+  };
 
   useEffect(() => {
     if (!layoutUrl?.trim()) {
@@ -297,6 +307,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   };
 
   const hasBookings = useMemo(() => bookings.length > 0, [bookings.length]);
+  const filteredBookings = useMemo(() => {
+    if (!statusFilter) return bookings;
+    return bookings.filter((b) => String(b.status ?? '') === statusFilter);
+  }, [bookings, statusFilter]);
   const hasEvents = useMemo(() => events.length > 0, [events.length]);
   const tables: Table[] = selectedEvent?.tables ?? [];
 
@@ -348,13 +362,36 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
       {mode === 'bookings' && (
         <>
+          {!loading && hasBookings && (
+            <div className="mb-4">
+              <label className="text-xs text-gray-500 block mb-1">{UI_TEXT.booking.status}</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="border rounded px-3 py-2 text-sm min-w-[180px]"
+              >
+                <option value="">{UI_TEXT.booking.statusFilterAll}</option>
+                <option value="pending">{UI_TEXT.booking.statusLabels.pending}</option>
+                <option value="awaiting_confirmation">{UI_TEXT.booking.statusLabels.awaiting_confirmation}</option>
+                <option value="paid">{UI_TEXT.booking.statusLabels.paid}</option>
+                <option value="cancelled">{UI_TEXT.booking.statusLabels.cancelled}</option>
+                <option value="expired">{UI_TEXT.booking.statusLabels.expired}</option>
+                <option value="reserved">{UI_TEXT.booking.statusLabels.reserved}</option>
+              </select>
+            </div>
+          )}
+
           {!loading && !hasBookings && (
             <div className="text-sm text-gray-600">{UI_TEXT.admin.noBookings}</div>
           )}
 
-          {!loading && hasBookings && (
+          {!loading && hasBookings && filteredBookings.length === 0 && (
+            <div className="text-sm text-gray-600">{UI_TEXT.booking.noBookingsForFilter}</div>
+          )}
+
+          {!loading && hasBookings && filteredBookings.length > 0 && (
             <div className="grid grid-cols-1 gap-4">
-              {bookings.map((b) => (
+              {filteredBookings.map((b) => (
                 <div key={b.id} className="bg-white p-4 rounded shadow-sm border flex justify-between items-start gap-4">
                   <div className="min-w-0">
                     <div className="font-semibold">{b.event?.title || UI_TEXT.event.eventFallback}</div>
@@ -366,7 +403,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       {UI_TEXT.booking.phone} <span className="font-medium">{b.userPhone || '—'}</span>
                     </div>
                     <div className="text-sm text-gray-700 mt-1">
-                      {UI_TEXT.booking.status} <span className="font-medium">{UI_TEXT.booking.statusLabels[b.status ?? ''] ?? b.status ?? '—'}</span>
+                      {UI_TEXT.booking.status}{' '}
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${statusStyle[b.status ?? ''] ?? 'bg-gray-100 text-gray-700'}`}>
+                        {UI_TEXT.booking.statusLabels[b.status ?? ''] ?? b.status ?? '—'}
+                      </span>
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
                       {UI_TEXT.booking.bookingId} {b.id}

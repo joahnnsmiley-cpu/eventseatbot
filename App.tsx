@@ -5,6 +5,7 @@ import AuthService from './services/authService';
 import SeatMap from './components/SeatMap';
 import SeatPicker from './components/SeatPicker';
 import EventCard, { EventCardSkeleton } from './components/EventCard';
+import BookingSuccessView from './components/BookingSuccessView';
 import type { Booking, EventData, Table } from './types';
 import { UI_TEXT } from './constants/uiText';
 
@@ -44,7 +45,7 @@ function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authRole, setAuthRole] = useState<string | null>(null);
   const [tokenRole, setTokenRole] = useState<string | null>(null);
-  const [view, setView] = useState<'events' | 'layout' | 'seats' | 'my-bookings' | 'admin'>('events');
+  const [view, setView] = useState<'events' | 'layout' | 'seats' | 'my-bookings' | 'booking-success' | 'admin'>('events');
 
   const [events, setEvents] = useState<EventData[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -61,6 +62,7 @@ function App() {
   const [selectionAdjusted, setSelectionAdjusted] = useState(false);
   const selectionAdjustedTimerRef = useRef<number | null>(null);
   const [userPhone, setUserPhone] = useState('');
+  const [userComment, setUserComment] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [bookingSuccessMessage, setBookingSuccessMessage] = useState<string | null>(null);
@@ -69,6 +71,8 @@ function App() {
   const [myBookingsError, setMyBookingsError] = useState<string | null>(null);
   const [bookingsStale, setBookingsStale] = useState(false);
   const [nowTick, setNowTick] = useState(Date.now());
+  const [lastCreatedBooking, setLastCreatedBooking] = useState<Booking | null>(null);
+  const [lastCreatedEvent, setLastCreatedEvent] = useState<EventData | null>(null);
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
@@ -548,7 +552,7 @@ function App() {
               </div>
 
               <div className="bg-white rounded border p-4">
-                <div className="text-sm font-semibold mb-2">{UI_TEXT.app.contactPhone}</div>
+                <div className="text-sm font-semibold mb-2">{UI_TEXT.app.contactPhone} <span className="text-red-500">*</span></div>
                 <input
                   type="tel"
                   value={userPhone}
@@ -557,10 +561,23 @@ function App() {
                   className="w-full border rounded px-3 py-2 text-sm"
                   disabled={bookingLoading}
                 />
-                {bookingError && (
-                  <div className="text-xs text-red-600 mt-2">{bookingError}</div>
-                )}
               </div>
+
+              <div className="bg-white rounded border p-4">
+                <div className="text-sm font-semibold mb-2">{UI_TEXT.app.commentLabel}</div>
+                <textarea
+                  value={userComment}
+                  onChange={(e) => setUserComment(e.target.value)}
+                  placeholder={UI_TEXT.app.commentPlaceholder}
+                  rows={3}
+                  className="w-full border rounded px-3 py-2 text-sm resize-y"
+                  disabled={bookingLoading}
+                />
+              </div>
+
+              {bookingError && (
+                <div className="text-xs text-red-600">{bookingError}</div>
+              )}
 
               <div className="bg-white rounded border p-4">
                 <div className="text-xs text-gray-500">
@@ -576,9 +593,9 @@ function App() {
                   bookingLoading ||
                   (selectedSeatsByTable[selectedTableId] ?? []).length === 0
                 }
-                onClick={() => {
+                onClick={async () => {
                   setBookingError(null);
-                  if (!selectedEventId || !selectedTableId) return;
+                  if (!selectedEventId || !selectedTableId || !selectedEvent) return;
                   if (selectedTable.isAvailable !== true) return;
                   const normalizedPhone = userPhone.trim();
                   if (!normalizedPhone) {
@@ -590,27 +607,44 @@ function App() {
                     setBookingError(UI_TEXT.app.selectAtLeastOneSeat);
                     return;
                   }
-                  const tg = window.Telegram?.WebApp;
-                  if (!tg?.sendData) {
-                    setBookingError(UI_TEXT.app.openInTelegramToBook);
-                    return;
+                  setBookingLoading(true);
+                  try {
+                    const res = await StorageService.createTableBooking({
+                      eventId: selectedEventId,
+                      tableId: selectedTableId,
+                      seatsRequested: seats.length,
+                      userPhone: normalizedPhone,
+                      userComment: userComment.trim() || undefined,
+                    });
+                    const raw = res as Record<string, unknown>;
+                    const booking: Booking = {
+                      id: String(raw.id ?? ''),
+                      eventId: String(raw.eventId ?? ''),
+                      userPhone: String(raw.userPhone ?? normalizedPhone),
+                      seatIds: seats.map((idx) => `${selectedTableId}-${idx}`),
+                      status: (raw.status as Booking['status']) ?? 'reserved',
+                      totalAmount: Number(raw.totalAmount) || 0,
+                      createdAt: Number(raw.createdAt) || Date.now(),
+                      expiresAt: raw.expiresAt as string | number | undefined,
+                      tableId: raw.tableId as string | undefined,
+                      tableBookings: (raw.tableBookings as Booking['tableBookings']) ?? (raw.tableId ? [{ tableId: String(raw.tableId), seats: Number(raw.seats ?? raw.seatsBooked) || seats.length }] : undefined),
+                      event: { id: selectedEvent.id, title: selectedEvent.title, date: selectedEvent.date },
+                    };
+                    setLastCreatedBooking(booking);
+                    setLastCreatedEvent(selectedEvent);
+                    setSelectedSeatsByTable((prev) => {
+                      const next = { ...prev };
+                      delete next[selectedTableId];
+                      return next;
+                    });
+                    setSelectedTableId(null);
+                    setSelectedEvent(null);
+                    setView('booking-success');
+                  } catch (e) {
+                    setBookingError(e instanceof Error ? e.message : UI_TEXT.common.errors.default);
+                  } finally {
+                    setBookingLoading(false);
                   }
-                  const payload = {
-                    eventId: selectedEventId,
-                    tableId: selectedTableId,
-                    seats: [...seats],
-                    phone: normalizedPhone,
-                  };
-                  tg.sendData(JSON.stringify(payload));
-                  setSelectedSeatsByTable((prev) => {
-                    const next = { ...prev };
-                    delete next[selectedTableId];
-                    return next;
-                  });
-                  setSelectedTableId(null);
-                  setSelectedEvent(null);
-                  setBookingSuccessMessage(UI_TEXT.app.bookingSent);
-                  setView('my-bookings');
                 }}
               >
                 {bookingLoading ? UI_TEXT.app.booking : UI_TEXT.app.continueBook}
@@ -623,6 +657,34 @@ function App() {
             <div className="text-sm text-gray-600">{UI_TEXT.app.tableNotFound}</div>
           )}
         </div>
+      </div>
+    );
+  }
+
+  if (view === 'booking-success') {
+    if (!lastCreatedEvent || !lastCreatedBooking) {
+      return (
+        <div className="max-w-md mx-auto min-h-screen bg-gray-50 p-4">
+          <button onClick={() => setView('events')} className="text-sm border rounded px-3 py-2">
+            {UI_TEXT.app.backToEvents}
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div className="max-w-md mx-auto min-h-screen bg-gray-50">
+        <BookingSuccessView
+          event={lastCreatedEvent}
+          booking={lastCreatedBooking}
+          onStatusUpdate={(updated) => setLastCreatedBooking((prev) => (prev ? { ...prev, ...updated } : prev))}
+          onBackToEvents={() => {
+            setView('events');
+            setSelectedEventId(null);
+            setSelectedEvent(null);
+            setLastCreatedBooking(null);
+            setLastCreatedEvent(null);
+          }}
+        />
       </div>
     );
   }
