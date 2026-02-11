@@ -312,6 +312,9 @@ router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
   const { status } = req.body || {};
   if (status !== 'awaiting_confirmation') return res.status(400).json({ error: 'Allowed status: awaiting_confirmation' });
 
+  const { data } = await supabase!.from('bookings').select('*');
+  console.log('[PATCH RAW COUNT]', data?.length);
+
   const bookings = await db.getBookings();
   console.log('[PATCH] bookings count:', bookings.length);
   console.log('[PATCH] ids in db:', bookings.map(b => b.id));
