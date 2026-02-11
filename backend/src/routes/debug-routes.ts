@@ -3,31 +3,20 @@
  * Remove before production.
  */
 import { Router } from 'express';
-import { supabase } from '../supabaseClient';
+import { db } from '../db';
 
 const router = Router();
 
 router.get('/raw-bookings', async (req, res) => {
   try {
-    if (!supabase) {
-      return res.status(500).json({ error: 'Supabase not initialized' });
-    }
-
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('*');
-
-    if (error) {
-      console.error('[RAW ERROR]', error);
-      return res.status(500).json({ error });
-    }
+    const bookings = await db.getBookings();
 
     return res.json({
-      count: data?.length || 0,
-      data
+      count: bookings.length,
+      bookings
     });
   } catch (err) {
-    console.error('[RAW CATCH]', err);
+    console.error('[DEBUG RAW BOOKINGS ERROR]', err);
     return res.status(500).json({ error: String(err) });
   }
 });
