@@ -9,6 +9,9 @@ import BookingSuccessView from './components/BookingSuccessView';
 import MyTicketsPage from './components/MyTicketsPage';
 import AppLayout from './src/layout/AppLayout';
 import BottomNav, { type BottomNavTab } from './src/layout/BottomNav';
+import Card from './src/ui/Card';
+import SectionTitle from './src/ui/SectionTitle';
+import PrimaryButton from './src/ui/PrimaryButton';
 import type { Booking, EventData, Table } from './types';
 import { UI_TEXT } from './constants/uiText';
 
@@ -391,10 +394,14 @@ function App() {
   }
 
   if (view === 'layout' && selectedEventId) {
+    const imgUrl = selectedEvent?.imageUrl ?? (selectedEvent as { image_url?: string })?.image_url;
+    const fmt = selectedEvent ? formatEventDate(selectedEvent.date) : null;
+    const venue = (selectedEvent as { venue?: string })?.venue ?? '';
+
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-3">
+      <div className="max-w-md mx-auto min-h-screen relative">
+        <div className="px-4 pt-6 space-y-8 pb-24">
+          <div className="flex items-center justify-between">
             <button
               onClick={() => {
                 setView('events');
@@ -402,18 +409,17 @@ function App() {
                 setSelectedEventId(null);
                 setSelectedEvent(null);
               }}
-              className="text-xs px-2 py-1 rounded border"
+              className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400"
             >
               {UI_TEXT.app.back}
             </button>
-            <div className="text-xs text-gray-500">{selectedEvent?.title || UI_TEXT.app.event}</div>
-            <button onClick={() => selectedEventId && loadEvent(selectedEventId)} className="text-xs px-2 py-1 rounded border">
+            <button onClick={() => selectedEventId && loadEvent(selectedEventId)} className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400">
               {UI_TEXT.app.refresh}
             </button>
           </div>
 
           {eventLoading && <div className="text-xs text-gray-500">{UI_TEXT.app.loadingLayout}</div>}
-          {eventError && <div className="text-xs text-red-600 mb-3">{eventError}</div>}
+          {eventError && <div className="text-sm text-red-400">{eventError}</div>}
 
           {!selectedEvent && (
             <div className="text-xs text-gray-500">{UI_TEXT.app.loadingEvent}</div>
@@ -421,20 +427,34 @@ function App() {
 
           {selectedEvent && (
             <>
-              {/* Порядок: 1. Название 2. Афиша 3. Рассадка 4. Описание 5. Контакт организатора */}
-              <h1 className="text-xl font-semibold text-gray-900 mb-3">
-                {selectedEvent.title?.trim() || UI_TEXT.event.eventFallback}
-              </h1>
-              {selectedEvent.imageUrl?.trim() && (
-                <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-100 mb-4">
-                  <img
-                    src={selectedEvent.imageUrl.trim()}
-                    alt={selectedEvent.title?.trim() || UI_TEXT.event.eventFallback}
-                    className="w-full h-auto max-h-48 object-cover object-center"
-                  />
+              <div className="relative rounded-3xl overflow-hidden h-[220px]">
+                <div
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{ backgroundImage: imgUrl?.trim() ? `url(${imgUrl.trim()})` : undefined }}
+                />
+                <div className="absolute inset-0 bg-black/60" />
+                <div className="relative z-10 h-full flex flex-col justify-end p-6">
+                  <h1 className="text-2xl font-bold text-white">
+                    {selectedEvent.title?.trim() || UI_TEXT.event.eventFallback}
+                  </h1>
                 </div>
-              )}
-              <SeatMap
+              </div>
+
+              <Card>
+                <div className="space-y-2 text-sm">
+                  <p className="text-[#FFC107] font-semibold">
+                    {fmt?.date ?? selectedEvent.date} {fmt?.time ? `• ${fmt.time}` : ''}
+                  </p>
+                  <p className="text-gray-400">
+                    {venue || 'Площадка'}
+                  </p>
+                </div>
+              </Card>
+
+              <div>
+                <SectionTitle title="Выбор столов" />
+                <Card>
+                  <SeatMap
                 event={selectedEvent}
                 selectedSeatsByTable={selectedSeatsByTable}
                 onTableSelect={(tableId) => {
@@ -442,16 +462,18 @@ function App() {
                   setView('seats');
                   if (selectedEventId) loadEvent(selectedEventId, true);
                 }}
-              />
-              {/* Описание и контакт — после рассадки */}
+                  />
+                </Card>
+              </div>
+
               {selectedEvent.description != null && selectedEvent.description.trim() !== '' && (
-                <p className="text-sm text-gray-700 whitespace-pre-wrap mt-4 mb-4">
+                <p className="text-sm text-gray-400 whitespace-pre-wrap">
                   {selectedEvent.description.trim()}
                 </p>
               )}
-              {/* Блок контакта: только если есть adminTelegramId или заглушка; без пустых ссылок */}
+
               {(() => {
-                const placeholder = 'eventseatbot_support'; // TODO: set to null when backend sends adminTelegramId
+                const placeholder = 'eventseatbot_support';
                 const raw = selectedEvent.adminTelegramId ?? placeholder;
                 const contactTarget = typeof raw === 'string' ? raw.trim() : '';
                 if (!contactTarget) return null;
@@ -460,8 +482,8 @@ function App() {
                   ? `https://t.me/+${username}`
                   : `https://t.me/${username}`;
                 return (
-                  <div className="mt-4 mb-4 p-3 rounded-lg border border-gray-200 bg-white space-y-2">
-                    <p className="text-sm text-gray-700">{UI_TEXT.event.contactOrganizerPrompt}</p>
+                  <div className="p-4 rounded-2xl border border-white/10 bg-[#0B0B0B] space-y-2">
+                    <p className="text-sm text-gray-400">{UI_TEXT.event.contactOrganizerPrompt}</p>
                     <a
                       href={href}
                       target="_blank"
@@ -473,6 +495,20 @@ function App() {
                   </div>
                 );
               })()}
+
+              <PrimaryButton
+                onClick={() => {
+                  const firstTable = selectedEvent.tables?.find((t) => t.is_active !== false);
+                  if (firstTable) {
+                    setSelectedTableId(firstTable.id);
+                    setView('seats');
+                    if (selectedEventId) loadEvent(selectedEventId, true);
+                  }
+                }}
+                className="w-full"
+              >
+                Перейти к бронированию
+              </PrimaryButton>
             </>
           )}
         </div>
@@ -551,11 +587,13 @@ function App() {
                       return { ...prev, [selectedTableId]: [...set].sort((a, b) => a - b) };
                     });
                   }}
-                />
+                  />
               </div>
 
-              <div className="bg-white rounded border p-4">
-                <div className="text-sm font-semibold mb-2">{UI_TEXT.app.numberOfSeats}</div>
+              <div className="rounded-2xl border border-white/10 bg-[#0B0B0B] p-4 space-y-4">
+                <div className="text-sm uppercase tracking-widest text-gray-400">
+                  {UI_TEXT.app.numberOfSeats}
+                </div>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -767,21 +805,28 @@ function App() {
   if (view === 'booking-success') {
     if (!lastCreatedEvent || !lastCreatedBooking) {
       return wrapWithLayout(
-        <div className="max-w-md mx-auto min-h-screen bg-gray-50 p-4">
-          <button onClick={() => setView('events')} className="text-sm border rounded px-3 py-2">
+        <div className="max-w-md mx-auto min-h-screen p-4">
+          <button onClick={() => setView('events')} className="text-sm border border-white/20 rounded px-3 py-2 text-gray-400">
             {UI_TEXT.app.backToEvents}
           </button>
         </div>
       );
     }
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-screen bg-gray-50">
+      <div className="max-w-md mx-auto min-h-screen">
         <BookingSuccessView
           event={lastCreatedEvent}
           booking={lastCreatedBooking}
           onStatusUpdate={(updated) => setLastCreatedBooking((prev) => (prev ? { ...prev, ...updated } : prev))}
           onBackToEvents={() => {
             setView('events');
+            setSelectedEventId(null);
+            setSelectedEvent(null);
+            setLastCreatedBooking(null);
+            setLastCreatedEvent(null);
+          }}
+          onGoToTickets={() => {
+            setView('my-tickets');
             setSelectedEventId(null);
             setSelectedEvent(null);
             setLastCreatedBooking(null);
@@ -910,22 +955,29 @@ function App() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
-        <div className="relative w-full text-center pt-10 pb-6 space-y-4">
-          <h1 className="text-[34px] sm:text-[48px] font-extrabold tracking-tight text-white">
-            #НИКТОНЕКРУЧЕ
-          </h1>
-          <div className="w-16 h-[2px] bg-[#FFC107] mx-auto" />
-          <p className="text-[#FFC107] text-sm tracking-[6px] uppercase">
-            КАССА
-          </p>
-          <p className="text-gray-400 text-sm">
-            Выберите ваше эксклюзивное событие
-          </p>
+        <div className="relative w-full text-center pt-10 pb-6 space-y-4 overflow-hidden">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+            <span className="text-[90px] sm:text-[140px] font-extrabold text-white opacity-[0.03] tracking-tight">
+              #НИКТО
+            </span>
+          </div>
+          <div className="relative z-10 space-y-4">
+            <h1 className="text-[34px] sm:text-[48px] font-extrabold tracking-tight text-white">
+              #НИКТОНЕКРУЧЕ
+            </h1>
+            <div className="w-16 h-[2px] bg-[#FFC107] mx-auto" />
+            <p className="text-[#FFC107] text-sm tracking-[6px] uppercase">
+              КАССА
+            </p>
+            <p className="text-gray-400 text-sm">
+              Выберите ваше эксклюзивное событие
+            </p>
+          </div>
           {isAdmin && (
             <button
               type="button"
               onClick={() => setView('admin')}
-              className="absolute top-4 right-0 text-xs uppercase tracking-widest text-[#FFC107] opacity-70 hover:opacity-100 transition"
+              className="absolute top-4 right-0 z-10 text-xs uppercase tracking-widest text-[#FFC107] opacity-70 hover:opacity-100 transition"
             >
               АДМИНКА
             </button>

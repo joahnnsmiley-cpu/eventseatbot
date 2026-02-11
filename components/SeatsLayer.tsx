@@ -1,7 +1,4 @@
-import React, { useMemo } from 'react';
-
-const DEFAULT_SEAT_RADIUS_PX = 4;
-const DEFAULT_PADDING_PX = 4;
+import React from 'react';
 
 interface SeatsLayerProps {
   seatsTotal: number;
@@ -24,53 +21,9 @@ interface SeatsLayerProps {
   allSeatsDisabled?: boolean;
 }
 
-function getSeatPositions(
-  count: number,
-  shape: 'circle' | 'rect',
-  tableSizePx: number,
-  seatRadiusPx: number,
-  paddingPx: number
-): { x: number; y: number }[] {
-  if (count <= 0) return [];
-  const positions: { x: number; y: number }[] = [];
-  const centerX = tableSizePx / 2;
-  const centerY = tableSizePx / 2;
-
-  if (shape === 'circle') {
-    const radius = Math.max(0, centerX - seatRadiusPx - paddingPx);
-    for (let i = 0; i < count; i++) {
-      const angle = (2 * Math.PI / count) * i - Math.PI / 2;
-      const x = centerX + radius * Math.cos(angle);
-      const y = centerY + radius * Math.sin(angle);
-      positions.push({ x, y });
-    }
-    return positions;
-  }
-
-  // rect: internal grid layout (e.g. 2x2, 3x2, 4x2)
-  const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
-  const rows = Math.max(1, Math.ceil(count / cols));
-  const cellW = tableSizePx / cols;
-  const cellH = tableSizePx / rows;
-  for (let i = 0; i < count; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const x = (col + 0.5) * cellW;
-    const y = (row + 0.5) * cellH;
-    positions.push({ x, y });
-  }
-  return positions;
-}
-
-/** Renders seat dots inside table-shape. Circle = radial; rect = internal grid. Used only in SeatPicker. */
+/** Renders seat grid for SeatPicker. */
 const SeatsLayer: React.FC<SeatsLayerProps> = ({
   seatsTotal,
-  seatsAvailable,
-  tableShape,
-  sizePercent = 5,
-  tableSizePx,
-  seatRadiusPx = DEFAULT_SEAT_RADIUS_PX,
-  paddingPx = DEFAULT_PADDING_PX,
   selectedIndices,
   occupiedIndices = new Set(),
   onSeatClick,
@@ -80,37 +33,28 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
   const isInteractive = !allSeatsDisabled && typeof onSeatClick === 'function';
   const selectedSet = selectedIndices ?? new Set<number>();
 
-  const sizePx = tableSizePx ?? 24 + (Number(sizePercent) || 5) * 4;
-  const positions = useMemo(
-    () => getSeatPositions(count, tableShape, sizePx, seatRadiusPx, paddingPx),
-    [count, tableShape, sizePx, seatRadiusPx, paddingPx]
-  );
+  const baseSeatClass = 'w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 ease-out';
 
   return (
     <div
-      className={`seats-layer ${isInteractive ? 'seats-layer--interactive' : ''}`}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        pointerEvents: isInteractive ? 'auto' : 'none',
-      }}
+      className={`grid grid-cols-6 gap-3 ${isInteractive ? 'seats-layer--interactive' : ''}`}
+      style={{ pointerEvents: isInteractive ? 'auto' : 'none' }}
     >
-      {positions.map((pos, i) => {
+      {Array.from({ length: count }, (_, i) => {
         const isOccupied = occupiedIndices.has(i);
         const isDisabled = allSeatsDisabled || isOccupied;
         const isSelected = !isDisabled && selectedSet.has(i);
         const isClickable = isInteractive && !isDisabled;
+        const seatClass =
+          isSelected
+            ? `${baseSeatClass} bg-[#FFC107] text-black shadow-[0_0_15px_rgba(255,193,7,0.6)] scale-105`
+            : isOccupied || allSeatsDisabled
+              ? `${baseSeatClass} bg-[#111] text-gray-500 opacity-40 cursor-not-allowed`
+              : `${baseSeatClass} bg-[#1a1a1a] border border-white/10 text-white hover:border-[#FFC107] hover:scale-105`;
         return (
           <div
             key={i}
-            className={`seat ${isSelected ? 'seat--selected' : ''} ${allSeatsDisabled ? 'seat--sold' : ''} ${isOccupied ? 'seat--occupied' : ''}`}
-            style={{
-              position: 'absolute',
-              left: pos.x,
-              top: pos.y,
-              transform: 'translate(-50%, -50%)',
-              cursor: isDisabled ? 'not-allowed' : undefined,
-            }}
+            className={seatClass}
             role={isClickable ? 'button' : undefined}
             tabIndex={isClickable ? 0 : undefined}
             aria-pressed={isClickable ? isSelected : undefined}
@@ -134,7 +78,9 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
                   }
                 : undefined
             }
-          />
+          >
+            {i + 1}
+          </div>
         );
       })}
     </div>

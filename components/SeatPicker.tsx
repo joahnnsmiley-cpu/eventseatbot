@@ -23,30 +23,23 @@ const SeatPicker: React.FC<SeatPickerProps> = ({
   tableDisabled = false,
   occupiedIndices = new Set(),
 }) => {
-  const isRect = table.shape === 'rect';
-  const bg = table.color ?? '#3b82f6';
   const count = Math.max(0, Number(table.seatsTotal) || 0);
   const selectedSet = new Set(selectedIndices);
 
   return (
     <div className="seat-picker">
-      <div
-        className={`seat-picker__table table-shape ${isRect ? 'rect' : 'circle'}`}
-        style={{ backgroundColor: bg }}
-      >
-        <SeatsLayer
-          seatsTotal={count}
-          seatsAvailable={table.seatsAvailable}
-          tableShape={isRect ? 'rect' : 'circle'}
-          tableSizePx={200}
-          seatRadiusPx={12}
-          paddingPx={12}
-          selectedIndices={selectedSet}
-          occupiedIndices={occupiedIndices}
-          onSeatClick={tableDisabled ? undefined : onToggleSeat}
-          allSeatsDisabled={tableDisabled}
-        />
-      </div>
+      <SeatsLayer
+        seatsTotal={count}
+        seatsAvailable={table.seatsAvailable}
+        tableShape={isRect ? 'rect' : 'circle'}
+        tableSizePx={200}
+        seatRadiusPx={12}
+        paddingPx={12}
+        selectedIndices={selectedSet}
+        occupiedIndices={occupiedIndices}
+        onSeatClick={tableDisabled ? undefined : onToggleSeat}
+        allSeatsDisabled={tableDisabled}
+      />
     </div>
   );
 };

@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import * as StorageService from '../services/storageService';
 import NeonTicketCard from '../src/ui/NeonTicketCard';
 import TicketModal from '../src/ui/TicketModal';
+import Card from '../src/ui/Card';
+import SectionTitle from '../src/ui/SectionTitle';
+import PrimaryButton from '../src/ui/PrimaryButton';
+import { UI_TEXT } from '../constants/uiText';
 
 type BookingItem = {
   id: string;
@@ -114,28 +119,42 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   };
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
+    <div className="max-w-md mx-auto min-h-screen relative">
+      <div className="px-4 pt-6 pb-24 space-y-8">
+        <div className="flex items-center justify-between">
           <button
             onClick={onBack}
-            className="text-xs px-2 py-1 rounded border"
+            className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400"
           >
-            Back
+            {UI_TEXT.app.back}
           </button>
-          <div className="text-xs text-gray-500">Мои билеты</div>
-          <div style={{ width: 40 }} />
         </div>
 
+        <SectionTitle title="Мои билеты" />
+
         {loading && <div className="text-xs text-gray-500">Загрузка…</div>}
-        {error && <div className="text-xs text-red-600 mb-3">{error}</div>}
+        {error && <div className="text-sm text-red-400">{error}</div>}
 
         {!loading && !error && bookings.length === 0 && (
-          <div className="text-sm text-gray-600">Нет бронирований</div>
+          <Card>
+            <div className="text-center space-y-3">
+              <p className="text-gray-400">
+                У вас пока нет билетов
+              </p>
+              <PrimaryButton onClick={onBack}>
+                Перейти к событиям
+              </PrimaryButton>
+            </div>
+          </Card>
         )}
 
         {!loading && !error && bookings.length > 0 && (
-          <div className="space-y-4">
+          <motion.div
+            className="space-y-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+          >
             {bookings.map((b) => {
               const info = eventInfoMap[b.event_id];
               const { date, time } = parseDateAndTime(info?.date ?? b.created_at);
@@ -143,20 +162,21 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 ? `Места: ${b.seat_indices.join(', ')}`
                 : `${b.seats_booked} ${b.seats_booked === 1 ? 'место' : 'мест'}`;
               return (
-                <NeonTicketCard
-                  key={b.id}
-                  eventTitle={info?.title ?? 'Событие'}
-                  date={date}
-                  time={time}
-                  tableLabel={getTableDisplay(b)}
-                  seatLabel={seatLabel}
-                  status={getStatusType(b.status)}
-                  ticketImageUrl={getTicketImageUrl(b)}
-                  onClick={() => setModalTicketUrl(getTicketImageUrl(b))}
-                />
+                <div key={b.id} className="space-y-4">
+                  <NeonTicketCard
+                    eventTitle={info?.title ?? 'Событие'}
+                    date={date}
+                    time={time}
+                    tableLabel={getTableDisplay(b)}
+                    seatLabel={seatLabel}
+                    status={getStatusType(b.status)}
+                    ticketImageUrl={getTicketImageUrl(b)}
+                    onClick={() => setModalTicketUrl(getTicketImageUrl(b))}
+                  />
+                </div>
               );
             })}
-          </div>
+          </motion.div>
         )}
       </div>
 

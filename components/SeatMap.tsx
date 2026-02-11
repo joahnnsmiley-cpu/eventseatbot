@@ -200,21 +200,19 @@ const SeatMap: React.FC<SeatMapProps> = ({
       })}
 
       {!isEditable && seats.length > 0 && (
-        <div className="absolute bottom-0 left-0 right-0 bg-white/95 border-t border-gray-200 p-3">
-          <div className="text-xs text-gray-600 mb-2">{UI_TEXT.seatMap.seats}</div>
-          <div className="flex flex-wrap gap-2">
+        <div className="absolute bottom-0 left-0 right-0 bg-[#0B0B0B] border-t border-white/10 p-4">
+          <div className="text-xs uppercase tracking-widest text-gray-400 mb-3">{UI_TEXT.seatMap.seats}</div>
+          <div className="grid grid-cols-6 gap-3">
             {seats.map((seat) => {
               const key = `${seat.tableId}-${seat.id}`;
               const isSelected = selectedSet.has(key);
               const isDisabled = seat.status !== 'available';
-              const baseClass = 'w-10 h-10 rounded-md text-xs font-semibold flex items-center justify-center';
+              const baseClass = 'w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 ease-out';
               const statusClass = isSelected
-                ? 'bg-blue-600 text-white'
+                ? 'bg-[#FFC107] text-black shadow-[0_0_15px_rgba(255,193,7,0.6)] scale-105'
                 : seat.status === 'available'
-                  ? 'bg-green-500 text-white'
-                  : seat.status === 'reserved'
-                    ? 'bg-yellow-400 text-gray-900'
-                    : 'bg-red-500 text-white';
+                  ? 'bg-[#1a1a1a] border border-white/10 text-white hover:border-[#FFC107] hover:scale-105'
+                  : 'bg-[#111] text-gray-500 opacity-40 cursor-not-allowed';
 
               return (
                 <button
@@ -222,22 +220,21 @@ const SeatMap: React.FC<SeatMapProps> = ({
                   type="button"
                   onClick={() => toggleSeat(seat)}
                   disabled={isDisabled && !isSelected}
-                  className={`${baseClass} ${statusClass} ${isDisabled && !isSelected ? 'opacity-60 cursor-not-allowed' : 'active:scale-95'}`}
+                  className={`${baseClass} ${statusClass}`}
                   aria-pressed={isSelected}
                   aria-disabled={isDisabled && !isSelected}
                   title={`${UI_TEXT.tables.seat} ${seat.number}`}
                   aria-label={`${UI_TEXT.tables.seat} ${seat.number}`}
                 >
-                  {UI_TEXT.tables.seat} {seat.number}
+                  {seat.number}
                 </button>
               );
             })}
           </div>
-          <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-gray-600">
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded-sm inline-block" />{UI_TEXT.seatMap.available}</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-400 rounded-sm inline-block" />{UI_TEXT.seatMap.reserved}</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded-sm inline-block" />{UI_TEXT.seatMap.sold}</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-blue-600 rounded-sm inline-block" />{UI_TEXT.seatMap.selected}</span>
+          <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-gray-500">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[#1a1a1a] border border-white/10 inline-block" />{UI_TEXT.seatMap.available}</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[#FFC107] inline-block" />{UI_TEXT.seatMap.selected}</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[#111] opacity-40 inline-block" />{UI_TEXT.seatMap.sold}</span>
           </div>
         </div>
       )}
