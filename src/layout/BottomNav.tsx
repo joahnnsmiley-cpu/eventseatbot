@@ -24,10 +24,7 @@ export default function BottomNav({
   ) => (
     <div className="relative flex flex-col items-center justify-center gap-1">
       {isActive ? (
-        <div className="relative p-2 rounded-xl shadow-[0_0_20px_rgba(255,193,7,0.4)]">
-          <div className="absolute inset-0 rounded-xl animate-spin-slow pointer-events-none neon-border" />
-          <div className="relative text-[#FFC107]">{icon}</div>
-        </div>
+        <div className="text-[#FFC107]">{icon}</div>
       ) : (
         <div className="text-gray-400">{icon}</div>
       )}

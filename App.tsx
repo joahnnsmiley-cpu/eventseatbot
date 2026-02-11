@@ -910,23 +910,22 @@ function App() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
-        <div className="relative w-full pt-10 pb-6 text-center">
-          <h1 className="leading-tight text-center">
-            <span className="block neon-white text-[32px] sm:text-[48px] tracking-[2px]">
-              #НИКТОНЕКРУЧЕ
-            </span>
-            <span className="block neon-yellow text-[40px] sm:text-[56px] tracking-[3px]">
-              КАССА
-            </span>
+        <div className="relative w-full text-center pt-10 pb-6 space-y-4">
+          <h1 className="text-[34px] sm:text-[48px] font-extrabold tracking-tight text-white">
+            #НИКТОНЕКРУЧЕ
           </h1>
-          <p className="text-gray-400 text-sm mt-2">
+          <div className="w-16 h-[2px] bg-[#FFC107] mx-auto" />
+          <p className="text-[#FFC107] text-sm tracking-[6px] uppercase">
+            КАССА
+          </p>
+          <p className="text-gray-400 text-sm">
             Выберите ваше эксклюзивное событие
           </p>
           {isAdmin && (
             <button
               type="button"
               onClick={() => setView('admin')}
-              className="neon-admin-btn absolute top-3 right-0"
+              className="absolute top-4 right-0 text-xs uppercase tracking-widest text-[#FFC107] opacity-70 hover:opacity-100 transition"
             >
               АДМИНКА
             </button>
@@ -959,7 +958,6 @@ function App() {
                     Главное событие
                   </p>
                   <div className="relative">
-                    <div className="absolute inset-0 rounded-3xl blur-3xl bg-gradient-to-r from-yellow-500/20 to-purple-600/20 -z-10" />
                     <motion.div
                       className="relative rounded-3xl overflow-hidden border border-white/10"
                       role="button"
