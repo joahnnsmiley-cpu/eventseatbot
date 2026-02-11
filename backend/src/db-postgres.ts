@@ -42,6 +42,7 @@ type EventTablesRow = {
   shape: string | null;
   color: string | null;
   is_available: boolean | null;
+  is_active?: boolean | null;
   created_at?: string;
 };
 
@@ -92,6 +93,7 @@ function eventTablesRowToTable(row: EventTablesRow): Table {
     seatsTotal: row.seats_total,
     seatsAvailable: row.seats_available,
     isAvailable: row.is_available ?? false,
+    is_active: row.is_active !== false,
     x: row.x ?? 0,
     y: row.y ?? 0,
     centerX: row.center_x ?? row.x ?? 0,
@@ -141,8 +143,11 @@ export async function getEvents(): Promise<EventData[]> {
   if (eventsErr) throw eventsErr;
   if (!eventsRows?.length) return [];
 
-  // Load all event_tables and group by event_id so each event gets its tables
-  const { data: tablesRows, error: tablesErr } = await supabase.from('event_tables').select('*');
+  // Load all event_tables (active only) and group by event_id
+  const { data: tablesRows, error: tablesErr } = await supabase
+    .from('event_tables')
+    .select('*')
+    .or('is_active.eq.true,is_active.is.null');
   if (tablesErr) throw tablesErr;
   const tablesByEventId = (tablesRows ?? []).reduce<Record<string, EventTablesRow[]>>((acc, r) => {
     const row = r as EventTablesRow;
@@ -169,11 +174,12 @@ export async function findEventById(id: string): Promise<EventData | undefined> 
 
   const event = eventsRowToEvent(eventRow as EventsRow, []);
 
-  // 2. Always rebuild tables from event_tables (no event.tables ?? [])
+  // 2. Always rebuild tables from event_tables (active only)
   const { data: tablesRows, error: tablesErr } = await supabase
     .from('event_tables')
     .select('*')
-    .eq('event_id', event.id);
+    .eq('event_id', event.id)
+    .or('is_active.eq.true,is_active.is.null');
   if (tablesErr) return undefined;
 
   // 3. Map event_tables rows to Table[]
@@ -189,6 +195,27 @@ export async function saveEvents(events: EventData[]): Promise<void> {
   for (const event of events) {
     await upsertEvent(event);
   }
+}
+
+/** Get booked seats per table_id for an event (reserved/awaiting_confirmation/paid only) */
+async function getBookedSeatsByTable(eventId: string): Promise<Record<string, number>> {
+  if (!supabase) return {};
+  const { data } = await supabase
+    .from('bookings')
+    .select('table_id, seat_indices, seats_booked')
+    .eq('event_id', eventId)
+    .in('status', ['reserved', 'awaiting_confirmation', 'paid']);
+  const out: Record<string, number> = {};
+  for (const b of data ?? []) {
+    const tableId = b.table_id;
+    if (!tableId) continue;
+    const seats =
+      b.seats_booked ??
+      (Array.isArray(b.seat_indices) ? b.seat_indices.length : 0) ??
+      0;
+    out[tableId] = (out[tableId] ?? 0) + Number(seats);
+  }
+  return out;
 }
 
 export async function upsertEvent(event: EventData): Promise<void> {
@@ -207,50 +234,105 @@ export async function upsertEvent(event: EventData): Promise<void> {
   const { error: upsertErr } = await supabase.from('events').upsert(row, { onConflict: 'id' });
   if (upsertErr) throw upsertErr;
 
-  const { error: delTablesErr } = await supabase.from('event_tables').delete().eq('event_id', event.id);
-  if (delTablesErr) throw delTablesErr;
-  for (const t of event.tables ?? []) {
-    const { error } = await supabase
+  const incomingTables = event.tables ?? [];
+  const incomingIds = new Set(incomingTables.map((t) => t.id).filter(Boolean));
+  const bookedByTable = await getBookedSeatsByTable(event.id);
+
+  // 1. Process each incoming table
+  for (const t of incomingTables) {
+    const tableId = t.id;
+    if (!tableId) continue;
+
+    const seatsTotal = Math.max(0, Number(t.seatsTotal) || 0);
+    const booked = bookedByTable[tableId] ?? 0;
+
+    const { data: existing } = await supabase
       .from('event_tables')
-      .insert({
-        id: t.id,
+      .select('id')
+      .eq('id', tableId)
+      .eq('event_id', event.id)
+      .maybeSingle();
+
+    if (existing) {
+      // UPDATE: seats_total, seats_available (only if >= booked), is_active = true
+      const incomingAvailable = t.seatsAvailable ?? t.seatsTotal ?? seatsTotal;
+      const minAvailable = Math.max(0, booked);
+      const maxAvailable = seatsTotal;
+      const seatsAvailable = Math.min(
+        maxAvailable,
+        Math.max(minAvailable, Number(incomingAvailable) || seatsTotal)
+      );
+
+      const { error: updErr } = await supabase
+        .from('event_tables')
+        .update({
+          number: t.number ?? 1,
+          seats_total: seatsTotal,
+          seats_available: seatsAvailable,
+          x: t.x ?? null,
+          y: t.y ?? null,
+          center_x: t.centerX ?? t.x ?? null,
+          center_y: t.centerY ?? t.y ?? null,
+          size_percent: t.sizePercent ?? null,
+          shape: t.shape ?? null,
+          color: t.color ?? null,
+          is_available: t.isAvailable ?? false,
+          is_active: true,
+        })
+        .eq('id', tableId)
+        .eq('event_id', event.id);
+
+      if (updErr) {
+        console.error('[EVENT_TABLE UPDATE FAILED]', { eventId: event.id, tableId, error: updErr });
+        throw updErr;
+      }
+    } else {
+      // INSERT new row
+      const seatsAvailable = Math.min(
+        seatsTotal,
+        Math.max(booked, Number(t.seatsAvailable ?? t.seatsTotal ?? seatsTotal) || seatsTotal)
+      );
+      const { error: insErr } = await supabase.from('event_tables').insert({
+        id: tableId,
         event_id: event.id,
         number: t.number ?? 1,
-        seats_total: t.seatsTotal,
-        seats_available: t.seatsAvailable ?? t.seatsTotal,
-        x: t.x,
-        y: t.y,
-        center_x: t.centerX,
-        center_y: t.centerY,
+        seats_total: seatsTotal,
+        seats_available: seatsAvailable,
+        x: t.x ?? null,
+        y: t.y ?? null,
+        center_x: t.centerX ?? t.x ?? null,
+        center_y: t.centerY ?? t.y ?? null,
         size_percent: t.sizePercent ?? null,
         shape: t.shape ?? null,
         color: t.color ?? null,
-        // requires column event_tables.is_available (see migration)
         is_available: t.isAvailable ?? false,
+        is_active: true,
       });
 
-    if (error) {
-      console.error('[EVENT_TABLE INSERT FAILED]', {
-        eventId: event.id,
-        table: t,
-        error,
-      });
-      throw error;
+      if (insErr) {
+        console.error('[EVENT_TABLE INSERT FAILED]', { eventId: event.id, table: t, error: insErr });
+        throw insErr;
+      }
     }
   }
 
-  const { data: checkRows } = await supabase
+  // 2. Mark tables not in incoming list as is_active = false (never delete)
+  const { data: allTables } = await supabase
     .from('event_tables')
     .select('id')
     .eq('event_id', event.id);
 
-  console.log(
-    '[UPSERT EVENT]',
-    'event_id:',
-    event.id,
-    'tables written:',
-    checkRows?.length,
-  );
+  for (const row of allTables ?? []) {
+    if (!incomingIds.has(row.id)) {
+      await supabase
+        .from('event_tables')
+        .update({ is_active: false })
+        .eq('id', row.id)
+        .eq('event_id', event.id);
+    }
+  }
+
+  console.log('[UPSERT EVENT]', 'event_id:', event.id, 'tables:', incomingTables.length);
 }
 
 // ---- Bookings ----

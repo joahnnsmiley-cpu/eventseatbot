@@ -16,6 +16,8 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** event_id -> Set of table ids that exist in event */
+  const [eventTablesMap, setEventTablesMap] = useState<Record<string, Set<string>>>({});
 
   useEffect(() => {
     const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
@@ -31,6 +33,20 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       try {
         const data = await StorageService.getMyBookingsPublic(telegramId);
         setBookings(data);
+
+        const eventIds = [...new Set(data.map((b) => b.event_id).filter(Boolean))];
+        const map: Record<string, Set<string>> = {};
+        for (const eventId of eventIds) {
+          try {
+            const ev = await StorageService.getEvent(eventId);
+            const tables = ev?.tables ?? [];
+            const tableIds = new Set(tables.map((t: { id?: string }) => t?.id).filter(Boolean) as string[]);
+            map[eventId] = tableIds;
+          } catch {
+            map[eventId] = new Set();
+          }
+        }
+        setEventTablesMap(map);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load bookings');
       } finally {
@@ -40,6 +56,13 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
     load();
   }, []);
+
+  const getTableDisplay = (b: BookingItem): string => {
+    if (!b.table_id) return '—';
+    const tableIds = eventTablesMap[b.event_id];
+    if (!tableIds) return b.table_id;
+    return tableIds.has(b.table_id) ? b.table_id : 'Стол удалён';
+  };
 
   const formatDate = (s: string | null) => {
     if (!s) return '—';
@@ -87,7 +110,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 </div>
                 <div className="text-xs text-gray-600 space-y-1">
                   <div>Event ID: {b.event_id}</div>
-                  <div>Table ID: {b.table_id ?? '—'}</div>
+                  <div>Table ID: {getTableDisplay(b)}</div>
                   <div>Seat indices: {Array.isArray(b.seat_indices) ? b.seat_indices.join(', ') : '—'}</div>
                   <div>Status: {b.status}</div>
                   <div>Created: {formatDate(b.created_at)}</div>

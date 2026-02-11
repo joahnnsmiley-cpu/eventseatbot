@@ -264,7 +264,8 @@ function App() {
 
   const selectedTable: Table | null = useMemo(() => {
     if (!selectedEvent || !selectedTableId) return null;
-    return selectedEvent.tables?.find((t) => t.id === selectedTableId) ?? null;
+    const visibleTables = (selectedEvent.tables ?? []).filter((t) => t.is_active !== false);
+    return visibleTables.find((t) => t.id === selectedTableId) ?? null;
   }, [selectedEvent, selectedTableId]);
 
   const publishedEvents = useMemo(() => {

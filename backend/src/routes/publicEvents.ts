@@ -55,6 +55,17 @@ router.get('/events/:eventId/occupied-seats', async (req: Request, res: Response
   if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
 
   try {
+    const { data: activeTables, error: tablesErr } = await supabase
+      .from('event_tables')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('is_active', true);
+    if (tablesErr) {
+      console.error('[occupied-seats] event_tables', tablesErr);
+      return res.status(500).json({ error: tablesErr.message });
+    }
+    const activeTableIds = new Set((activeTables ?? []).map((r) => r.id));
+
     const { data, error } = await supabase
       .from('bookings')
       .select('table_id, seat_indices')
@@ -69,7 +80,7 @@ router.get('/events/:eventId/occupied-seats', async (req: Request, res: Response
     const byTable = new Map<string, Set<number>>();
     for (const row of data ?? []) {
       const tableId = row.table_id;
-      if (!tableId) continue;
+      if (!tableId || !activeTableIds.has(tableId)) continue;
       const indices = row.seat_indices;
       if (!Array.isArray(indices)) continue;
       const set = byTable.get(tableId) ?? new Set<number>();

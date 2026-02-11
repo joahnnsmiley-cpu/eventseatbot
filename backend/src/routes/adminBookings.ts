@@ -177,13 +177,14 @@ router.patch('/bookings/:id/cancel', async (req: Request, res: Response) => {
       const tableId = booking.table_id;
       const seatsBooked = Number(booking.seats_booked) || 0;
 
+      // Safety check: only update seats_available if table still exists
       if (eventId && tableId && seatsBooked > 0) {
         const { data: tableRow, error: tableErr } = await supabase
           .from('event_tables')
-          .select('seats_available, seats_total')
+          .select('id, seats_available, seats_total')
           .eq('id', tableId)
           .eq('event_id', eventId)
-          .single();
+          .maybeSingle();
 
         if (!tableErr && tableRow) {
           const current = Number(tableRow.seats_available) || 0;
@@ -199,6 +200,7 @@ router.patch('/bookings/:id/cancel', async (req: Request, res: Response) => {
             console.error('[PATCH cancel] seats_available update', updateTableErr);
           }
         }
+        // If table not found: skip seats_available update, only update booking status below
       }
 
       const { data: updated, error: updateErr } = await supabase

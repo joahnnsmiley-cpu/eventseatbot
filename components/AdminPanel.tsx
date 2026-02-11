@@ -64,6 +64,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [statusActionLoading, setStatusActionLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [resyncLoading, setResyncLoading] = useState(false);
+  /** event_id -> tables (from event_tables); used to check if booking.table_id still exists */
+  const [eventTablesMap, setEventTablesMap] = useState<Record<string, Table[]>>({});
 
   const statusStyle: Record<string, string> = {
     pending: 'bg-gray-200 text-gray-800',
@@ -112,6 +114,18 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     try {
       const data = await StorageService.getAdminBookings();
       setBookings(Array.isArray(data) ? data : []);
+
+      const eventIds = [...new Set((data as AdminBooking[]).map((b) => b.event_id ?? b.event?.id).filter(Boolean))] as string[];
+      const map: Record<string, Table[]> = {};
+      for (const eventId of eventIds) {
+        try {
+          const ev = await StorageService.getAdminEvent(eventId);
+          map[eventId] = Array.isArray(ev?.tables) ? ev.tables : [];
+        } catch {
+          map[eventId] = [];
+        }
+      }
+      setEventTablesMap(map);
     } catch (e) {
       setError(toFriendlyError(e));
     } finally {
@@ -455,7 +469,22 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         Event ID: {b.event_id ?? b.event?.id ?? '—'}
                       </div>
                       <div className="text-xs text-gray-500">
-                        Table ID: {b.table_id ?? '—'}
+                        Table:{' '}
+                        {(() => {
+                          const eventId = b.event_id ?? b.event?.id ?? '';
+                          const eventTables = eventTablesMap[eventId] ?? [];
+                          const existingTableIds = new Set(eventTables.map((t) => t.id));
+                          if (!b.table_id) return '—';
+                          if (!existingTableIds.has(b.table_id)) {
+                            return (
+                              <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                                ⚠ Table deleted
+                              </span>
+                            );
+                          }
+                          const table = eventTables.find((t) => t.id === b.table_id);
+                          return table ? `Table ${table.number}` : b.table_id;
+                        })()}
                       </div>
                       <div className="text-xs text-gray-500">
                         Seat indices: {seatIndicesStr || '—'}

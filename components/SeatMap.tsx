@@ -59,11 +59,12 @@ const SeatMap: React.FC<SeatMapProps> = ({
 }) => {
   const selectedSeats = seatState?.selectedSeats ?? [];
   // Рассадка: event.tables (backend event_tables); при отсутствии seatState берём event.tables
-  const tables = Array.isArray(seatState?.tables)
+  const rawTables = Array.isArray(seatState?.tables)
     ? seatState.tables
     : Array.isArray(event?.tables)
       ? event.tables
       : [];
+  const tables = rawTables.filter((t: { is_active?: boolean }) => t.is_active !== false);
   const seats = seatState?.seats ?? [];
   const selectedSet = new Set(selectedSeats);
   // Подложка зала — только event.layoutImageUrl (не imageUrl)

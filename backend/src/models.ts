@@ -29,6 +29,8 @@ export interface Table {
   seatsAvailable: number;
   /** When absent, treat as false. */
   isAvailable?: boolean;
+  /** When false, table is hidden from layout (soft-deleted). When absent, treat as true. */
+  is_active?: boolean;
   // Center position as percentages (0-100)
   x: number;
   y: number;
