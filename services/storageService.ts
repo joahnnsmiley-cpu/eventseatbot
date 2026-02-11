@@ -233,6 +233,28 @@ export const confirmBooking = async (bookingId: string): Promise<void> => {
   if (!res.ok) await handleAuthError(res, 'Failed to confirm booking');
 };
 
+/** PATCH /admin/bookings/:id/confirm — set status to paid. */
+export const confirmBookingPayment = async (bookingId: string): Promise<any> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/bookings/${encodeURIComponent(bookingId)}/confirm`, {
+    method: 'PATCH',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) await handleAuthError(res, 'Failed to confirm payment');
+  return res.json();
+};
+
+/** PATCH /admin/bookings/:id/cancel — cancel booking, restore seats. */
+export const cancelBooking = async (bookingId: string): Promise<any> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/bookings/${encodeURIComponent(bookingId)}/cancel`, {
+    method: 'PATCH',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) await handleAuthError(res, 'Failed to cancel booking');
+  return res.json();
+};
+
 /** POST /admin/resync-seats — recalculate seatsAvailable from bookings */
 export const resyncSeats = async (): Promise<{ ok: boolean; eventsProcessed: number; tablesUpdated: number }> => {
   const apiBaseUrl = getApiBaseUrl();

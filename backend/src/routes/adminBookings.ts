@@ -3,6 +3,7 @@ import { v4 as uuid } from 'uuid';
 import { authMiddleware } from '../auth/auth.middleware';
 import { adminOnly } from '../auth/admin.middleware';
 import { db } from '../db';
+import { supabase } from '../supabaseClient';
 import { notifyUser } from '../bot';
 import type { Ticket } from '../models';
 
@@ -35,8 +36,21 @@ router.get('/bookings', async (_req: Request, res: Response) => {
 
   const result = bookings.map((b) => {
     const ev = events.find((e) => e.id === b.eventId);
+    const createdAt = typeof b.createdAt === 'number' ? new Date(b.createdAt).toISOString() : (b.createdAt as string) ?? '';
+    const expiresAt = b.expiresAt != null
+      ? (typeof b.expiresAt === 'number' ? new Date(b.expiresAt).toISOString() : String(b.expiresAt))
+      : null;
     return {
       id: b.id,
+      event_id: b.eventId,
+      table_id: b.tableId ?? null,
+      seat_indices: Array.isArray(b.seatIndices) ? b.seatIndices : [],
+      seats_booked: b.seatsBooked ?? 0,
+      user_telegram_id: b.userTelegramId ?? null,
+      user_phone: b.userPhone ?? '',
+      status: b.status,
+      created_at: createdAt,
+      expires_at: expiresAt,
       event: ev ? { id: ev.id, title: ev.title, date: ev.date } : { id: b.eventId, title: '', date: '' },
       seatIds: Array.isArray(b.seatIds) ? b.seatIds : [],
       tableBookings: Array.isArray(b.tableBookings) && b.tableBookings.length > 0
@@ -47,7 +61,6 @@ router.get('/bookings', async (_req: Request, res: Response) => {
       userTelegramId: b.userTelegramId,
       userPhone: b.userPhone,
       totalAmount: b.totalAmount,
-      status: b.status,
       expiresAt: b.expiresAt,
     };
   });
@@ -98,6 +111,115 @@ router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
   const updated = await db.updateBookingStatus(id, status);
   if (!updated) return res.status(500).json({ error: 'Failed to update booking status' });
   return res.json(updated);
+});
+
+// PATCH /admin/bookings/:id/confirm — set status to paid (simple, no tickets)
+router.patch('/bookings/:id/confirm', async (req: Request, res: Response) => {
+  const rawId = req.params.id;
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  if (!id) return res.status(400).json({ error: 'Booking id is required' });
+  if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
+
+  try {
+    const { data: booking, error: fetchErr } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    if (booking.status === 'paid') {
+      return res.json(booking);
+    }
+
+    const { data: updated, error: updateErr } = await supabase
+      .from('bookings')
+      .update({ status: 'paid' })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateErr) {
+      console.error('[PATCH confirm]', updateErr);
+      return res.status(500).json({ error: updateErr.message });
+    }
+    return res.json(updated);
+  } catch (err) {
+    console.error('[PATCH confirm]', err);
+    return res.status(500).json({ error: String(err) });
+  }
+});
+
+// PATCH /admin/bookings/:id/cancel — cancel reserved/awaiting_confirmation, restore seats
+router.patch('/bookings/:id/cancel', async (req: Request, res: Response) => {
+  const rawId = req.params.id;
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  if (!id) return res.status(400).json({ error: 'Booking id is required' });
+  if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
+
+  try {
+    const { data: booking, error: fetchErr } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const status = String(booking.status ?? '');
+    if (status === 'reserved' || status === 'awaiting_confirmation') {
+      const eventId = booking.event_id;
+      const tableId = booking.table_id;
+      const seatsBooked = Number(booking.seats_booked) || 0;
+
+      if (eventId && tableId && seatsBooked > 0) {
+        const { data: tableRow, error: tableErr } = await supabase
+          .from('event_tables')
+          .select('seats_available, seats_total')
+          .eq('id', tableId)
+          .eq('event_id', eventId)
+          .single();
+
+        if (!tableErr && tableRow) {
+          const current = Number(tableRow.seats_available) || 0;
+          const total = Number(tableRow.seats_total) || 0;
+          const newAvailable = Math.min(total, current + seatsBooked);
+          const { error: updateTableErr } = await supabase
+            .from('event_tables')
+            .update({ seats_available: newAvailable })
+            .eq('id', tableId)
+            .eq('event_id', eventId);
+
+          if (updateTableErr) {
+            console.error('[PATCH cancel] seats_available update', updateTableErr);
+          }
+        }
+      }
+
+      const { data: updated, error: updateErr } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateErr) {
+        console.error('[PATCH cancel]', updateErr);
+        return res.status(500).json({ error: updateErr.message });
+      }
+      return res.json(updated);
+    }
+
+    return res.json(booking);
+  } catch (err) {
+    console.error('[PATCH cancel]', err);
+    return res.status(500).json({ error: String(err) });
+  }
 });
 
 // POST /admin/bookings/:id/confirm

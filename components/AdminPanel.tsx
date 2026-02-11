@@ -6,13 +6,20 @@ import EventCard, { EventCardSkeleton } from './EventCard';
 
 type AdminBooking = {
   id: string;
+  event_id?: string;
+  table_id?: string | null;
+  seat_indices?: number[];
+  seats_booked?: number;
+  user_telegram_id?: number | null;
+  user_phone?: string;
+  status?: string;
+  created_at?: string;
+  expires_at?: string | null;
   event: { id: string; title?: string; date?: string };
   seatIds?: string[];
   tableBookings?: Array<{ tableId: string; seats: number }>;
   userTelegramId?: number;
-  userPhone?: string;
   totalAmount?: number;
-  status?: string;
   expiresAt?: string | number;
 };
 
@@ -39,6 +46,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [events, setEvents] = useState<EventData[]>([]);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -308,10 +316,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setError(null);
     setSuccessMessage(null);
     try {
-      await StorageService.confirmBooking(bookingId);
-      setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: 'paid' } : b)));
+      await StorageService.confirmBookingPayment(bookingId);
       setError(null);
       setSuccessMessage(UI_TEXT.booking.paymentConfirmed);
+      await load();
     } catch (e) {
       console.error('[AdminPanel] Failed to confirm payment', e);
       if (e instanceof Error && e.message) {
@@ -320,6 +328,23 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setError(toFriendlyError(e));
     } finally {
       setConfirmingId(null);
+    }
+  };
+
+  const cancelBookingAction = async (bookingId: string) => {
+    setCancellingId(bookingId);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      await StorageService.cancelBooking(bookingId);
+      setError(null);
+      setSuccessMessage('Бронирование отменено');
+      await load();
+    } catch (e) {
+      console.error('[AdminPanel] Failed to cancel booking', e);
+      setError(toFriendlyError(e));
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -339,7 +364,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           {onBack && (
             <button
               onClick={onBack}
-              disabled={loading || eventsLoading || savingLayout || confirmingId !== null}
+              disabled={loading || eventsLoading || savingLayout || confirmingId !== null || cancellingId !== null}
               className="text-sm text-gray-600"
             >
               {UI_TEXT.admin.exit}
@@ -415,58 +440,93 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
           {!loading && hasBookings && filteredBookings.length > 0 && (
             <div className="grid grid-cols-1 gap-4">
-              {filteredBookings.map((b) => (
-                <div key={b.id} className="bg-white p-4 rounded shadow-sm border flex justify-between items-start gap-4">
-                  <div className="min-w-0">
-                    <div className="font-semibold">{b.event?.title || UI_TEXT.event.eventFallback}</div>
-                    <div className="text-xs text-gray-500">{b.event?.date || ''}</div>
-                    <div className="text-sm text-gray-700 mt-2">
-                      {UI_TEXT.booking.seats} <span className="font-medium">{formatSeats(b)}</span>
-                    </div>
-                    <div className="text-sm text-gray-700 mt-1">
-                      {UI_TEXT.booking.phone} <span className="font-medium">{b.userPhone || '—'}</span>
-                    </div>
-                    <div className="text-sm text-gray-700 mt-1">
-                      {UI_TEXT.booking.status}{' '}
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${statusStyle[b.status ?? ''] ?? 'bg-gray-100 text-gray-700'}`}>
-                        {UI_TEXT.booking.statusLabels[b.status ?? ''] ?? b.status ?? '—'}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-2">
-                      {UI_TEXT.booking.bookingId} {b.id}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {UI_TEXT.booking.telegramId}: {typeof b.userTelegramId === 'number' ? b.userTelegramId : '—'}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {UI_TEXT.booking.expires}: {b.expiresAt ? String(b.expiresAt) : '—'}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {b.status === 'paid' && (
-                      <div className="text-xs text-green-700">{UI_TEXT.booking.paymentConfirmed}</div>
-                    )}
-                    {b.status === 'reserved' && (
-                      <>
-                        <button
-                          onClick={() => confirmBooking(b.id)}
-                          disabled={confirmingId === b.id || confirmingId !== null || isExpired(b.expiresAt)}
-                          className={`px-3 py-1 rounded text-sm ${
-                            confirmingId === b.id || confirmingId !== null || isExpired(b.expiresAt)
-                              ? 'bg-gray-300 text-gray-700'
-                              : 'bg-green-600 text-white'
-                          }`}
-                        >
-                          {confirmingId === b.id ? UI_TEXT.booking.confirming : isExpired(b.expiresAt) ? UI_TEXT.booking.expired : UI_TEXT.booking.confirmPayment}
-                        </button>
-                        {confirmingId !== null && confirmingId !== b.id && !isExpired(b.expiresAt) && (
-                          <div className="text-xs text-gray-500">{UI_TEXT.booking.anotherConfirmInProgress}</div>
+              {filteredBookings.map((b) => {
+                const status = String(b.status ?? '');
+                const canConfirm = status === 'reserved' || status === 'awaiting_confirmation';
+                const seatIndicesStr = Array.isArray(b.seat_indices) ? b.seat_indices.join(', ') : formatSeats(b);
+                const telegramId = b.user_telegram_id ?? b.userTelegramId;
+                const userPhone = b.user_phone ?? b.userPhone;
+
+                return (
+                  <div key={b.id} className="bg-white p-4 rounded shadow-sm border flex justify-between items-start gap-4">
+                    <div className="min-w-0">
+                      <div className="font-semibold">{b.event?.title || b.event_id || UI_TEXT.event.eventFallback}</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Event ID: {b.event_id ?? b.event?.id ?? '—'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Table ID: {b.table_id ?? '—'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Seat indices: {seatIndicesStr || '—'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Seats booked: {b.seats_booked ?? (Array.isArray(b.seat_indices) ? b.seat_indices.length : '—')}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Telegram ID: {typeof telegramId === 'number' ? telegramId : '—'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {UI_TEXT.booking.phone} {userPhone || '—'}
+                      </div>
+                      <div className="text-sm text-gray-700 mt-1">
+                        Status:{' '}
+                        {status === 'paid' && (
+                          <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">PAID</span>
                         )}
-                      </>
-                    )}
+                        {status === 'cancelled' && (
+                          <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">CANCELLED</span>
+                        )}
+                        {status !== 'paid' && status !== 'cancelled' && (
+                          <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${statusStyle[status] ?? 'bg-gray-100 text-gray-700'}`}>
+                            {UI_TEXT.booking.statusLabels[status] ?? status ?? '—'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Created at: {b.created_at ?? '—'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {UI_TEXT.booking.bookingId} {b.id}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 shrink-0">
+                      {status === 'paid' && (
+                        <span className="text-xs text-green-700 font-medium">PAID</span>
+                      )}
+                      {status === 'cancelled' && (
+                        <span className="text-xs text-red-700 font-medium">CANCELLED</span>
+                      )}
+                      {canConfirm && (
+                        <>
+                          <button
+                            onClick={() => confirmBooking(b.id)}
+                            disabled={confirmingId !== null || cancellingId !== null || isExpired(b.expiresAt ?? b.expires_at)}
+                            className={`px-3 py-1 rounded text-sm ${
+                              confirmingId !== null || cancellingId !== null || isExpired(b.expiresAt ?? b.expires_at)
+                                ? 'bg-gray-300 text-gray-700'
+                                : 'bg-green-600 text-white'
+                            }`}
+                          >
+                            {confirmingId === b.id ? UI_TEXT.booking.confirming : isExpired(b.expiresAt ?? b.expires_at) ? UI_TEXT.booking.expired : 'Confirm Payment'}
+                          </button>
+                          <button
+                            onClick={() => cancelBookingAction(b.id)}
+                            disabled={confirmingId !== null || cancellingId !== null}
+                            className={`px-3 py-1 rounded text-sm ${
+                              confirmingId !== null || cancellingId !== null
+                                ? 'bg-gray-300 text-gray-700'
+                                : 'bg-red-600 text-white'
+                            }`}
+                          >
+                            {cancellingId === b.id ? 'Отмена…' : 'Cancel'}
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </>
