@@ -303,13 +303,22 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
 // PATCH /public/bookings/:id/status
 // Allow user to set booking status to awaiting_confirmation (e.g. after "Я оплатил").
 router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
+  console.log('[PATCH] param id:', req.params.id);
+
   const bookingId = String(req.params.id);
+  console.log('[PATCH] normalized id:', bookingId);
+
   if (!bookingId) return res.status(400).json({ error: 'bookingId is required' });
   const { status } = req.body || {};
   if (status !== 'awaiting_confirmation') return res.status(400).json({ error: 'Allowed status: awaiting_confirmation' });
 
   const bookings = await db.getBookings();
+  console.log('[PATCH] bookings count:', bookings.length);
+  console.log('[PATCH] ids in db:', bookings.map(b => b.id));
+
   const booking = bookings.find((b: any) => b.id === bookingId);
+  console.log('[PATCH] found?', !!booking);
+
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
   if (booking.status !== 'reserved' && booking.status !== 'pending') {
     return res.status(409).json({ error: 'Only reserved or pending bookings can be updated' });
