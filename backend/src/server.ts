@@ -11,6 +11,7 @@ import adminBookingsRouter from './routes/adminBookings';
 import publicEventsRouter from './routes/publicEvents';
 import publicPaymentsRouter from './routes/publicPayments';
 import adminPaymentsRouter from './routes/adminPayments';
+import debugRouter from './routes/debug-routes';
 import { inMemoryBookings } from './state';
 import { authMiddleware, AuthRequest } from './auth/auth.middleware';
 import 'dotenv/config';
@@ -433,6 +434,7 @@ app.use('/admin', adminPaymentsRouter);
 // Public read-only event views and JSON endpoints
 app.use('/public', publicEventsRouter);
 app.use('/public', publicPaymentsRouter);
+app.use('/debug', debugRouter);
 
 // NOTE: seat reservation expiry is handled by the booking expiration job
 // which moves reserved seats back to available when bookings expire.
