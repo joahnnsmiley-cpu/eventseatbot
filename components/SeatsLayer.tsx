@@ -5,6 +5,8 @@ const DEFAULT_PADDING_PX = 4;
 
 interface SeatsLayerProps {
   seatsTotal: number;
+  /** When provided, first (seatsTotal - seatsAvailable) seats render as sold and are not clickable. */
+  seatsAvailable?: number;
   tableShape: 'circle' | 'rect';
   /** Used to compute table size when tableSizePx not provided: 24 + sizePercent * 4 */
   sizePercent?: number;
@@ -61,6 +63,7 @@ function getSeatPositions(
 /** Renders seat dots inside table-shape. Circle = radial; rect = internal grid. Used only in SeatPicker. */
 const SeatsLayer: React.FC<SeatsLayerProps> = ({
   seatsTotal,
+  seatsAvailable,
   tableShape,
   sizePercent = 5,
   tableSizePx,
@@ -71,6 +74,7 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
   allSeatsDisabled = false,
 }) => {
   const count = Math.max(0, Number(seatsTotal) || 0);
+  const soldCount = Math.max(0, count - (seatsAvailable ?? count));
   const isInteractive = !allSeatsDisabled && typeof onSeatClick === 'function';
   const selectedSet = selectedIndices ?? new Set<number>();
 
@@ -90,8 +94,9 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
       }}
     >
       {positions.map((pos, i) => {
-        const isSelected = selectedSet.has(i);
-        const isSold = allSeatsDisabled;
+        const isSold = allSeatsDisabled || i < soldCount;
+        const isSelected = !isSold && selectedSet.has(i);
+        const isClickable = isInteractive && !isSold;
         return (
           <div
             key={i}
@@ -101,12 +106,13 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
               left: pos.x,
               top: pos.y,
               transform: 'translate(-50%, -50%)',
+              cursor: isSold ? 'not-allowed' : undefined,
             }}
-            role={isInteractive ? 'button' : undefined}
-            tabIndex={isInteractive ? 0 : undefined}
-            aria-pressed={isInteractive ? isSelected : undefined}
+            role={isClickable ? 'button' : undefined}
+            tabIndex={isClickable ? 0 : undefined}
+            aria-pressed={isClickable ? isSelected : undefined}
             onClick={
-              isInteractive
+              isClickable
                 ? (e) => {
                     e.stopPropagation();
                     e.preventDefault();
@@ -115,7 +121,7 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
                 : undefined
             }
             onKeyDown={
-              isInteractive
+              isClickable
                 ? (e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();

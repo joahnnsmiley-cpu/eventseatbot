@@ -79,7 +79,7 @@ export const UI_TEXT = {
     successTitle: 'Бронь создана',
     paymentPrompt: 'Для подтверждения брони переведите оплату организатору.\nПосле оплаты нажмите кнопку ниже.',
     paymentDetailsTitle: 'Реквизиты для оплаты:',
-    paymentTransferTo: 'Перевод на номер:',
+    paymentTransferTo: 'Переведите оплату на номер:',
     paymentPurpose: 'Назначение платежа: номер вашей брони',
     paymentNoPhoneFallback: 'Организатор свяжется с вами для оплаты.',
     paidButton: 'Я оплатил',

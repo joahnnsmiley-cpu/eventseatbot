@@ -41,6 +41,7 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     schemaImageUrl: ev.schemaImageUrl || ev.imageUrl || null,
     layoutImageUrl: typeof ev.layoutImageUrl === 'undefined' ? null : ev.layoutImageUrl,
     tables: Array.isArray(ev.tables) ? ev.tables : [],
+    paymentPhone: ev.paymentPhone ?? ev.organizer_phone ?? '',
   };
   res.json(mapped);
 });
@@ -270,7 +271,12 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
         tableBookings: [{ tableId, seats }], // full shape for frontend
       } as any;
 
-      try { await db.addBooking(booking); } catch {}
+      try {
+        await db.addBooking(booking);
+      } catch (err) {
+        console.error('Failed to insert booking:', err);
+        return { status: 500, body: { error: 'Failed to save booking' } };
+      }
 
       // Emit booking created event (fire-and-forget)
       emitBookingCreated({
