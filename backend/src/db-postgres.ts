@@ -286,7 +286,10 @@ export async function addBooking(booking: Booking): Promise<void> {
     created_at: new Date(booking.createdAt).toISOString(),
     expires_at: expiresAt,
   });
-  if (error) throw error;
+  if (error) {
+    console.error('[addBooking] Supabase insert error:', error);
+    throw error;
+  }
 }
 
 export async function saveBookings(bookings: Booking[]): Promise<void> {
