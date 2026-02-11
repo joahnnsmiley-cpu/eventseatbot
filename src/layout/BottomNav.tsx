@@ -18,7 +18,7 @@ export default function BottomNav({
   onProfileClick,
 }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 max-w-[420px] mx-auto bg-black border-t border-white/10 flex justify-around items-center h-16">
+    <nav className="fixed bottom-0 left-0 right-0 max-w-[420px] mx-auto bg-black/70 backdrop-blur-md border-t border-white/10 flex justify-around items-center h-16">
       <button
         type="button"
         onClick={onEventsClick}

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import * as StorageService from './services/storageService';
 import AdminPanel from './components/AdminPanel';
 import AuthService from './services/authService';
@@ -205,6 +206,10 @@ function App() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (view === 'events') void loadEvents();
+  }, [view]);
 
   const loadMyBookings = async (silent = false) => {
     if (!silent) {
@@ -899,7 +904,12 @@ function App() {
 
   return wrapWithLayout(
     <div className="max-w-md mx-auto min-h-screen relative">
-      <div className="px-4 pt-8 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-6">
+      <motion.div
+        className="px-4 pt-8 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+      >
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-extrabold tracking-wide uppercase">
@@ -920,16 +930,6 @@ function App() {
             </button>
           )}
         </div>
-        {(!hasLoaded || error) && !loading && (
-          <button
-            type="button"
-            onClick={loadEvents}
-            className="bg-[#FFC107] text-black px-4 py-2 rounded text-sm font-semibold"
-          >
-            {UI_TEXT.app.events}
-          </button>
-        )}
-
         {error && <div className="text-sm text-red-400">{error}</div>}
 
         <div className="space-y-6">
@@ -956,23 +956,45 @@ function App() {
                   <p className="text-gray-500 text-xs tracking-widest uppercase mb-2">
                     Главное событие
                   </p>
-                  <div
-                    className="relative rounded-2xl bg-[#0b0b0b] border border-white/10 p-8 flex flex-col items-center justify-center text-center shadow-[0_0_60px_rgba(255,193,7,0.15)]"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleEventSelect(featuredEvent.id)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleEventSelect(featuredEvent.id)}
-                  >
-                    <h2 className="text-xl font-bold uppercase text-white mb-2">
-                      {featuredEvent.title?.trim() || UI_TEXT.event.eventFallback}
-                    </h2>
-                    {fmt && (
-                      <>
-                        <p className="text-[#FFC107] text-xl font-semibold mb-1">{fmt.date}</p>
-                        {fmt.time && <p className="text-gray-400 text-sm mb-2">{fmt.time}</p>}
-                      </>
-                    )}
-                    <p className="text-gray-500 text-sm">Площадка</p>
+                  <div className="relative">
+                    <div className="absolute -inset-1 rounded-2xl blur-xl bg-gradient-to-r from-yellow-500/20 to-purple-600/20" />
+                    <motion.div
+                      className="relative rounded-2xl border border-white/10 p-8 flex flex-col items-center justify-center text-center overflow-hidden min-h-[180px]"
+                      style={
+                        featuredEvent.imageUrl?.trim()
+                          ? {
+                              backgroundImage: `url(${featuredEvent.imageUrl.trim()})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                            }
+                          : undefined
+                      }
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleEventSelect(featuredEvent.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleEventSelect(featuredEvent.id)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {featuredEvent.imageUrl?.trim() ? (
+                        <div className="absolute inset-0 bg-black/70 rounded-2xl" />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#0b0b0b] to-[#1a1a1a] rounded-2xl" />
+                      )}
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-yellow-500/5 via-transparent to-purple-600/5 pointer-events-none" />
+                      <div className="relative z-10 flex flex-col items-center justify-center text-center">
+                        <h2 className="text-xl font-bold uppercase text-white mb-2">
+                          {featuredEvent.title?.trim() || UI_TEXT.event.eventFallback}
+                        </h2>
+                        {fmt && (
+                          <>
+                            <p className="text-[#FFC107] text-xl font-semibold mb-1">{fmt.date}</p>
+                            {fmt.time && <p className="text-gray-400 text-sm mb-2">{fmt.time}</p>}
+                          </>
+                        )}
+                        <p className="text-gray-500 text-sm">Площадка</p>
+                      </div>
+                    </motion.div>
                   </div>
                 </div>
 
@@ -985,13 +1007,16 @@ function App() {
                       {thisMonthEvents.map((evt) => {
                         const evtFmt = formatEventDate(evt.date);
                         return (
-                          <div
+                          <motion.div
                             key={evt.id}
                             className="flex rounded-xl overflow-hidden border border-white/10 bg-[#111]"
                             role="button"
                             tabIndex={0}
                             onClick={() => handleEventSelect(evt.id)}
                             onKeyDown={(e) => e.key === 'Enter' && handleEventSelect(evt.id)}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.99 }}
+                            transition={{ duration: 0.2 }}
                           >
                             <div className="w-[70px] shrink-0 bg-[#FFC107] text-black flex flex-col items-center justify-center font-bold">
                               {evtFmt ? evtFmt.day : '—'}
@@ -1005,7 +1030,7 @@ function App() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                               </svg>
                             </div>
-                          </div>
+                          </motion.div>
                         );
                       })}
                     </div>
@@ -1015,7 +1040,7 @@ function App() {
             );
           })()}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
