@@ -264,8 +264,10 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
         tableBookings: [{ tableId, seats }], // full shape for frontend
       } as any;
 
+      console.log('[POST BOOKING] inserting booking id:', booking.id);
       try {
         await db.addBooking(booking);
+        console.log('[POST BOOKING] booking inserted successfully');
       } catch (err) {
         console.error('Failed to insert booking:', err);
         return { status: 500, body: { error: 'Failed to save booking' } };
