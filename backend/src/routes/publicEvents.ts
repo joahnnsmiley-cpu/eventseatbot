@@ -6,6 +6,23 @@ import { emitBookingCreated, emitBookingCancelled, calculateBookingExpiration } 
 
 const router = Router();
 
+const now = () => new Date().toISOString();
+
+function isTableVisible(t: { is_active?: boolean; visibleFrom?: string | null; visibleUntil?: string | null }): boolean {
+  if (t.is_active === false) return false;
+  const n = now();
+  const from = t.visibleFrom;
+  if (from != null && from !== '' && from > n) return false;
+  const until = t.visibleUntil;
+  if (until != null && until !== '' && until < n) return false;
+  return true;
+}
+
+/** Filter tables by visibility window. Table shown when: is_active AND (visible_from <= now) AND (visible_until >= now) */
+function filterTablesByVisibility(tables: { is_active?: boolean; visibleFrom?: string | null; visibleUntil?: string | null }[]): unknown[] {
+  return (tables ?? []).filter(isTableVisible);
+}
+
 // Return published events only
 router.get('/events', async (_req: Request, res: Response) => {
   try {
@@ -19,7 +36,7 @@ router.get('/events', async (_req: Request, res: Response) => {
       coverImageUrl: e.imageUrl || e.schemaImageUrl || null,
       schemaImageUrl: e.schemaImageUrl || e.imageUrl || null,
       layoutImageUrl: typeof e.layoutImageUrl === 'undefined' ? null : e.layoutImageUrl,
-      tables: Array.isArray(e.tables) ? e.tables : [],
+      tables: filterTablesByVisibility(Array.isArray(e.tables) ? e.tables : []),
     }));
     return res.json(mapped ?? []);
   } catch (err) {
@@ -42,7 +59,7 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     coverImageUrl: ev.imageUrl || ev.schemaImageUrl || null,
     schemaImageUrl: ev.schemaImageUrl || ev.imageUrl || null,
     layoutImageUrl: typeof ev.layoutImageUrl === 'undefined' ? null : ev.layoutImageUrl,
-    tables: Array.isArray(ev.tables) ? ev.tables : [],
+    tables: filterTablesByVisibility(Array.isArray(ev.tables) ? ev.tables : []),
     paymentPhone: ev.paymentPhone ?? ev.organizer_phone ?? '',
   };
   res.json(mapped);
@@ -57,14 +74,23 @@ router.get('/events/:eventId/occupied-seats', async (req: Request, res: Response
   try {
     const { data: activeTables, error: tablesErr } = await supabase
       .from('event_tables')
-      .select('id')
+      .select('id, visible_from, visible_until')
       .eq('event_id', eventId)
       .eq('is_active', true);
     if (tablesErr) {
       console.error('[occupied-seats] event_tables', tablesErr);
       return res.status(500).json({ error: tablesErr.message });
     }
-    const activeTableIds = new Set((activeTables ?? []).map((r) => r.id));
+    const nowIso = new Date().toISOString();
+    const visibleTableIds = new Set(
+      (activeTables ?? []).filter((r: { visible_from?: string | null; visible_until?: string | null }) => {
+        const from = r.visible_from;
+        if (from != null && from !== '' && from > nowIso) return false;
+        const until = r.visible_until;
+        if (until != null && until !== '' && until < nowIso) return false;
+        return true;
+      }).map((r: { id: string }) => r.id)
+    );
 
     const { data, error } = await supabase
       .from('bookings')
@@ -80,7 +106,7 @@ router.get('/events/:eventId/occupied-seats', async (req: Request, res: Response
     const byTable = new Map<string, Set<number>>();
     for (const row of data ?? []) {
       const tableId = row.table_id;
-      if (!tableId || !activeTableIds.has(tableId)) continue;
+      if (!tableId || !visibleTableIds.has(tableId)) continue;
       const indices = row.seat_indices;
       if (!Array.isArray(indices)) continue;
       const set = byTable.get(tableId) ?? new Set<number>();
@@ -301,6 +327,7 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
       if (ev.status !== 'published') return { status: 403, body: { error: 'Event is not published' } };
       const tbl = Array.isArray(ev.tables) ? ev.tables.find((t: any) => t.id === tableId) : null;
       if (!tbl) return { status: 400, body: { error: 'Table not found' } };
+      if (!isTableVisible(tbl)) return { status: 403, body: { error: 'Table is not visible for booking' } };
       if (tbl.isAvailable !== true) return { status: 403, body: { error: 'Table is not available for sale' } };
       if (typeof tbl.seatsAvailable !== 'number') tbl.seatsAvailable = Number(tbl.seatsAvailable) || 0;
       if (tbl.seatsAvailable < seats) return { status: 409, body: { error: 'Not enough seats available' } };
@@ -336,9 +363,7 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
         return { status: 500, body: { error: 'Failed to save booking' } };
       }
 
-      // decrement seatsAvailable only after successful insert
-      tbl.seatsAvailable = Math.max(0, tbl.seatsAvailable - seats);
-      await db.saveEvents(events);
+      // seats_available is computed from bookings on read; no need to update event_tables
 
       // Emit booking created event (fire-and-forget)
       emitBookingCreated({
@@ -409,6 +434,20 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
   if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
 
   try {
+    const { data: tableRow, error: tableErr } = await supabase
+      .from('event_tables')
+      .select('id, is_active, visible_from, visible_until')
+      .eq('id', tableId)
+      .eq('event_id', eventId)
+      .maybeSingle();
+    if (tableErr || !tableRow) return res.status(400).json({ error: 'Table not found' });
+    const tbl = {
+      is_active: tableRow.is_active,
+      visibleFrom: tableRow.visible_from,
+      visibleUntil: tableRow.visible_until,
+    };
+    if (!isTableVisible(tbl)) return res.status(403).json({ error: 'Table is not visible for booking' });
+
     const { data: existing } = await supabase
       .from('bookings')
       .select('seat_indices')
@@ -448,23 +487,7 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Internal server error' });
     }
 
-    const { data: tableRow, error: tableErr } = await supabase
-      .from('event_tables')
-      .select('seats_available')
-      .eq('id', tableId)
-      .eq('event_id', eventId)
-      .single();
-
-    if (!tableErr && tableRow) {
-      const current = Number(tableRow.seats_available) || 0;
-      const newAvailable = Math.max(0, current - indices.length);
-      const { error: updateErr } = await supabase
-        .from('event_tables')
-        .update({ seats_available: newAvailable })
-        .eq('id', tableId)
-        .eq('event_id', eventId);
-      if (updateErr) console.error('[bookings/seats] seats_available update', updateErr);
-    }
+    // seats_available is computed from bookings on read; no need to update event_tables
 
     const booking = {
       id,
@@ -560,18 +583,14 @@ router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
       if (!booking) return { status: 404, body: { error: 'Booking not found' } };
       if (booking.status !== 'reserved') return { status: 409, body: { error: 'Booking is not reserved or already expired' } };
 
-      // find event and table
+      // find event and table (for validation only)
       const events = await db.getEvents();
       const ev = events.find((e: any) => e.id === booking.eventId);
       if (!ev) return { status: 500, body: { error: 'Related event not found' } };
       const tbl = Array.isArray(ev.tables) ? ev.tables.find((t: any) => t.id === booking.tableId) : null;
       if (!tbl) return { status: 500, body: { error: 'Related table not found' } };
 
-      // increment seatsAvailable (bounded by seatsTotal)
-      tbl.seatsAvailable = Math.min(tbl.seatsTotal, (Number(tbl.seatsAvailable) || 0) + (Number(booking.seatsBooked) || 0));
-
-      // persist events first
-      await db.saveEvents(events);
+      // seats_available is computed from bookings on read; no need to update event_tables
 
       // mark booking cancelled
       const updated = await db.updateBookingStatus(bookingId, 'expired');

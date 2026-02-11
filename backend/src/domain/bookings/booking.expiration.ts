@@ -60,7 +60,6 @@ export function hasPaymentPaid(bookingId: string): boolean {
 export async function expireStaleBookings(now: Date = new Date()): Promise<number> {
   try {
     const bookings = await db.getBookings();
-    const events = await db.getEvents();
     let expiredCount = 0;
 
     // Find reserved bookings that have expired
@@ -80,20 +79,7 @@ export async function expireStaleBookings(now: Date = new Date()): Promise<numbe
     // Process each stale booking
     for (const booking of staleBookings) {
       try {
-        // Find the event and table to restore seats
-        const event = events.find((e: any) => e.id === booking.eventId);
-        if (event && Array.isArray(event.tables) && booking.tableId) {
-          const table = event.tables.find((t: any) => t.id === booking.tableId);
-          if (table && typeof booking.seatsBooked === 'number') {
-            // Restore seats (bounded by seatsTotal)
-            table.seatsAvailable = Math.min(
-              table.seatsTotal,
-              (Number(table.seatsAvailable) || 0) + booking.seatsBooked,
-            );
-          }
-        }
-
-        // Cancel the booking
+        // Cancel the booking (status -> expired). seats_available is computed from bookings on read.
         await db.updateBookingStatus(booking.id, 'expired');
         console.log(JSON.stringify({
           action: 'booking_expired',
@@ -113,15 +99,6 @@ export async function expireStaleBookings(now: Date = new Date()): Promise<numbe
       } catch (err) {
         // Log but continue with other bookings
         console.error(`[BookingExpiration] Failed to expire booking ${booking.id}:`, err);
-      }
-    }
-
-    // Persist events if any seats were restored
-    if (expiredCount > 0) {
-      try {
-        await db.saveEvents(events);
-      } catch (err) {
-        console.error('[BookingExpiration] Failed to persist events after expiring bookings:', err);
       }
     }
 

@@ -43,6 +43,8 @@ type EventTablesRow = {
   color: string | null;
   is_available: boolean | null;
   is_active?: boolean | null;
+  visible_from?: string | null;
+  visible_until?: string | null;
   created_at?: string;
 };
 
@@ -86,12 +88,16 @@ function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
   };
 }
 
-function eventTablesRowToTable(row: EventTablesRow): Table {
+function eventTablesRowToTable(row: EventTablesRow, bookedSeats?: number): Table {
+  const seatsTotal = Number(row.seats_total) || 0;
+  const seatsAvailable = bookedSeats != null
+    ? Math.max(0, seatsTotal - bookedSeats)
+    : seatsTotal;
   const t: Table = {
     id: row.id,
     number: row.number,
-    seatsTotal: row.seats_total,
-    seatsAvailable: row.seats_available,
+    seatsTotal,
+    seatsAvailable,
     isAvailable: row.is_available ?? false,
     is_active: row.is_active !== false,
     x: row.x ?? 0,
@@ -102,6 +108,8 @@ function eventTablesRowToTable(row: EventTablesRow): Table {
   if (row.size_percent != null) t.sizePercent = row.size_percent;
   if (row.shape != null) t.shape = row.shape;
   if (row.color != null) t.color = row.color;
+  if (row.visible_from != null) t.visibleFrom = row.visible_from;
+  if (row.visible_until != null) t.visibleUntil = row.visible_until;
   return t;
 }
 
@@ -157,10 +165,16 @@ export async function getEvents(): Promise<EventData[]> {
     return acc;
   }, {});
 
+  const eventIds = (eventsRows as EventsRow[]).map((r) => r.id);
+  const bookedByEvents = await getBookedSeatsByEvents(eventIds);
+
   return (eventsRows as EventsRow[]).map((row) => {
     const event = eventsRowToEvent(row, []);
-    // For each event: always set event.tables from event_tables (no fallback)
-    const tablesFromEventTables = (tablesByEventId[event.id] ?? []).map((r) => eventTablesRowToTable(r as EventTablesRow));
+    const bookedByTable = bookedByEvents[event.id] ?? {};
+    const tablesFromEventTables = (tablesByEventId[event.id] ?? []).map((r) => {
+      const etRow = r as EventTablesRow;
+      return eventTablesRowToTable(etRow, bookedByTable[etRow.id] ?? 0);
+    });
     event.tables = tablesFromEventTables;
     return event;
   });
@@ -182,10 +196,12 @@ export async function findEventById(id: string): Promise<EventData | undefined> 
     .or('is_active.eq.true,is_active.is.null');
   if (tablesErr) return undefined;
 
-  // 3. Map event_tables rows to Table[]
-  const tablesFromEventTables = (tablesRows ?? []).map((r) => eventTablesRowToTable(r as EventTablesRow));
+  const bookedByTable = await getBookedSeatsByTable(event.id);
+  const tablesFromEventTables = (tablesRows ?? []).map((r) => {
+    const etRow = r as EventTablesRow;
+    return eventTablesRowToTable(etRow, bookedByTable[etRow.id] ?? 0);
+  });
 
-  // 4. Assign: always from event_tables
   event.tables = tablesFromEventTables;
   return event;
 }
@@ -197,7 +213,7 @@ export async function saveEvents(events: EventData[]): Promise<void> {
   }
 }
 
-/** Get booked seats per table_id for an event (reserved/awaiting_confirmation/paid only) */
+/** Get booked seats per table_id for an event (reserved/awaiting_confirmation/paid only). SUM(seats_booked). */
 async function getBookedSeatsByTable(eventId: string): Promise<Record<string, number>> {
   if (!supabase) return {};
   const { data } = await supabase
@@ -218,7 +234,54 @@ async function getBookedSeatsByTable(eventId: string): Promise<Record<string, nu
   return out;
 }
 
-export async function upsertEvent(event: EventData): Promise<void> {
+/** Get booked seats per event_id -> table_id for multiple events (batch). */
+async function getBookedSeatsByEvents(eventIds: string[]): Promise<Record<string, Record<string, number>>> {
+  if (!supabase || eventIds.length === 0) return {};
+  const { data } = await supabase
+    .from('bookings')
+    .select('event_id, table_id, seat_indices, seats_booked')
+    .in('event_id', eventIds)
+    .in('status', ['reserved', 'awaiting_confirmation', 'paid']);
+  const out: Record<string, Record<string, number>> = {};
+  for (const b of data ?? []) {
+    const eventId = b.event_id;
+    const tableId = b.table_id;
+    if (!eventId || !tableId) continue;
+    const seats = b.seats_booked ?? (Array.isArray(b.seat_indices) ? b.seat_indices.length : 0) ?? 0;
+    const byTable = out[eventId] ?? (out[eventId] = {});
+    byTable[tableId] = (byTable[tableId] ?? 0) + Number(seats);
+  }
+  return out;
+}
+
+/** Log layout change to audit table. NEVER throws — logs and swallows errors. */
+function logLayoutChange(
+  eventId: string,
+  tableId: string,
+  action: 'create' | 'update' | 'deactivate',
+  previousData: Record<string, unknown> | null,
+  newData: Record<string, unknown>,
+  adminId?: number
+): void {
+  if (!supabase) return;
+  void (async () => {
+    try {
+      const { error } = await supabase.from('layout_changes').insert({
+        event_id: eventId,
+        table_id: tableId,
+        action,
+        previous_data: previousData,
+        new_data: newData,
+        admin_id: adminId ?? null,
+      });
+      if (error) console.error('[layout_changes] log failed:', error);
+    } catch (err) {
+      console.error('[layout_changes] log failed:', err);
+    }
+  })();
+}
+
+export async function upsertEvent(event: EventData, adminId?: number): Promise<void> {
   if (!supabase) return;
   // image_url — poster (event banner / cover image); layout_image_url — seating only (рассадка)
   const row: Omit<EventsRow, 'created_at' | 'updated_at'> = {
@@ -248,7 +311,7 @@ export async function upsertEvent(event: EventData): Promise<void> {
 
     const { data: existing } = await supabase
       .from('event_tables')
-      .select('id')
+      .select('id, seats_total, is_active, number, x, y, center_x, center_y, size_percent, shape, color, is_available')
       .eq('id', tableId)
       .eq('event_id', event.id)
       .maybeSingle();
@@ -263,6 +326,8 @@ export async function upsertEvent(event: EventData): Promise<void> {
         throw new Error('Cannot deactivate table with active bookings');
       }
 
+      const visFrom = (t as { visibleFrom?: string | null }).visibleFrom ?? null;
+      const visUntil = (t as { visibleUntil?: string | null }).visibleUntil ?? null;
       const { error: updErr } = await supabase
         .from('event_tables')
         .update({
@@ -278,6 +343,8 @@ export async function upsertEvent(event: EventData): Promise<void> {
           color: t.color ?? null,
           is_available: t.isAvailable ?? false,
           is_active: wantsActive,
+          visible_from: visFrom || null,
+          visible_until: visUntil || null,
         })
         .eq('id', tableId)
         .eq('event_id', event.id);
@@ -286,10 +353,24 @@ export async function upsertEvent(event: EventData): Promise<void> {
         console.error('[EVENT_TABLE UPDATE FAILED]', { eventId: event.id, tableId, error: updErr });
         throw updErr;
       }
+
+      const prevTotal = Number((existing as { seats_total?: number }).seats_total) || 0;
+      if (prevTotal !== seatsTotalClamped) {
+        logLayoutChange(
+          event.id,
+          tableId,
+          'update',
+          { seats_total: prevTotal },
+          { seats_total: seatsTotalClamped },
+          adminId
+        );
+      }
     } else {
       // INSERT new row: seats_available = seats_total - bookedSeats
       const seatsTotalClamped = Math.max(booked, seatsTotal);
       const seatsAvailable = Math.max(0, seatsTotalClamped - booked);
+      const visFrom = (t as { visibleFrom?: string | null }).visibleFrom ?? null;
+      const visUntil = (t as { visibleUntil?: string | null }).visibleUntil ?? null;
       const { error: insErr } = await supabase.from('event_tables').insert({
         id: tableId,
         event_id: event.id,
@@ -305,19 +386,29 @@ export async function upsertEvent(event: EventData): Promise<void> {
         color: t.color ?? null,
         is_available: t.isAvailable ?? false,
         is_active: true,
+        visible_from: visFrom || null,
+        visible_until: visUntil || null,
       });
 
       if (insErr) {
         console.error('[EVENT_TABLE INSERT FAILED]', { eventId: event.id, table: t, error: insErr });
         throw insErr;
       }
+      logLayoutChange(
+        event.id,
+        tableId,
+        'create',
+        null,
+        { id: tableId, event_id: event.id, seats_total: seatsTotalClamped, number: t.number ?? 1 },
+        adminId
+      );
     }
   }
 
   // 2. Mark tables not in incoming list as is_active = false (never delete)
   const { data: allTables } = await supabase
     .from('event_tables')
-    .select('id')
+    .select('id, seats_total, is_active, number, x, y, center_x, center_y, size_percent, shape, color, is_available')
     .eq('event_id', event.id);
 
   const toDeactivate = (allTables ?? []).filter((row) => !incomingIds.has(row.id));
@@ -334,12 +425,21 @@ export async function upsertEvent(event: EventData): Promise<void> {
   }
 
   for (const row of toDeactivate) {
+    const prev = row as Record<string, unknown>;
     const { error: updErr } = await supabase
       .from('event_tables')
       .update({ is_active: false })
       .eq('id', row.id)
       .eq('event_id', event.id);
     if (updErr) throw updErr;
+    logLayoutChange(
+      event.id,
+      row.id,
+      'deactivate',
+      { ...prev, is_active: prev.is_active ?? true },
+      { ...prev, is_active: false },
+      adminId
+    );
   }
 
   console.log('[UPSERT EVENT]', 'event_id:', event.id, 'tables:', incomingTables.length);

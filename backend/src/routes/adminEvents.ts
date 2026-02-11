@@ -2,8 +2,16 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuid } from 'uuid';
 import { authMiddleware } from '../auth/auth.middleware';
 import { adminOnly } from '../auth/admin.middleware';
+import type { AuthRequest } from '../auth/auth.middleware';
 import { db } from '../db';
 import type { EventData } from '../models';
+
+const getAdminId = (req: Request): number | undefined => {
+  const id = (req as AuthRequest).user?.id;
+  if (id == null) return undefined;
+  const n = typeof id === 'number' ? id : parseInt(String(id), 10);
+  return Number.isFinite(n) ? n : undefined;
+};
 
 /*
   ADMIN DOMAIN: FROZEN
@@ -139,7 +147,7 @@ router.post('/events', async (req: Request, res: Response) => {
     published,
   };
 
-  await db.upsertEvent(eventData);
+  await db.upsertEvent(eventData, getAdminId(req));
   res.status(201).json(newEvent);
 });
 
@@ -159,7 +167,7 @@ router.post('/events/:id/publish', async (req: Request, res: Response) => {
 
   existing.status = 'published';
   existing.published = true;
-  await db.upsertEvent(existing);
+  await db.upsertEvent(existing, getAdminId(req));
   return res.status(200).json(existing);
 });
 
@@ -175,7 +183,7 @@ router.post('/events/:id/archive', async (req: Request, res: Response) => {
 
   existing.status = 'archived';
   existing.published = false;
-  await db.upsertEvent(existing);
+  await db.upsertEvent(existing, getAdminId(req));
   return res.status(200).json(existing);
 });
 
@@ -212,7 +220,7 @@ router.put('/events/:id', async (req: Request, res: Response) => {
     if (Array.isArray(req.body.tables)) {
       existing.tables = normalizeTables(req.body.tables);
     }
-    await db.upsertEvent(existing);
+    await db.upsertEvent(existing, getAdminId(req));
     return res.json(toEvent(existing));
   }
 
@@ -255,7 +263,7 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   );
 
   try {
-    await db.upsertEvent(existing);
+    await db.upsertEvent(existing, getAdminId(req));
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes('Cannot deactivate table with active bookings')) {

@@ -1,3 +1,21 @@
 {
-  "payments": []
+  "payments": [
+    {
+      "id": "exp-test-payment-9",
+      "bookingId": "exp-test-bk-9",
+      "amount": 5000,
+      "status": "pending",
+      "createdAt": 1770837120685
+    },
+    {
+      "id": "exp-test-payment-10",
+      "bookingId": "exp-test-bk-10",
+      "amount": 6000,
+      "status": "paid",
+      "createdAt": 1770837120686,
+      "method": "manual",
+      "confirmedBy": "admin-user",
+      "confirmedAt": "2026-02-11T19:12:00.686Z"
+    }
+  ]
 }

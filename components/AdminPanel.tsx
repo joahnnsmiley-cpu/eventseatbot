@@ -23,6 +23,15 @@ type AdminBooking = {
   expiresAt?: string | number;
 };
 
+/** Convert ISO string to datetime-local input value (local time) */
+function toDatetimeLocal(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /** Ensure required table fields for backend; defaults so nothing is undefined. */
 function tableForBackend(t: Table, index: number): Table {
   const x = typeof t.x === 'number' ? t.x : (typeof t.centerX === 'number' ? t.centerX : 50);
@@ -37,6 +46,8 @@ function tableForBackend(t: Table, index: number): Table {
     y,
     centerX: typeof t.centerX === 'number' ? t.centerX : x,
     centerY: typeof t.centerY === 'number' ? t.centerY : y,
+    visibleFrom: t.visibleFrom ?? undefined,
+    visibleUntil: t.visibleUntil ?? undefined,
   };
 }
 
@@ -888,6 +899,30 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, color: val } : it) } : null);
                         }}
                         className="ml-1 h-7 w-10 border rounded disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                    </label>
+                    <label className="text-xs text-gray-600" title={UI_TEXT.tables.visibleFromPlaceholder}>
+                      {UI_TEXT.tables.visibleFrom}
+                      <input
+                        type="datetime-local"
+                        value={toDatetimeLocal(t.visibleFrom ?? undefined)}
+                        onChange={(e) => {
+                          const val = e.target.value ? new Date(e.target.value).toISOString() : '';
+                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, visibleFrom: val || null } : it) } : null);
+                        }}
+                        className="ml-1 w-36 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                    </label>
+                    <label className="text-xs text-gray-600" title={UI_TEXT.tables.visibleUntilPlaceholder}>
+                      {UI_TEXT.tables.visibleUntil}
+                      <input
+                        type="datetime-local"
+                        value={toDatetimeLocal(t.visibleUntil ?? undefined)}
+                        onChange={(e) => {
+                          const val = e.target.value ? new Date(e.target.value).toISOString() : '';
+                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, visibleUntil: val || null } : it) } : null);
+                        }}
+                        className="ml-1 w-36 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
                     {(() => {

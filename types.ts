@@ -19,6 +19,10 @@ export interface Table {
   isAvailable?: boolean;
   /** When false, table is hidden from layout (soft-deleted). When absent, treat as true. */
   is_active?: boolean;
+  /** ISO string; when to start showing table to public. NULL = no start limit. */
+  visibleFrom?: string | null;
+  /** ISO string; when to stop showing table to public. NULL = no end limit. */
+  visibleUntil?: string | null;
   x?: number; // Percentage 0-100
   y?: number; // Percentage 0-100
   centerX: number; // Percentage 0-100
