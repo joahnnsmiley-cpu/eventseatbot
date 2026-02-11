@@ -38,9 +38,16 @@ router.get('/bookings', async (_req: Request, res: Response) => {
 // PATCH /admin/bookings/:id/status
 // Allowed transitions: pending→awaiting_confirmation, awaiting_confirmation→paid, awaiting_confirmation→cancelled
 router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
-  const rawId = req.params.id;
-  const id = Array.isArray(rawId) ? rawId[0] : rawId;
-  const { status } = req.body || {};
+  const id = req.params.id;
+  if (!id) {
+    return res.status(400).json({ error: 'Booking id is required' });
+  }
+
+  const status = req.body?.status;
+  if (!status || typeof status !== 'string') {
+    return res.status(400).json({ error: 'Status is required' });
+  }
+
   const allowed = ['awaiting_confirmation', 'paid', 'cancelled'] as const;
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Allowed status: awaiting_confirmation, paid, cancelled' });
 
