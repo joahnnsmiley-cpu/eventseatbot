@@ -1,0 +1,150 @@
+@import "tailwindcss";
+
+/* Explicit content sources for Tailwind to scan */
+@source "./index.html";
+@source "./App.tsx";
+@source "./components/**/*.{ts,tsx}";
+@source "./src/**/*.{ts,tsx}";
+
+/* Telegram theme colors (from original tailwind.config) */
+@theme {
+  --color-tg-bg: var(--tg-theme-bg-color, #ffffff);
+  --color-tg-text: var(--tg-theme-text-color, #000000);
+  --color-tg-hint: var(--tg-theme-hint-color, #999999);
+  --color-tg-link: var(--tg-theme-link-color, #2481cc);
+  --color-tg-button: var(--tg-theme-button-color, #2481cc);
+  --color-tg-buttonText: var(--tg-theme-button-text-color, #ffffff);
+  --color-tg-secondary: var(--tg-theme-secondary-bg-color, #f0f0f0);
+}
+
+/* Base styles (from original index.html) */
+body {
+  background-color: var(--tg-theme-bg-color, #f3f4f6);
+  color: var(--tg-theme-text-color, #111827);
+  overflow-x: hidden;
+}
+input, textarea, select {
+  background-color: var(--tg-theme-bg-color, #ffffff);
+  color: var(--tg-theme-text-color, #111827);
+  border-color: var(--tg-theme-hint-color, #9ca3af);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--tg-theme-hint-color, #9ca3af);
+}
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--tg-theme-button-color, #2563eb);
+  box-shadow: 0 0 0 1px var(--tg-theme-button-color, #2563eb);
+}
+body.tg-light {
+  --tg-bg: var(--tg-theme-bg-color, #f3f4f6);
+  --tg-text: var(--tg-theme-text-color, #111827);
+  --tg-muted: var(--tg-theme-hint-color, #6b7280);
+  --tg-card: #ffffff;
+  --tg-border: #e5e7eb;
+}
+body.tg-dark {
+  --tg-bg: var(--tg-theme-bg-color, #0f172a);
+  --tg-text: var(--tg-theme-text-color, #e5e7eb);
+  --tg-muted: var(--tg-theme-hint-color, #94a3b8);
+  --tg-card: #111827;
+  --tg-border: #1f2937;
+}
+body.tg-dark .bg-gray-50 { background-color: var(--tg-bg) !important; }
+body.tg-dark .bg-white { background-color: var(--tg-card) !important; }
+body.tg-dark .text-gray-500,
+body.tg-dark .text-gray-600 { color: var(--tg-muted) !important; }
+body.tg-dark .text-gray-700,
+body.tg-dark .text-gray-800,
+body.tg-dark .text-gray-900 { color: var(--tg-text) !important; }
+body.tg-dark .border,
+body.tg-dark .border-gray-200,
+body.tg-dark .border-gray-300 { border-color: var(--tg-border) !important; }
+body.tg-dark .bg-blue-600,
+body.tg-light .bg-blue-600 {
+  background-color: var(--tg-theme-button-color, #2563eb) !important;
+  color: var(--tg-theme-button-text-color, #ffffff) !important;
+}
+body.tg-dark .bg-gray-100 { background-color: var(--tg-bg) !important; }
+body.tg-dark .shadow,
+body.tg-dark .shadow-sm,
+body.tg-dark .shadow-lg { box-shadow: none !important; }
+.table-wrapper {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+.table-shape {
+  position: relative;
+  width: calc(24px + (var(--size) * 4px));
+  height: calc(24px + (var(--size) * 4px));
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+.table-shape.circle { border-radius: 50%; }
+.table-shape.rect { border-radius: 6px; }
+.seats-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.seat {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.9);
+}
+.seat.seat--selected {
+  background: #2563eb;
+}
+.seat.seat--sold {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+.seat.seat--occupied {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+.seats-layer--interactive .seat {
+  cursor: pointer;
+}
+.seats-layer--interactive .seat.seat--sold,
+.seats-layer--interactive .seat.seat--occupied {
+  cursor: not-allowed;
+}
+.seat-picker {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 0;
+}
+.seat-picker .seat-picker__table.table-shape {
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+}
+.seat-picker .seat {
+  width: 24px;
+  height: 24px;
+}
+.seat-picker .seats-layer {
+  gap: 6px;
+}
+.table-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.1;
+}
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}

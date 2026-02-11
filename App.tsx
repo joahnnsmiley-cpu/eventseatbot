@@ -7,6 +7,8 @@ import SeatPicker from './components/SeatPicker';
 import EventCard, { EventCardSkeleton } from './components/EventCard';
 import BookingSuccessView from './components/BookingSuccessView';
 import MyTicketsPage from './components/MyTicketsPage';
+import AppLayout from './src/layout/AppLayout';
+import BottomNav, { type BottomNavTab } from './src/layout/BottomNav';
 import type { Booking, EventData, Table } from './types';
 import { UI_TEXT } from './constants/uiText';
 
@@ -349,20 +351,32 @@ function App() {
     await loadEvent(eventId);
   };
 
+  const bottomNavActiveTab: BottomNavTab =
+    view === 'my-tickets' ? 'my-tickets' :
+    view === 'my-bookings' ? 'profile' : 'events';
+
+  const wrapWithLayout = (children: React.ReactNode) => (
+    <AppLayout>
+      {children}
+      <BottomNav
+        activeTab={bottomNavActiveTab}
+        onEventsClick={() => { setView('events'); setSelectedEventId(null); setSelectedEvent(null); setSelectedTableId(null); }}
+        onMyTicketsClick={() => { setView('my-tickets'); window.location.hash = ''; }}
+        onProfileClick={() => setView('my-bookings')}
+      />
+    </AppLayout>
+  );
+
   if (isAdmin && view === 'admin') {
-    return (
-      <AdminPanel onBack={() => setView('events')} />
-    );
+    return wrapWithLayout(<AdminPanel onBack={() => setView('events')} />);
   }
 
   if (view === 'my-tickets') {
-    return (
-      <MyTicketsPage onBack={() => { setView('events'); window.location.hash = ''; }} />
-    );
+    return wrapWithLayout(<MyTicketsPage onBack={() => { setView('events'); window.location.hash = ''; }} />);
   }
 
   if (view === 'layout' && selectedEventId) {
-    return (
+    return wrapWithLayout(
       <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
@@ -452,7 +466,7 @@ function App() {
   }
 
   if (view === 'seats' && (!selectedEvent || !selectedTableId || !selectedTable)) {
-    return (
+    return wrapWithLayout(
       <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
         <div className="p-4">
           <div className="text-xs text-gray-500">{UI_TEXT.app.returningToLayout}</div>
@@ -462,7 +476,7 @@ function App() {
   }
 
   if (view === 'seats' && selectedEvent) {
-    return (
+    return wrapWithLayout(
       <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
@@ -737,7 +751,7 @@ function App() {
 
   if (view === 'booking-success') {
     if (!lastCreatedEvent || !lastCreatedBooking) {
-      return (
+      return wrapWithLayout(
         <div className="max-w-md mx-auto min-h-screen bg-gray-50 p-4">
           <button onClick={() => setView('events')} className="text-sm border rounded px-3 py-2">
             {UI_TEXT.app.backToEvents}
@@ -745,7 +759,7 @@ function App() {
         </div>
       );
     }
-    return (
+    return wrapWithLayout(
       <div className="max-w-md mx-auto min-h-screen bg-gray-50">
         <BookingSuccessView
           event={lastCreatedEvent}
@@ -764,7 +778,7 @@ function App() {
   }
 
   if (view === 'my-bookings') {
-    return (
+    return wrapWithLayout(
       <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
@@ -873,7 +887,7 @@ function App() {
     );
   }
 
-  return (
+  return wrapWithLayout(
     <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
       <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center justify-between mb-2">
