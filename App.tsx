@@ -911,11 +911,18 @@ function App() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-wide uppercase">
-              <span className="text-white">ПРЕДСТОЯЩИЕ</span>{" "}
-              <span className="text-[#FFC107]">СОБЫТИЯ</span>
-            </h1>
+          <div className="space-y-2">
+            <div className="relative">
+              <div className="absolute inset-0 blur-2xl opacity-30 bg-gradient-to-r from-yellow-500/20 to-purple-500/20 pointer-events-none" />
+              <h1 className="relative text-3xl font-extrabold uppercase leading-tight tracking-wide tracking-wider space-y-1">
+                <span className="block text-white neon-text">
+                  #НИКТОНЕКРУЧЕ
+                </span>
+                <span className="block text-[#FFC107] neon-text">
+                  КАССА
+                </span>
+              </h1>
+            </div>
             <p className="text-gray-400 text-sm">
               Выберите ваше эксклюзивное событие
             </p>
@@ -947,9 +954,9 @@ function App() {
             </div>
           )}
           {!loading && publishedEvents.length > 0 && (() => {
-            const featuredEvent = publishedEvents[0];
+            const featured = events?.[0];
             const thisMonthEvents = publishedEvents.slice(1);
-            const fmt = formatEventDate(featuredEvent.date);
+            const fmt = featured ? formatEventDate(featured.date) : null;
             return (
               <>
                 <div>
@@ -957,42 +964,39 @@ function App() {
                     Главное событие
                   </p>
                   <div className="relative">
-                    <div className="absolute -inset-1 rounded-2xl blur-xl bg-gradient-to-r from-yellow-500/20 to-purple-600/20" />
+                    <div className="absolute -inset-1 rounded-3xl blur-2xl bg-gradient-to-r from-yellow-500/20 to-purple-600/20" />
                     <motion.div
-                      className="relative rounded-2xl border border-white/10 p-8 flex flex-col items-center justify-center text-center overflow-hidden min-h-[180px]"
-                      style={
-                        featuredEvent.imageUrl?.trim()
-                          ? {
-                              backgroundImage: `url(${featuredEvent.imageUrl.trim()})`,
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center',
-                            }
-                          : undefined
-                      }
+                      className="relative rounded-3xl overflow-hidden border border-white/10"
                       role="button"
                       tabIndex={0}
-                      onClick={() => handleEventSelect(featuredEvent.id)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleEventSelect(featuredEvent.id)}
+                      onClick={() => featured && handleEventSelect(featured.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && featured && handleEventSelect(featured.id)}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      {featuredEvent.imageUrl?.trim() ? (
-                        <div className="absolute inset-0 bg-black/70 rounded-2xl" />
-                      ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#0b0b0b] to-[#1a1a1a] rounded-2xl" />
-                      )}
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-yellow-500/5 via-transparent to-purple-600/5 pointer-events-none" />
-                      <div className="relative z-10 flex flex-col items-center justify-center text-center">
-                        <h2 className="text-xl font-bold uppercase text-white mb-2">
-                          {featuredEvent.title?.trim() || UI_TEXT.event.eventFallback}
+                      <div
+                        className="absolute inset-0 bg-center bg-cover"
+                        style={{
+                          backgroundImage: (featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()
+                            ? `url(${(featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()})`
+                            : undefined,
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+                      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/80" />
+                      <div className="relative z-10 flex flex-col items-center justify-center text-center py-16 px-6 space-y-4">
+                        <h2 className="text-3xl md:text-4xl font-extrabold uppercase tracking-wide text-white">
+                          {featured?.title ?? UI_TEXT.event.eventFallback}
                         </h2>
-                        {fmt && (
-                          <>
-                            <p className="text-[#FFC107] text-xl font-semibold mb-1">{fmt.date}</p>
-                            {fmt.time && <p className="text-gray-400 text-sm mb-2">{fmt.time}</p>}
-                          </>
-                        )}
-                        <p className="text-gray-500 text-sm">Площадка</p>
+                        <p className="text-[#FFC107] text-2xl font-bold tracking-wide">
+                          {fmt?.date ?? featured?.date}
+                        </p>
+                        <p className="text-white text-lg">
+                          {fmt?.time ?? ''}
+                        </p>
+                        <p className="text-gray-400 text-sm uppercase tracking-widest">
+                          {(featured as { venue?: string })?.venue ?? ''}
+                        </p>
                       </div>
                     </motion.div>
                   </div>

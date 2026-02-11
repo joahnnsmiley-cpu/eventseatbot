@@ -148,3 +148,50 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   width: 0px;
   background: transparent;
 }
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 4s linear infinite;
+}
+
+@keyframes neon-flicker {
+  0%, 18%, 22%, 25%, 53%, 57%, 100% {
+    opacity: 1;
+    text-shadow:
+      0 0 4px currentColor,
+      0 0 8px currentColor,
+      0 0 16px currentColor,
+      0 0 32px currentColor;
+  }
+  20%, 24%, 55% {
+    opacity: 0.85;
+    text-shadow:
+      0 0 2px currentColor,
+      0 0 6px currentColor,
+      0 0 12px currentColor;
+  }
+}
+
+.neon-text {
+  animation: neon-flicker 3s infinite alternate;
+}
+
+.neon-border {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    rgba(255,193,7,0.8) 10%,
+    transparent 20%
+  );
+  filter: blur(4px);
+  padding: 2px;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}

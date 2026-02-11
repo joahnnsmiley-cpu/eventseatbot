@@ -17,37 +17,48 @@ export default function BottomNav({
   onMyTicketsClick,
   onProfileClick,
 }: BottomNavProps) {
+  const navItem = (
+    icon: React.ReactNode,
+    isActive: boolean,
+    label: string
+  ) => (
+    <div className="relative flex flex-col items-center justify-center gap-1">
+      {isActive ? (
+        <div className="relative p-2 rounded-xl shadow-[0_0_20px_rgba(255,193,7,0.4)]">
+          <div className="absolute inset-0 rounded-xl animate-spin-slow pointer-events-none neon-border" />
+          <div className="relative text-[#FFC107]">{icon}</div>
+        </div>
+      ) : (
+        <div className="text-gray-400">{icon}</div>
+      )}
+      <span className={`text-[10px] tracking-wide uppercase ${isActive ? 'text-[#FFC107]' : 'text-gray-400'}`}>
+        {label}
+      </span>
+    </div>
+  );
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 max-w-[420px] mx-auto bg-black/70 backdrop-blur-md border-t border-white/10 flex justify-around items-center h-16">
       <button
         type="button"
         onClick={onEventsClick}
-        className={`flex flex-col items-center justify-center gap-1 transition-colors duration-200 ${
-          activeTab === 'events' ? 'text-[#FFC107]' : 'text-gray-400'
-        }`}
+        className="flex flex-col items-center justify-center transition-colors duration-200"
       >
-        <CalendarDays size={20} strokeWidth={1.8} />
-        <span className="text-[10px] tracking-wide uppercase">{UI_TEXT.nav.events}</span>
+        {navItem(<CalendarDays size={20} strokeWidth={1.8} />, activeTab === 'events', UI_TEXT.nav.events)}
       </button>
       <button
         type="button"
         onClick={onMyTicketsClick}
-        className={`flex flex-col items-center justify-center gap-1 transition-colors duration-200 ${
-          activeTab === 'my-tickets' ? 'text-[#FFC107]' : 'text-gray-400'
-        }`}
+        className="flex flex-col items-center justify-center transition-colors duration-200"
       >
-        <Ticket size={20} strokeWidth={1.8} />
-        <span className="text-[10px] tracking-wide uppercase">{UI_TEXT.nav.myTickets}</span>
+        {navItem(<Ticket size={20} strokeWidth={1.8} />, activeTab === 'my-tickets', UI_TEXT.nav.myTickets)}
       </button>
       <button
         type="button"
         onClick={onProfileClick}
-        className={`flex flex-col items-center justify-center gap-1 transition-colors duration-200 ${
-          activeTab === 'profile' ? 'text-[#FFC107]' : 'text-gray-400'
-        }`}
+        className="flex flex-col items-center justify-center transition-colors duration-200"
       >
-        <User size={20} strokeWidth={1.8} />
-        <span className="text-[10px] tracking-wide uppercase">{UI_TEXT.nav.profile}</span>
+        {navItem(<User size={20} strokeWidth={1.8} />, activeTab === 'profile', UI_TEXT.nav.profile)}
       </button>
     </nav>
   );
