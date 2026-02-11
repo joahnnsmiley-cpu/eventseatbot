@@ -12,6 +12,15 @@ const router = Router();
 
 router.use(authMiddleware, adminOnly);
 
+// GET /admin/debug-bookings
+router.get('/debug-bookings', async (req, res) => {
+  const bookings = await db.getBookings();
+  return res.json({
+    count: bookings.length,
+    bookings
+  });
+});
+
 // GET /admin/bookings
 router.get('/bookings', async (_req: Request, res: Response) => {
   const bookings = await db.getBookings();
