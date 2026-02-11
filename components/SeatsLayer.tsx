@@ -17,6 +17,8 @@ interface SeatsLayerProps {
   /** Padding from table edge for circle layout. */
   paddingPx?: number;
   selectedIndices?: Set<number>;
+  /** Occupied seat indices (from backend) — disabled, get seat--occupied class. */
+  occupiedIndices?: Set<number>;
   onSeatClick?: (index: number) => void;
   /** When true, all seats render as sold/occupied and are not clickable. */
   allSeatsDisabled?: boolean;
@@ -70,6 +72,7 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
   seatRadiusPx = DEFAULT_SEAT_RADIUS_PX,
   paddingPx = DEFAULT_PADDING_PX,
   selectedIndices,
+  occupiedIndices = new Set(),
   onSeatClick,
   allSeatsDisabled = false,
 }) => {
@@ -94,19 +97,21 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
       }}
     >
       {positions.map((pos, i) => {
+        const isOccupied = occupiedIndices.has(i);
         const isSold = allSeatsDisabled || i < soldCount;
-        const isSelected = !isSold && selectedSet.has(i);
-        const isClickable = isInteractive && !isSold;
+        const isDisabled = isSold || isOccupied;
+        const isSelected = !isDisabled && selectedSet.has(i);
+        const isClickable = isInteractive && !isDisabled;
         return (
           <div
             key={i}
-            className={`seat ${isSelected ? 'seat--selected' : ''} ${isSold ? 'seat--sold' : ''}`}
+            className={`seat ${isSelected ? 'seat--selected' : ''} ${isSold ? 'seat--sold' : ''} ${isOccupied ? 'seat--occupied' : ''}`}
             style={{
               position: 'absolute',
               left: pos.x,
               top: pos.y,
               transform: 'translate(-50%, -50%)',
-              cursor: isSold ? 'not-allowed' : undefined,
+              cursor: isDisabled ? 'not-allowed' : undefined,
             }}
             role={isClickable ? 'button' : undefined}
             tabIndex={isClickable ? 0 : undefined}

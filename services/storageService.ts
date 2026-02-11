@@ -48,6 +48,33 @@ export const getEvent = async (eventId: string): Promise<EventData> => {
   return { ...data, imageUrl, tables } as EventData;
 };
 
+/** GET /public/bookings/my?telegramId=... — returns user bookings (no auth). */
+export const getMyBookingsPublic = async (telegramId: number): Promise<{
+  id: string;
+  event_id: string;
+  table_id: string | null;
+  seat_indices: number[];
+  seats_booked: number;
+  status: string;
+  created_at: string;
+  expires_at: string | null;
+}[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/public/bookings/my?telegramId=${encodeURIComponent(telegramId)}`);
+  if (!res.ok) throw new Error('Failed to load bookings');
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+};
+
+/** GET /public/events/:eventId/occupied-seats — returns [{ table_id, seat_indices }] */
+export const getOccupiedSeats = async (eventId: string): Promise<{ table_id: string; seat_indices: number[] }[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/public/events/${eventId}/occupied-seats`);
+  if (!res.ok) throw new Error('Failed to load occupied seats');
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+};
+
 export const createBooking = async (
   eventId: string,
   seatFullIds: string[],
@@ -73,6 +100,29 @@ export const createTableBooking = async (payload: {
 }): Promise<any> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/public/bookings/table`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const error: Error & { status?: number } = new Error(err.error || 'Failed to create booking');
+    error.status = res.status;
+    throw error;
+  }
+  return res.json();
+};
+
+/** POST /public/bookings/seats — seat-based booking with conflict check. */
+export const createSeatsBooking = async (payload: {
+  eventId: string;
+  tableId: string;
+  seatIndices: number[];
+  userPhone: string;
+  telegramId: number;
+}): Promise<any> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/public/bookings/seats`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

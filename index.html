@@ -115,10 +115,15 @@
         background: #9ca3af;
         cursor: not-allowed;
       }
+      .seat.seat--occupied {
+        background: #9ca3af;
+        cursor: not-allowed;
+      }
       .seats-layer--interactive .seat {
         cursor: pointer;
       }
-      .seats-layer--interactive .seat.seat--sold {
+      .seats-layer--interactive .seat.seat--sold,
+      .seats-layer--interactive .seat.seat--occupied {
         cursor: not-allowed;
       }
       .seat-picker {

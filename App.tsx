@@ -6,6 +6,7 @@ import SeatMap from './components/SeatMap';
 import SeatPicker from './components/SeatPicker';
 import EventCard, { EventCardSkeleton } from './components/EventCard';
 import BookingSuccessView from './components/BookingSuccessView';
+import MyTicketsPage from './components/MyTicketsPage';
 import type { Booking, EventData, Table } from './types';
 import { UI_TEXT } from './constants/uiText';
 
@@ -45,7 +46,7 @@ function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authRole, setAuthRole] = useState<string | null>(null);
   const [tokenRole, setTokenRole] = useState<string | null>(null);
-  const [view, setView] = useState<'events' | 'layout' | 'seats' | 'my-bookings' | 'booking-success' | 'admin'>('events');
+  const [view, setView] = useState<'events' | 'layout' | 'seats' | 'my-bookings' | 'my-tickets' | 'booking-success' | 'admin'>('events');
 
   const [events, setEvents] = useState<EventData[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -73,6 +74,8 @@ function App() {
   const [nowTick, setNowTick] = useState(Date.now());
   const [lastCreatedBooking, setLastCreatedBooking] = useState<Booking | null>(null);
   const [lastCreatedEvent, setLastCreatedEvent] = useState<EventData | null>(null);
+  /** Occupied seat indices per table — from GET /public/events/:eventId/occupied-seats */
+  const [occupiedMap, setOccupiedMap] = useState<Record<string, Set<number>>>({});
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
@@ -91,6 +94,21 @@ function App() {
   useEffect(() => {
     document.title = UI_TEXT.app.appTitle;
   }, []);
+
+  useEffect(() => {
+    const syncFromHash = () => {
+      if (window.location.hash === '#/my-tickets') setView('my-tickets');
+    };
+    syncFromHash();
+    window.addEventListener('hashchange', syncFromHash);
+    return () => window.removeEventListener('hashchange', syncFromHash);
+  }, []);
+
+  useEffect(() => {
+    if (view === 'my-tickets') {
+      window.location.hash = '#/my-tickets';
+    }
+  }, [view]);
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
@@ -213,6 +231,20 @@ function App() {
       console.log('[USER EVENT FETCH]', ev);
       if (reqId !== eventRequestRef.current) return;
       setSelectedEvent(ev);
+
+      try {
+        const occupied = await StorageService.getOccupiedSeats(eventId);
+        if (reqId !== eventRequestRef.current) return;
+        const map: Record<string, Set<number>> = {};
+        for (const row of occupied) {
+          if (row.table_id && Array.isArray(row.seat_indices)) {
+            map[row.table_id] = new Set(row.seat_indices);
+          }
+        }
+        setOccupiedMap(map);
+      } catch {
+        setOccupiedMap({});
+      }
     } catch (e) {
       setEventError(UI_TEXT.common.errors.couldNotLoadEvent);
     } finally {
@@ -310,6 +342,7 @@ function App() {
     setSelectedEvent(null);
     setSelectedEventId(eventId);
     setSelectedTableId(null);
+    setOccupiedMap({});
     setBookingError(null);
     setView('layout');
     await loadEvent(eventId);
@@ -318,6 +351,12 @@ function App() {
   if (isAdmin && view === 'admin') {
     return (
       <AdminPanel onBack={() => setView('events')} />
+    );
+  }
+
+  if (view === 'my-tickets') {
+    return (
+      <MyTicketsPage onBack={() => { setView('events'); window.location.hash = ''; }} />
     );
   }
 
@@ -469,8 +508,11 @@ function App() {
                   table={selectedTable}
                   selectedIndices={selectedSeatsByTable[selectedTableId!] ?? []}
                   tableDisabled={selectedTable.isAvailable !== true}
+                  occupiedIndices={occupiedMap[selectedTableId!] ?? new Set()}
                   onToggleSeat={(seatIndex) => {
                     if (!selectedTableId) return;
+                    const occupied = occupiedMap[selectedTableId] ?? new Set();
+                    if (occupied.has(seatIndex)) return;
                     setSelectedSeatsByTable((prev) => {
                       const arr = prev[selectedTableId] ?? [];
                       const set = new Set(arr);
@@ -519,10 +561,10 @@ function App() {
                       if (!selectedTableId) return;
                       const selected = selectedSeatsByTable[selectedTableId] ?? [];
                       const total = selectedTable.seatsTotal;
-                      if (selected.length >= total) return;
+                      const occupied = occupiedMap[selectedTableId] ?? new Set();
                       const set = new Set(selected);
                       let freeIndex = 0;
-                      while (set.has(freeIndex) && freeIndex < total) freeIndex++;
+                      while ((set.has(freeIndex) || occupied.has(freeIndex)) && freeIndex < total) freeIndex++;
                       if (freeIndex >= total) return;
                       setSelectedSeatsByTable((prev) => ({
                         ...prev,
@@ -532,7 +574,17 @@ function App() {
                     disabled={
                       (selectedSeatsByTable[selectedTableId] ?? []).length >= selectedTable.seatsTotal ||
                       selectedTable.seatsAvailable === 0 ||
-                      selectedTable.isAvailable !== true
+                      selectedTable.isAvailable !== true ||
+                      (() => {
+                        const total = selectedTable.seatsTotal;
+                        const occupied = occupiedMap[selectedTableId] ?? new Set();
+                        const selected = selectedSeatsByTable[selectedTableId] ?? [];
+                        const set = new Set(selected);
+                        for (let i = 0; i < total; i++) {
+                          if (!set.has(i) && !occupied.has(i)) return false;
+                        }
+                        return true;
+                      })()
                     }
                   >
                     +
@@ -607,27 +659,32 @@ function App() {
                     setBookingError(UI_TEXT.app.selectAtLeastOneSeat);
                     return;
                   }
+                  const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? null;
+                  if (telegramId == null) {
+                    setBookingError('Telegram ID not found');
+                    return;
+                  }
                   setBookingLoading(true);
                   try {
-                    const res = await StorageService.createTableBooking({
+                    const res = await StorageService.createSeatsBooking({
                       eventId: selectedEventId,
                       tableId: selectedTableId,
-                      seatsRequested: seats.length,
+                      seatIndices: seats,
                       userPhone: normalizedPhone,
-                      userComment: userComment.trim() || undefined,
+                      telegramId,
                     });
                     const raw = res as Record<string, unknown>;
                     const booking: Booking = {
                       id: String(raw.id ?? ''),
-                      eventId: String(raw.eventId ?? ''),
-                      userPhone: String(raw.userPhone ?? normalizedPhone),
+                      eventId: String(raw.event_id ?? raw.eventId ?? ''),
+                      userPhone: String(raw.user_phone ?? raw.userPhone ?? normalizedPhone),
                       seatIds: seats.map((idx) => `${selectedTableId}-${idx}`),
                       status: (raw.status as Booking['status']) ?? 'reserved',
                       totalAmount: Number(raw.totalAmount) || 0,
-                      createdAt: Number(raw.createdAt) || Date.now(),
-                      expiresAt: raw.expiresAt as string | number | undefined,
-                      tableId: raw.tableId as string | undefined,
-                      tableBookings: (raw.tableBookings as Booking['tableBookings']) ?? (raw.tableId ? [{ tableId: String(raw.tableId), seats: Number(raw.seats ?? raw.seatsBooked) || seats.length }] : undefined),
+                      createdAt: typeof raw.created_at === 'string' ? new Date(raw.created_at).getTime() : Number(raw.createdAt) || Date.now(),
+                      expiresAt: (raw.expires_at ?? raw.expiresAt) as string | number | undefined,
+                      tableId: String(raw.table_id ?? raw.tableId ?? selectedTableId),
+                      tableBookings: [{ tableId: selectedTableId, seats: seats.length }],
                       event: { id: selectedEvent.id, title: selectedEvent.title, date: selectedEvent.date },
                     };
                     setLastCreatedBooking(booking);
@@ -639,9 +696,25 @@ function App() {
                     });
                     setSelectedTableId(null);
                     setSelectedEvent(null);
+                    try {
+                      const occupied = await StorageService.getOccupiedSeats(selectedEventId);
+                      const map: Record<string, Set<number>> = {};
+                      for (const row of occupied) {
+                        if (row.table_id && Array.isArray(row.seat_indices)) {
+                          map[row.table_id] = new Set(row.seat_indices);
+                        }
+                      }
+                      setOccupiedMap(map);
+                    } catch {}
                     setView('booking-success');
                   } catch (e) {
-                    setBookingError(e instanceof Error ? e.message : UI_TEXT.common.errors.default);
+                    const err = e as Error & { status?: number };
+                    if (err.status === 409) {
+                      alert('Некоторые места уже заняты. Обновите страницу.');
+                      setBookingError('Некоторые места уже заняты. Обновите страницу.');
+                    } else {
+                      setBookingError(e instanceof Error ? e.message : UI_TEXT.common.errors.default);
+                    }
                   } finally {
                     setBookingLoading(false);
                   }
@@ -868,13 +941,21 @@ function App() {
           </div>
         )}
 
-        <button
-          onClick={loadEvents}
-          className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold"
-          disabled={loading}
-        >
-          {loading ? UI_TEXT.app.loadingEvents : UI_TEXT.app.events}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={loadEvents}
+            className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold"
+            disabled={loading}
+          >
+            {loading ? UI_TEXT.app.loadingEvents : UI_TEXT.app.events}
+          </button>
+          <button
+            onClick={() => setView('my-tickets')}
+            className="px-4 py-2 rounded text-sm font-semibold border"
+          >
+            Мои билеты
+          </button>
+        </div>
 
         {error && <div className="text-sm text-red-600 mt-4">{error}</div>}
 

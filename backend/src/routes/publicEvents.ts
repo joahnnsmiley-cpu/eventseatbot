@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { v4 as uuid } from 'uuid';
 import { db } from '../db';
 import { supabase } from '../supabaseClient';
 import { emitBookingCreated, emitBookingCancelled, calculateBookingExpiration } from '../domain/bookings';
@@ -45,6 +46,49 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     paymentPhone: ev.paymentPhone ?? ev.organizer_phone ?? '',
   };
   res.json(mapped);
+});
+
+// GET /public/events/:eventId/occupied-seats
+router.get('/events/:eventId/occupied-seats', async (req: Request, res: Response) => {
+  const eventId = req.params.eventId;
+  if (!eventId) return res.status(400).json({ error: 'eventId is required' });
+  if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
+
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('table_id, seat_indices')
+      .eq('event_id', eventId)
+      .in('status', ['reserved', 'awaiting_confirmation', 'paid']);
+
+    if (error) {
+      console.error('[occupied-seats]', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    const byTable = new Map<string, Set<number>>();
+    for (const row of data ?? []) {
+      const tableId = row.table_id;
+      if (!tableId) continue;
+      const indices = row.seat_indices;
+      if (!Array.isArray(indices)) continue;
+      const set = byTable.get(tableId) ?? new Set<number>();
+      for (const idx of indices) {
+        if (Number.isInteger(idx)) set.add(idx);
+      }
+      byTable.set(tableId, set);
+    }
+
+    const result = Array.from(byTable.entries()).map(([table_id, set]) => ({
+      table_id,
+      seat_indices: Array.from(set),
+    }));
+
+    return res.json(result);
+  } catch (err) {
+    console.error('[occupied-seats]', err);
+    return res.status(500).json({ error: String(err) });
+  }
 });
 
 // Simple static HTML view for event list (public)
@@ -297,6 +341,133 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
     return res.status(result.status).json(result.body);
   } catch (err) {
     return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /public/bookings/my
+router.get('/bookings/my', async (req: Request, res: Response) => {
+  const telegramId = Number(req.query.telegramId);
+  if (!Number.isFinite(telegramId)) return res.status(400).json({ error: 'telegramId query param is required' });
+  if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
+
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('id, event_id, table_id, seat_indices, seats_booked, status, created_at, expires_at')
+      .eq('user_telegram_id', telegramId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[bookings/my]', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    const result = (data ?? []).map((r: any) => ({
+      id: r.id,
+      event_id: r.event_id,
+      table_id: r.table_id,
+      seat_indices: r.seat_indices ?? [],
+      seats_booked: r.seats_booked,
+      status: r.status,
+      created_at: r.created_at,
+      expires_at: r.expires_at,
+    }));
+
+    return res.json(result);
+  } catch (err) {
+    console.error('[bookings/my]', err);
+    return res.status(500).json({ error: String(err) });
+  }
+});
+
+// POST /public/bookings/seats
+router.post('/bookings/seats', async (req: Request, res: Response) => {
+  const { eventId, tableId, seatIndices, userPhone, telegramId } = req.body || {};
+  if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
+  const normalizedPhone = typeof userPhone === 'string' ? userPhone.trim() : '';
+  if (!normalizedPhone) return res.status(400).json({ error: 'userPhone is required' });
+  const tgId = Number(telegramId);
+  if (!Number.isFinite(tgId)) return res.status(400).json({ error: 'telegramId is required' });
+
+  const indices = Array.isArray(seatIndices) ? seatIndices.filter((s: number) => Number.isInteger(s)) : [];
+  if (indices.length === 0) return res.status(400).json({ error: 'seatIndices must be non-empty array' });
+  const set = new Set(indices);
+  if (set.size !== indices.length) return res.status(400).json({ error: 'seatIndices must not contain duplicates' });
+
+  if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
+
+  try {
+    const { data: existing } = await supabase
+      .from('bookings')
+      .select('seat_indices')
+      .eq('event_id', eventId)
+      .eq('table_id', tableId)
+      .in('status', ['reserved', 'awaiting_confirmation', 'paid']);
+
+    const occupied = new Set<number>();
+    for (const row of existing ?? []) {
+      const arr = row.seat_indices;
+      if (Array.isArray(arr)) for (const i of arr) if (Number.isInteger(i)) occupied.add(i);
+    }
+    const overlap = indices.some((i: number) => occupied.has(i));
+    if (overlap) return res.status(409).json({ error: 'Seat conflict: some seats are already booked' });
+
+    const id = uuid();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    const { error: insertErr } = await supabase.from('bookings').insert({
+      id,
+      event_id: eventId,
+      table_id: tableId,
+      user_telegram_id: tgId,
+      user_phone: normalizedPhone,
+      seat_indices: indices,
+      seats_booked: indices.length,
+      status: 'reserved',
+      created_at: new Date().toISOString(),
+      expires_at: expiresAt,
+    });
+
+    if (insertErr) {
+      console.error('[bookings/seats] insert', insertErr);
+      return res.status(500).json({ error: insertErr.message });
+    }
+
+    const { data: tableRow, error: tableErr } = await supabase
+      .from('event_tables')
+      .select('seats_available')
+      .eq('id', tableId)
+      .eq('event_id', eventId)
+      .single();
+
+    if (!tableErr && tableRow) {
+      const current = Number(tableRow.seats_available) || 0;
+      const newAvailable = Math.max(0, current - indices.length);
+      const { error: updateErr } = await supabase
+        .from('event_tables')
+        .update({ seats_available: newAvailable })
+        .eq('id', tableId)
+        .eq('event_id', eventId);
+      if (updateErr) console.error('[bookings/seats] seats_available update', updateErr);
+    }
+
+    const booking = {
+      id,
+      event_id: eventId,
+      table_id: tableId,
+      user_telegram_id: tgId,
+      user_phone: normalizedPhone,
+      seat_indices: indices,
+      seats_booked: indices.length,
+      status: 'reserved',
+      created_at: new Date().toISOString(),
+      expires_at: expiresAt,
+    };
+
+    return res.status(201).json(booking);
+  } catch (err) {
+    console.error('[bookings/seats]', err);
+    return res.status(500).json({ error: String(err) });
   }
 });
 
