@@ -27,6 +27,9 @@ import { createPendingBookingFromWebAppPayload } from './webappBooking';
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+console.log('[ENV CHECK] SUPABASE_URL:', process.env.SUPABASE_URL);
+console.log('[ENV CHECK] USE_SUPABASE:', process.env.USE_SUPABASE);
+
 /**
  * ==============================
  * BOOTSTRAP: Initialize Infrastructure
