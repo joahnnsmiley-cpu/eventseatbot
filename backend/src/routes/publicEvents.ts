@@ -74,7 +74,8 @@ router.get('/events/:eventId/occupied-seats', async (req: Request, res: Response
       if (!Array.isArray(indices)) continue;
       const set = byTable.get(tableId) ?? new Set<number>();
       for (const idx of indices) {
-        if (Number.isInteger(idx)) set.add(idx);
+        const n = Number(idx);
+        if (Number.isInteger(n)) set.add(n);
       }
       byTable.set(tableId, set);
     }
@@ -430,7 +431,10 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
 
     if (insertErr) {
       console.error('[bookings/seats] insert', insertErr);
-      return res.status(500).json({ error: insertErr.message });
+      if (String(insertErr.message ?? '').includes('prevent_seat_overlap')) {
+        return res.status(409).json({ error: 'Seat conflict' });
+      }
+      return res.status(500).json({ error: 'Internal server error' });
     }
 
     const { data: tableRow, error: tableErr } = await supabase
@@ -467,7 +471,11 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
     return res.status(201).json(booking);
   } catch (err) {
     console.error('[bookings/seats]', err);
-    return res.status(500).json({ error: String(err) });
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('prevent_seat_overlap')) {
+      return res.status(409).json({ error: 'Seat conflict' });
+    }
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 

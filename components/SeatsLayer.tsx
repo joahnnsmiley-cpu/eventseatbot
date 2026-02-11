@@ -77,7 +77,6 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
   allSeatsDisabled = false,
 }) => {
   const count = Math.max(0, Number(seatsTotal) || 0);
-  const soldCount = Math.max(0, count - (seatsAvailable ?? count));
   const isInteractive = !allSeatsDisabled && typeof onSeatClick === 'function';
   const selectedSet = selectedIndices ?? new Set<number>();
 
@@ -98,14 +97,13 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
     >
       {positions.map((pos, i) => {
         const isOccupied = occupiedIndices.has(i);
-        const isSold = allSeatsDisabled || i < soldCount;
-        const isDisabled = isSold || isOccupied;
+        const isDisabled = allSeatsDisabled || isOccupied;
         const isSelected = !isDisabled && selectedSet.has(i);
         const isClickable = isInteractive && !isDisabled;
         return (
           <div
             key={i}
-            className={`seat ${isSelected ? 'seat--selected' : ''} ${isSold ? 'seat--sold' : ''} ${isOccupied ? 'seat--occupied' : ''}`}
+            className={`seat ${isSelected ? 'seat--selected' : ''} ${allSeatsDisabled ? 'seat--sold' : ''} ${isOccupied ? 'seat--occupied' : ''}`}
             style={{
               position: 'absolute',
               left: pos.x,

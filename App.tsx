@@ -238,7 +238,7 @@ function App() {
         const map: Record<string, Set<number>> = {};
         for (const row of occupied) {
           if (row.table_id && Array.isArray(row.seat_indices)) {
-            map[row.table_id] = new Set(row.seat_indices);
+            map[row.table_id] = new Set(row.seat_indices.map(Number));
           }
         }
         setOccupiedMap(map);
@@ -701,7 +701,7 @@ function App() {
                       const map: Record<string, Set<number>> = {};
                       for (const row of occupied) {
                         if (row.table_id && Array.isArray(row.seat_indices)) {
-                          map[row.table_id] = new Set(row.seat_indices);
+                          map[row.table_id] = new Set(row.seat_indices.map(Number));
                         }
                       }
                       setOccupiedMap(map);
