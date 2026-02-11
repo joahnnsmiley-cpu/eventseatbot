@@ -4,7 +4,6 @@ import AdminPanel from './components/AdminPanel';
 import AuthService from './services/authService';
 import SeatMap from './components/SeatMap';
 import SeatPicker from './components/SeatPicker';
-import EventCard, { EventCardSkeleton } from './components/EventCard';
 import BookingSuccessView from './components/BookingSuccessView';
 import MyTicketsPage from './components/MyTicketsPage';
 import AppLayout from './src/layout/AppLayout';
@@ -38,6 +37,17 @@ type TgUser = {
   first_name?: string;
   last_name?: string;
 };
+
+function formatEventDate(dateStr?: string): { day: number; date: string; time: string } | null {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return null;
+  const day = d.getDate();
+  const date = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0 || d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0;
+  const time = hasTime ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+  return { day, date, time };
+}
 
 function App() {
   const [tgAvailable, setTgAvailable] = useState(false);
@@ -888,21 +898,28 @@ function App() {
   }
 
   return wrapWithLayout(
-    <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
-      <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-bold">{UI_TEXT.app.appTitle}</h1>
+    <div className="max-w-md mx-auto min-h-screen relative">
+      <div className="px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-wide">
+              <span className="text-white">UPCOMING</span>{' '}
+              <span className="text-[#FFC107]">EVENTS</span>
+            </h1>
+            <p className="text-gray-400 text-sm">
+              Select your exclusive experience.
+            </p>
+          </div>
           {isAdmin && (
-            <button onClick={() => setView('admin')} className="text-xs px-2 py-1 rounded border">
+            <button onClick={() => setView('admin')} className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400">
               {UI_TEXT.app.admin}
             </button>
           )}
         </div>
-        <p className="text-sm text-gray-600 mb-4">{UI_TEXT.app.publishedEventsList}</p>
         {isAdmin && (
-          <div className="mb-4 flex items-center gap-2 text-xs text-gray-600">
+          <div className="flex items-center gap-2 text-xs text-gray-500">
             <span>{UI_TEXT.app.adminAccessActive}</span>
-            <button onClick={() => setView('admin')} className="text-xs px-2 py-1 rounded border">
+            <button onClick={() => setView('admin')} className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400">
               {UI_TEXT.app.openAdmin}
             </button>
           </div>
@@ -917,7 +934,7 @@ function App() {
           })();
           if (import.meta.env.MODE === 'production' && !debugFlag) return null;
           return (
-            <div className="mb-4 rounded border bg-white p-3 text-xs text-gray-600">
+            <div className="rounded border border-white/10 bg-[#111] p-3 text-xs text-gray-400">
               <div>{UI_TEXT.app.debugAdmin}</div>
               <div>{UI_TEXT.app.telegramUserId} {tgUser?.id ?? '—'}</div>
               <div>{UI_TEXT.app.isAdminLabel} {String(isAdmin)}</div>
@@ -928,30 +945,30 @@ function App() {
         })()}
 
         {!tgAvailable && (
-          <div className="text-xs text-gray-500 mb-4">
+          <div className="text-xs text-gray-500">
             Telegram WebApp не обнаружен. Локальный режим.
           </div>
         )}
 
         {!!tgInitData && (
-          <div className="text-xs text-gray-500 mb-4">
+          <div className="text-xs text-gray-500">
             Telegram initData получен.
           </div>
         )}
 
         {authLoading && (
-          <div className="text-xs text-gray-500 mb-4">
+          <div className="text-xs text-gray-500">
             Авторизация Telegram…
           </div>
         )}
         {authError && (
-          <div className="text-xs text-gray-500 mb-4">
+          <div className="text-xs text-red-400">
             {authError}
           </div>
         )}
 
         {tgUser && (
-          <div className="text-xs text-gray-500 mb-4">
+          <div className="text-xs text-gray-500">
             {UI_TEXT.app.user} {tgUser.username || tgUser.first_name || tgUser.id}
           </div>
         )}
@@ -959,43 +976,103 @@ function App() {
         <div className="flex gap-2">
           <button
             onClick={loadEvents}
-            className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold"
+            className="bg-[#FFC107] text-black px-4 py-2 rounded text-sm font-semibold"
             disabled={loading}
           >
             {loading ? UI_TEXT.app.loadingEvents : UI_TEXT.app.events}
           </button>
           <button
             onClick={() => setView('my-tickets')}
-            className="px-4 py-2 rounded text-sm font-semibold border"
+            className="px-4 py-2 rounded text-sm font-semibold border border-white/20 text-gray-300"
           >
             Мои билеты
           </button>
         </div>
 
-        {error && <div className="text-sm text-red-600 mt-4">{error}</div>}
+        {error && <div className="text-sm text-red-400">{error}</div>}
 
-        <div className="mt-6 space-y-4">
+        <div className="space-y-6">
           {loading && (
-            <>
-              <EventCardSkeleton />
-              <EventCardSkeleton />
-              <EventCardSkeleton />
-            </>
+            <div className="space-y-4">
+              <div className="rounded-2xl bg-[#0b0b0b] border border-white/10 p-8 h-40 animate-pulse" />
+              <div className="rounded-xl overflow-hidden border border-white/10 bg-[#111] h-20 animate-pulse" />
+              <div className="rounded-xl overflow-hidden border border-white/10 bg-[#111] h-20 animate-pulse" />
+            </div>
           )}
           {!loading && hasLoaded && publishedEvents.length === 0 && !error && (
             <div className="py-8 text-center">
-              <p className="text-base text-gray-600 mb-4">{UI_TEXT.admin.emptyEventsList}</p>
+              <p className="text-base text-gray-400 mb-2">{UI_TEXT.admin.emptyEventsList}</p>
               <p className="text-sm text-gray-500">{UI_TEXT.app.noPublishedEvents}</p>
             </div>
           )}
-          {!loading && publishedEvents.map((evt) => (
-            <EventCard
-              key={evt.id}
-              event={evt}
-              mode="user"
-              onClick={() => handleEventSelect(evt.id)}
-            />
-          ))}
+          {!loading && publishedEvents.length > 0 && (() => {
+            const featuredEvent = publishedEvents[0];
+            const thisMonthEvents = publishedEvents.slice(1);
+            const fmt = formatEventDate(featuredEvent.date);
+            return (
+              <>
+                <div>
+                  <p className="text-gray-500 text-xs tracking-widest uppercase mb-2">
+                    Featured Event
+                  </p>
+                  <div
+                    className="relative rounded-2xl bg-[#0b0b0b] border border-white/10 p-8 flex flex-col items-center justify-center text-center shadow-[0_0_60px_rgba(255,193,7,0.15)]"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleEventSelect(featuredEvent.id)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleEventSelect(featuredEvent.id)}
+                  >
+                    <h2 className="text-xl font-bold uppercase text-white mb-2">
+                      {featuredEvent.title?.trim() || UI_TEXT.event.eventFallback}
+                    </h2>
+                    {fmt && (
+                      <>
+                        <p className="text-[#FFC107] text-xl font-semibold mb-1">{fmt.date}</p>
+                        {fmt.time && <p className="text-gray-400 text-sm mb-2">{fmt.time}</p>}
+                      </>
+                    )}
+                    <p className="text-gray-500 text-sm">Venue</p>
+                  </div>
+                </div>
+
+                {thisMonthEvents.length > 0 && (
+                  <div>
+                    <p className="text-gray-500 text-xs tracking-widest uppercase mb-2">
+                      This Month
+                    </p>
+                    <div className="space-y-3">
+                      {thisMonthEvents.map((evt) => {
+                        const evtFmt = formatEventDate(evt.date);
+                        return (
+                          <div
+                            key={evt.id}
+                            className="flex rounded-xl overflow-hidden border border-white/10 bg-[#111]"
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => handleEventSelect(evt.id)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleEventSelect(evt.id)}
+                          >
+                            <div className="w-[70px] shrink-0 bg-[#FFC107] text-black flex flex-col items-center justify-center font-bold">
+                              {evtFmt ? evtFmt.day : '—'}
+                            </div>
+                            <div className="flex-1 p-4 flex items-center justify-between">
+                              <div>
+                                <p className="font-bold text-white">{evt.title?.trim() || UI_TEXT.event.eventFallback}</p>
+                                <p className="text-gray-400 text-sm">Venue</p>
+                              </div>
+                              <svg className="w-5 h-5 text-gray-500 shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
