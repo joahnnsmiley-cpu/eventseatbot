@@ -776,7 +776,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       };
                       setSelectedEvent((prev) => (prev ? { ...prev, tables: [...(prev.tables ?? []), newTable] } : null));
                     }}
-                    disabled={eventPublished}
                     className="px-2 py-1 text-xs border rounded disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {UI_TEXT.tables.addTable}
@@ -810,7 +809,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           const val = Number(e.target.value);
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, x: val, centerX: val } : it) } : null);
                         }}
-                        disabled={eventPublished}
                         className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
@@ -825,7 +823,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           const val = Number(e.target.value);
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, y: val, centerY: val } : it) } : null);
                         }}
-                        disabled={eventPublished}
                         className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
@@ -839,7 +836,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           const val = Number(e.target.value);
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, seatsTotal: val, seatsAvailable: val } : it) } : null);
                         }}
-                        disabled={eventPublished}
                         className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
@@ -855,7 +851,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           const val = Number(e.target.value);
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, sizePercent: val } : it) } : null);
                         }}
-                        disabled={eventPublished}
                         className="ml-2 align-middle disabled:opacity-60"
                       />
                       <span className="ml-1">{t.sizePercent ?? 5}</span>
@@ -868,7 +863,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           const val = e.target.value === 'rect' ? 'rect' : 'circle';
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, shape: val } : it) } : null);
                         }}
-                        disabled={eventPublished}
                         className="ml-1 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         <option value="circle">{UI_TEXT.tables.shapeCircle}</option>
@@ -884,22 +878,19 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           const val = e.target.value;
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, color: val } : it) } : null);
                         }}
-                        disabled={eventPublished}
                         className="ml-1 h-7 w-10 border rounded disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
                     {(() => {
-                      const canDelete = selectedEvent?.status !== 'published' && !tableIdsWithBookings.has(t.id);
                       const hasBookings = tableIdsWithBookings.has(t.id);
                       return (
                         <button
                           type="button"
                           onClick={async () => {
-                            if (!canDelete) return;
                             if (!window.confirm(UI_TEXT.tables.deleteConfirm)) return;
                             await deleteTable(t.id);
                           }}
-                          disabled={!canDelete || savingLayout}
+                          disabled={savingLayout}
                           title={hasBookings ? UI_TEXT.tables.deleteWithBookingsTooltip : undefined}
                           className="px-2 py-1 text-xs border rounded text-red-700 border-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
                         >

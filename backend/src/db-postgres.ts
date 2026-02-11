@@ -254,20 +254,15 @@ export async function upsertEvent(event: EventData): Promise<void> {
       .maybeSingle();
 
     if (existing) {
-      // UPDATE: seats_total, seats_available (only if >= booked), is_active = true
-      const incomingAvailable = t.seatsAvailable ?? t.seatsTotal ?? seatsTotal;
-      const minAvailable = Math.max(0, booked);
-      const maxAvailable = seatsTotal;
-      const seatsAvailable = Math.min(
-        maxAvailable,
-        Math.max(minAvailable, Number(incomingAvailable) || seatsTotal)
-      );
+      // UPDATE: seats_total (never below booked), seats_available = seats_total - booked, is_active = true
+      const seatsTotalClamped = Math.max(booked, seatsTotal);
+      const seatsAvailable = Math.max(0, seatsTotalClamped - booked);
 
       const { error: updErr } = await supabase
         .from('event_tables')
         .update({
           number: t.number ?? 1,
-          seats_total: seatsTotal,
+          seats_total: seatsTotalClamped,
           seats_available: seatsAvailable,
           x: t.x ?? null,
           y: t.y ?? null,
@@ -287,16 +282,14 @@ export async function upsertEvent(event: EventData): Promise<void> {
         throw updErr;
       }
     } else {
-      // INSERT new row
-      const seatsAvailable = Math.min(
-        seatsTotal,
-        Math.max(booked, Number(t.seatsAvailable ?? t.seatsTotal ?? seatsTotal) || seatsTotal)
-      );
+      // INSERT new row: seats_available = seats_total - bookedSeats
+      const seatsTotalClamped = Math.max(booked, seatsTotal);
+      const seatsAvailable = Math.max(0, seatsTotalClamped - booked);
       const { error: insErr } = await supabase.from('event_tables').insert({
         id: tableId,
         event_id: event.id,
         number: t.number ?? 1,
-        seats_total: seatsTotal,
+        seats_total: seatsTotalClamped,
         seats_available: seatsAvailable,
         x: t.x ?? null,
         y: t.y ?? null,

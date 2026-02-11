@@ -179,7 +179,7 @@ router.post('/events/:id/archive', async (req: Request, res: Response) => {
   return res.status(200).json(existing);
 });
 
-// PUT /admin/events/:id — forbid modification only when status === 'published'; allow when draft or archived
+// PUT /admin/events/:id — full modification allowed (including when published)
 router.put('/events/:id', async (req: Request, res: Response) => {
   const id = normalizeId(req.params.id);
 
@@ -216,26 +216,6 @@ router.put('/events/:id', async (req: Request, res: Response) => {
     return res.json(toEvent(existing));
   }
 
-  // When published, only table isAvailable can be updated; other fields are readonly
-  if (existing.status === 'published') {
-    if (Array.isArray(req.body.tables)) {
-      const tables = existing.tables ?? [];
-      for (let i = 0; i < req.body.tables.length; i++) {
-        const bt = req.body.tables[i];
-        if (bt && typeof bt.id === 'string') {
-          const idx = tables.findIndex((t: any) => t.id === bt.id);
-          if (idx !== -1) {
-            (tables[idx] as any).isAvailable = bt.isAvailable === true;
-          }
-        }
-      }
-      existing.tables = tables;
-      await db.upsertEvent(existing);
-      return res.json(toEvent(existing));
-    }
-    return res.status(403).json({ error: 'Event is published and cannot be modified' });
-  }
-
   if (typeof req.body.title === 'string') existing.title = req.body.title;
   if (typeof req.body.description === 'string') existing.description = req.body.description;
   if (typeof req.body.date === 'string') existing.date = req.body.date;
@@ -258,25 +238,6 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   if (typeof req.body.paymentPhone === 'string') existing.paymentPhone = req.body.paymentPhone;
   if (typeof req.body.maxSeatsPerBooking !== 'undefined') existing.maxSeatsPerBooking = Number(req.body.maxSeatsPerBooking) || 0;
   if (Array.isArray(req.body.tables)) {
-    const existingTableIds = new Set((existing.tables ?? []).map((t: any) => t.id).filter(Boolean));
-    const newTableIds = new Set(req.body.tables.map((t: any) => t?.id).filter(Boolean));
-    const removedTableIds = [...existingTableIds].filter((tid) => !newTableIds.has(tid));
-    if (removedTableIds.length > 0) {
-      const allBookings = await db.getBookings();
-      const eventBookings = allBookings.filter((b: any) => b.eventId === id);
-      for (const tableId of removedTableIds) {
-        const hasBookings = eventBookings.some(
-          (b: any) =>
-            b.tableId === tableId ||
-            (Array.isArray(b.tableBookings) && b.tableBookings.some((tb: any) => tb.tableId === tableId))
-        );
-        if (hasBookings) {
-          return res.status(409).json({
-            error: 'Cannot delete table: it has bookings',
-          });
-        }
-      }
-    }
     console.log('normalizeTables input', req.body.tables);
     existing.tables = normalizeTables(req.body.tables);
     console.log('normalizeTables output', existing.tables);
