@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
-import { supabase } from '../supabaseClient';
 import { emitBookingCreated, emitBookingCancelled, calculateBookingExpiration } from '../domain/bookings';
 
 const router = Router();
@@ -269,10 +268,8 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
       try {
         await db.addBooking(booking);
         console.log('[POST BOOKING] booking inserted successfully');
-        const { data, error } = await supabase
-          .from('bookings')
-          .select('*');
-        console.log('[AFTER INSERT SELECT]', data);
+        const bookings = await db.getBookings();
+        console.log('[AFTER INSERT SELECT]', bookings);
       } catch (err) {
         console.error('Failed to insert booking:', err);
         return { status: 500, body: { error: 'Failed to save booking' } };
