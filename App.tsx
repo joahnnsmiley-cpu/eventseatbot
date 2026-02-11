@@ -910,35 +910,27 @@ function App() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
-        <div className="relative pt-12 pb-8">
-          <div className="absolute inset-0 -z-10">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-yellow-500/10 blur-[120px] rounded-full" />
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-purple-600/10 blur-[140px] rounded-full" />
-          </div>
-          <div className={`flex items-start ${isAdmin ? 'justify-between' : 'justify-center'}`}>
-            <div className="space-y-2">
-              <h1 className="text-6xl leading-[1.05] neon-script space-y-2" style={{ transform: 'rotate(-1deg)' }}>
-                <span className="block text-5xl neon-white neon-flicker">
-                  #НиктоНеКруче
-                </span>
-                <span className="block text-6xl neon-yellow neon-flicker">
-                  Касса
-                </span>
-              </h1>
-              <p className="text-gray-400 text-sm">
-                Выберите ваше эксклюзивное событие
-              </p>
-            </div>
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => setView('admin')}
-                className="neon-admin-btn shrink-0"
-              >
-                {UI_TEXT.app.admin}
-              </button>
-            )}
-          </div>
+        <div className="relative pt-10 pb-6 text-center">
+          <h1 className="text-5xl leading-tight space-y-2">
+            <span className="block neon-white">
+              #НИКТОНЕКРУЧЕ
+            </span>
+            <span className="block neon-yellow text-6xl">
+              КАССА
+            </span>
+          </h1>
+          <p className="text-gray-400 text-sm mt-2">
+            Выберите ваше эксклюзивное событие
+          </p>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setView('admin')}
+              className="neon-admin-btn absolute top-4 right-4"
+            >
+              АДМИНКА
+            </button>
+          )}
         </div>
         {error && <div className="text-sm text-red-400">{error}</div>}
 
