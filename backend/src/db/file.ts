@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import type { Database, EventData, Booking, BookingStatus } from '../models';
+import type { Database, EventData, Booking, BookingStatus, Ticket } from '../models';
 
 const DATA_FILE = path.join(__dirname, '..', '..', 'data.json');
 
@@ -244,4 +244,13 @@ export const updateBookingStatus = (bookingId: string, status: BookingStatus) =>
     writeDb(db);
   }
   return booking;
+};
+
+export const updateBookingTickets = (bookingId: string, tickets: Ticket[]) => {
+  const db = readDb();
+  const booking = db.bookings.find((b) => b.id === bookingId);
+  if (booking) {
+    booking.tickets = tickets;
+    writeDb(db);
+  }
 };

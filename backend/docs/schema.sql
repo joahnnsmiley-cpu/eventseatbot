@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   seat_indices INTEGER[],
   seats_booked INTEGER,
   status TEXT NOT NULL,
+  tickets JSONB,
   created_at TIMESTAMPTZ DEFAULT now(),
   expires_at TIMESTAMPTZ
 );
@@ -85,6 +86,9 @@ COMMENT ON COLUMN bookings.user_comment IS 'Optional user comment (e.g. for paym
 
 -- Migration: add user_comment if missing (run in SQL Editor for existing DB)
 -- ALTER TABLE bookings ADD COLUMN IF NOT EXISTS user_comment TEXT;
+
+-- Migration: add tickets JSONB for confirmed bookings (run in SQL Editor for existing DB)
+-- ALTER TABLE bookings ADD COLUMN IF NOT EXISTS tickets JSONB;
 
 CREATE INDEX IF NOT EXISTS idx_bookings_event_id ON bookings(event_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_table_id ON bookings(table_id);

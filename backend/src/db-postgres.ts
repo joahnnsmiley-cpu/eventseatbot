@@ -5,7 +5,7 @@
  * Not imported anywhere yet; switch when Supabase is the source of truth.
  */
 import { supabase } from './supabaseClient';
-import type { EventData, Booking, Admin, Table, BookingStatus } from './models';
+import type { EventData, Booking, Admin, Table, BookingStatus, Ticket } from './models';
 
 // NOTE:
 // Event tables are stored in a separate table (event_tables).
@@ -55,6 +55,7 @@ type BookingsRow = {
   seat_indices: number[] | null;
   seats_booked: number | null;
   status: string;
+  tickets?: unknown;
   created_at?: string;
   expires_at: string | null;
 };
@@ -125,6 +126,7 @@ function bookingsRowToBooking(row: BookingsRow): Booking {
   if (row.seat_indices != null) booking.seatIndices = row.seat_indices;
   if (row.user_comment != null) booking.userComment = row.user_comment;
   if (expiresAt !== undefined) booking.expiresAt = expiresAt;
+  if (Array.isArray(row.tickets)) booking.tickets = row.tickets as Ticket[];
   return booking;
 }
 
@@ -315,6 +317,12 @@ export async function updateBookingStatus(bookingId: string, status: BookingStat
   if (error) throw error;
   if (!data) return undefined;
   return bookingsRowToBooking(data as BookingsRow);
+}
+
+export async function updateBookingTickets(bookingId: string, tickets: Ticket[]): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('bookings').update({ tickets }).eq('id', bookingId);
+  if (error) throw error;
 }
 
 // ---- Admins ----

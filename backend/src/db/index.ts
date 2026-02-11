@@ -5,7 +5,7 @@
  */
 import * as fileDb from './file';
 import * as postgresDb from '../db-postgres';
-import type { EventData, Booking, BookingStatus } from '../models';
+import type { EventData, Booking, BookingStatus, Ticket } from '../models';
 
 const USE_SUPABASE = process.env.USE_SUPABASE === 'true';
 
@@ -27,6 +27,8 @@ const fileDbAsync = {
   setBookings: (bookings: Booking[]): Promise<void> => Promise.resolve(fileDb.setBookings(bookings)),
   updateBookingStatus: (bookingId: string, status: BookingStatus): Promise<Booking | undefined> =>
     Promise.resolve(fileDb.updateBookingStatus(bookingId, status)),
+  updateBookingTickets: (bookingId: string, tickets: Ticket[]): Promise<void> =>
+    Promise.resolve(fileDb.updateBookingTickets(bookingId, tickets)),
   getAdmins: (): Promise<{ id: number }[]> => Promise.resolve(fileDb.getAdmins()),
   setAdmins: (ids: number[]): Promise<void> => Promise.resolve(fileDb.setAdmins(ids)),
 };

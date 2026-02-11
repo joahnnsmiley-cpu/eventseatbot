@@ -2,8 +2,6 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuid } from 'uuid';
 import { authMiddleware } from '../auth/auth.middleware';
 import { adminOnly } from '../auth/admin.middleware';
-import { inMemoryBookings } from '../state';
-import { seats as inMemorySeats } from './adminSeats';
 import { db } from '../db';
 import { notifyUser } from '../bot';
 import type { Ticket } from '../models';
@@ -106,11 +104,19 @@ router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
 router.post('/bookings/:id/confirm', async (req: Request, res: Response) => {
   const rawId = req.params.id;
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
-  const booking = inMemoryBookings.find((b) => b.id === id);
+  if (!id) return res.status(400).json({ error: 'Booking id is required' });
+
+  const bookings = await db.getBookings();
+  const booking = bookings.find((b) => b.id === id);
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
   if (booking.status !== 'reserved') return res.status(400).json({ error: 'Only reserved bookings can be confirmed' });
   const now = Date.now();
-  if (now > booking.expiresAt) return res.status(400).json({ error: 'Booking expired' });
+  const expiresAtMs = typeof booking.expiresAt === 'number'
+    ? booking.expiresAt
+    : booking.expiresAt ? new Date(booking.expiresAt).getTime() : 0;
+  if (now > expiresAtMs) {
+    return res.status(400).json({ error: 'Booking expired' });
+  }
 
   const tickets: Ticket[] = [];
   if (Array.isArray(booking.seatIds) && booking.seatIds.length > 0) {
@@ -155,9 +161,11 @@ router.post('/bookings/:id/confirm', async (req: Request, res: Response) => {
     ticketsCount: tickets.length,
   }));
 
-  // mark booking paid and attach tickets
-  booking.status = 'paid';
-  booking.tickets = tickets;
+  const updated = await db.updateBookingStatus(id, 'paid');
+  if (!updated) return res.status(500).json({ error: 'Failed to update booking status' });
+
+  await db.updateBookingTickets(id, tickets);
+
   console.log(JSON.stringify({
     action: 'payment_confirmed',
     bookingId: booking.id,
@@ -165,36 +173,12 @@ router.post('/bookings/:id/confirm', async (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
   }));
 
-  // If booking contains seatIds, mark seats sold (legacy)
-  if (Array.isArray(booking.seatIds) && booking.seatIds.length > 0) {
-    for (const sid of booking.seatIds) {
-      const s = inMemorySeats.find((x) => x.id === sid && x.eventId === booking.eventId);
-      if (s) s.status = 'sold';
-    }
-  }
-
-  let persistedBooking: { userTelegramId?: number } | undefined;
-  // mirror status and tickets to persisted DB if present
-  try {
-    const dbBookings = await db.getBookings();
-    const dbBooking = dbBookings.find((b) => b.id === booking.id);
-    if (dbBooking) {
-      dbBooking.status = 'paid';
-      (dbBooking as any).tickets = tickets;
-      await db.saveBookings(dbBookings);
-      persistedBooking = dbBooking;
-    }
-  } catch {}
-
-  // notify user via Telegram (best-effort)
-  const userChatId = typeof persistedBooking?.userTelegramId === 'number'
-    ? persistedBooking.userTelegramId
-    : Number(booking.userId);
+  const userChatId = typeof updated.userTelegramId === 'number' ? updated.userTelegramId : 0;
   if (Number.isFinite(userChatId) && userChatId > 0) {
     await notifyUser(userChatId, `Ваше бронирование ${booking.id} подтверждено. Оплата зафиксирована, билеты сформированы.`);
   }
 
-  res.json({ ok: true, booking, tickets });
+  res.json({ ok: true, booking: { ...updated, tickets }, tickets });
 });
 
 export default router;
