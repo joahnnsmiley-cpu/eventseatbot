@@ -9,6 +9,10 @@ const router = Router();
 
 router.get('/raw-bookings', async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(500).json({ error: 'Supabase not initialized' });
+    }
+
     const { data, error } = await supabase
       .from('bookings')
       .select('*');
