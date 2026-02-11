@@ -254,7 +254,15 @@ router.put('/events/:id', async (req: Request, res: Response) => {
     Array.isArray(req.body.tables) ? req.body.tables.length : 'NO FIELD',
   );
 
-  await db.upsertEvent(existing);
+  try {
+    await db.upsertEvent(existing);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('Cannot deactivate table with active bookings')) {
+      return res.status(400).json({ error: 'Cannot deactivate table with active bookings' });
+    }
+    throw e;
+  }
   res.json(toEvent(existing));
 });
 

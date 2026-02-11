@@ -254,9 +254,14 @@ export async function upsertEvent(event: EventData): Promise<void> {
       .maybeSingle();
 
     if (existing) {
-      // UPDATE: seats_total (never below booked), seats_available = seats_total - booked, is_active = true
+      // UPDATE: seats_total (never below booked), seats_available = seats_total - booked, is_active
       const seatsTotalClamped = Math.max(booked, seatsTotal);
       const seatsAvailable = Math.max(0, seatsTotalClamped - booked);
+      const wantsActive = (t as { is_active?: boolean }).is_active !== false;
+
+      if (!wantsActive && booked > 0) {
+        throw new Error('Cannot deactivate table with active bookings');
+      }
 
       const { error: updErr } = await supabase
         .from('event_tables')
@@ -272,7 +277,7 @@ export async function upsertEvent(event: EventData): Promise<void> {
           shape: t.shape ?? null,
           color: t.color ?? null,
           is_available: t.isAvailable ?? false,
-          is_active: true,
+          is_active: wantsActive,
         })
         .eq('id', tableId)
         .eq('event_id', event.id);
@@ -315,14 +320,26 @@ export async function upsertEvent(event: EventData): Promise<void> {
     .select('id')
     .eq('event_id', event.id);
 
-  for (const row of allTables ?? []) {
-    if (!incomingIds.has(row.id)) {
-      await supabase
-        .from('event_tables')
-        .update({ is_active: false })
-        .eq('id', row.id)
-        .eq('event_id', event.id);
+  const toDeactivate = (allTables ?? []).filter((row) => !incomingIds.has(row.id));
+  for (const row of toDeactivate) {
+    const { count, error: countErr } = await supabase
+      .from('bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('table_id', row.id)
+      .in('status', ['reserved', 'awaiting_confirmation', 'paid']);
+    if (countErr) throw countErr;
+    if ((count ?? 0) > 0) {
+      throw new Error('Cannot deactivate table with active bookings');
     }
+  }
+
+  for (const row of toDeactivate) {
+    const { error: updErr } = await supabase
+      .from('event_tables')
+      .update({ is_active: false })
+      .eq('id', row.id)
+      .eq('event_id', event.id);
+    if (updErr) throw updErr;
   }
 
   console.log('[UPSERT EVENT]', 'event_id:', event.id, 'tables:', incomingTables.length);

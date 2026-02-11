@@ -98,6 +98,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     if (raw.toLowerCase().includes('expired')) return UI_TEXT.common.errors.expired;
     if (raw.toLowerCase().includes('only reserved')) return UI_TEXT.common.errors.onlyReserved;
     if (raw.includes('Cannot delete table') || raw.includes('it has bookings')) return UI_TEXT.common.errors.deleteTableWithBookings;
+    if (raw.includes('Cannot deactivate table with active bookings')) return UI_TEXT.common.errors.cannotDeactivateTableWithBookings;
     return UI_TEXT.common.errors.default;
   };
   const isExpired = (expiresAt?: string | number) => {
@@ -320,6 +321,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     } catch (e) {
       console.error('[AdminPanel] Failed to delete table', e);
       setError(toFriendlyError(e));
+      if (selectedEventId) {
+        try {
+          const refreshed = await StorageService.getAdminEvent(selectedEventId);
+          setSelectedEvent(refreshed);
+        } catch {
+          /* ignore reload failure */
+        }
+      }
     } finally {
       setSavingLayout(false);
     }
