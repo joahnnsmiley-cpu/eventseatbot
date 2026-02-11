@@ -38,18 +38,28 @@ router.get('/bookings', async (_req: Request, res: Response) => {
 // PATCH /admin/bookings/:id/status
 // Allowed transitions: pending→awaiting_confirmation, awaiting_confirmation→paid, awaiting_confirmation→cancelled
 router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
-  const id = req.params.id;
-  if (!id) {
-    return res.status(400).json({ error: 'Booking id is required' });
+  const idParam = req.params.id;
+
+  if (!idParam || Array.isArray(idParam)) {
+    return res.status(400).json({ error: 'Invalid booking id' });
   }
 
-  const status = req.body?.status;
-  if (!status || typeof status !== 'string') {
-    return res.status(400).json({ error: 'Status is required' });
+  const id = idParam;
+
+  const statusRaw = req.body?.status;
+
+  if (
+    statusRaw !== 'paid' &&
+    statusRaw !== 'awaiting_confirmation' &&
+    statusRaw !== 'cancelled'
+  ) {
+    return res.status(400).json({ error: 'Invalid status' });
   }
 
-  const allowed = ['awaiting_confirmation', 'paid', 'cancelled'] as const;
-  if (!allowed.includes(status)) return res.status(400).json({ error: 'Allowed status: awaiting_confirmation, paid, cancelled' });
+  const status = statusRaw as
+    | 'paid'
+    | 'awaiting_confirmation'
+    | 'cancelled';
 
   const bookings = await db.getBookings();
   const booking = bookings.find((b: any) => b.id === id);
