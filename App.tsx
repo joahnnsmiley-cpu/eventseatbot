@@ -910,7 +910,7 @@ function App() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
-        <div className="relative pt-10 pb-6 text-center">
+        <div className="relative w-full pt-10 pb-6 text-center">
           <h1 className="text-5xl leading-tight space-y-2">
             <span className="block neon-white">
               #НИКТОНЕКРУЧЕ
@@ -926,7 +926,7 @@ function App() {
             <button
               type="button"
               onClick={() => setView('admin')}
-              className="neon-admin-btn absolute top-4 right-4"
+              className="neon-admin-btn absolute top-3 right-0"
             >
               АДМИНКА
             </button>
@@ -959,7 +959,7 @@ function App() {
                     Главное событие
                   </p>
                   <div className="relative">
-                    <div className="absolute -inset-1 rounded-3xl blur-2xl bg-gradient-to-r from-yellow-500/20 to-purple-600/20" />
+                    <div className="absolute inset-0 rounded-3xl blur-3xl bg-gradient-to-r from-yellow-500/20 to-purple-600/20 -z-10" />
                     <motion.div
                       className="relative rounded-3xl overflow-hidden border border-white/10"
                       role="button"
