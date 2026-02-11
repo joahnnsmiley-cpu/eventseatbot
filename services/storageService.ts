@@ -75,22 +75,6 @@ export const getOccupiedSeats = async (eventId: string): Promise<{ table_id: str
   return Array.isArray(data) ? data : [];
 };
 
-export const createBooking = async (
-  eventId: string,
-  seatFullIds: string[],
-): Promise<any> => {
-  const apiBaseUrl = getApiBaseUrl();
-  const res = await fetch(`${apiBaseUrl}/bookings`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
-    body: JSON.stringify({ eventId, seatIds: seatFullIds }),
-  });
-  if (!res.ok) await handleAuthError(res, 'Failed to create booking');
-  // Server responds with { booking, paymentInstructions }
-  const data = await res.json();
-  return data.booking || data;
-};
-
 export const createTableBooking = async (payload: {
   eventId: string;
   tableId: string;

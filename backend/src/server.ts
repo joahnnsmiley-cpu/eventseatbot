@@ -1,19 +1,16 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { v4 as uuid } from 'uuid';
 import type { EventData } from './models';
 import { db } from './db';
 import { bot, notifyAdminsAboutBooking, notifyUser } from './bot';
 import adminEventsRouter from './routes/adminEvents';
-import adminSeatsRouter, { seats as inMemorySeats } from './routes/adminSeats';
 import adminBookingsRouter from './routes/adminBookings';
 import publicEventsRouter from './routes/publicEvents';
 import publicPaymentsRouter from './routes/publicPayments';
 import adminPaymentsRouter from './routes/adminPayments';
 import debugRouter from './routes/debug-routes';
-import { inMemoryBookings } from './state';
-import { authMiddleware, AuthRequest } from './auth/auth.middleware';
+import { authMiddleware } from './auth/auth.middleware';
 import 'dotenv/config';
 import authRoutes from './auth/auth.routes';
 import meRoutes from './routes/me.routes';
@@ -29,7 +26,6 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 console.log('[ENV CHECK] SUPABASE_URL:', process.env.SUPABASE_URL);
-console.log('[ENV CHECK] USE_SUPABASE:', process.env.USE_SUPABASE);
 
 /**
  * ==============================
@@ -59,7 +55,7 @@ void (async () => {
     const events = await db.getEvents();
     const bookings = await db.getBookings();
     if (events.length === 0 && bookings.length === 0) {
-      console.warn('[Storage] Boot: storage is empty (no events, no bookings). Data is stored in a local file and will be lost on instance restart/redeploy.');
+      console.warn('[Storage] Boot: storage is empty (no events, no bookings).');
     } else {
       console.log('[Storage] Boot: events=%d, bookings=%d', events.length, bookings.length);
     }
@@ -183,236 +179,6 @@ app.get('/events/:eventId', async (req, res) => {
 });
 
 // ==============================
-// CREATE BOOKING (user-facing)
-// ==============================
-app.post('/bookings', authMiddleware, async (req: AuthRequest, res) => {
-  const user = req.user;
-  const userIdVal = user?.id ?? user?.sub ?? user?.userId;
-  if (!userIdVal) return res.status(401).json({ error: 'Unauthorized' });
-  const userId = String(userIdVal);
-
-  const body = req.body || {};
-  const eventId = body.eventId as string | undefined;
-  const userPhone = typeof body.userPhone === 'string' ? body.userPhone.trim() : '';
-
-  if (!eventId) return res.status(400).json({ error: 'eventId is required' });
-  if (!userPhone) return res.status(400).json({ error: 'userPhone is required' });
-
-  // Validate event exists
-  const event = await db.findEventById(eventId);
-  if (!event) return res.status(404).json({ error: 'Event not found' });
-
-  // Support two booking types for compatibility:
-  // 1) seatIds: array of individual seat ids (legacy)
-  // 2) tableBookings: array of { tableId: string, seats: number, totalPrice?: number }
-  const seatIds = Array.isArray(body.seatIds) ? body.seatIds as string[] : undefined;
-  const tableBookings = Array.isArray(body.tableBookings) ? body.tableBookings as Array<{ tableId: string; seats: number; totalPrice?: number }> : undefined;
-
-  const now = Date.now();
-  const expiresAt = now + 15 * 60 * 1000;
-
-  // Legacy seat-level booking
-  if (seatIds && seatIds.length > 0) {
-    const locks: Map<string, Promise<void>> = (app as any).__seatLocks || new Map();
-    (app as any).__seatLocks = locks;
-
-    const runWithLock = async <T,>(key: string, fn: () => Promise<T>) => {
-      const prev = locks.get(key) || Promise.resolve();
-      let release: () => void = () => {};
-      const next = new Promise<void>((r) => { release = r; });
-      locks.set(key, prev.then(() => next));
-      try {
-        await prev;
-        return await fn();
-      } finally {
-        release();
-        if (locks.get(key) === next) locks.delete(key);
-      }
-    };
-
-    try {
-      const result = await runWithLock(eventId, async () => {
-        const seatsToReserve: any[] = [];
-        for (const seatId of seatIds) {
-          const s = inMemorySeats.find((x) => x.id === seatId && x.eventId === eventId);
-          if (!s) return { status: 400, body: { error: `Seat not found: ${seatId}` } };
-          if (s.status !== 'available') return { status: 400, body: { error: `Seat not available: ${seatId}` } };
-          seatsToReserve.push(s);
-        }
-
-        const totalPrice = seatsToReserve.reduce((sum, s) => sum + Number(s.price || 0), 0);
-
-        // Reserve seats
-        for (const s of seatsToReserve) s.status = 'reserved';
-
-        const booking: import('./state').InMemoryBooking = {
-          id: uuid(),
-          eventId,
-          userId,
-          userPhone,
-          seatIds,
-          totalPrice,
-          status: 'reserved',
-          createdAt: now,
-          expiresAt,
-          tableId: '',
-          seatsBooked: 0,
-        };
-
-        inMemoryBookings.push(booking);
-        console.log(JSON.stringify({
-          action: 'booking_created',
-          bookingId: booking.id,
-          eventId: booking.eventId,
-          timestamp: new Date().toISOString(),
-        }));
-
-        // persist booking to DB for longer-term storage (mirror)
-        try {
-          await db.addBooking({
-            id: booking.id,
-            eventId: booking.eventId,
-            userTelegramId: Number(userId) || 0,
-            username: (req.user && (req.user as any).username) || '',
-            userPhone,
-            seatIds: booking.seatIds,
-            totalAmount: booking.totalPrice,
-            status: 'reserved',
-            createdAt: booking.createdAt,
-          } as any);
-        } catch {}
-
-        // Expire reservation after 15 minutes if still reserved
-        setTimeout(() => {
-          const b = inMemoryBookings.find((x) => x.id === booking.id);
-          if (!b) return;
-          if (b.status === 'reserved') {
-            for (const sid of b.seatIds) {
-              const s = inMemorySeats.find((x) => x.id === sid && x.eventId === b.eventId);
-              if (s && s.status === 'reserved') s.status = 'available';
-            }
-            b.status = 'expired';
-          }
-        }, expiresAt - now);
-
-        const paymentInstructions = event
-          ? `Pay ${booking.totalPrice} ₽ to ${event.paymentPhone || 'the provided payment method'}`
-          : `Pay ${booking.totalPrice} ₽`;
-
-        return { status: 201, body: { booking, paymentInstructions } };
-      });
-
-      return res.status(result.status).json(result.body);
-    } catch (err) {
-      return res.status(500).json({ error: 'Internal server error' });
-    }
-  }
-
-  // Table-level booking
-  if (tableBookings && tableBookings.length > 0) {
-    // validate requested tables
-    const updates: { tableId: string; seats: number; totalPrice: number }[] = [];
-    let totalPrice = 0;
-    for (const tb of tableBookings) {
-      const tableId = tb.tableId;
-      const seatsRequested = Number(tb.seats) || 0;
-      if (!tableId || seatsRequested <= 0) return res.status(400).json({ error: 'Invalid tableBookings entries' });
-      const table = event.tables.find((t) => t.id === tableId);
-      if (!table) return res.status(400).json({ error: `Table not found: ${tableId}` });
-      if ((table as any).isAvailable !== true) return res.status(403).json({ error: 'Table is not available for sale' });
-      if (table.seatsAvailable < seatsRequested) return res.status(400).json({ error: `Not enough seats available at table ${table.number}` });
-      const tbPrice = Number(tb.totalPrice) || 0;
-      updates.push({ tableId, seats: seatsRequested, totalPrice: tbPrice });
-      totalPrice += tbPrice;
-    }
-
-    // Apply updates atomically
-    const events = await db.getEvents();
-    const evIdx = events.findIndex((e: EventData) => e.id === event.id);
-    if (evIdx === -1) return res.status(500).json({ error: 'Event not found in storage' });
-
-    for (const up of updates) {
-      const evt = events[evIdx];
-      if (!evt || !evt.tables) continue;
-      const table = evt.tables.find((t: { id: string }) => t.id === up.tableId);
-      if (!table) continue;
-      table.seatsAvailable = Math.max(0, table.seatsAvailable - up.seats);
-    }
-
-    // persist updated events
-    await db.saveEvents(events);
-
-    const singleTable = updates.length === 1 ? updates[0] : null;
-    const bookingRecord = {
-      id: uuid(),
-      eventId: event.id,
-      userId,
-      userPhone,
-      seatIds: [],
-      totalPrice,
-      status: 'reserved',
-      createdAt: now,
-      expiresAt,
-      tableId: singleTable ? singleTable.tableId : '',
-      seatsBooked: singleTable ? singleTable.seats : 0,
-      tableBookings: updates,
-    } as any;
-
-    inMemoryBookings.push(bookingRecord);
-    console.log(JSON.stringify({
-      action: 'booking_created',
-      bookingId: bookingRecord.id,
-      eventId: bookingRecord.eventId,
-      timestamp: new Date().toISOString(),
-    }));
-
-    // persist to DB (mirror) — include tableBookings in db record if possible
-    try {
-      await db.addBooking({
-        id: bookingRecord.id,
-        eventId: bookingRecord.eventId,
-        userTelegramId: Number(userId) || 0,
-        username: (req.user && (req.user as any).username) || '',
-        userPhone,
-        seatIds: [],
-        totalAmount: bookingRecord.totalPrice,
-        status: 'reserved',
-        createdAt: bookingRecord.createdAt,
-        // store tableBookings under a custom field for compatibility
-        tableBookings: bookingRecord.tableBookings,
-      } as any);
-    } catch {}
-
-    // Expire reservation after 15 minutes if still reserved — restore seatsAvailable
-    setTimeout(async () => {
-      const b = inMemoryBookings.find((x) => x.id === bookingRecord.id);
-      if (!b) return;
-      if (b.status === 'reserved') {
-        // restore seats
-        const evs = await db.getEvents();
-        const idx = evs.findIndex((e) => e.id === bookingRecord.eventId);
-        if (idx !== -1 && evs[idx]?.tables) {
-          for (const tb of (b.tableBookings || [])) {
-            const table = evs[idx].tables?.find((t) => t.id === tb.tableId);
-            if (table) table.seatsAvailable = Math.min(table.seatsTotal, table.seatsAvailable + tb.seats);
-          }
-          await db.saveEvents(evs);
-        }
-        b.status = 'expired';
-      }
-    }, expiresAt - now);
-
-    const paymentInstructions = event
-      ? `Pay ${totalPrice} ₽ to ${event.paymentPhone || 'the provided payment method'}`
-      : `Pay ${totalPrice} ₽`;
-
-    return res.status(201).json({ booking: bookingRecord, paymentInstructions });
-  }
-
-  return res.status(400).json({ error: 'Either seatIds[] or tableBookings[] must be provided' });
-});
-
-// ==============================
 // MY BOOKINGS
 // ==============================
 app.get('/bookings/my', async (req, res) => {
@@ -428,7 +194,6 @@ app.get('/bookings/my', async (req, res) => {
 
 // Mount admin routes (JWT + adminOnly applied inside router)
 app.use('/admin', adminEventsRouter);
-app.use('/admin', adminSeatsRouter);
 app.use('/admin', adminBookingsRouter);
 app.use('/admin', adminPaymentsRouter);
 // Public read-only event views and JSON endpoints
