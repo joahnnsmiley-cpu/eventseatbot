@@ -920,92 +920,15 @@ function App() {
             </button>
           )}
         </div>
-        {isAdmin && (
-          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
-            <span>{UI_TEXT.app.adminAccessActive}</span>
-            <button
-              type="button"
-              onClick={() => setView('admin')}
-              className="ml-2 text-sm font-medium text-[#FFC107] hover:underline"
-            >
-              {UI_TEXT.app.openAdmin}
-            </button>
-          </div>
-        )}
-        {(() => {
-          const debugFlag = (() => {
-            try {
-              return localStorage.getItem('debugAdmin') === 'true';
-            } catch {
-              return false;
-            }
-          })();
-          if (import.meta.env.MODE === 'production' && !debugFlag) return null;
-          return (
-            <div className="rounded border border-white/10 bg-[#111] p-3 text-xs text-gray-400">
-              <div>{UI_TEXT.app.debugAdmin}</div>
-              <div>{UI_TEXT.app.telegramUserId} {tgUser?.id ?? '—'}</div>
-              <div>{UI_TEXT.app.isAdminLabel} {String(isAdmin)}</div>
-              <div>{UI_TEXT.app.roleLoginLabel} {authRole ?? '—'}</div>
-              <div>{UI_TEXT.app.roleTokenLabel} {tokenRole ?? '—'}</div>
-            </div>
-          );
-        })()}
-
-        {!tgAvailable && (
-          <div className="text-xs text-gray-500">
-            Telegram WebApp не обнаружен. Локальный режим.
-          </div>
-        )}
-
-        {!!tgInitData && (
-          <div className="text-xs text-gray-500">
-            Telegram initData получен.
-          </div>
-        )}
-
-        {authLoading && (
-          <div className="text-xs text-gray-500">
-            Авторизация Telegram…
-          </div>
-        )}
-        {authError && (
-          <div className="text-xs text-red-400">
-            {authError}
-          </div>
-        )}
-
-        {tgUser && (
-          <div className="text-xs text-gray-500">
-            {UI_TEXT.app.user} {tgUser.username || tgUser.first_name || tgUser.id}
-          </div>
-        )}
-
-        <div className="inline-flex bg-[#111] border border-white/10 rounded-xl p-1">
+        {(!hasLoaded || error) && !loading && (
           <button
             type="button"
             onClick={loadEvents}
-            disabled={loading}
-            className={`rounded-lg px-4 py-2 font-semibold transition-all ${
-              view === 'events'
-                ? 'bg-[#FFC107] text-black'
-                : 'text-gray-400 hover:text-white'
-            }`}
+            className="bg-[#FFC107] text-black px-4 py-2 rounded text-sm font-semibold"
           >
-            {loading ? UI_TEXT.app.loadingEvents : UI_TEXT.app.events}
+            {UI_TEXT.app.events}
           </button>
-          <button
-            type="button"
-            onClick={() => setView('my-tickets')}
-            className={`rounded-lg px-4 py-2 font-semibold transition-all ${
-              view === 'my-tickets'
-                ? 'bg-[#FFC107] text-black'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            {UI_TEXT.nav.myTickets}
-          </button>
-        </div>
+        )}
 
         {error && <div className="text-sm text-red-400">{error}</div>}
 
