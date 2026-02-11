@@ -5,6 +5,7 @@ import { adminOnly } from '../auth/admin.middleware';
 import { inMemoryBookings } from '../state';
 import { seats as inMemorySeats } from './adminSeats';
 import { db } from '../db';
+import { supabase } from '../supabaseClient';
 import { notifyUser } from '../bot';
 import type { Ticket } from '../models';
 
@@ -18,6 +19,23 @@ router.get('/debug-bookings', async (req, res) => {
   return res.json({
     count: bookings.length,
     bookings
+  });
+});
+
+// GET /admin/raw-bookings
+router.get('/raw-bookings', async (req, res) => {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*');
+
+  if (error) {
+    console.error('[RAW ERROR]', error);
+    return res.status(500).json({ error });
+  }
+
+  return res.json({
+    count: data?.length || 0,
+    data
   });
 });
 
