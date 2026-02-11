@@ -270,6 +270,9 @@ export async function getBookings(): Promise<Booking[]> {
 
 export async function addBooking(booking: Booking): Promise<void> {
   if (!supabase) return;
+  console.log('[DEBUG addBooking] supabase exists?', !!supabase);
+  console.log('[DEBUG addBooking] URL:', process.env.SUPABASE_URL);
+  console.log('[DEBUG addBooking] SERVICE KEY exists?', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
   const expiresAt = booking.expiresAt != null
     ? (typeof booking.expiresAt === 'number' ? new Date(booking.expiresAt).toISOString() : booking.expiresAt)
     : null;
