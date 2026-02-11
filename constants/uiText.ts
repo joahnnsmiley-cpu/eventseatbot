@@ -31,6 +31,9 @@ export const UI_TEXT = {
     eventArchived: 'Событие в архиве.',
     eventPublishedAgain: 'Событие снова опубликовано.',
     eventCreated: 'Событие создано.',
+    resyncSeats: 'Пересчитать места',
+    resyncSeatsSuccess: 'Места пересчитаны',
+    resyncSeatsError: 'Ошибка пересчёта',
   },
   event: {
     title: 'Название события',

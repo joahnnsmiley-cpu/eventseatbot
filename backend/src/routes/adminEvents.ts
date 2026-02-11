@@ -297,4 +297,45 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   res.json(toEvent(existing));
 });
 
+// POST /admin/resync-seats — recalculate seatsAvailable from bookings
+router.post('/resync-seats', async (_req: Request, res: Response) => {
+  const events = await db.getEvents();
+  const bookings = await db.getBookings();
+
+  let tablesUpdated = 0;
+
+  for (const ev of events) {
+    if (!Array.isArray(ev.tables)) continue;
+
+    for (const table of ev.tables) {
+      const activeBookings = bookings.filter(
+        (b: any) =>
+          b.eventId === ev.id &&
+          b.tableId === table.id &&
+          ['reserved', 'pending', 'awaiting_confirmation', 'paid'].includes(String(b.status ?? ''))
+      );
+
+      const bookedSeats = activeBookings.reduce(
+        (sum: number, b: any) => sum + (Number(b.seatsBooked) || 0),
+        0
+      );
+
+      const newAvailable = Math.max(0, Number(table.seatsTotal) - bookedSeats);
+
+      if (table.seatsAvailable !== newAvailable) {
+        table.seatsAvailable = newAvailable;
+        tablesUpdated++;
+      }
+    }
+  }
+
+  await db.saveEvents(events);
+
+  return res.json({
+    ok: true,
+    eventsProcessed: events.length,
+    tablesUpdated,
+  });
+});
+
 export default router;

@@ -55,6 +55,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
   const [statusActionLoading, setStatusActionLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [resyncLoading, setResyncLoading] = useState(false);
 
   const statusStyle: Record<string, string> = {
     pending: 'bg-gray-200 text-gray-800',
@@ -121,6 +122,22 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setError(toFriendlyError(e));
     } finally {
       setEventsLoading(false);
+    }
+  };
+
+  const handleResyncSeats = async () => {
+    setResyncLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      await StorageService.resyncSeats();
+      setSuccessMessage(UI_TEXT.admin.resyncSeatsSuccess);
+      load();
+      loadEvents();
+    } catch {
+      alert(UI_TEXT.admin.resyncSeatsError);
+    } finally {
+      setResyncLoading(false);
     }
   };
 
@@ -227,11 +244,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   }, []);
 
   const formatSeats = (b: AdminBooking) => {
+    if (Array.isArray(b.tableBookings) && b.tableBookings.length > 0) {
+      return b.tableBookings.map((tb) => `Стол ${tb.tableId}: ${tb.seats} ${tb.seats === 1 ? 'место' : 'мест'}`).join('; ');
+    }
     if (Array.isArray(b.seatIds) && b.seatIds.length > 0) {
       return b.seatIds.join(', ');
-    }
-    if (Array.isArray(b.tableBookings) && b.tableBookings.length > 0) {
-      return b.tableBookings.map((tb) => `${tb.tableId} × ${tb.seats}`).join(', ');
     }
     return '—';
   };
@@ -337,6 +354,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             className="bg-blue-600 text-white px-3 py-2 rounded"
           >
             {UI_TEXT.admin.reload}
+          </button>
+          <button
+            onClick={handleResyncSeats}
+            disabled={resyncLoading || loading || eventsLoading}
+            className="bg-amber-600 text-white px-3 py-2 rounded text-sm"
+          >
+            {resyncLoading ? UI_TEXT.common.loading : UI_TEXT.admin.resyncSeats}
           </button>
         </div>
       </div>

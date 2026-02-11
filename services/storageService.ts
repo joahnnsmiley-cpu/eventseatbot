@@ -183,6 +183,17 @@ export const confirmBooking = async (bookingId: string): Promise<void> => {
   if (!res.ok) await handleAuthError(res, 'Failed to confirm booking');
 };
 
+/** POST /admin/resync-seats — recalculate seatsAvailable from bookings */
+export const resyncSeats = async (): Promise<{ ok: boolean; eventsProcessed: number; tablesUpdated: number }> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/resync-seats`, {
+    method: 'POST',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) await handleAuthError(res, 'Failed to resync seats');
+  return res.json();
+};
+
 // Admin events API — tables are always from backend (event_tables join), never from events.tables jsonb.
 export const getAdminEvents = async (): Promise<EventData[]> => {
   const apiBaseUrl = getApiBaseUrl();

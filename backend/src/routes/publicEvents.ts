@@ -248,13 +248,6 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
       if (typeof tbl.seatsAvailable !== 'number') tbl.seatsAvailable = Number(tbl.seatsAvailable) || 0;
       if (tbl.seatsAvailable < seats) return { status: 409, body: { error: 'Not enough seats available' } };
 
-      // decrement
-      tbl.seatsAvailable = Math.max(0, tbl.seatsAvailable - seats);
-      // persist
-      // saveEvents expects full events array
-      const saveable = events;
-      await db.saveEvents(saveable);
-
       // create booking record
       const createdAtMs = Date.now();
       const booking = {
@@ -277,6 +270,10 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
         console.error('Failed to insert booking:', err);
         return { status: 500, body: { error: 'Failed to save booking' } };
       }
+
+      // decrement seatsAvailable only after successful insert
+      tbl.seatsAvailable = Math.max(0, tbl.seatsAvailable - seats);
+      await db.saveEvents(events);
 
       // Emit booking created event (fire-and-forget)
       emitBookingCreated({

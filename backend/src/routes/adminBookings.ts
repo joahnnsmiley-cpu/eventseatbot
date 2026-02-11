@@ -23,7 +23,11 @@ router.get('/bookings', async (_req: Request, res: Response) => {
       id: b.id,
       event: ev ? { id: ev.id, title: ev.title, date: ev.date } : { id: b.eventId, title: '', date: '' },
       seatIds: Array.isArray(b.seatIds) ? b.seatIds : [],
-      tableBookings: Array.isArray(b.tableBookings) ? b.tableBookings : [],
+      tableBookings: Array.isArray(b.tableBookings) && b.tableBookings.length > 0
+        ? b.tableBookings
+        : b.tableId != null && typeof b.seatsBooked === 'number'
+          ? [{ tableId: b.tableId, seats: b.seatsBooked }]
+          : [],
       userTelegramId: b.userTelegramId,
       userPhone: b.userPhone,
       totalAmount: b.totalAmount,
