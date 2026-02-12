@@ -1261,14 +1261,15 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       {UI_TEXT.tables.noLayoutImage}
                     </div>
                   )}
-                  {layoutPreviewWidth > 0 && (() => {
-                    console.log('PREVIEW TABLES', selectedEvent?.tables);
-                    return [...(selectedEvent?.tables ?? [])].sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity)).map((raw) => {
+                  {[...(selectedEvent?.tables ?? [])].sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity)).map((raw) => {
                     const table = mapTableFromDb(raw);
                     const available = typeof table.seatsAvailable === 'number' ? table.seatsAvailable : table.seatsTotal ?? 0;
                     const total = typeof table.seatsTotal === 'number' ? table.seatsTotal : 4;
                     const categoryColor = getTableCategoryColor(table.category ?? table.color);
-                    const effectiveWidth = layoutPreviewWidth > 0 ? layoutPreviewWidth : 320;
+                    const effectiveWidth =
+                      layoutPreviewWidth && layoutPreviewWidth > 0
+                        ? layoutPreviewWidth
+                        : 320;
                     const sizes = computeTableSizes(effectiveWidth, {
                       sizePercent: table.sizePercent,
                       widthPercent: table.widthPercent,
@@ -1300,8 +1301,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         </div>
                       </div>
                     );
-                  });
-                  })()}
+                  })}
                 </div>
                 <div className="text-xs text-muted mt-2">
                   {UI_TEXT.tables.layoutHint}
