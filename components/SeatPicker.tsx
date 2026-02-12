@@ -25,6 +25,7 @@ const SeatPicker: React.FC<SeatPickerProps> = ({
 }) => {
   const count = Math.max(0, Number(table.seatsTotal) || 0);
   const selectedSet = new Set(selectedIndices);
+  const isRect = (table.shape ?? 'circle') === 'rect';
 
   return (
     <div className="seat-picker">
