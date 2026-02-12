@@ -467,7 +467,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const tables: Table[] = selectedEvent?.tables ?? [];
 
   return (
-    <div className="admin-root">
+    <div className="admin-root bg-[#F6F3EE] min-h-screen p-4">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">{UI_TEXT.admin.title}</h1>
         <div className="flex items-center gap-2">
@@ -1242,14 +1242,15 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       {UI_TEXT.tables.noLayoutImage}
                     </div>
                   )}
-                  {layoutPreviewWidth > 0 && [...tables].sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity)).map((t) => {
-                    const available = typeof t.seatsAvailable === 'number' ? t.seatsAvailable : t.seatsTotal ?? 0;
-                    const total = typeof t.seatsTotal === 'number' ? t.seatsTotal : 4;
-                    const categoryColor = getTableCategoryColor(t.category ?? t.color);
+                  {layoutPreviewWidth > 0 && [...tables].sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity)).map((raw) => {
+                    const table = mapTableFromDb(raw);
+                    const available = typeof table.seatsAvailable === 'number' ? table.seatsAvailable : table.seatsTotal ?? 0;
+                    const total = typeof table.seatsTotal === 'number' ? table.seatsTotal : 4;
+                    const categoryColor = getTableCategoryColor(table.category ?? table.color);
                     const sizes = computeTableSizes(layoutPreviewWidth, {
-                      sizePercent: t.sizePercent,
-                      widthPercent: t.widthPercent,
-                      heightPercent: t.heightPercent,
+                      sizePercent: table.sizePercent,
+                      widthPercent: table.widthPercent,
+                      heightPercent: table.heightPercent,
                     });
                     const isRect = typeof sizes.borderRadius === 'number';
                     const shapeStyle = {
@@ -1260,19 +1261,19 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     };
                     return (
                       <div
-                        key={t.id}
+                        key={table.id}
                         className="table-wrapper"
                         style={{
                           position: 'absolute',
-                          left: `${t.centerX}%`,
-                          top: `${t.centerY}%`,
-                          transform: `translate(-50%, -50%) rotate(${t.rotationDeg}deg)`,
+                          left: `${table.centerX}%`,
+                          top: `${table.centerY}%`,
+                          transform: `translate(-50%, -50%) rotate(${table.rotationDeg}deg)`,
                           transformOrigin: 'center',
                         }}
                       >
                         <div className="table-shape" style={shapeStyle} />
                         <div className="table-label">
-                          <TableNumber number={t.number ?? 0} fontSize={`${sizes.fontNumber}px`} />
+                          <TableNumber number={table.number ?? 0} fontSize={`${sizes.fontNumber}px`} />
                           <SeatInfo available={available} total={total} fontSize={`${sizes.fontSub}px`} />
                         </div>
                       </div>
