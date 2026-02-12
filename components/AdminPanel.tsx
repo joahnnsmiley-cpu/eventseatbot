@@ -542,7 +542,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       </div>
 
       {loading && <div className="text-sm text-muted">{UI_TEXT.admin.loadingBookings}</div>}
-      {error && <div className="text-sm text-[#7A2E2E] mb-4">{error}</div>}
+      {error && <div className="text-sm text-[#6E6A64] mb-4">{error}</div>}
       {successMessage && <div className="text-sm text-green-700 mb-4">{successMessage}</div>}
 
       {mode === 'bookings' && (
@@ -653,11 +653,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           <button
                             onClick={() => cancelBookingAction(b.id)}
                             disabled={confirmingId !== null || cancellingId !== null}
-                            className={`px-3 py-1 rounded text-sm ${
-                              confirmingId !== null || cancellingId !== null
-                                ? 'bg-[#ECE6DD] text-[#6E6A64]'
-                                : 'bg-[#E8CFCF] text-[#7A2E2E]'
-                            }`}
+                            className="px-4 py-2 rounded-xl bg-[#141414] text-[#C6A75E] border border-[#2A2A2A] hover:border-[#C6A75E] hover:bg-[#1C1C1C] transition disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {cancellingId === b.id ? 'Отмена…' : 'Cancel'}
                           </button>
@@ -1177,7 +1173,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   className="w-full max-w-full border rounded px-3 py-2 text-sm box-border file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-surface file:cursor-pointer"
                 />
                 {layoutUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
-                {layoutUploadError && <div className="text-xs text-[#7A2E2E] mt-1">{layoutUploadError}</div>}
+                {layoutUploadError && <div className="text-xs text-[#6E6A64] mt-1">{layoutUploadError}</div>}
                 <input
                   type="text"
                   value={layoutUrl}
@@ -1220,7 +1216,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 {/* Layout container: same aspect ratio as image so admin and user coordinates match 1:1. */}
                 <div
                   ref={layoutPreviewRef}
-                  className="relative w-full border rounded bg-surface overflow-hidden"
+                  className="relative w-full border border-[#242424] rounded-xl bg-[#111111] overflow-hidden"
                   style={{
                     position: 'relative',
                     width: '100%',

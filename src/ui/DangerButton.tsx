@@ -8,7 +8,7 @@ export default function DangerButton({ children, className = '', ...props }: Dan
   return (
     <button
       type="button"
-      className={`danger-button ${className}`.trim()}
+      className={`lux-danger ${className}`.trim()}
       {...props}
     >
       {children}

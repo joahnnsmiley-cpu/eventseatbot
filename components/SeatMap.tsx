@@ -215,7 +215,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
             {isEditable && (
               <button
                 onClick={(e) => { e.stopPropagation(); onTableDelete && onTableDelete(table.id); }}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                className="absolute -top-2 -right-2 bg-[#141414] text-[#C6A75E] border border-[#2A2A2A] hover:border-[#C6A75E] hover:bg-[#1A1A1A] rounded-full w-6 h-6 flex items-center justify-center text-xs transition"
                 aria-label={`${UI_TEXT.common.delete} ${UI_TEXT.tables.table} ${table.number}`}
               >
                 ×

@@ -3,9 +3,9 @@
  * Borders stay neutral; no saturated colors.
  */
 export const TABLE_CATEGORY_COLORS: Record<string, string> = {
-  VIP: '#EFE3C8',
-  Premium: '#F4EEE3',
-  Standard: '#F9F6F1',
+  VIP: '#C6A75E',
+  Premium: '#3A3320',
+  Standard: '#1E1E1E',
 };
 
 export function getTableCategoryColor(category: string | undefined): string {
