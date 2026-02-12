@@ -642,7 +642,16 @@ function App() {
                   (selectedSeatsByTable[selectedTableId] ?? []).length === 0
                 }
                 onClick={async () => {
+                  console.log('[CONFIRM CLICKED]');
                   setBookingError(null);
+                  const seats = selectedSeatsByTable[selectedTableId] ?? [];
+                  console.log('[BOOKING CHECK]', {
+                    selectedEventId,
+                    selectedTableId,
+                    selectedTable: !!selectedTable,
+                    eventId: selectedEvent?.id,
+                    seatsLength: seats.length,
+                  });
                   if (!selectedEventId || !selectedTableId || !selectedEvent) return;
                   if (selectedTable.isAvailable !== true) return;
                   const normalizedPhone = userPhone.trim();
@@ -650,7 +659,6 @@ function App() {
                     setBookingError(UI_TEXT.app.addPhoneToContinue);
                     return;
                   }
-                  const seats = selectedSeatsByTable[selectedTableId] ?? [];
                   if (seats.length === 0) {
                     setBookingError(UI_TEXT.app.selectAtLeastOneSeat);
                     return;
@@ -660,6 +668,7 @@ function App() {
                     setBookingError('Telegram ID not found');
                     return;
                   }
+                  console.log('[BOOKING FUNCTION START]');
                   setBookingLoading(true);
                   try {
                     const res = await StorageService.createSeatsBooking({

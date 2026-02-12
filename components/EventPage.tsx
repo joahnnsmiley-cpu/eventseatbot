@@ -127,6 +127,7 @@ const EventPage: React.FC<EventPageProps> = ({
         })()}
 
         <PrimaryButton onClick={() => {
+          console.log('[CONFIRM CLICKED]');
           const firstTable = event.tables?.find((t) => t.is_active !== false);
           if (firstTable) onTableSelect(firstTable.id);
         }} className="w-full">
