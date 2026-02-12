@@ -58,6 +58,7 @@ select:focus {
   box-shadow: 0 0 0 1px var(--tg-theme-button-color, #2563eb);
 }
 body.tg-light {
+  background: #F6F3EE;
   --tg-bg: var(--tg-theme-bg-color, #f3f4f6);
   --tg-text: var(--tg-theme-text-color, #111827);
   --tg-muted: var(--tg-theme-hint-color, #6b7280);
@@ -65,6 +66,7 @@ body.tg-light {
   --tg-border: #e5e7eb;
 }
 body.tg-dark {
+  background: #F6F3EE;
   --tg-bg: var(--tg-theme-bg-color, #0f172a);
   --tg-text: var(--tg-theme-text-color, #e5e7eb);
   --tg-muted: var(--tg-theme-hint-color, #94a3b8);
@@ -274,3 +276,41 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   animation: spin-slow 4s linear infinite;
 }
 
+/* Admin panel theme variables and overrides (inside .admin-root only) */
+.admin-root {
+  --admin-bg: #F6F3EE;
+  --admin-card: #FFFFFF;
+  --admin-border: #DDD6CC;
+  --admin-text: #1C1C1C;
+  --admin-text-muted: #6E6A64;
+  --admin-accent: #C6A75E;
+  --admin-accent-hover: #B89A52;
+}
+
+.admin-root {
+  background: var(--admin-bg);
+  color: var(--admin-text);
+}
+
+.admin-root * {
+  color: var(--admin-text);
+}
+
+.admin-root .text-muted {
+  color: var(--admin-text-muted) !important;
+}
+
+.admin-root .admin-card {
+  background: var(--admin-card);
+  border: 1px solid var(--admin-border);
+  border-radius: 16px;
+}
+
+.admin-root button.primary {
+  background: var(--admin-accent);
+  color: white;
+}
+
+.admin-root button.primary:hover {
+  background: var(--admin-accent-hover);
+}

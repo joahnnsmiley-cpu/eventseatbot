@@ -494,7 +494,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const hasEvents = useMemo(() => events.length > 0, [events.length]);
 
   return (
-    <div className="admin-root min-h-screen bg-[#F6F3EE] text-[#1C1C1C] p-4">
+    <div className="admin-root min-h-screen p-4">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">{UI_TEXT.admin.title}</h1>
         <div className="flex items-center gap-2">
@@ -585,7 +585,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 const userPhone = b.user_phone ?? b.userPhone;
 
                 return (
-                  <div key={b.id} className="admin-card bg-[#FFFFFF] border border-[#DDD6CC] rounded-2xl p-4 flex justify-between items-start gap-4">
+                  <div key={b.id} className="admin-card p-4 mb-4 flex justify-between items-start gap-4">
                     <div className="min-w-0">
                       <div className="font-semibold">{b.event?.title || b.event_id || UI_TEXT.event.eventFallback}</div>
                       <div className="text-xs text-muted mt-1">
@@ -600,7 +600,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           if (!b.table_id) return '—';
                           if (!existingTableIds.has(b.table_id)) {
                             return (
-                              <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-[#E7E3DB] text-[#6E6A64]">
+                              <span className="px-2 py-1 text-xs rounded-md bg-[#E7E3DB] text-[#6E6A64]">
                                 ⚠ Table deleted
                               </span>
                             );
@@ -623,7 +623,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       </div>
                       <div className="text-sm text-[#1C1C1C] mt-1">
                         Status:{' '}
-                        <span className="inline-block px-2 py-1 text-xs rounded-md bg-[#E7E3DB] text-[#6E6A64]">
+                        <span className="px-2 py-1 text-xs rounded-md bg-[#E7E3DB] text-[#6E6A64]">
                           {UI_TEXT.booking.statusLabels[status] ?? status ?? '—'}
                         </span>
                       </div>
@@ -675,7 +675,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
       {mode === 'layout' && (
         <div className="grid grid-cols-1 gap-4">
-          <div className="bg-card p-4 rounded border">
+          <div className="admin-card p-4 mb-4">
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <button
                 onClick={loadEvents}
@@ -736,7 +736,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
           {selectedEvent && (
             <>
-              <AdminCard>
+              <AdminCard className="p-4 mb-4">
                 <div className="space-y-4">
                   <div>
                     <div className="text-sm font-semibold mb-1">{UI_TEXT.event.title}</div>
@@ -802,10 +802,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   </div>
                 </div>
               </AdminCard>
-              <AdminCard>
+              <AdminCard className="p-4 mb-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm text-[#6E6A64]">{UI_TEXT.admin.statusLabel}</span>
-                  <span className="admin-status-badge">
+                  <span className="px-2 py-1 text-xs rounded-md bg-[#E7E3DB] text-[#6E6A64]">
                     {selectedEvent?.status === 'published' ? UI_TEXT.admin.published : selectedEvent?.status === 'archived' ? UI_TEXT.admin.archived : UI_TEXT.admin.draft}
                   </span>
                   {selectedEvent?.status === 'draft' && (
@@ -911,7 +911,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   {UI_TEXT.admin.publishedCheckbox}
                 </label>
               </AdminCard>
-              <AdminCard>
+              <AdminCard className="p-4 mb-4">
                 <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-semibold">{UI_TEXT.tables.tables}</div>

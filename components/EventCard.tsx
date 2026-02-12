@@ -30,12 +30,6 @@ const formatDate = (dateStr?: string) => {
   return timePart ? `${datePart}, ${timePart}` : datePart;
 };
 
-const badgeClassByStatus: Record<string, string> = {
-  draft: 'bg-[#E7E3DB] text-[#6E6A64]',
-  published: 'bg-[#E7E3DB] text-[#6E6A64]',
-  archived: 'bg-[#ECE6DD] text-[#9B948A]',
-};
-
 const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = false }) => {
   // Cover = poster (imageUrl); layoutImageUrl is only for seating map, not shown on card
   const coverUrl = (event.imageUrl ?? (event as { coverImageUrl?: string | null }).coverImageUrl ?? '').trim();
@@ -70,7 +64,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = 
       <div className="relative min-h-[120px] p-4 flex flex-col justify-end z-[2]">
         {mode === 'admin' && badgeText && (
           <span
-            className={`absolute top-3 right-3 py-1 px-2 text-[12px] rounded-lg ${badgeClassByStatus[status] ?? badgeClassByStatus.draft}`}
+            className="absolute top-3 right-3 px-2 py-1 text-xs rounded-md bg-[#E7E3DB] text-[#6E6A64]"
             aria-label={UI_TEXT.admin.statusLabel}
           >
             {badgeText}
