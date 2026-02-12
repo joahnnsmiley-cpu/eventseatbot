@@ -43,6 +43,8 @@ const EventPage: React.FC<EventPageProps> = ({
   const showDateTime = Boolean(eventDate && eventTime);
   const showVenue = Boolean(venue && String(venue).trim());
 
+  console.log('EVENT DATA:', event);
+
   return (
     <div className="max-w-md mx-auto min-h-screen relative">
       <div className="px-4 pt-6 space-y-8 pb-24">
