@@ -127,15 +127,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   const [layoutPreviewRef, layoutPreviewWidth] = useContainerWidth<HTMLDivElement>();
 
-  const statusStyle: Record<string, string> = {
-    pending: 'bg-[#E7E3DB] text-[#6E6A64]',
-    awaiting_confirmation: 'bg-[#E7E3DB] text-[#6E6A64]',
-    paid: 'bg-[#E7E3DB] text-[#6E6A64]',
-    cancelled: 'bg-[#E8CFCF] text-[#7A2E2E]',
-    expired: 'bg-[#E7E3DB] text-[#6E6A64]',
-    reserved: 'bg-[#E7E3DB] text-[#6E6A64]',
-  };
-
   useEffect(() => {
     if (!layoutUrl?.trim()) {
       setLayoutAspectRatio(null);
@@ -522,14 +513,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               if (mode === 'layout') loadEvents();
             }}
             disabled={loading || eventsLoading}
-            className="px-3 py-2 text-sm"
+            className="px-4 py-2 rounded-xl bg-[#C6A75E] text-white hover:bg-[#B89A52]"
           >
             {UI_TEXT.admin.reload}
           </PrimaryButton>
           <SecondaryButton
             onClick={handleResyncSeats}
             disabled={resyncLoading || loading || eventsLoading}
-            className="px-3 py-2 text-sm"
+            className="px-4 py-2 rounded-xl bg-[#ECE6DD] text-[#1C1C1C] hover:bg-[#DDD6CC]"
           >
             {resyncLoading ? UI_TEXT.common.loading : UI_TEXT.admin.resyncSeats}
           </SecondaryButton>
@@ -539,13 +530,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setMode('bookings')}
-          className={`px-3 py-2 rounded text-sm ${mode === 'bookings' ? 'bg-gray-900 text-white' : 'bg-card border text-gray-700'}`}
+          className={`px-3 py-2 rounded-lg text-sm border ${mode === 'bookings' ? 'bg-[#1C1C1C] text-white border-[#1C1C1C]' : 'bg-[#ECE6DD] text-[#1C1C1C] border-[#DDD6CC]'}`}
         >
           {UI_TEXT.admin.bookings}
         </button>
         <button
           onClick={() => setMode('layout')}
-          className={`px-3 py-2 rounded text-sm ${mode === 'layout' ? 'bg-gray-900 text-white' : 'bg-card border text-gray-700'}`}
+          className={`px-3 py-2 rounded-lg text-sm border ${mode === 'layout' ? 'bg-[#1C1C1C] text-white border-[#1C1C1C]' : 'bg-[#ECE6DD] text-[#1C1C1C] border-[#DDD6CC]'}`}
         >
           {UI_TEXT.admin.venueLayout}
         </button>
@@ -594,7 +585,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 const userPhone = b.user_phone ?? b.userPhone;
 
                 return (
-                  <div key={b.id} className="bg-card p-4 rounded shadow-sm border flex justify-between items-start gap-4">
+                  <div key={b.id} className="admin-card bg-[#FFFFFF] border border-[#DDD6CC] rounded-2xl p-4 flex justify-between items-start gap-4">
                     <div className="min-w-0">
                       <div className="font-semibold">{b.event?.title || b.event_id || UI_TEXT.event.eventFallback}</div>
                       <div className="text-xs text-muted mt-1">
@@ -630,19 +621,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       <div className="text-xs text-muted">
                         {UI_TEXT.booking.phone} {userPhone || '—'}
                       </div>
-                      <div className="text-sm text-gray-700 mt-1">
+                      <div className="text-sm text-[#1C1C1C] mt-1">
                         Status:{' '}
-                        {status === 'paid' && (
-                          <span className="inline-block py-1 px-2 text-[12px] rounded-lg bg-[#E7E3DB] text-[#6E6A64]">{UI_TEXT.booking.statusLabels.paid}</span>
-                        )}
-                        {status === 'cancelled' && (
-                          <span className="inline-block py-1 px-2 text-[12px] rounded-lg bg-[#E8CFCF] text-[#7A2E2E]">{UI_TEXT.booking.statusLabels.cancelled}</span>
-                        )}
-                        {status !== 'paid' && status !== 'cancelled' && (
-                          <span className={`inline-block py-1 px-2 text-[12px] rounded-lg ${statusStyle[status] ?? 'bg-[#E7E3DB] text-[#6E6A64]'}`}>
-                            {UI_TEXT.booking.statusLabels[status] ?? status ?? '—'}
-                          </span>
-                        )}
+                        <span className="inline-block px-2 py-1 text-xs rounded-md bg-[#E7E3DB] text-[#6E6A64]">
+                          {UI_TEXT.booking.statusLabels[status] ?? status ?? '—'}
+                        </span>
                       </div>
                       <div className="text-xs text-muted mt-1">
                         Created at: {b.created_at ?? '—'}
@@ -652,12 +635,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       </div>
                     </div>
                     <div className="flex flex-col gap-2 shrink-0">
-                      {status === 'paid' && (
-                        <span className="text-xs text-[#6E6A64]">{UI_TEXT.booking.statusLabels.paid}</span>
-                      )}
-                      {status === 'cancelled' && (
-                        <span className="text-xs text-[#7A2E2E]">{UI_TEXT.booking.statusLabels.cancelled}</span>
-                      )}
+                      <span className="px-2 py-1 text-xs rounded-md bg-[#E7E3DB] text-[#6E6A64]">
+                        {UI_TEXT.booking.statusLabels[status] ?? status ?? '—'}
+                      </span>
                       {canConfirm && (
                         <>
                           <button
@@ -665,7 +645,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                             disabled={confirmingId !== null || cancellingId !== null || isExpired(b.expiresAt ?? b.expires_at)}
                             className={`px-3 py-1 rounded text-sm ${
                               confirmingId !== null || cancellingId !== null || isExpired(b.expiresAt ?? b.expires_at)
-                                ? 'bg-gray-300 text-gray-700'
+                                ? 'bg-[#ECE6DD] text-[#6E6A64]'
                                 : 'bg-[#C6A75E] text-white'
                             }`}
                           >
@@ -676,7 +656,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                             disabled={confirmingId !== null || cancellingId !== null}
                             className={`px-3 py-1 rounded text-sm ${
                               confirmingId !== null || cancellingId !== null
-                                ? 'bg-gray-300 text-gray-700'
+                                ? 'bg-[#ECE6DD] text-[#6E6A64]'
                                 : 'bg-[#E8CFCF] text-[#7A2E2E]'
                             }`}
                           >
