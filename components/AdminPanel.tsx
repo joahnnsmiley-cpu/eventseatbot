@@ -513,7 +513,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               if (mode === 'layout') loadEvents();
             }}
             disabled={loading || eventsLoading}
-            className="px-4 py-2 rounded-xl bg-[#C6A75E] text-white hover:bg-[#B89A52]"
+            className="px-4 py-2 rounded-xl bg-[#C6A75E] text-black font-medium hover:bg-[#B89A52] transition"
           >
             {UI_TEXT.admin.reload}
           </PrimaryButton>
@@ -530,13 +530,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setMode('bookings')}
-          className={`px-3 py-2 rounded-lg text-sm border ${mode === 'bookings' ? 'bg-[#1C1C1C] text-white border-[#1C1C1C]' : 'bg-[#ECE6DD] text-[#1C1C1C] border-[#DDD6CC]'}`}
+          className={`px-3 py-2 rounded-lg text-sm ${mode === 'bookings' ? 'bg-[#C6A75E] text-black' : 'bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A]'}`}
         >
           {UI_TEXT.admin.bookings}
         </button>
         <button
           onClick={() => setMode('layout')}
-          className={`px-3 py-2 rounded-lg text-sm border ${mode === 'layout' ? 'bg-[#1C1C1C] text-white border-[#1C1C1C]' : 'bg-[#ECE6DD] text-[#1C1C1C] border-[#DDD6CC]'}`}
+          className={`px-3 py-2 rounded-lg text-sm ${mode === 'layout' ? 'bg-[#C6A75E] text-black' : 'bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A]'}`}
         >
           {UI_TEXT.admin.venueLayout}
         </button>
@@ -600,7 +600,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           if (!b.table_id) return '—';
                           if (!existingTableIds.has(b.table_id)) {
                             return (
-                              <span className="px-2 py-1 text-xs rounded-md bg-[#E7E3DB] text-[#6E6A64]">
+                              <span className="px-2 py-1 text-xs rounded-md bg-[#1A1A1A] text-[#C6A75E] border border-[#2A2A2A]">
                                 ⚠ Table deleted
                               </span>
                             );
@@ -623,7 +623,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       </div>
                       <div className="text-sm text-[#1C1C1C] mt-1">
                         Status:{' '}
-                        <span className="px-2 py-1 text-xs rounded-md bg-[#E7E3DB] text-[#6E6A64]">
+                        <span className="px-2 py-1 text-xs rounded-md bg-[#1A1A1A] text-[#C6A75E] border border-[#2A2A2A]">
                           {UI_TEXT.booking.statusLabels[status] ?? status ?? '—'}
                         </span>
                       </div>
@@ -635,7 +635,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       </div>
                     </div>
                     <div className="flex flex-col gap-2 shrink-0">
-                      <span className="px-2 py-1 text-xs rounded-md bg-[#E7E3DB] text-[#6E6A64]">
+                      <span className="px-2 py-1 text-xs rounded-md bg-[#1A1A1A] text-[#C6A75E] border border-[#2A2A2A]">
                         {UI_TEXT.booking.statusLabels[status] ?? status ?? '—'}
                       </span>
                       {canConfirm && (
@@ -707,7 +707,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   type="button"
                   onClick={createEvent}
                   disabled={creatingEvent}
-                  className="px-4 py-2.5 text-sm min-h-[44px]"
+                  className="px-4 py-2 rounded-xl bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A] hover:border-[#C6A75E] transition"
                 >
                   {creatingEvent ? UI_TEXT.admin.creatingEvent : UI_TEXT.admin.createEvent}
                 </SecondaryButton>
@@ -805,7 +805,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               <AdminCard className="p-4 mb-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm text-[#6E6A64]">{UI_TEXT.admin.statusLabel}</span>
-                  <span className="px-2 py-1 text-xs rounded-md bg-[#E7E3DB] text-[#6E6A64]">
+                  <span className="px-2 py-1 text-xs rounded-md bg-[#1A1A1A] text-[#C6A75E] border border-[#2A2A2A]">
                     {selectedEvent?.status === 'published' ? UI_TEXT.admin.published : selectedEvent?.status === 'archived' ? UI_TEXT.admin.archived : UI_TEXT.admin.draft}
                   </span>
                   {selectedEvent?.status === 'draft' && (
@@ -862,7 +862,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         }
                       }}
                       disabled={statusActionLoading}
-                      className="px-3 py-1.5 text-sm disabled:opacity-50"
+                      className="px-4 py-2 rounded-xl disabled:opacity-50"
                     >
                       {statusActionLoading ? '…' : UI_TEXT.admin.archiveEvent}
                     </DangerButton>
@@ -896,7 +896,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         }
                       }}
                       disabled={statusActionLoading}
-                      className="px-3 py-1.5 text-sm disabled:opacity-50"
+                      className="px-4 py-2 rounded-xl bg-[#C6A75E] text-black font-medium hover:bg-[#B89A52] transition disabled:opacity-50"
                     >
                       {statusActionLoading ? '…' : UI_TEXT.admin.publishAgain}
                     </PrimaryButton>
@@ -918,7 +918,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   <PrimaryButton
                     onClick={addTable}
                     disabled={addingTable || savingLayout}
-                    className="text-sm"
+                    className="px-4 py-2 rounded-xl bg-[#C6A75E] text-black font-medium hover:bg-[#B89A52] transition"
                   >
                     {addingTable ? UI_TEXT.common.loading : UI_TEXT.tables.addTable}
                   </PrimaryButton>
@@ -1205,13 +1205,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   <PrimaryButton
                     onClick={saveLayout}
                     disabled={savingLayout}
-                    className="px-3 py-2 text-sm w-full md:w-auto"
+                    className="px-4 py-2 rounded-xl bg-[#C6A75E] text-black font-medium hover:bg-[#B89A52] transition w-full md:w-auto"
                   >
                     {savingLayout ? UI_TEXT.common.saving : UI_TEXT.common.save}
                   </PrimaryButton>
                   <SecondaryButton
                     onClick={() => { setLayoutUrl(selectedEvent?.layoutImageUrl || ''); setLayoutUploadVersion(null); }}
-                    className="px-3 py-2 text-sm w-full md:w-auto"
+                    className="px-4 py-2 rounded-xl bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A] hover:border-[#C6A75E] transition w-full md:w-auto"
                   >
                     {UI_TEXT.common.reset}
                   </SecondaryButton>

@@ -89,23 +89,22 @@ body.tg-dark .shadow,
 body.tg-dark .shadow-sm,
 body.tg-dark .shadow-lg { box-shadow: none !important; }
 .admin-root {
-  background: #F6F3EE;
-  min-height: 100vh;
-  padding: 16px;
-  color: #1C1C1C;
+  background: #0F0F0F;
+  color: #EAE6DD;
 }
 
-.admin-root label {
-  color: #6E6A64;
-  font-size: 13px;
+.admin-root .admin-card {
+  background: #1A1A1A;
+  border: 1px solid #2A2A2A;
+  border-radius: 16px;
 }
 
 .admin-root input,
 .admin-root textarea,
 .admin-root select {
-  background: #FFFFFF;
-  border: 1px solid #DDD6CC;
-  color: #1C1C1C;
+  background: #141414;
+  border: 1px solid #2A2A2A;
+  color: #EAE6DD;
 }
 
 .admin-root input:focus,
@@ -113,7 +112,6 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
 .admin-root select:focus {
   border-color: #C6A75E;
   outline: none;
-  box-shadow: none;
 }
 
 .primary-button {
@@ -276,41 +274,3 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   animation: spin-slow 4s linear infinite;
 }
 
-/* Admin panel theme variables and overrides (inside .admin-root only) */
-.admin-root {
-  --admin-bg: #F6F3EE;
-  --admin-card: #FFFFFF;
-  --admin-border: #DDD6CC;
-  --admin-text: #1C1C1C;
-  --admin-text-muted: #6E6A64;
-  --admin-accent: #C6A75E;
-  --admin-accent-hover: #B89A52;
-}
-
-.admin-root {
-  background: var(--admin-bg);
-  color: var(--admin-text);
-}
-
-.admin-root * {
-  color: var(--admin-text);
-}
-
-.admin-root .text-muted {
-  color: var(--admin-text-muted) !important;
-}
-
-.admin-root .admin-card {
-  background: var(--admin-card);
-  border: 1px solid var(--admin-border);
-  border-radius: 16px;
-}
-
-.admin-root button.primary {
-  background: var(--admin-accent);
-  color: white;
-}
-
-.admin-root button.primary:hover {
-  background: var(--admin-accent-hover);
-}
