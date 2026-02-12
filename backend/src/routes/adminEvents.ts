@@ -35,6 +35,9 @@ export interface Event {
   title: string;
   description: string;
   date: string; // ISO date
+  event_date?: string | null;
+  event_time?: string | null;
+  venue?: string | null;
 }
 
 const router = Router();
@@ -56,7 +59,15 @@ const respondBadRequest = (res: Response, err: Error, payload: unknown) => {
 };
 
 /** Reduced shape for PUT response only. No tables — client must GET the event to refresh full EventData. */
-const toEvent = (e: EventData): Event => ({ id: e.id, title: e.title, description: e.description, date: e.date });
+const toEvent = (e: EventData): Event => ({
+  id: e.id,
+  title: e.title,
+  description: e.description,
+  date: e.date,
+  event_date: e.event_date ?? null,
+  event_time: e.event_time ?? null,
+  venue: e.venue ?? null,
+});
 
 /** Normalize table rows to EventData.tables shape. Accepts frontend Table (id, x, y, centerX, centerY, seatsTotal, seatsAvailable, shape, sizePercent, isAvailable, color). Fills x/y from centerX/centerY and vice versa; maps seatsCount → seatsTotal when missing. */
 const normalizeTables = (tables: unknown): EventData['tables'] => {
@@ -116,7 +127,10 @@ router.post('/events', async (req: Request, res: Response) => {
   const title = typeof req.body.title === 'string' ? req.body.title : '';
   const description = typeof req.body.description === 'string' ? req.body.description : '';
   const date = typeof req.body.date === 'string' ? req.body.date : new Date().toISOString();
-  const newEvent: Event = { id, title, description, date };
+  const event_date = typeof req.body.event_date === 'string' ? req.body.event_date : null;
+  const event_time = typeof req.body.event_time === 'string' ? req.body.event_time : null;
+  const venue = typeof req.body.venue === 'string' ? req.body.venue : null;
+  const newEvent: Event = { id, title, description, date, event_date, event_time, venue };
   // image_url — poster (event banner / cover image); not layout
   const coverImageUrl = typeof req.body.coverImageUrl === 'string' ? req.body.coverImageUrl : undefined;
   const imageUrl = typeof req.body.imageUrl === 'string' ? req.body.imageUrl : coverImageUrl || '';
@@ -132,6 +146,9 @@ router.post('/events', async (req: Request, res: Response) => {
     title: newEvent.title,
     description: newEvent.description,
     date: newEvent.date,
+    event_date: newEvent.event_date ?? null,
+    event_time: newEvent.event_time ?? null,
+    venue: newEvent.venue ?? null,
     imageUrl,
     schemaImageUrl,
     layoutImageUrl: typeof layoutImageUrl === 'undefined' ? null : layoutImageUrl,
@@ -227,6 +244,9 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   if (typeof req.body.title === 'string') existing.title = req.body.title;
   if (typeof req.body.description === 'string') existing.description = req.body.description;
   if (typeof req.body.date === 'string') existing.date = req.body.date;
+  if (req.body.event_date === null || typeof req.body.event_date === 'string') existing.event_date = req.body.event_date ?? null;
+  if (req.body.event_time === null || typeof req.body.event_time === 'string') existing.event_time = req.body.event_time ?? null;
+  if (req.body.venue === null || typeof req.body.venue === 'string') existing.venue = req.body.venue ?? null;
   // image_url — poster (banner/cover); layout_image_url — seating only (рассадка)
   if (typeof req.body.imageUrl === 'string') existing.imageUrl = req.body.imageUrl;
   if (typeof req.body.coverImageUrl === 'string') existing.imageUrl = req.body.coverImageUrl;

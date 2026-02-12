@@ -6,15 +6,14 @@ import PrimaryButton from '../src/ui/PrimaryButton';
 import SeatMap from './SeatMap';
 import { UI_TEXT } from '../constants/uiText';
 
-/** Format event date as "11 февраля 2026 г. · 01:58" */
-function formatEventDisplayDate(dateStr?: string): string {
-  if (!dateStr || typeof dateStr !== 'string') return '—';
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return dateStr;
+/** Format event_date + event_time as "11 февраля 2026 г. · 01:58" (ru-RU). Returns empty string if either missing. */
+function formatEventDateTime(dateStr?: string | null, timeStr?: string | null): string {
+  if (!dateStr || typeof dateStr !== 'string' || !timeStr || typeof timeStr !== 'string') return '';
+  const d = new Date(`${dateStr}T${timeStr}`);
+  if (Number.isNaN(d.getTime())) return '';
   const datePart = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-  const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0 || d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0;
-  const timePart = hasTime ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
-  return timePart ? `${datePart} · ${timePart}` : datePart;
+  const timePart = String(timeStr).slice(0, 5); // HH:mm
+  return `${datePart} · ${timePart}`;
 }
 
 export interface EventPageProps {
@@ -37,11 +36,12 @@ const EventPage: React.FC<EventPageProps> = ({
   eventError = null,
 }) => {
   const imgUrl = event.imageUrl ?? (event as { image_url?: string }).image_url ?? '';
-  const dateField = (event as { start_time?: string; event_date?: string }).start_time
-    ?? (event as { start_time?: string; event_date?: string }).event_date
-    ?? event.date;
-  const dateFormatted = formatEventDisplayDate(dateField);
-  const venue = (event as { venue?: string }).venue ?? 'Площадка';
+  const eventDate = event.event_date ?? null;
+  const eventTime = event.event_time ?? null;
+  const venue = event.venue ?? null;
+  const displayDateTime = formatEventDateTime(eventDate, eventTime);
+  const showDateTime = Boolean(eventDate && eventTime);
+  const showVenue = Boolean(venue && String(venue).trim());
 
   return (
     <div className="max-w-md mx-auto min-h-screen relative">
@@ -74,16 +74,22 @@ const EventPage: React.FC<EventPageProps> = ({
           </div>
         </div>
 
-        <Card>
-          <div className="space-y-2 text-sm">
-            <p className="text-[#FFC107] font-semibold">
-              {dateFormatted}
-            </p>
-            <p className="text-gray-400">
-              {venue}
-            </p>
-          </div>
-        </Card>
+        {(showDateTime || showVenue) && (
+          <Card>
+            <div className="space-y-2 text-sm">
+              {showDateTime && (
+                <p className="text-[#FFC107] font-semibold">
+                  {displayDateTime}
+                </p>
+              )}
+              {showVenue && (
+                <p className="text-gray-400">
+                  Площадка: {venue?.trim()}
+                </p>
+              )}
+            </div>
+          </Card>
+        )}
 
         <div>
           <SectionTitle title="Выбор столов" />

@@ -18,6 +18,9 @@ type EventsRow = {
   title: string;
   description: string | null;
   date: string | null;
+  event_date?: string | null;
+  event_time?: string | null;
+  venue?: string | null;
   /** image_url — poster (event banner / cover image); not used as layout. */
   image_url: string | null;
   /** layout_image_url — seating map only (рассадка); not for poster/cover. */
@@ -75,6 +78,9 @@ function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
     title: row.title,
     description: row.description ?? '',
     date: row.date ?? new Date().toISOString(),
+    event_date: row.event_date ?? null,
+    event_time: row.event_time ?? null,
+    venue: row.venue ?? null,
     // image_url → imageUrl: poster (banner/cover); not layout
     imageUrl: row.image_url ?? '',
     // layout_image_url → layoutImageUrl: seating only (рассадка)
@@ -289,6 +295,9 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
     title: event.title,
     description: event.description || null,
     date: event.date || null,
+    event_date: event.event_date ?? null,
+    event_time: event.event_time ?? null,
+    venue: event.venue ?? null,
     image_url: event.imageUrl || null,
     layout_image_url: event.layoutImageUrl ?? null,
     organizer_phone: event.paymentPhone || null,

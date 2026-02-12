@@ -54,6 +54,12 @@ export interface EventData {
   title: string;
   description: string;
   date: string;
+  /** event_date — date only (YYYY-MM-DD). */
+  event_date?: string | null;
+  /** event_time — time only (HH:mm or HH:mm:ss). */
+  event_time?: string | null;
+  /** venue — location/place name. */
+  venue?: string | null;
   /** imageUrl — афиша события (poster / cover). */
   imageUrl?: string | null;
   tables: Table[];

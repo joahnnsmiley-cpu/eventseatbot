@@ -66,6 +66,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [eventPosterUrl, setEventPosterUrl] = useState('');
   const [eventTitle, setEventTitle] = useState('');
   const [eventDescription, setEventDescription] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('');
+  const [venue, setVenue] = useState('');
   const [eventPhone, setEventPhone] = useState('');
   const [eventPublished, setEventPublished] = useState(false);
   const [savingLayout, setSavingLayout] = useState(false);
@@ -187,6 +190,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setEventPosterUrl(ev?.imageUrl ?? '');
       setEventTitle(ev?.title || '');
       setEventDescription(ev?.description || '');
+      setEventDate(ev?.event_date ?? '');
+      setEventTime(ev?.event_time ? String(ev.event_time).slice(0, 5) : '');
+      setVenue(ev?.venue ?? '');
       setEventPhone(ev?.paymentPhone || '');
       setEventPublished(ev?.published === true);
     } catch (e) {
@@ -234,6 +240,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       const payload: Partial<EventData> = {
         title: eventTitle.trim(),
         description: eventDescription.trim(),
+        event_date: eventDate.trim() || null,
+        event_time: eventTime.trim() || null,
+        venue: venue.trim() || null,
         paymentPhone: eventPhone.trim(),
         imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
@@ -248,6 +257,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setEventPosterUrl(refreshed?.imageUrl ?? '');
       setEventTitle(refreshed?.title || '');
       setEventDescription(refreshed?.description || '');
+      setEventDate(refreshed?.event_date ?? '');
+      setEventTime(refreshed?.event_time ? String(refreshed.event_time).slice(0, 5) : '');
+      setVenue(refreshed?.venue ?? '');
       setEventPhone(refreshed?.paymentPhone || '');
       setEventPublished(refreshed?.published === true);
       setEvents((prev) => prev.map((e) => (e.id === refreshed.id ? { ...e, title: refreshed.title } : e)));
@@ -312,6 +324,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       const payload: Partial<EventData> = {
         title: eventTitle.trim(),
         description: eventDescription.trim(),
+        event_date: eventDate.trim() || null,
+        event_time: eventTime.trim() || null,
+        venue: venue.trim() || null,
         paymentPhone: eventPhone.trim(),
         imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
@@ -326,6 +341,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setEventPosterUrl(refreshed?.imageUrl ?? '');
       setEventTitle(refreshed?.title || '');
       setEventDescription(refreshed?.description || '');
+      setEventDate(refreshed?.event_date ?? '');
+      setEventTime(refreshed?.event_time ? String(refreshed.event_time).slice(0, 5) : '');
+      setVenue(refreshed?.venue ?? '');
       setEventPhone(refreshed?.paymentPhone || '');
       setEventPublished(refreshed?.published === true);
       setSuccessMessage(UI_TEXT.tables.tableDeleted);
@@ -662,6 +680,38 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   placeholder={UI_TEXT.event.descriptionPlaceholder}
                   className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                   rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm font-semibold mb-1">{UI_TEXT.event.eventDate}</div>
+                  <input
+                    type="date"
+                    value={eventDate}
+                    onChange={(e) => setEventDate(e.target.value)}
+                    placeholder={UI_TEXT.event.eventDatePlaceholder}
+                    className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                  />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold mb-1">{UI_TEXT.event.eventTime}</div>
+                  <input
+                    type="time"
+                    value={eventTime}
+                    onChange={(e) => setEventTime(e.target.value)}
+                    placeholder={UI_TEXT.event.eventTimePlaceholder}
+                    className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="text-sm font-semibold mb-1">{UI_TEXT.event.venue}</div>
+                <input
+                  type="text"
+                  value={venue}
+                  onChange={(e) => setVenue(e.target.value)}
+                  placeholder={UI_TEXT.event.venuePlaceholder}
+                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                 />
               </div>
               <div>

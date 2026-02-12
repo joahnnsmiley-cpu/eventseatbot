@@ -49,6 +49,12 @@ export const UI_TEXT = {
   event: {
     title: 'Название события',
     description: 'Описание',
+    eventDate: 'Дата события',
+    eventDatePlaceholder: 'ГГГГ-ММ-ДД',
+    eventTime: 'Время события',
+    eventTimePlaceholder: 'ЧЧ:ММ',
+    venue: 'Площадка',
+    venuePlaceholder: 'Название площадки или адрес',
     posterLabel: 'Афиша события',
     posterPlaceholder: 'https://example.com/poster.jpg',
     organizerPhone: 'Телефон организатора',
