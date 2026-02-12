@@ -163,11 +163,12 @@ export async function getEvents(): Promise<EventData[]> {
   if (eventsErr) throw eventsErr;
   if (!eventsRows?.length) return [];
 
-  // Load all event_tables (active only) and group by event_id
+  // Load all event_tables (no filtering by is_available, is_active, visible_from, visible_until)
   const { data: tablesRows, error: tablesErr } = await supabase
     .from('event_tables')
     .select('*')
-    .or('is_active.eq.true,is_active.is.null');
+    .order('event_id', { ascending: true })
+    .order('number', { ascending: true });
   if (tablesErr) throw tablesErr;
   const tablesByEventId = (tablesRows ?? []).reduce<Record<string, EventTablesRow[]>>((acc, r) => {
     const row = r as EventTablesRow;
@@ -200,12 +201,12 @@ export async function findEventById(id: string): Promise<EventData | undefined> 
 
   const event = eventsRowToEvent(eventRow as EventsRow, []);
 
-  // 2. Always rebuild tables from event_tables (active only)
+  // 2. Rebuild tables from event_tables (all tables, no filtering by is_available, is_active, visible_from, visible_until)
   const { data: tablesRows, error: tablesErr } = await supabase
     .from('event_tables')
     .select('*')
     .eq('event_id', event.id)
-    .or('is_active.eq.true,is_active.is.null');
+    .order('number', { ascending: true });
   if (tablesErr) return undefined;
 
   const bookedByTable = await getBookedSeatsByTable(event.id);
