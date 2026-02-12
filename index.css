@@ -154,6 +154,43 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   cursor: not-allowed;
 }
 
+.lux-button {
+  background: linear-gradient(145deg, #C6A75E, #B89A52);
+  color: #0F0F0F;
+  font-weight: 600;
+  border-radius: 14px;
+  padding: 10px 18px;
+  border: 1px solid rgba(255, 215, 140, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.2),
+    0 4px 12px rgba(198, 167, 94, 0.25);
+  transition: all 0.2s ease;
+}
+.lux-button:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.3),
+    0 6px 16px rgba(198, 167, 94, 0.35);
+  transform: translateY(-1px);
+}
+.lux-button:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.lux-button-secondary {
+  background: #1A1A1A;
+  color: #EAE6DD;
+  border-radius: 14px;
+  padding: 10px 18px;
+  border: 1px solid #242424;
+  transition: all 0.2s ease;
+}
+.lux-button-secondary:hover {
+  border-color: #C6A75E;
+  box-shadow: 0 0 0 1px #C6A75E;
+}
+
 .admin-status-badge {
   display: inline-block;
   background: #E7E3DB;

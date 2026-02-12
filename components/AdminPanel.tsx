@@ -513,7 +513,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               if (mode === 'layout') loadEvents();
             }}
             disabled={loading || eventsLoading}
-            className="px-4 py-2 rounded-xl bg-[#C6A75E] text-black font-medium hover:bg-[#B89A52] transition"
           >
             {UI_TEXT.admin.reload}
           </PrimaryButton>
@@ -707,7 +706,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   type="button"
                   onClick={createEvent}
                   disabled={creatingEvent}
-                  className="px-4 py-2 rounded-xl bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A] hover:border-[#C6A75E] transition"
                 >
                   {creatingEvent ? UI_TEXT.admin.creatingEvent : UI_TEXT.admin.createEvent}
                 </SecondaryButton>
@@ -896,7 +894,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         }
                       }}
                       disabled={statusActionLoading}
-                      className="px-4 py-2 rounded-xl bg-[#C6A75E] text-black font-medium hover:bg-[#B89A52] transition disabled:opacity-50"
+                      className="disabled:opacity-50"
                     >
                       {statusActionLoading ? '…' : UI_TEXT.admin.publishAgain}
                     </PrimaryButton>
@@ -918,7 +916,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   <PrimaryButton
                     onClick={addTable}
                     disabled={addingTable || savingLayout}
-                    className="px-4 py-2 rounded-xl bg-[#C6A75E] text-black font-medium hover:bg-[#B89A52] transition"
                   >
                     {addingTable ? UI_TEXT.common.loading : UI_TEXT.tables.addTable}
                   </PrimaryButton>
@@ -1205,13 +1202,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   <PrimaryButton
                     onClick={saveLayout}
                     disabled={savingLayout}
-                    className="px-4 py-2 rounded-xl bg-[#C6A75E] text-black font-medium hover:bg-[#B89A52] transition w-full md:w-auto"
+                    className="w-full md:w-auto"
                   >
                     {savingLayout ? UI_TEXT.common.saving : UI_TEXT.common.save}
                   </PrimaryButton>
                   <SecondaryButton
                     onClick={() => { setLayoutUrl(selectedEvent?.layoutImageUrl || ''); setLayoutUploadVersion(null); }}
-                    className="px-4 py-2 rounded-xl bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A] hover:border-[#C6A75E] transition w-full md:w-auto"
+                    className="w-full md:w-auto"
                   >
                     {UI_TEXT.common.reset}
                   </SecondaryButton>

@@ -8,7 +8,7 @@ export default function PrimaryButton({ children, className = '', ...props }: Pr
   return (
     <button
       type="button"
-      className={`primary-button ${className}`.trim()}
+      className={`lux-button ${className}`.trim()}
       {...props}
     >
       {children}
