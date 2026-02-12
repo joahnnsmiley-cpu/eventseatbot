@@ -61,16 +61,21 @@ const EventPage: React.FC<EventPageProps> = ({
         {eventLoading && <div className="text-xs text-gray-500">{UI_TEXT.app.loadingLayout}</div>}
         {eventError && <div className="text-sm text-red-400">{eventError}</div>}
 
-        <div className="relative rounded-3xl overflow-hidden h-[220px]">
+        <div className="relative rounded-3xl overflow-hidden min-h-[220px]">
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: imgUrl?.trim() ? `url(${imgUrl.trim()})` : undefined }}
           />
           <div className="absolute inset-0 bg-black/60" />
-          <div className="relative z-10 h-full flex flex-col justify-end p-6">
+          <div className="relative z-10 flex flex-col justify-end p-6 pb-6 min-h-[220px]">
             <h1 className="text-2xl font-bold text-white">
               {event.title?.trim() || UI_TEXT.event.eventFallback}
             </h1>
+            {event.description != null && event.description.trim() !== '' && (
+              <p className="text-sm text-gray-300 mt-2 whitespace-pre-wrap">
+                {event.description.trim()}
+              </p>
+            )}
           </div>
         </div>
 
@@ -102,11 +107,13 @@ const EventPage: React.FC<EventPageProps> = ({
           </Card>
         </div>
 
-        {event.description != null && event.description.trim() !== '' && (
-          <p className="text-sm text-gray-400 whitespace-pre-wrap">
-            {event.description.trim()}
-          </p>
-        )}
+        <PrimaryButton onClick={() => {
+          console.log('[CONFIRM CLICKED]');
+          const firstTable = event.tables?.find((t) => t.is_active !== false);
+          if (firstTable) onTableSelect(firstTable.id);
+        }} className="w-full">
+          Перейти к бронированию
+        </PrimaryButton>
 
         {(() => {
           const placeholder = 'eventseatbot_support';
@@ -118,7 +125,7 @@ const EventPage: React.FC<EventPageProps> = ({
             ? `https://t.me/+${username}`
             : `https://t.me/${username}`;
           return (
-            <div className="p-5 rounded-2xl border border-neutral-800 bg-neutral-900 shadow-sm space-y-4">
+            <div className="p-4 rounded-2xl border border-neutral-800 bg-neutral-900/60 space-y-4">
               <div>
                 <p className="text-base font-medium text-white">Связаться с организатором</p>
                 <p className="text-sm text-gray-400 mt-1">{UI_TEXT.event.contactOrganizerPrompt}</p>
@@ -127,21 +134,13 @@ const EventPage: React.FC<EventPageProps> = ({
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center w-full bg-[#FFC107] text-black font-semibold rounded-xl px-6 py-3 transition active:scale-95"
+                className="w-full border border-neutral-700 text-neutral-300 bg-transparent hover:bg-neutral-800 rounded-xl py-3 text-sm font-medium inline-flex items-center justify-center transition"
               >
                 Связаться с организатором
               </a>
             </div>
           );
         })()}
-
-        <PrimaryButton onClick={() => {
-          console.log('[CONFIRM CLICKED]');
-          const firstTable = event.tables?.find((t) => t.is_active !== false);
-          if (firstTable) onTableSelect(firstTable.id);
-        }} className="w-full">
-          Перейти к бронированию
-        </PrimaryButton>
       </div>
     </div>
   );
