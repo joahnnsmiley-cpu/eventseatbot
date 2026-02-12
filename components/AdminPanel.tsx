@@ -1263,7 +1263,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     const available = typeof table.seatsAvailable === 'number' ? table.seatsAvailable : table.seatsTotal ?? 0;
                     const total = typeof table.seatsTotal === 'number' ? table.seatsTotal : 4;
                     const categoryColor = getTableCategoryColor(table.category ?? table.color);
-                    const sizes = computeTableSizes(layoutPreviewWidth, {
+                    const effectiveWidth = layoutPreviewWidth > 0 ? layoutPreviewWidth : 320;
+                    const sizes = computeTableSizes(effectiveWidth, {
                       sizePercent: table.sizePercent,
                       widthPercent: table.widthPercent,
                       heightPercent: table.heightPercent,
