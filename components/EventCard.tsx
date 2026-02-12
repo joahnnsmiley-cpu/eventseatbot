@@ -70,7 +70,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = 
       <div className="relative min-h-[120px] p-4 flex flex-col justify-end z-[2]">
         {mode === 'admin' && badgeText && (
           <span
-            className={`absolute top-3 right-3 px-2 py-0.5 text-xs font-medium uppercase tracking-wide rounded-lg ${badgeClassByStatus[status] ?? badgeClassByStatus.draft}`}
+            className={`absolute top-3 right-3 py-1 px-2 text-[12px] rounded-lg ${badgeClassByStatus[status] ?? badgeClassByStatus.draft}`}
             aria-label={UI_TEXT.admin.statusLabel}
           >
             {badgeText}

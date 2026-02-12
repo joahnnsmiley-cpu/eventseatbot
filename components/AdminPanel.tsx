@@ -503,7 +503,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const hasEvents = useMemo(() => events.length > 0, [events.length]);
 
   return (
-    <div className="admin-root bg-[#F6F3EE] min-h-screen p-4">
+    <div className="admin-root min-h-screen bg-[#F6F3EE] text-[#1C1C1C] p-4">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">{UI_TEXT.admin.title}</h1>
         <div className="flex items-center gap-2">
@@ -511,7 +511,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             <button
               onClick={onBack}
               disabled={loading || eventsLoading || savingLayout || addingTable || confirmingId !== null || cancellingId !== null}
-              className="text-sm text-gray-600"
+              className="text-sm text-[#6E6A64]"
             >
               {UI_TEXT.admin.exit}
             </button>
@@ -552,7 +552,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       </div>
 
       {loading && <div className="text-sm text-muted">{UI_TEXT.admin.loadingBookings}</div>}
-      {error && <div className="text-sm text-red-600 mb-4">{error}</div>}
+      {error && <div className="text-sm text-[#7A2E2E] mb-4">{error}</div>}
       {successMessage && <div className="text-sm text-green-700 mb-4">{successMessage}</div>}
 
       {mode === 'bookings' && (
@@ -577,11 +577,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           )}
 
           {!loading && !hasBookings && (
-            <div className="text-sm text-gray-600">{UI_TEXT.admin.noBookings}</div>
+            <div className="text-sm text-[#6E6A64]">{UI_TEXT.admin.noBookings}</div>
           )}
 
           {!loading && hasBookings && filteredBookings.length === 0 && (
-            <div className="text-sm text-gray-600">{UI_TEXT.booking.noBookingsForFilter}</div>
+            <div className="text-sm text-[#6E6A64]">{UI_TEXT.booking.noBookingsForFilter}</div>
           )}
 
           {!loading && hasBookings && filteredBookings.length > 0 && (
@@ -633,13 +633,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       <div className="text-sm text-gray-700 mt-1">
                         Status:{' '}
                         {status === 'paid' && (
-                          <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-[#E7E3DB] text-[#6E6A64]">PAID</span>
+                          <span className="inline-block py-1 px-2 text-[12px] rounded-lg bg-[#E7E3DB] text-[#6E6A64]">{UI_TEXT.booking.statusLabels.paid}</span>
                         )}
                         {status === 'cancelled' && (
-                          <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-[#E8CFCF] text-[#7A2E2E]">CANCELLED</span>
+                          <span className="inline-block py-1 px-2 text-[12px] rounded-lg bg-[#E8CFCF] text-[#7A2E2E]">{UI_TEXT.booking.statusLabels.cancelled}</span>
                         )}
                         {status !== 'paid' && status !== 'cancelled' && (
-                          <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${statusStyle[status] ?? 'bg-surface text-gray-700'}`}>
+                          <span className={`inline-block py-1 px-2 text-[12px] rounded-lg ${statusStyle[status] ?? 'bg-[#E7E3DB] text-[#6E6A64]'}`}>
                             {UI_TEXT.booking.statusLabels[status] ?? status ?? '—'}
                           </span>
                         )}
@@ -653,10 +653,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     </div>
                     <div className="flex flex-col gap-2 shrink-0">
                       {status === 'paid' && (
-                        <span className="text-xs text-[#6E6A64] font-medium">PAID</span>
+                        <span className="text-xs text-[#6E6A64]">{UI_TEXT.booking.statusLabels.paid}</span>
                       )}
                       {status === 'cancelled' && (
-                        <span className="text-xs text-[#7A2E2E] font-medium">CANCELLED</span>
+                        <span className="text-xs text-[#7A2E2E]">{UI_TEXT.booking.statusLabels.cancelled}</span>
                       )}
                       {canConfirm && (
                         <>
@@ -722,7 +722,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             )}
             {!eventsLoading && !hasEvents && (
               <div className="py-8 text-center">
-                <p className="text-base text-gray-600 mb-4">{UI_TEXT.admin.emptyEventsList}</p>
+                <p className="text-base text-[#6E6A64] mb-4">{UI_TEXT.admin.emptyEventsList}</p>
                 <SecondaryButton
                   type="button"
                   onClick={createEvent}
@@ -824,7 +824,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               </AdminCard>
               <AdminCard>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm text-gray-600">{UI_TEXT.admin.statusLabel}</span>
+                  <span className="text-sm text-[#6E6A64]">{UI_TEXT.admin.statusLabel}</span>
                   <span className="admin-status-badge">
                     {selectedEvent?.status === 'published' ? UI_TEXT.admin.published : selectedEvent?.status === 'archived' ? UI_TEXT.admin.archived : UI_TEXT.admin.draft}
                   </span>
@@ -949,7 +949,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 {(selectedEvent?.tables ?? []).map((t, idx) => (
                   <div key={t.id} className="flex flex-wrap gap-2 items-center">
                     <div className="text-xs text-muted">#{idx + 1}</div>
-                    <label className="text-xs text-gray-600">
+                    <label className="text-xs text-[#6E6A64]">
                       {UI_TEXT.tables.tableNumber}
                       <input
                         type="number"
@@ -969,7 +969,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         className="ml-1 w-16 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
-                    <label className="flex items-center gap-1 text-xs text-gray-600">
+                    <label className="flex items-center gap-1 text-xs text-[#6E6A64]">
                       <input
                         type="checkbox"
                         checked={t.isAvailable === true}
@@ -980,7 +980,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       />
                       {UI_TEXT.tables.available}
                     </label>
-                    <label className="text-xs text-gray-600">
+                    <label className="text-xs text-[#6E6A64]">
                       X
                       <input
                         type="number"
@@ -994,7 +994,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
-                    <label className="text-xs text-gray-600">
+                    <label className="text-xs text-[#6E6A64]">
                       Y
                       <input
                         type="number"
@@ -1008,7 +1008,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
-                    <label className="text-xs text-gray-600">
+                    <label className="text-xs text-[#6E6A64]">
                       {UI_TEXT.tables.sizePercent}
                       <input
                         type="number"
@@ -1023,7 +1023,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
-                    <label className="text-xs text-gray-600">
+                    <label className="text-xs text-[#6E6A64]">
                       {UI_TEXT.tables.seats}
                       <input
                         type="number"
@@ -1036,7 +1036,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
-                    <label className="text-xs text-gray-600">
+                    <label className="text-xs text-[#6E6A64]">
                       {UI_TEXT.tables.shape}
                       <select
                         value={t.shape ?? 'circle'}
@@ -1055,7 +1055,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     </label>
                     {(t.shape ?? 'circle') !== 'circle' && (
                       <>
-                        <label className="text-xs text-gray-600">
+                        <label className="text-xs text-[#6E6A64]">
                           {UI_TEXT.tables.widthPercent}
                           <input
                             type="number"
@@ -1070,7 +1070,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                             className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                           />
                         </label>
-                        <label className="text-xs text-gray-600">
+                        <label className="text-xs text-[#6E6A64]">
                           {UI_TEXT.tables.heightPercent}
                           <input
                             type="number"
@@ -1085,7 +1085,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                             className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                           />
                         </label>
-                        <label className="text-xs text-gray-600">
+                        <label className="text-xs text-[#6E6A64]">
                           {UI_TEXT.tables.rotationDeg}
                           <input
                             type="number"
@@ -1102,7 +1102,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         </label>
                       </>
                     )}
-                    <label className="text-xs text-gray-600">
+                    <label className="text-xs text-[#6E6A64]">
                       {UI_TEXT.tables.tableCategory}
                       <select
                         value={/^(VIP|Premium|Standard)$/.test(t.color ?? '') ? t.color! : 'Standard'}
@@ -1117,7 +1117,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         <option value="VIP">{UI_TEXT.tables.tableCategoryVIP}</option>
                       </select>
                     </label>
-                    <label className="text-xs text-gray-600" title={UI_TEXT.tables.visibleFromPlaceholder}>
+                    <label className="text-xs text-[#6E6A64]" title={UI_TEXT.tables.visibleFromPlaceholder}>
                       {UI_TEXT.tables.visibleFrom}
                       <input
                         type="datetime-local"
@@ -1129,7 +1129,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         className="ml-1 w-36 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                     </label>
-                    <label className="text-xs text-gray-600" title={UI_TEXT.tables.visibleUntilPlaceholder}>
+                    <label className="text-xs text-[#6E6A64]" title={UI_TEXT.tables.visibleUntilPlaceholder}>
                       {UI_TEXT.tables.visibleUntil}
                       <input
                         type="datetime-local"
@@ -1144,7 +1144,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     {(() => {
                       const hasBookings = tableIdsWithBookings.has(t.id);
                       return (
-                        <button
+                        <DangerButton
                           type="button"
                           onClick={async () => {
                             if (!window.confirm(UI_TEXT.tables.deleteConfirm)) return;
@@ -1152,10 +1152,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           }}
                           disabled={savingLayout}
                           title={hasBookings ? UI_TEXT.tables.deleteWithBookingsTooltip : undefined}
-                          className="px-2 py-1 text-xs border rounded text-red-700 border-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-2 py-1 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           🗑 {UI_TEXT.tables.delete}
-                        </button>
+                        </DangerButton>
                       );
                     })()}
                   </div>
@@ -1200,7 +1200,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   className="w-full max-w-full border rounded px-3 py-2 text-sm box-border file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-surface file:cursor-pointer"
                 />
                 {layoutUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
-                {layoutUploadError && <div className="text-xs text-red-600 mt-1">{layoutUploadError}</div>}
+                {layoutUploadError && <div className="text-xs text-[#7A2E2E] mt-1">{layoutUploadError}</div>}
                 <input
                   type="text"
                   value={layoutUrl}

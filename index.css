@@ -37,8 +37,8 @@ body.tg-dark {
 
 /* Base styles (from original index.html) */
 body {
-  background-color: var(--tg-theme-bg-color, #f3f4f6);
-  color: var(--tg-theme-text-color, #111827);
+  background: #F6F3EE;
+  color: #1C1C1C;
   overflow-x: hidden;
 }
 input, textarea, select {
@@ -120,7 +120,7 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   justify-content: center;
   background: #C6A75E !important;
   color: white !important;
-  border-radius: 12px;
+  border-radius: 0.75rem;
   padding: 10px 16px;
   border: none !important;
   cursor: pointer;
@@ -140,9 +140,9 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   justify-content: center;
   background: #E8CFCF !important;
   color: #7A2E2E !important;
+  border: none !important;
   border-radius: 12px;
   padding: 10px 16px;
-  border: none !important;
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -161,7 +161,6 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   font-size: 12px;
   padding: 4px 8px;
   border-radius: 8px;
-  font-weight: 500;
 }
 
 .admin-card {
@@ -169,7 +168,6 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   border: 1px solid #DDD6CC;
   border-radius: 16px;
   padding: 16px;
-  margin-bottom: 16px;
 }
 
 /* Table rendering: no min-size, no padding; size = exactly calculated width/height */
