@@ -121,6 +121,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [layoutUploadLoading, setLayoutUploadLoading] = useState(false);
   const [layoutUploadError, setLayoutUploadError] = useState<string | null>(null);
   const [layoutUploadVersion, setLayoutUploadVersion] = useState<number | null>(null);
+  const [addingTable, setAddingTable] = useState(false);
   /** event_id -> tables (from event_tables); used to check if booking.table_id still exists */
   const [eventTablesMap, setEventTablesMap] = useState<Record<string, Table[]>>({});
 
@@ -223,6 +224,22 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     }
   };
 
+  /** Sync all event-related state from a fresh backend response. Use after successful mutations. */
+  const syncEventFromFresh = (fresh: EventData) => {
+    const mapped = fresh ? { ...fresh, tables: (fresh.tables ?? []).map(mapTableFromDb) } : fresh;
+    setSelectedEvent(mapped);
+    setLayoutUrl(fresh?.layoutImageUrl || '');
+    setEventPosterUrl(fresh?.imageUrl ?? '');
+    setEventTitle(fresh?.title || '');
+    setEventDescription(fresh?.description || '');
+    setEventDate(fresh?.event_date ?? '');
+    setEventTime(fresh?.event_time ? String(fresh.event_time).slice(0, 5) : '');
+    setVenue(fresh?.venue ?? '');
+    setEventPhone(fresh?.paymentPhone || '');
+    setEventPublished(fresh?.published === true);
+    setEvents((prev) => prev.map((e) => (e.id === fresh?.id ? { ...e, title: fresh.title } : e)));
+  };
+
   const loadEvent = async (eventId: string) => {
     if (!eventId) return;
     setEventsLoading(true);
@@ -230,18 +247,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setSuccessMessage(null);
     try {
       const ev = await StorageService.getAdminEvent(eventId);
-      const mappedEv = ev ? { ...ev, tables: (ev.tables ?? []).map(mapTableFromDb) } : ev;
-      setSelectedEvent(mappedEv);
-      setLayoutUrl(ev?.layoutImageUrl || '');
+      if (ev) syncEventFromFresh(ev);
       setLayoutUploadVersion(null);
-      setEventPosterUrl(ev?.imageUrl ?? '');
-      setEventTitle(ev?.title || '');
-      setEventDescription(ev?.description || '');
-      setEventDate(ev?.event_date ?? '');
-      setEventTime(ev?.event_time ? String(ev.event_time).slice(0, 5) : '');
-      setVenue(ev?.venue ?? '');
-      setEventPhone(ev?.paymentPhone || '');
-      setEventPublished(ev?.published === true);
     } catch (e) {
       console.error('[AdminPanel] Failed to load event', e);
       if (e instanceof Error && e.message) {
@@ -301,20 +308,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
       };
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
-      // Never use PUT response: it returns reduced shape (toEvent) without tables and would overwrite state.
-      const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
-      const mappedRefreshed = refreshed ? { ...refreshed, tables: (refreshed.tables ?? []).map(mapTableFromDb) } : refreshed;
-      setSelectedEvent(mappedRefreshed);
-      setLayoutUrl(refreshed?.layoutImageUrl || '');
-      setEventPosterUrl(refreshed?.imageUrl ?? '');
-      setEventTitle(refreshed?.title || '');
-      setEventDescription(refreshed?.description || '');
-      setEventDate(refreshed?.event_date ?? '');
-      setEventTime(refreshed?.event_time ? String(refreshed.event_time).slice(0, 5) : '');
-      setVenue(refreshed?.venue ?? '');
-      setEventPhone(refreshed?.paymentPhone || '');
-      setEventPublished(refreshed?.published === true);
-      setEvents((prev) => prev.map((e) => (e.id === refreshed.id ? { ...e, title: refreshed.title } : e)));
+      const fresh = await StorageService.getAdminEvent(selectedEvent.id);
+      syncEventFromFresh(fresh);
       setError(null);
       setSuccessMessage(UI_TEXT.admin.eventUpdated);
     } catch (e) {
@@ -365,6 +360,57 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return set;
   }, [bookings, selectedEventId]);
 
+  const addTable = async () => {
+    if (!selectedEvent?.id) return;
+    const currentTables = selectedEvent?.tables ?? [];
+    const nextId = `tbl-${Date.now()}`;
+    const newTable: Table = {
+      id: nextId,
+      number: currentTables.length + 1,
+      seatsTotal: 4,
+      seatsAvailable: 4,
+      x: 50,
+      y: 50,
+      centerX: 50,
+      centerY: 50,
+      sizePercent: 6,
+      shape: 'circle',
+      color: 'Standard',
+      isAvailable: true,
+    };
+    const newTables = [...currentTables, newTable];
+    const numErr = validateTableNumbers(newTables);
+    if (numErr) { setError(numErr); return; }
+    const rectErr = validateRectTables(newTables);
+    if (rectErr) { setError(rectErr); return; }
+    setAddingTable(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const payload: Partial<EventData> = {
+        title: eventTitle.trim(),
+        description: eventDescription.trim(),
+        event_date: eventDate.trim() || null,
+        event_time: eventTime.trim() || null,
+        venue: venue.trim() || null,
+        paymentPhone: eventPhone.trim(),
+        imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
+        layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
+        published: eventPublished,
+        tables: newTables.map((t, idx) => tableForBackend(t, idx)),
+      };
+      await StorageService.updateAdminEvent(selectedEvent.id, payload);
+      const fresh = await StorageService.getAdminEvent(selectedEvent.id);
+      syncEventFromFresh(fresh);
+      setSuccessMessage(UI_TEXT.tables.tableAdded);
+    } catch (e) {
+      console.error('[AdminPanel] Failed to add table', e);
+      setError(toFriendlyError(e));
+    } finally {
+      setAddingTable(false);
+    }
+  };
+
   const deleteTable = async (tableId: string) => {
     if (!selectedEvent?.id) return;
     const newTables = (selectedEvent.tables ?? []).filter((it) => it.id !== tableId);
@@ -372,7 +418,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     if (numErr) { setError(numErr); return; }
     const rectErr = validateRectTables(newTables);
     if (rectErr) { setError(rectErr); return; }
-    setSelectedEvent((prev) => (prev ? { ...prev, tables: newTables } : null));
     setSavingLayout(true);
     setError(null);
     setSuccessMessage(null);
@@ -390,28 +435,16 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         tables: newTables.map((t, idx) => tableForBackend(t, idx)),
       };
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
-      // Never use PUT response: it returns reduced shape (toEvent) without tables and would overwrite state.
-      const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
-      const mappedRefreshed = refreshed ? { ...refreshed, tables: (refreshed.tables ?? []).map(mapTableFromDb) } : refreshed;
-      setSelectedEvent(mappedRefreshed);
-      setLayoutUrl(refreshed?.layoutImageUrl || '');
-      setEventPosterUrl(refreshed?.imageUrl ?? '');
-      setEventTitle(refreshed?.title || '');
-      setEventDescription(refreshed?.description || '');
-      setEventDate(refreshed?.event_date ?? '');
-      setEventTime(refreshed?.event_time ? String(refreshed.event_time).slice(0, 5) : '');
-      setVenue(refreshed?.venue ?? '');
-      setEventPhone(refreshed?.paymentPhone || '');
-      setEventPublished(refreshed?.published === true);
+      const fresh = await StorageService.getAdminEvent(selectedEvent.id);
+      syncEventFromFresh(fresh);
       setSuccessMessage(UI_TEXT.tables.tableDeleted);
     } catch (e) {
       console.error('[AdminPanel] Failed to delete table', e);
       setError(toFriendlyError(e));
       if (selectedEventId) {
         try {
-          const refreshed = await StorageService.getAdminEvent(selectedEventId);
-          const mappedRefreshed = refreshed ? { ...refreshed, tables: (refreshed.tables ?? []).map(mapTableFromDb) } : refreshed;
-          setSelectedEvent(mappedRefreshed);
+          const fresh = await StorageService.getAdminEvent(selectedEventId);
+          syncEventFromFresh(fresh);
         } catch {
           /* ignore reload failure */
         }
@@ -474,7 +507,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           {onBack && (
             <button
               onClick={onBack}
-              disabled={loading || eventsLoading || savingLayout || confirmingId !== null || cancellingId !== null}
+              disabled={loading || eventsLoading || savingLayout || addingTable || confirmingId !== null || cancellingId !== null}
               className="text-sm text-gray-600"
             >
               {UI_TEXT.admin.exit}
@@ -900,28 +933,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-semibold">{UI_TEXT.tables.tables}</div>
                   <PrimaryButton
-                    onClick={() => {
-                      const nextId = `tbl-${Date.now()}`;
-                      const count = tables?.length ?? 0;
-                      const newTable: Table = {
-                        id: nextId,
-                        number: count + 1,
-                        seatsTotal: 4,
-                        seatsAvailable: 4,
-                        x: 50,
-                        y: 50,
-                        centerX: 50,
-                        centerY: 50,
-                        sizePercent: 6,
-                        shape: 'circle',
-                        color: 'Standard',
-                        isAvailable: true,
-                      };
-                      setSelectedEvent((prev) => (prev ? { ...prev, tables: [...(prev.tables ?? []), newTable] } : null));
-                    }}
+                    onClick={addTable}
+                    disabled={addingTable || savingLayout}
                     className="text-sm"
                   >
-                    {UI_TEXT.tables.addTable}
+                    {addingTable ? UI_TEXT.common.loading : UI_TEXT.tables.addTable}
                   </PrimaryButton>
                 </div>
                 {tables.length === 0 && (

@@ -74,6 +74,7 @@ export const UI_TEXT = {
     table: 'Стол',
     seat: 'Место',
     addTable: 'Добавить стол',
+    tableAdded: 'Стол добавлен.',
     noTablesYet: 'Столов пока нет. Добавьте стол, чтобы расставить места.',
     seats: 'Места',
     available: 'Доступен к продаже',
