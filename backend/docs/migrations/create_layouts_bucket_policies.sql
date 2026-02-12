@@ -1,0 +1,23 @@
+-- Storage policies for "layouts" bucket
+-- Run in Supabase SQL Editor AFTER creating the bucket (e.g. via create-layouts-bucket.ts)
+--
+-- Public read: bucket is created with public=true, so SELECT is allowed for all.
+-- Upload restriction: only service role (backend) or authenticated admin. No INSERT for anon.
+--
+-- If you need to allow authenticated admins to upload from the admin panel,
+-- add this policy (replace with your admin check if needed):
+
+-- Allow authenticated users to upload to layouts bucket
+-- (backend uses service_role which bypasses RLS)
+-- CREATE POLICY "Allow authenticated uploads to layouts"
+-- ON storage.objects
+-- FOR INSERT
+-- TO authenticated
+-- WITH CHECK (bucket_id = 'layouts');
+
+-- To restrict uploads to service role ONLY (no admin panel direct upload):
+-- Do NOT create any INSERT policy for authenticated/anon.
+-- The service role bypasses RLS, so backend uploads will work. Admin panel
+-- must use a backend upload endpoint.
+--
+-- Default: no policies needed if service-role-only uploads are desired.

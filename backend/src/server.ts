@@ -5,6 +5,7 @@ import type { EventData } from './models';
 import { db } from './db';
 import { bot, notifyAdminsAboutBooking, notifyUser } from './bot';
 import adminEventsRouter from './routes/adminEvents';
+import adminUploadLayoutRouter from './routes/admin.uploadLayout';
 import adminBookingsRouter from './routes/adminBookings';
 import publicEventsRouter from './routes/publicEvents';
 import publicPaymentsRouter from './routes/publicPayments';
@@ -194,6 +195,7 @@ app.get('/bookings/my', async (req, res) => {
 
 // Mount admin routes (JWT + adminOnly applied inside router)
 app.use('/admin', adminEventsRouter);
+app.use('/admin', adminUploadLayoutRouter);
 app.use('/admin', adminBookingsRouter);
 app.use('/admin', adminPaymentsRouter);
 // Public read-only event views and JSON endpoints

@@ -1,10 +1,14 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { v4 as uuid } from 'uuid';
 import { authMiddleware } from '../auth/auth.middleware';
 import { adminOnly } from '../auth/admin.middleware';
 import type { AuthRequest } from '../auth/auth.middleware';
 import { db } from '../db';
 import type { EventData } from '../models';
+import { supabase } from '../supabaseClient';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const getAdminId = (req: Request): number | undefined => {
   const id = (req as AuthRequest).user?.id;
@@ -202,6 +206,44 @@ router.post('/events/:id/archive', async (req: Request, res: Response) => {
   existing.published = false;
   await db.upsertEvent(existing, getAdminId(req));
   return res.status(200).json(existing);
+});
+
+// POST /admin/events/:id/upload-layout — upload layout image to Supabase Storage, return public URL
+router.post('/events/:id/upload-layout', upload.single('file'), async (req: Request, res: Response) => {
+  const id = normalizeId(req.params.id);
+  if (!id) return respondBadRequest(res, new Error('Event id is required'), { error: 'Event id is required' });
+
+  const event = await db.findEventById(id);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
+
+  const file = (req as any).file;
+  if (!file || !file.buffer) return res.status(400).json({ error: 'No file uploaded' });
+
+  const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+  if (!allowed.includes(file.mimetype)) {
+    return res.status(400).json({ error: 'Invalid file type. Use PNG, JPEG, or WebP.' });
+  }
+
+  const ext = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/jpeg' ? 'jpg' : 'webp';
+  const path = `${id}-${Date.now()}.${ext}`;
+
+  try {
+    const { data, error } = await supabase.storage.from('layouts').upload(path, file.buffer, {
+      contentType: file.mimetype,
+      upsert: true,
+    });
+    if (error) {
+      console.error('[upload-layout]', error);
+      return res.status(500).json({ error: error.message });
+    }
+    const { data: urlData } = supabase.storage.from('layouts').getPublicUrl(data.path);
+    return res.json({ url: urlData.publicUrl });
+  } catch (e) {
+    console.error('[upload-layout]', e);
+    return res.status(500).json({ error: 'Upload failed' });
+  }
 });
 
 // PUT /admin/events/:id — full modification allowed (including when published)

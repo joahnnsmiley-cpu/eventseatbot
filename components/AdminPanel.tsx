@@ -78,6 +78,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [statusActionLoading, setStatusActionLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [resyncLoading, setResyncLoading] = useState(false);
+  const [layoutUploadLoading, setLayoutUploadLoading] = useState(false);
+  const [layoutUploadError, setLayoutUploadError] = useState<string | null>(null);
+  const [layoutUploadVersion, setLayoutUploadVersion] = useState<number | null>(null);
   /** event_id -> tables (from event_tables); used to check if booking.table_id still exists */
   const [eventTablesMap, setEventTablesMap] = useState<Record<string, Table[]>>({});
 
@@ -187,6 +190,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       const ev = await StorageService.getAdminEvent(eventId);
       setSelectedEvent(ev);
       setLayoutUrl(ev?.layoutImageUrl || '');
+      setLayoutUploadVersion(null);
       setEventPosterUrl(ev?.imageUrl ?? '');
       setEventTitle(ev?.title || '');
       setEventDescription(ev?.description || '');
@@ -1011,15 +1015,49 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               <div>
                 <div className="text-sm font-semibold mb-1">{UI_TEXT.tables.layoutImageUrl}</div>
                 <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !selectedEvent?.id) return;
+                    setLayoutUploadLoading(true);
+                    setLayoutUploadError(null);
+                    try {
+                      const { url, version } = await StorageService.uploadLayoutImage(selectedEvent.id, file);
+                      setLayoutUrl(url);
+                      setLayoutUploadVersion(version ?? null);
+                    } catch (err) {
+                      setLayoutUploadError(err instanceof Error ? err.message : 'Upload failed');
+                    } finally {
+                      setLayoutUploadLoading(false);
+                      e.target.value = '';
+                    }
+                  }}
+                  disabled={layoutUploadLoading || !selectedEvent?.id}
+                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-gray-100 file:cursor-pointer"
+                />
+                {layoutUploadLoading && <div className="text-xs text-gray-500 mt-1">{UI_TEXT.common.loading}</div>}
+                {layoutUploadError && <div className="text-xs text-red-600 mt-1">{layoutUploadError}</div>}
+                <input
                   type="text"
                   value={layoutUrl}
-                  onChange={(e) => setLayoutUrl(e.target.value)}
+                  onChange={(e) => { setLayoutUrl(e.target.value); setLayoutUploadError(null); setLayoutUploadVersion(null); }}
                   placeholder={UI_TEXT.tables.layoutImagePlaceholder}
-                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border mt-2"
                 />
                 <div className="text-xs text-gray-500 mt-1">
                   {UI_TEXT.tables.layoutImageHint}
                 </div>
+                {layoutUrl && (
+                  <div className="mt-2">
+                    <div className="rounded border overflow-hidden bg-gray-100 max-h-32">
+                      <img src={layoutUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => {}} />
+                    </div>
+                    {layoutUploadVersion != null && (
+                      <div className="text-xs text-gray-500 mt-1">v{layoutUploadVersion}</div>
+                    )}
+                  </div>
+                )}
                 <div className="mt-3 flex flex-wrap gap-2 flex-col md:flex-row">
                   <button
                     onClick={saveLayout}
@@ -1029,7 +1067,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     {savingLayout ? UI_TEXT.common.saving : UI_TEXT.common.save}
                   </button>
                   <button
-                    onClick={() => setLayoutUrl(selectedEvent?.layoutImageUrl || '')}
+                    onClick={() => { setLayoutUrl(selectedEvent?.layoutImageUrl || ''); setLayoutUploadVersion(null); }}
                     className="px-3 py-2 text-sm border rounded w-full md:w-auto"
                   >
                     {UI_TEXT.common.reset}

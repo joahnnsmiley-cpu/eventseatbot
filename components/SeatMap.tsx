@@ -67,12 +67,11 @@ const SeatMap: React.FC<SeatMapProps> = ({
   const tables = rawTables.filter((t: { is_active?: boolean }) => t.is_active !== false);
   const seats = seatState?.seats ?? [];
   const selectedSet = new Set(selectedSeats);
-  // Подложка зала — только event.layoutImageUrl (не imageUrl)
-  const backgroundUrl = (event?.layoutImageUrl ?? '').trim();
+  const layoutImageUrl = (event?.layout_image_url ?? event?.layoutImageUrl ?? '').trim();
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!backgroundUrl) {
+    if (!layoutImageUrl) {
       setLayoutAspectRatio(null);
       return;
     }
@@ -83,8 +82,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
       setLayoutAspectRatio(w / h);
     };
     img.onerror = () => setLayoutAspectRatio(null);
-    img.src = backgroundUrl;
-  }, [backgroundUrl]);
+    img.src = layoutImageUrl;
+  }, [layoutImageUrl]);
 
   const canSelectSeat = (seat: SeatModel) => seat.status === 'available';
 
@@ -119,19 +118,12 @@ const SeatMap: React.FC<SeatMapProps> = ({
       }}
     >
       <div className="absolute inset-0 overflow-hidden rounded-2xl">
-        {backgroundUrl && (
-          <>
-            <img
-              src={backgroundUrl}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover grayscale brightness-[0.6] contrast-110"
-              aria-hidden
-            />
-            <div
-              className="absolute inset-0 bg-black/40 pointer-events-none"
-              aria-hidden
-            />
-          </>
+        {layoutImageUrl && (
+          <img
+            src={layoutImageUrl}
+            alt=""
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+          />
         )}
         {/* Pure coordinate container: same aspect ratio as admin so coordinates match 1:1. */}
         <div
@@ -153,7 +145,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
           }}
           onClick={handleMapClick}
         >
-      {!backgroundUrl && (
+      {!layoutImageUrl && (
         <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
           {UI_TEXT.seatMap.noLayoutImage}
         </div>

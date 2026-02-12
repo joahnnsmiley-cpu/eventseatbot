@@ -291,6 +291,26 @@ export const createAdminEvent = async (payload: Partial<EventData>): Promise<Eve
   return res.json();
 };
 
+/** POST /admin/upload-layout — upload layout image to Supabase, returns { url, version } */
+export const uploadLayoutImage = async (eventId: string, file: File): Promise<{ url: string; version?: number }> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('eventId', eventId);
+
+  const res = await fetch(`${apiBaseUrl}/admin/upload-layout`, {
+    method: 'POST',
+    headers: AuthService.getAuthHeader(),
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'Upload failed');
+  }
+  return res.json();
+};
+
 export const updateAdminEvent = async (id: string, payload: Partial<EventData>): Promise<EventData> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(id)}`, {
