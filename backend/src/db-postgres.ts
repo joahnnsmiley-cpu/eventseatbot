@@ -206,6 +206,7 @@ export async function findEventById(id: string): Promise<EventData | undefined> 
     .from('event_tables')
     .select('*')
     .eq('event_id', event.id)
+    .eq('is_active', true)
     .order('number', { ascending: true });
   if (tablesErr) return undefined;
 
