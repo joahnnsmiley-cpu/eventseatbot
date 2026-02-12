@@ -224,20 +224,24 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     }
   };
 
-  /** Sync all event-related state from a fresh backend response. Use after successful mutations. */
-  const syncEventFromFresh = (fresh: EventData) => {
-    const mapped = fresh ? { ...fresh, tables: (fresh.tables ?? []).map(mapTableFromDb) } : fresh;
+  /** After getAdminEvent: only set event. No duplicate tables or form arrays. */
+  const setEventFromFresh = (fresh: EventData | null) => {
+    if (!fresh) {
+      setSelectedEvent(null);
+      return;
+    }
+    const mapped = { ...fresh, tables: (fresh.tables ?? []).map(mapTableFromDb) };
     setSelectedEvent(mapped);
-    setLayoutUrl(fresh?.layoutImageUrl || '');
-    setEventPosterUrl(fresh?.imageUrl ?? '');
-    setEventTitle(fresh?.title || '');
-    setEventDescription(fresh?.description || '');
-    setEventDate(fresh?.event_date ?? '');
-    setEventTime(fresh?.event_time ? String(fresh.event_time).slice(0, 5) : '');
-    setVenue(fresh?.venue ?? '');
-    setEventPhone(fresh?.paymentPhone || '');
-    setEventPublished(fresh?.published === true);
-    setEvents((prev) => prev.map((e) => (e.id === fresh?.id ? { ...e, title: fresh.title } : e)));
+    setLayoutUrl(fresh.layoutImageUrl || '');
+    setEventPosterUrl(fresh.imageUrl ?? '');
+    setEventTitle(fresh.title || '');
+    setEventDescription(fresh.description || '');
+    setEventDate(fresh.event_date ?? '');
+    setEventTime(fresh.event_time ? String(fresh.event_time).slice(0, 5) : '');
+    setVenue(fresh.venue ?? '');
+    setEventPhone(fresh.paymentPhone || '');
+    setEventPublished(fresh.published === true);
+    setEvents((prev) => prev.map((e) => (e.id === fresh.id ? { ...e, title: fresh.title } : e)));
   };
 
   const loadEvent = async (eventId: string) => {
@@ -246,8 +250,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setError(null);
     setSuccessMessage(null);
     try {
-      const ev = await StorageService.getAdminEvent(eventId);
-      if (ev) syncEventFromFresh(ev);
+      const fresh = await StorageService.getAdminEvent(eventId);
+      setEventFromFresh(fresh);
       setLayoutUploadVersion(null);
     } catch (e) {
       console.error('[AdminPanel] Failed to load event', e);
@@ -309,7 +313,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       };
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
       const fresh = await StorageService.getAdminEvent(selectedEvent.id);
-      syncEventFromFresh(fresh);
+      setEventFromFresh(fresh);
       setError(null);
       setSuccessMessage(UI_TEXT.admin.eventUpdated);
     } catch (e) {
@@ -401,7 +405,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       };
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
       const fresh = await StorageService.getAdminEvent(selectedEvent.id);
-      syncEventFromFresh(fresh);
+      setEventFromFresh(fresh);
       setSuccessMessage(UI_TEXT.tables.tableAdded);
     } catch (e) {
       console.error('[AdminPanel] Failed to add table', e);
@@ -436,7 +440,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       };
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
       const fresh = await StorageService.getAdminEvent(selectedEvent.id);
-      syncEventFromFresh(fresh);
+      setEventFromFresh(fresh);
       setSuccessMessage(UI_TEXT.tables.tableDeleted);
     } catch (e) {
       console.error('[AdminPanel] Failed to delete table', e);
@@ -444,7 +448,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       if (selectedEventId) {
         try {
           const fresh = await StorageService.getAdminEvent(selectedEventId);
-          syncEventFromFresh(fresh);
+          setEventFromFresh(fresh);
         } catch {
           /* ignore reload failure */
         }
@@ -497,7 +501,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return bookings.filter((b) => String(b.status ?? '') === statusFilter);
   }, [bookings, statusFilter]);
   const hasEvents = useMemo(() => events.length > 0, [events.length]);
-  const tables: Table[] = selectedEvent?.tables ?? [];
 
   return (
     <div className="admin-root bg-[#F6F3EE] min-h-screen p-4">
@@ -940,10 +943,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     {addingTable ? UI_TEXT.common.loading : UI_TEXT.tables.addTable}
                   </PrimaryButton>
                 </div>
-                {tables.length === 0 && (
+                {(selectedEvent?.tables ?? []).length === 0 && (
                   <div className="text-xs text-muted">{UI_TEXT.tables.noTablesYet}</div>
                 )}
-                {tables.map((t, idx) => (
+                {(selectedEvent?.tables ?? []).map((t, idx) => (
                   <div key={t.id} className="flex flex-wrap gap-2 items-center">
                     <div className="text-xs text-muted">#{idx + 1}</div>
                     <label className="text-xs text-gray-600">
@@ -1258,7 +1261,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       {UI_TEXT.tables.noLayoutImage}
                     </div>
                   )}
-                  {layoutPreviewWidth > 0 && [...tables].sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity)).map((raw) => {
+                  {layoutPreviewWidth > 0 && (() => {
+                    console.log('PREVIEW TABLES', selectedEvent?.tables);
+                    return [...(selectedEvent?.tables ?? [])].sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity)).map((raw) => {
                     const table = mapTableFromDb(raw);
                     const available = typeof table.seatsAvailable === 'number' ? table.seatsAvailable : table.seatsTotal ?? 0;
                     const total = typeof table.seatsTotal === 'number' ? table.seatsTotal : 4;
@@ -1295,7 +1300,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         </div>
                       </div>
                     );
-                  })}
+                  });
+                  })()}
                 </div>
                 <div className="text-xs text-muted mt-2">
                   {UI_TEXT.tables.layoutHint}
