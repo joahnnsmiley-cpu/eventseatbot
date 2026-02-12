@@ -255,16 +255,6 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   }
   const existing = await db.findEventById(id);
   if (!existing) return res.status(404).json({ error: 'Event not found' });
-  if (
-    Array.isArray(req.body.tables) &&
-    req.body.tables.length === 0 &&
-    Array.isArray(existing.tables) &&
-    existing.tables.length > 0
-  ) {
-    return res.status(400).json({
-      error: 'Empty tables payload would wipe existing tables',
-    });
-  }
   if (req.body.published === true && !Array.isArray(req.body.tables)) {
     return res.status(400).json({
       error: 'Publishing requires tables to be sent',
@@ -313,10 +303,8 @@ router.put('/events/:id', async (req: Request, res: Response) => {
     console.log('normalizeTables output', existing.tables);
   }
 
-  if (!existing.tables || existing.tables.length === 0) {
-    return res.status(400).json({
-      error: 'Tables normalization resulted in empty list',
-    });
+  if (!existing.tables) {
+    existing.tables = [];
   }
 
   console.log(
