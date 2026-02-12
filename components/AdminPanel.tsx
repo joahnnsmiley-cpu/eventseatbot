@@ -1238,7 +1238,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     const table = mapTableFromDb(raw);
                     const available = typeof table.seatsAvailable === 'number' ? table.seatsAvailable : table.seatsTotal ?? 0;
                     const total = typeof table.seatsTotal === 'number' ? table.seatsTotal : 4;
-                    const categoryColor = getTableCategoryColor(table.category ?? table.color);
+                    const borderColor = getTableCategoryColor(table.color);
                     const effectiveWidth =
                       layoutPreviewWidth && layoutPreviewWidth > 0
                         ? layoutPreviewWidth
@@ -1248,12 +1248,16 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       widthPercent: table.widthPercent,
                       heightPercent: table.heightPercent,
                     });
-                    const isRect = typeof sizes.borderRadius === 'number';
                     const shapeStyle = {
                       width: sizes.width,
                       height: sizes.height,
                       borderRadius: sizes.borderRadius,
-                      backgroundColor: isRect ? '#F9F6F1' : categoryColor,
+                      backgroundColor: '#141414',
+                      border: `2px solid ${borderColor}`,
+                      boxShadow: `
+    inset 0 2px 6px rgba(0,0,0,0.6),
+    0 0 12px ${borderColor}33
+  `,
                     };
                     return (
                       <div
