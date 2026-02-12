@@ -83,7 +83,9 @@ export const createTableBooking = async (payload: {
   userComment?: string;
 }): Promise<any> => {
   const apiBaseUrl = getApiBaseUrl();
-  const res = await fetch(`${apiBaseUrl}/public/bookings/table`, {
+  const url = `${apiBaseUrl}/public/bookings/table`;
+  console.log('[BOOKING →]', url, payload);
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -106,7 +108,9 @@ export const createSeatsBooking = async (payload: {
   telegramId: number;
 }): Promise<any> => {
   const apiBaseUrl = getApiBaseUrl();
-  const res = await fetch(`${apiBaseUrl}/public/bookings/seats`, {
+  const url = `${apiBaseUrl}/public/bookings/seats`;
+  console.log('[BOOKING →]', url, payload);
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
