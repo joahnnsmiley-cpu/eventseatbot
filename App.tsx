@@ -456,48 +456,48 @@ function App() {
 
   if (view === 'seats' && selectedEvent) {
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-3">
+      <div className="max-w-[420px] mx-auto overflow-x-hidden pb-24 bg-black min-h-screen">
+        <div className="px-4 pt-6 pb-24 space-y-6">
+          <div className="flex items-center justify-between">
             <button
               onClick={() => {
                 setView('layout');
                 setSelectedTableId(null);
               }}
               disabled={bookingLoading}
-              className="text-xs px-2 py-1 rounded border"
+              className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400"
             >
               {UI_TEXT.app.back}
             </button>
-            <div className="text-xs text-gray-500">{selectedEvent.title || UI_TEXT.app.event}</div>
+            <div className="text-xs text-gray-400">{selectedEvent.title || UI_TEXT.app.event}</div>
             <button
               onClick={() => selectedEventId && loadEvent(selectedEventId)}
               disabled={bookingLoading}
-              className="text-xs px-2 py-1 rounded border"
+              className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400"
             >
               {UI_TEXT.app.refresh}
             </button>
           </div>
 
           {eventLoading && <div className="text-xs text-gray-500">{UI_TEXT.app.loadingSeats}</div>}
-          {eventError && <div className="text-xs text-red-600 mb-3">{eventError}</div>}
+          {eventError && <div className="text-sm text-red-400 mb-3">{eventError}</div>}
 
           {selectedTable ? (
-            <div className="space-y-4">
-              <div className="bg-white rounded border p-4">
-                <div className="text-sm font-semibold">{UI_TEXT.tables.table} {selectedTable.number}</div>
-                <div className="text-xs text-gray-500 mt-1">
+            <div className="space-y-6">
+              <Card>
+                <div className="text-sm font-semibold text-white">{UI_TEXT.tables.table} {selectedTable.number}</div>
+                <div className="text-xs text-gray-400 mt-1">
                   {UI_TEXT.app.freeSeats} {selectedTable.seatsAvailable} / {selectedTable.seatsTotal}
                 </div>
                 {selectedTable.isAvailable !== true && (
-                  <div className="text-xs text-amber-600 mt-2">
+                  <div className="text-xs text-amber-400 mt-2">
                     {UI_TEXT.app.tableNotAvailableForSale}
                   </div>
                 )}
-              </div>
+              </Card>
 
-              <div className="bg-white rounded border p-4">
-                <div className="text-sm font-semibold mb-2">{UI_TEXT.app.selectSeats}</div>
+              <Card>
+                <div className="text-sm font-semibold text-white mb-2">{UI_TEXT.app.selectSeats}</div>
                 <SeatPicker
                   table={selectedTable}
                   selectedIndices={selectedSeatsByTable[selectedTableId!] ?? []}
@@ -516,16 +516,16 @@ function App() {
                     });
                   }}
                   />
-              </div>
+              </Card>
 
-              <div className="rounded-2xl border border-white/10 bg-[#0B0B0B] p-4 space-y-4">
+              <Card>
                 <div className="text-sm uppercase tracking-widest text-gray-400">
                   {UI_TEXT.app.numberOfSeats}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mt-2">
                   <button
                     type="button"
-                    className="px-3 py-2 rounded border text-sm"
+                    className="px-3 py-2 rounded border border-white/20 text-white text-sm"
                     onClick={() => {
                       if (!selectedTableId) return;
                       const selected = selectedSeatsByTable[selectedTableId] ?? [];
@@ -546,13 +546,13 @@ function App() {
                     min={0}
                     max={selectedTable.seatsTotal}
                     value={(selectedSeatsByTable[selectedTableId] ?? []).length}
-                    className="w-20 text-center border rounded px-2 py-2 text-sm bg-gray-50"
+                    className="w-20 text-center border border-white/20 rounded px-2 py-2 text-sm bg-[#111] text-white"
                     tabIndex={-1}
                     aria-label={UI_TEXT.app.selectedSeatCount}
                   />
                   <button
                     type="button"
-                    className="px-3 py-2 rounded border text-sm"
+                    className="px-3 py-2 rounded border border-white/20 text-white text-sm"
                     onClick={() => {
                       if (!selectedTableId) return;
                       const selected = selectedSeatsByTable[selectedTableId] ?? [];
@@ -585,56 +585,56 @@ function App() {
                   >
                     +
                   </button>
-                  <span className="text-xs text-gray-500">/ {selectedTable.seatsTotal}</span>
+                  <span className="text-xs text-gray-400">/ {selectedTable.seatsTotal}</span>
                 </div>
                 {selectedTable.seatsAvailable === 0 && (
-                  <div className="text-xs text-gray-600 mt-2">
+                  <div className="text-xs text-gray-400 mt-2">
                     {UI_TEXT.app.tableFullyBooked}
                   </div>
                 )}
                 {selectionAdjusted && (
-                  <div className="text-xs text-amber-600 mt-2">
+                  <div className="text-xs text-amber-400 mt-2">
                     {UI_TEXT.app.selectionAdjusted}
                   </div>
                 )}
-              </div>
+              </Card>
 
-              <div className="bg-white rounded border p-4">
-                <div className="text-sm font-semibold mb-2">{UI_TEXT.app.contactPhone} <span className="text-red-500">*</span></div>
+              <Card>
+                <div className="text-sm font-semibold text-white mb-2">{UI_TEXT.app.contactPhone} <span className="text-red-400">*</span></div>
                 <input
                   type="tel"
                   value={userPhone}
                   onChange={(e) => setUserPhone(e.target.value)}
                   placeholder={UI_TEXT.app.phonePlaceholder}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border border-white/20 rounded-xl px-3 py-2 text-sm bg-[#111] text-white placeholder-gray-500"
                   disabled={bookingLoading}
                 />
-              </div>
+              </Card>
 
-              <div className="bg-white rounded border p-4">
-                <div className="text-sm font-semibold mb-2">{UI_TEXT.app.commentLabel}</div>
+              <Card>
+                <div className="text-sm font-semibold text-white mb-2">{UI_TEXT.app.commentLabel}</div>
                 <textarea
                   value={userComment}
                   onChange={(e) => setUserComment(e.target.value)}
                   placeholder={UI_TEXT.app.commentPlaceholder}
                   rows={3}
-                  className="w-full border rounded px-3 py-2 text-sm resize-y"
+                  className="w-full border border-white/20 rounded-xl px-3 py-2 text-sm resize-y bg-[#111] text-white placeholder-gray-500"
                   disabled={bookingLoading}
                 />
-              </div>
+              </Card>
 
               {bookingError && (
-                <div className="text-xs text-red-600">{bookingError}</div>
+                <div className="text-sm text-red-400">{bookingError}</div>
               )}
 
-              <div className="bg-white rounded border p-4">
-                <div className="text-xs text-gray-500">
+              <Card>
+                <div className="text-xs text-gray-400">
                   {UI_TEXT.app.availabilityRefreshes}
                 </div>
-              </div>
+              </Card>
 
-              <button
-                className="w-full bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+              <PrimaryButton
+                className="w-full disabled:opacity-60 disabled:cursor-not-allowed"
                 disabled={
                   selectedTable.isAvailable !== true ||
                   selectedTable.seatsAvailable === 0 ||
@@ -726,13 +726,15 @@ function App() {
                 }}
               >
                 {bookingLoading ? UI_TEXT.app.booking : UI_TEXT.app.continueBook}
-              </button>
+              </PrimaryButton>
               {bookingLoading && (
-                <div className="text-xs text-gray-500 mt-2">{UI_TEXT.app.submitting}</div>
+                <div className="text-xs text-gray-400 mt-2">{UI_TEXT.app.submitting}</div>
               )}
             </div>
           ) : (
-            <div className="text-sm text-gray-600">{UI_TEXT.app.tableNotFound}</div>
+            <Card>
+              <div className="text-sm text-gray-400">{UI_TEXT.app.tableNotFound}</div>
+            </Card>
           )}
         </div>
       </div>
