@@ -63,28 +63,40 @@ body.tg-dark .text-gray-900 { color: var(--tg-text) !important; }
 body.tg-dark .border,
 body.tg-dark .border-gray-200,
 body.tg-dark .border-gray-300 { border-color: var(--tg-border) !important; }
-body.tg-dark .bg-blue-600,
-body.tg-light .bg-blue-600 {
-  background-color: var(--tg-theme-button-color, #2563eb) !important;
-  color: var(--tg-theme-button-text-color, #ffffff) !important;
-}
 body.tg-dark .bg-gray-100 { background-color: var(--tg-bg) !important; }
 body.tg-dark .shadow,
 body.tg-dark .shadow-sm,
 body.tg-dark .shadow-lg { box-shadow: none !important; }
+/* Table rendering: no min-size, no padding; size = exactly calculated width/height */
 .table-wrapper {
   position: absolute;
   transform: translate(-50%, -50%);
+  padding: 0;
+  min-width: 0;
+  min-height: 0;
+}
+/* Rectangular tables: neutral palette, no shadows/glow */
+.table-wrapper:hover .table-shape {
+  border-color: #C6A75E;
+}
+.table-wrapper.table-selected .table-shape {
+  border-width: 2px;
+  border-color: #C6A75E;
+  background: #F3EBDD;
 }
 .table-shape {
   position: relative;
-  width: calc(24px + (var(--size) * 4px));
-  height: calc(24px + (var(--size) * 4px));
-  border: 2px solid rgba(0, 0, 0, 0.2);
+  background: #F9F6F1;
+  border: 1px solid #DDD6CC;
+  box-shadow: none;
+  filter: none;
   overflow: hidden;
+  transition: border-color 0.15s, background 0.15s, border-width 0.15s;
+  box-sizing: border-box;
+  padding: 0;
+  min-width: 0;
+  min-height: 0;
 }
-.table-shape.circle { border-radius: 50%; }
-.table-shape.rect { border-radius: 6px; }
 .seats-layer {
   position: absolute;
   inset: 0;
@@ -120,16 +132,11 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 8px 0;
-}
-.seat-picker .seat-picker__table.table-shape {
-  width: 200px;
-  height: 200px;
-  flex-shrink: 0;
+  padding: 0.5em 0;
 }
 .seat-picker .seat {
-  width: 24px;
-  height: 24px;
+  width: 1.5em;
+  height: 1.5em;
 }
 .seat-picker .seats-layer {
   gap: 6px;
@@ -140,9 +147,15 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
-  color: #fff;
-  font-size: 10px;
-  line-height: 1.1;
+  pointer-events: none;
+  line-height: 1.15;
+}
+.table-number {
+  font-weight: 600;
+  color: #1C1C1C;
+}
+.table-seats {
+  color: #6E6A64;
 }
 ::-webkit-scrollbar {
   width: 0px;

@@ -2,6 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import * as StorageService from '../services/storageService';
 import { EventData, Table } from '../types';
 import { UI_TEXT } from '../constants/uiText';
+import { getTableCategoryColor } from '../src/ui/theme';
+import { computeTableSizes } from '../src/ui/tableSizing';
+import { useContainerWidth } from '../src/hooks/useContainerWidth';
+import { TableNumber, SeatInfo } from './TableLabel';
+import PrimaryButton from '../src/ui/PrimaryButton';
+import SecondaryButton from '../src/ui/SecondaryButton';
+import DangerButton from '../src/ui/DangerButton';
 import EventCard, { EventCardSkeleton } from './EventCard';
 
 type AdminBooking = {
@@ -51,6 +58,37 @@ function tableForBackend(t: Table, index: number): Table {
   };
 }
 
+/** Validate table numbers: positive integer, unique within event. Returns error message or null. */
+function validateTableNumbers(tables: Table[]): string | null {
+  const seen = new Map<number, string>();
+  for (const t of tables) {
+    const n = t.number;
+    if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) {
+      return `${UI_TEXT.tables.tableNumberInvalid}`;
+    }
+    if (seen.has(n)) {
+      return `${UI_TEXT.tables.tableNumberDuplicate} ${n}`;
+    }
+    seen.set(n, t.id);
+  }
+  return null;
+}
+
+/** Validate rect tables: width_percent > 0, height_percent > 0, rotation in [-180, 180]. Returns error or null. */
+function validateRectTables(tables: Table[]): string | null {
+  for (const t of tables) {
+    const shape = t.shape ?? 'circle';
+    if (shape === 'circle') continue;
+    const w = (t as { widthPercent?: number }).widthPercent;
+    const h = (t as { heightPercent?: number }).heightPercent;
+    const rot = (t as { rotationDeg?: number }).rotationDeg ?? 0;
+    if (typeof w !== 'number' || w <= 0) return UI_TEXT.tables.widthPercentInvalid;
+    if (typeof h !== 'number' || h <= 0) return UI_TEXT.tables.heightPercentInvalid;
+    if (typeof rot !== 'number' || rot < -180 || rot > 180) return UI_TEXT.tables.rotationInvalid;
+  }
+  return null;
+}
+
 const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [mode, setMode] = useState<'bookings' | 'layout'>('bookings');
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
@@ -84,13 +122,15 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   /** event_id -> tables (from event_tables); used to check if booking.table_id still exists */
   const [eventTablesMap, setEventTablesMap] = useState<Record<string, Table[]>>({});
 
+  const [layoutPreviewRef, layoutPreviewWidth] = useContainerWidth<HTMLDivElement>();
+
   const statusStyle: Record<string, string> = {
-    pending: 'bg-gray-200 text-gray-800',
-    awaiting_confirmation: 'bg-amber-100 text-amber-800',
-    paid: 'bg-green-100 text-green-800',
-    cancelled: 'bg-red-100 text-red-800',
-    expired: 'bg-gray-700 text-gray-100',
-    reserved: 'bg-gray-200 text-gray-700',
+    pending: 'bg-[#E7E3DB] text-[#6E6A64]',
+    awaiting_confirmation: 'bg-[#E7E3DB] text-[#6E6A64]',
+    paid: 'bg-[#E7E3DB] text-[#6E6A64]',
+    cancelled: 'bg-[#E8CFCF] text-[#7A2E2E]',
+    expired: 'bg-[#E7E3DB] text-[#6E6A64]',
+    reserved: 'bg-[#E7E3DB] text-[#6E6A64]',
   };
 
   useEffect(() => {
@@ -236,11 +276,15 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   const saveLayout = async () => {
     if (!selectedEvent?.id) return;
+    const rawTables = selectedEvent?.tables ?? [];
+    const numErr = validateTableNumbers(rawTables);
+    if (numErr) { setError(numErr); return; }
+    const rectErr = validateRectTables(rawTables);
+    if (rectErr) { setError(rectErr); return; }
     setSavingLayout(true);
     setError(null);
     setSuccessMessage(null);
     try {
-      const rawTables = selectedEvent?.tables ?? [];
       const payload: Partial<EventData> = {
         title: eventTitle.trim(),
         description: eventDescription.trim(),
@@ -320,6 +364,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const deleteTable = async (tableId: string) => {
     if (!selectedEvent?.id) return;
     const newTables = (selectedEvent.tables ?? []).filter((it) => it.id !== tableId);
+    const numErr = validateTableNumbers(newTables);
+    if (numErr) { setError(numErr); return; }
+    const rectErr = validateRectTables(newTables);
+    if (rectErr) { setError(rectErr); return; }
     setSelectedEvent((prev) => (prev ? { ...prev, tables: newTables } : null));
     setSavingLayout(true);
     setError(null);
@@ -426,23 +474,23 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               {UI_TEXT.admin.exit}
             </button>
           )}
-          <button
+          <PrimaryButton
             onClick={() => {
               if (mode === 'bookings') load();
               if (mode === 'layout') loadEvents();
             }}
             disabled={loading || eventsLoading}
-            className="bg-blue-600 text-white px-3 py-2 rounded"
+            className="px-3 py-2 text-sm"
           >
             {UI_TEXT.admin.reload}
-          </button>
-          <button
+          </PrimaryButton>
+          <SecondaryButton
             onClick={handleResyncSeats}
             disabled={resyncLoading || loading || eventsLoading}
-            className="bg-amber-600 text-white px-3 py-2 rounded text-sm"
+            className="px-3 py-2 text-sm"
           >
             {resyncLoading ? UI_TEXT.common.loading : UI_TEXT.admin.resyncSeats}
-          </button>
+          </SecondaryButton>
         </div>
       </div>
 
@@ -519,7 +567,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           if (!b.table_id) return '—';
                           if (!existingTableIds.has(b.table_id)) {
                             return (
-                              <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                              <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-[#E7E3DB] text-[#6E6A64]">
                                 ⚠ Table deleted
                               </span>
                             );
@@ -543,10 +591,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       <div className="text-sm text-gray-700 mt-1">
                         Status:{' '}
                         {status === 'paid' && (
-                          <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">PAID</span>
+                          <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-[#E7E3DB] text-[#6E6A64]">PAID</span>
                         )}
                         {status === 'cancelled' && (
-                          <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">CANCELLED</span>
+                          <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-[#E8CFCF] text-[#7A2E2E]">CANCELLED</span>
                         )}
                         {status !== 'paid' && status !== 'cancelled' && (
                           <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${statusStyle[status] ?? 'bg-gray-100 text-gray-700'}`}>
@@ -563,10 +611,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     </div>
                     <div className="flex flex-col gap-2 shrink-0">
                       {status === 'paid' && (
-                        <span className="text-xs text-green-700 font-medium">PAID</span>
+                        <span className="text-xs text-[#6E6A64] font-medium">PAID</span>
                       )}
                       {status === 'cancelled' && (
-                        <span className="text-xs text-red-700 font-medium">CANCELLED</span>
+                        <span className="text-xs text-[#7A2E2E] font-medium">CANCELLED</span>
                       )}
                       {canConfirm && (
                         <>
@@ -576,7 +624,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                             className={`px-3 py-1 rounded text-sm ${
                               confirmingId !== null || cancellingId !== null || isExpired(b.expiresAt ?? b.expires_at)
                                 ? 'bg-gray-300 text-gray-700'
-                                : 'bg-green-600 text-white'
+                                : 'bg-[#C6A75E] text-white'
                             }`}
                           >
                             {confirmingId === b.id ? UI_TEXT.booking.confirming : isExpired(b.expiresAt ?? b.expires_at) ? UI_TEXT.booking.expired : 'Confirm Payment'}
@@ -587,7 +635,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                             className={`px-3 py-1 rounded text-sm ${
                               confirmingId !== null || cancellingId !== null
                                 ? 'bg-gray-300 text-gray-700'
-                                : 'bg-red-600 text-white'
+                                : 'bg-[#E8CFCF] text-[#7A2E2E]'
                             }`}
                           >
                             {cancellingId === b.id ? 'Отмена…' : 'Cancel'}
@@ -633,14 +681,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             {!eventsLoading && !hasEvents && (
               <div className="py-8 text-center">
                 <p className="text-base text-gray-600 mb-4">{UI_TEXT.admin.emptyEventsList}</p>
-                <button
+                <SecondaryButton
                   type="button"
                   onClick={createEvent}
                   disabled={creatingEvent}
-                  className="px-4 py-2.5 text-sm font-medium rounded-lg border border-blue-500 text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-[0.98] transition-colors min-h-[44px]"
+                  className="px-4 py-2.5 text-sm min-h-[44px]"
                 >
                   {creatingEvent ? UI_TEXT.admin.creatingEvent : UI_TEXT.admin.createEvent}
-                </button>
+                </SecondaryButton>
               </div>
             )}
             {!eventsLoading && hasEvents && (
@@ -730,19 +778,31 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-gray-600">{UI_TEXT.admin.statusLabel}</span>
-                <span className="text-sm font-medium">
+                <span
+                  className={`inline-block px-2 py-0.5 text-xs font-medium uppercase tracking-wide rounded-lg ${
+                    selectedEvent?.status === 'published'
+                      ? 'bg-[#E7E3DB] text-[#6E6A64]'
+                      : selectedEvent?.status === 'archived'
+                        ? 'bg-[#ECE6DD] text-[#9B948A]'
+                        : 'bg-[#E7E3DB] text-[#6E6A64]'
+                  }`}
+                >
                   {selectedEvent?.status === 'published' ? UI_TEXT.admin.published : selectedEvent?.status === 'archived' ? UI_TEXT.admin.archived : UI_TEXT.admin.draft}
                 </span>
                 {selectedEvent?.status === 'draft' && (
-                  <button
+                  <PrimaryButton
                     type="button"
                     onClick={async () => {
                       if (!selectedEventId || !selectedEvent) return;
+                      const rawTables = selectedEvent?.tables ?? [];
+                      const numErr = validateTableNumbers(rawTables);
+                      if (numErr) { setError(numErr); return; }
+                      const rectErr = validateRectTables(rawTables);
+                      if (rectErr) { setError(rectErr); return; }
                       setStatusActionLoading(true);
                       setError(null);
                       setSuccessMessage(null);
                       try {
-                        const rawTables = selectedEvent?.tables ?? [];
                         const payload = {
                           status: 'published' as const,
                           tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
@@ -758,13 +818,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       }
                     }}
                     disabled={statusActionLoading}
-                    className="px-3 py-1.5 text-sm border rounded bg-green-100 border-green-300 disabled:opacity-50"
+                    className="px-3 py-1.5 text-sm disabled:opacity-50"
                   >
                     {statusActionLoading ? '…' : UI_TEXT.admin.publishEvent}
-                  </button>
+                  </PrimaryButton>
                 )}
                 {selectedEvent?.status === 'published' && (
-                  <button
+                  <DangerButton
                     type="button"
                     onClick={async () => {
                       if (!selectedEventId) return;
@@ -783,21 +843,25 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       }
                     }}
                     disabled={statusActionLoading}
-                    className="px-3 py-1.5 text-sm border rounded bg-amber-100 border-amber-300 disabled:opacity-50"
+                    className="px-3 py-1.5 text-sm disabled:opacity-50"
                   >
                     {statusActionLoading ? '…' : UI_TEXT.admin.archiveEvent}
-                  </button>
+                  </DangerButton>
                 )}
                 {selectedEvent?.status === 'archived' && (
-                  <button
+                  <PrimaryButton
                     type="button"
                     onClick={async () => {
                       if (!selectedEventId || !selectedEvent) return;
+                      const rawTables = selectedEvent?.tables ?? [];
+                      const numErr = validateTableNumbers(rawTables);
+                      if (numErr) { setError(numErr); return; }
+                      const rectErr = validateRectTables(rawTables);
+                      if (rectErr) { setError(rectErr); return; }
                       setStatusActionLoading(true);
                       setError(null);
                       setSuccessMessage(null);
                       try {
-                        const rawTables = selectedEvent?.tables ?? [];
                         const payload = {
                           status: 'published' as const,
                           tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
@@ -813,10 +877,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       }
                     }}
                     disabled={statusActionLoading}
-                    className="px-3 py-1.5 text-sm border rounded bg-green-100 border-green-300 disabled:opacity-50"
+                    className="px-3 py-1.5 text-sm disabled:opacity-50"
                   >
                     {statusActionLoading ? '…' : UI_TEXT.admin.publishAgain}
-                  </button>
+                  </PrimaryButton>
                 )}
               </div>
               <label className="flex items-center gap-2 text-sm">
@@ -843,9 +907,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         y: 50,
                         centerX: 50,
                         centerY: 50,
-                        sizePercent: 5,
+                        sizePercent: 6,
                         shape: 'circle',
-                        color: '#3b82f6',
+                        color: 'Standard',
                         isAvailable: true,
                       };
                       setSelectedEvent((prev) => (prev ? { ...prev, tables: [...(prev.tables ?? []), newTable] } : null));
@@ -861,6 +925,26 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 {tables.map((t, idx) => (
                   <div key={t.id} className="flex flex-wrap gap-2 items-center">
                     <div className="text-xs text-gray-500">#{idx + 1}</div>
+                    <label className="text-xs text-gray-600">
+                      {UI_TEXT.tables.tableNumber}
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={t.number ?? ''}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, number: 1 } : it) } : null);
+                            return;
+                          }
+                          const parsed = parseInt(raw, 10);
+                          const val = Number.isInteger(parsed) && parsed >= 1 ? parsed : 1;
+                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, number: val } : it) } : null);
+                        }}
+                        className="ml-1 w-16 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                    </label>
                     <label className="flex items-center gap-1 text-xs text-gray-600">
                       <input
                         type="checkbox"
@@ -901,6 +985,21 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       />
                     </label>
                     <label className="text-xs text-gray-600">
+                      {UI_TEXT.tables.sizePercent}
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
+                        step={1}
+                        value={t.sizePercent ?? 6}
+                        onChange={(e) => {
+                          const val = Math.max(1, Math.min(20, Number(e.target.value) || 6));
+                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, sizePercent: val } : it) } : null);
+                        }}
+                        className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                    </label>
+                    <label className="text-xs text-gray-600">
                       {UI_TEXT.tables.seats}
                       <input
                         type="number"
@@ -914,28 +1013,15 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       />
                     </label>
                     <label className="text-xs text-gray-600">
-                      {UI_TEXT.tables.sizePercent}
-                      <input
-                        type="range"
-                        min={1}
-                        max={20}
-                        step={1}
-                        value={t.sizePercent ?? 5}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, sizePercent: val } : it) } : null);
-                        }}
-                        className="ml-2 align-middle disabled:opacity-60"
-                      />
-                      <span className="ml-1">{t.sizePercent ?? 5}</span>
-                    </label>
-                    <label className="text-xs text-gray-600">
                       {UI_TEXT.tables.shape}
                       <select
                         value={t.shape ?? 'circle'}
                         onChange={(e) => {
                           const val = e.target.value === 'rect' ? 'rect' : 'circle';
-                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, shape: val } : it) } : null);
+                          const defaults = val === 'rect'
+                            ? { widthPercent: (t as { widthPercent?: number }).widthPercent ?? 8, heightPercent: (t as { heightPercent?: number }).heightPercent ?? 6, rotationDeg: (t as { rotationDeg?: number }).rotationDeg ?? 0 }
+                            : {};
+                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, shape: val, ...defaults } : it) } : null);
                         }}
                         className="ml-1 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       >
@@ -943,17 +1029,69 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         <option value="rect">{UI_TEXT.tables.shapeRect}</option>
                       </select>
                     </label>
+                    {(t.shape ?? 'circle') !== 'circle' && (
+                      <>
+                        <label className="text-xs text-gray-600">
+                          {UI_TEXT.tables.widthPercent}
+                          <input
+                            type="number"
+                            min={0.1}
+                            step={0.5}
+                            value={(t as { widthPercent?: number }).widthPercent ?? ''}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const val = raw === '' ? undefined : Math.max(0.1, Number(raw));
+                              setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, widthPercent: val } : it) } : null);
+                            }}
+                            className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                          />
+                        </label>
+                        <label className="text-xs text-gray-600">
+                          {UI_TEXT.tables.heightPercent}
+                          <input
+                            type="number"
+                            min={0.1}
+                            step={0.5}
+                            value={(t as { heightPercent?: number }).heightPercent ?? ''}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const val = raw === '' ? undefined : Math.max(0.1, Number(raw));
+                              setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, heightPercent: val } : it) } : null);
+                            }}
+                            className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                          />
+                        </label>
+                        <label className="text-xs text-gray-600">
+                          {UI_TEXT.tables.rotationDeg}
+                          <input
+                            type="number"
+                            min={-180}
+                            max={180}
+                            step={1}
+                            value={(t as { rotationDeg?: number }).rotationDeg ?? 0}
+                            onChange={(e) => {
+                              const val = Math.max(-180, Math.min(180, Number(e.target.value) || 0));
+                              setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, rotationDeg: val } : it) } : null);
+                            }}
+                            className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                          />
+                        </label>
+                      </>
+                    )}
                     <label className="text-xs text-gray-600">
-                      {UI_TEXT.tables.tableColor}
-                      <input
-                        type="color"
-                        value={t.color || '#3b82f6'}
+                      {UI_TEXT.tables.tableCategory}
+                      <select
+                        value={/^(VIP|Premium|Standard)$/.test(t.color ?? '') ? t.color! : 'Standard'}
                         onChange={(e) => {
-                          const val = e.target.value;
+                          const val = e.target.value as 'VIP' | 'Premium' | 'Standard';
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, color: val } : it) } : null);
                         }}
-                        className="ml-1 h-7 w-10 border rounded disabled:opacity-60 disabled:cursor-not-allowed"
-                      />
+                        className="ml-1 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <option value="Standard">{UI_TEXT.tables.tableCategoryStandard}</option>
+                        <option value="Premium">{UI_TEXT.tables.tableCategoryPremium}</option>
+                        <option value="VIP">{UI_TEXT.tables.tableCategoryVIP}</option>
+                      </select>
                     </label>
                     <label className="text-xs text-gray-600" title={UI_TEXT.tables.visibleFromPlaceholder}>
                       {UI_TEXT.tables.visibleFrom}
@@ -1059,19 +1197,19 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   </div>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2 flex-col md:flex-row">
-                  <button
+                  <PrimaryButton
                     onClick={saveLayout}
                     disabled={savingLayout}
-                    className="bg-blue-600 text-white px-3 py-2 rounded text-sm w-full md:w-auto"
+                    className="px-3 py-2 text-sm w-full md:w-auto"
                   >
                     {savingLayout ? UI_TEXT.common.saving : UI_TEXT.common.save}
-                  </button>
-                  <button
+                  </PrimaryButton>
+                  <SecondaryButton
                     onClick={() => { setLayoutUrl(selectedEvent?.layoutImageUrl || ''); setLayoutUploadVersion(null); }}
-                    className="px-3 py-2 text-sm border rounded w-full md:w-auto"
+                    className="px-3 py-2 text-sm w-full md:w-auto"
                   >
                     {UI_TEXT.common.reset}
-                  </button>
+                  </SecondaryButton>
                 </div>
               </div>
 
@@ -1079,12 +1217,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 <div className="text-sm font-semibold mb-2">{UI_TEXT.tables.layoutPreview}</div>
                 {/* Layout container: same aspect ratio as image so admin and user coordinates match 1:1. */}
                 <div
+                  ref={layoutPreviewRef}
                   className="relative w-full border rounded bg-gray-100 overflow-hidden"
                   style={{
                     position: 'relative',
                     width: '100%',
                     aspectRatio: layoutAspectRatio ?? 16 / 9,
-                    minHeight: layoutAspectRatio == null ? 300 : undefined,
+                    minHeight: layoutAspectRatio == null ? '18rem' : undefined,
                     padding: 0,
                     backgroundImage: layoutUrl ? `url(${layoutUrl})` : 'none',
                     backgroundSize: '100% 100%',
@@ -1097,25 +1236,42 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       {UI_TEXT.tables.noLayoutImage}
                     </div>
                   )}
-                  {tables.map((t, idx) => {
-                    const isRect = (t.shape ?? 'circle') === 'rect';
-                    const bg = t.color || '#3b82f6';
-                    const posX = t.x ?? t.centerX ?? 0;
-                    const posY = t.y ?? t.centerY ?? 0;
+                  {layoutPreviewWidth > 0 && [...tables].sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity)).map((t) => {
+                    const centerX = t.centerX ?? 0;
+                    const centerY = t.centerY ?? 0;
+                    const rotationDeg = t.rotationDeg ?? 0;
+                    const available = typeof t.seatsAvailable === 'number' ? t.seatsAvailable : t.seatsTotal ?? 0;
+                    const total = typeof t.seatsTotal === 'number' ? t.seatsTotal : 4;
+                    const categoryColor = getTableCategoryColor(t.category ?? t.color);
+                    const sizes = computeTableSizes(layoutPreviewWidth, {
+                      sizePercent: t.sizePercent,
+                      widthPercent: t.widthPercent,
+                      heightPercent: t.heightPercent,
+                    });
+                    const isRect = typeof sizes.borderRadius === 'number';
+                    const shapeStyle = {
+                      width: sizes.width,
+                      height: sizes.height,
+                      borderRadius: sizes.borderRadius,
+                      backgroundColor: isRect ? '#F9F6F1' : categoryColor,
+                    };
                     return (
                       <div
                         key={t.id}
-                        className={`table-wrapper ${isRect ? 'rect' : 'circle'}`}
+                        className="table-wrapper"
                         style={{
                           position: 'absolute',
-                          left: `${posX}%`,
-                          top: `${posY}%`,
-                          transform: 'translate(-50%, -50%)',
-                          ['--size' as string]: Number(t.sizePercent) ?? 5,
+                          left: `${centerX}%`,
+                          top: `${centerY}%`,
+                          transform: `translate(-50%, -50%) rotate(${rotationDeg}deg)`,
+                          transformOrigin: 'center',
                         }}
                       >
-                        <div className={`table-shape ${isRect ? 'rect' : 'circle'}`} style={{ backgroundColor: bg }} />
-                        <div className="table-label">{UI_TEXT.tables.tableLabel.replace('{number}', String(idx + 1)).replace('{seats}', String(t.seatsTotal))}</div>
+                        <div className="table-shape" style={shapeStyle} />
+                        <div className="table-label">
+                          <TableNumber number={t.number ?? 0} fontSize={`${sizes.fontNumber}px`} />
+                          <SeatInfo available={available} total={total} fontSize={`${sizes.fontSub}px`} />
+                        </div>
                       </div>
                     );
                   })}

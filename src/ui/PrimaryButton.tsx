@@ -7,7 +7,7 @@ type PrimaryButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 export default function PrimaryButton({ children, className = '', ...props }: PrimaryButtonProps) {
   return (
     <button
-      className={`bg-[#FFC107] text-black font-semibold rounded-xl px-6 py-3 transition active:scale-95 ${className}`}
+      className={`bg-[#C6A75E] text-white font-semibold rounded-xl px-6 py-3 transition active:scale-95 hover:bg-[#B89A52] ${className}`}
       {...props}
     >
       {children}

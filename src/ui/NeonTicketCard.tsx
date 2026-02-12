@@ -14,9 +14,9 @@ type NeonTicketCardProps = {
 };
 
 const statusConfig: Record<StatusType, { label: string; className: string }> = {
-  paid: { label: 'Оплачено', className: 'bg-green-600 text-white' },
-  reserved: { label: 'Ожидает оплаты', className: 'bg-yellow-500 text-black' },
-  cancelled: { label: 'Отменено', className: 'bg-red-600 text-white' },
+  paid: { label: 'Оплачено', className: 'bg-[#C6A75E] text-white' },
+  reserved: { label: 'Ожидает оплаты', className: 'bg-[#ECE6DD] text-[#1C1C1C]' },
+  cancelled: { label: 'Отменено', className: 'bg-[#E8CFCF] text-[#7A2E2E]' },
 };
 
 export default function NeonTicketCard({

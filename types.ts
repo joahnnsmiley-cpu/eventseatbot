@@ -23,13 +23,21 @@ export interface Table {
   visibleFrom?: string | null;
   /** ISO string; when to stop showing table to public. NULL = no end limit. */
   visibleUntil?: string | null;
-  x?: number; // Percentage 0-100
-  y?: number; // Percentage 0-100
+  x?: number; // Deprecated: use centerX
+  y?: number; // Deprecated: use centerY
   centerX: number; // Percentage 0-100
   centerY: number; // Percentage 0-100
+  /** Rotation in degrees. */
+  rotationDeg?: number;
+  /** When set with heightPercent: explicit rect dimensions (container %). */
+  widthPercent?: number;
+  /** When set with widthPercent: explicit rect dimensions (container %). */
+  heightPercent?: number;
   sizePercent?: number;
   shape?: 'circle' | 'rect' | string; // e.g. 'circle' | 'rect'
   color?: string;
+  /** Category for subtle background: VIP | Premium | Standard. Stored in color when using category picker. */
+  category?: 'VIP' | 'Premium' | 'Standard';
 }
 
 export interface EventData {

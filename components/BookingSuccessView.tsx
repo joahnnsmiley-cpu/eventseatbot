@@ -155,7 +155,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
       <p className="text-gray-400 text-sm whitespace-pre-wrap text-left">{UI_TEXT.booking.paymentPrompt}</p>
 
       {isAwaitingConfirmation && (
-        <p className="text-sm text-amber-400 bg-amber-500/10 rounded-lg p-3 text-left">{UI_TEXT.booking.awaitingConfirmationMessage}</p>
+        <p className="text-sm text-[#6E6A64] bg-[#E7E3DB] rounded-lg p-3 text-left">{UI_TEXT.booking.awaitingConfirmationMessage}</p>
       )}
 
       {statusUpdateError && (

@@ -31,9 +31,9 @@ const formatDate = (dateStr?: string) => {
 };
 
 const badgeClassByStatus: Record<string, string> = {
-  draft: 'bg-gray-200 text-gray-800',
-  published: 'bg-green-600 text-white',
-  archived: 'bg-gray-500 text-gray-100',
+  draft: 'bg-[#E7E3DB] text-[#6E6A64]',
+  published: 'bg-[#E7E3DB] text-[#6E6A64]',
+  archived: 'bg-[#ECE6DD] text-[#9B948A]',
 };
 
 const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = false }) => {
@@ -70,7 +70,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = 
       <div className="relative min-h-[120px] p-4 flex flex-col justify-end z-[2]">
         {mode === 'admin' && badgeText && (
           <span
-            className={`absolute top-3 right-3 px-2 py-0.5 text-xs font-medium rounded ${badgeClassByStatus[status] ?? badgeClassByStatus.draft}`}
+            className={`absolute top-3 right-3 px-2 py-0.5 text-xs font-medium uppercase tracking-wide rounded-lg ${badgeClassByStatus[status] ?? badgeClassByStatus.draft}`}
             aria-label={UI_TEXT.admin.statusLabel}
           >
             {badgeText}

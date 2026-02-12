@@ -49,6 +49,9 @@ CREATE TABLE IF NOT EXISTS event_tables (
   center_x INTEGER,
   center_y INTEGER,
   size_percent INTEGER,
+  width_percent REAL,
+  height_percent REAL,
+  rotation_deg INTEGER,
   shape TEXT,
   color TEXT,
   is_available BOOLEAN DEFAULT false,
@@ -57,6 +60,14 @@ CREATE TABLE IF NOT EXISTS event_tables (
 
 COMMENT ON TABLE event_tables IS 'Tables per event; separated from events so bookings can reference table_id and we can index by event_id';
 COMMENT ON COLUMN event_tables.shape IS 'e.g. circle | rect';
+COMMENT ON COLUMN event_tables.width_percent IS 'For rect: width as % of container. Must be > 0 when shape=rect';
+COMMENT ON COLUMN event_tables.height_percent IS 'For rect: height as % of container. Must be > 0 when shape=rect';
+COMMENT ON COLUMN event_tables.rotation_deg IS 'Rotation in degrees (-180 to 180)';
+
+-- Migration: add rect geometry columns (run in SQL Editor for existing DB)
+-- ALTER TABLE event_tables ADD COLUMN IF NOT EXISTS width_percent REAL;
+-- ALTER TABLE event_tables ADD COLUMN IF NOT EXISTS height_percent REAL;
+-- ALTER TABLE event_tables ADD COLUMN IF NOT EXISTS rotation_deg INTEGER;
 
 CREATE INDEX IF NOT EXISTS idx_event_tables_event_id ON event_tables(event_id);
 

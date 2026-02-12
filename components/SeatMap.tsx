@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
+import { getTableCategoryColor } from '../src/ui/theme';
+import { computeTableSizes } from '../src/ui/tableSizing';
+import { useContainerWidth } from '../src/hooks/useContainerWidth';
+import { TableNumber, SeatInfo } from './TableLabel';
 
 type SeatStatus = 'available' | 'reserved' | 'sold';
 
@@ -39,6 +43,7 @@ interface SeatMapProps {
   isEditable?: boolean; // For Admin
   seatState?: SeatSelectionState;
   selectedSeatsByTable?: Record<string, number[]>;
+  selectedTableId?: string | null;
   onSeatToggle?: (seat: SeatModel) => void;
   onSelectedSeatsChange?: (selectedSeats: string[]) => void;
   onTableAdd?: (x: number, y: number) => void;
@@ -50,6 +55,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
   event, 
   isEditable = false, 
   seatState,
+  selectedTableId = null,
   onSeatToggle,
   onSelectedSeatsChange,
   onTableAdd,
@@ -64,11 +70,14 @@ const SeatMap: React.FC<SeatMapProps> = ({
     : Array.isArray(event?.tables)
       ? event.tables
       : [];
-  const tables = rawTables.filter((t: { is_active?: boolean }) => t.is_active !== false);
+  const tables = rawTables
+    .filter((t: { is_active?: boolean }) => t.is_active !== false)
+    .sort((a: { number?: number }, b: { number?: number }) => (a.number ?? Infinity) - (b.number ?? Infinity));
   const seats = seatState?.seats ?? [];
   const selectedSet = new Set(selectedSeats);
   const layoutImageUrl = (event?.layout_image_url ?? event?.layoutImageUrl ?? '').trim();
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
+  const [layoutRef, layoutWidth] = useContainerWidth<HTMLDivElement>();
 
   useEffect(() => {
     if (!layoutImageUrl) {
@@ -110,11 +119,12 @@ const SeatMap: React.FC<SeatMapProps> = ({
 
   return (
     <div
+      ref={layoutRef}
       className="relative w-full overflow-hidden bg-gray-100 rounded-lg border border-gray-300"
       style={{
         width: '100%',
         aspectRatio: layoutAspectRatio ?? 16 / 9,
-        minHeight: layoutAspectRatio == null ? 300 : undefined,
+        minHeight: layoutAspectRatio == null ? '18rem' : undefined,
       }}
     >
       <div className="absolute inset-0 overflow-hidden rounded-2xl">
@@ -156,48 +166,58 @@ const SeatMap: React.FC<SeatMapProps> = ({
           {UI_TEXT.seatMap.noTablesYet}
         </div>
       )}
-      {tables.map((table) => {
-        const x = typeof table.x === 'number' ? table.x : table.centerX;
-        const y = typeof table.y === 'number' ? table.y : table.centerY;
+      {layoutWidth > 0 && tables.map((table) => {
+        const centerX = (table as any).centerX ?? 0;
+        const centerY = (table as any).centerY ?? 0;
+        const rotationDeg = (table as any).rotationDeg ?? 0;
         const isAvailableForSale = (table as any).isAvailable === true;
         const isSoldOut = !isEditable && table.seatsAvailable === 0;
         const isTableDisabled = !isEditable && (!isAvailableForSale || isSoldOut);
-        const isRect = (table as any).shape === 'rect';
-        const bg = (table as any).color || '#3b82f6';
+        const isSelected = selectedTableId === table.id;
+        const sizes = computeTableSizes(layoutWidth, {
+          sizePercent: (table as any).sizePercent,
+          widthPercent: (table as any).widthPercent,
+          heightPercent: (table as any).heightPercent,
+        });
+        const isRect = typeof sizes.borderRadius === 'number';
+        const rectBg = isSelected ? '#F3EBDD' : '#F9F6F1';
+        const categoryColor = getTableCategoryColor((table as any).category ?? (table as any).color);
+        const shapeStyle = {
+          width: sizes.width,
+          height: sizes.height,
+          borderRadius: sizes.borderRadius,
+          backgroundColor: isRect ? rectBg : (isSelected ? '#F3EBDD' : categoryColor),
+        };
+        const fontNumber = `${sizes.fontNumber}px`;
+        const fontSub = `${sizes.fontSub}px`;
         return (
           <div
             key={table.id}
-            className={`table-wrapper ${isRect ? 'rect' : 'circle'} ${isTableDisabled ? 'opacity-60' : ''}`}
+            className={`table-wrapper ${isTableDisabled ? 'opacity-60' : ''} ${isSelected ? 'table-selected' : ''}`}
             style={{
               position: 'absolute',
-              left: `${x}%`,
-              top: `${y}%`,
-              transform: 'translate(-50%, -50%)',
-              ['--size' as string]: Number((table as any).sizePercent) || 5,
+              left: `${centerX}%`,
+              top: `${centerY}%`,
+              transform: `translate(-50%, -50%) rotate(${rotationDeg}deg)`,
+              transformOrigin: 'center',
               cursor: isTableDisabled ? 'not-allowed' : 'pointer',
             }}
             onClick={(e) => {
                 if (isTableDisabled) return;
                 e.stopPropagation();
-                console.log('[TABLE CLICK]');
-                console.log('eventId:', event?.id);
-                console.log('tableId:', table.id);
                 if (onTableSelect) onTableSelect(table.id);
               }}
-            aria-label={`${UI_TEXT.seatMap.tableFree.replace('{number}', String(table.number)).replace('{free}', String(table.seatsAvailable))}${!isAvailableForSale ? UI_TEXT.seatMap.notAvailableForSale : ''}`}
           >
-              <div
-                className={`table-shape ${isRect ? 'rect' : 'circle'}`}
-                style={{ backgroundColor: bg }}
-              />
+              <div className="table-shape" style={shapeStyle} />
               <div className="table-label">
-                <div className="font-semibold">{UI_TEXT.tables.table} {table.number}</div>
-                <div className="text-[10px] text-white/90">{table.seatsAvailable} / {table.seatsTotal}</div>
+                <TableNumber number={table.number ?? 0} fontSize={fontNumber} />
+                <SeatInfo available={table.seatsAvailable} total={table.seatsTotal} fontSize={fontSub} />
               </div>
             {isEditable && (
               <button
                 onClick={(e) => { e.stopPropagation(); onTableDelete && onTableDelete(table.id); }}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md"
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                aria-label={`${UI_TEXT.common.delete} ${UI_TEXT.tables.table} ${table.number}`}
               >
                 ×
               </button>

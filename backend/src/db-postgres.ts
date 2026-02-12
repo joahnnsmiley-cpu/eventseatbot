@@ -42,6 +42,9 @@ type EventTablesRow = {
   center_x: number | null;
   center_y: number | null;
   size_percent: number | null;
+  width_percent?: number | null;
+  height_percent?: number | null;
+  rotation_deg?: number | null;
   shape: string | null;
   color: string | null;
   is_available: boolean | null;
@@ -112,6 +115,9 @@ function eventTablesRowToTable(row: EventTablesRow, bookedSeats?: number): Table
     centerY: row.center_y ?? row.y ?? 0,
   };
   if (row.size_percent != null) t.sizePercent = row.size_percent;
+  if (row.width_percent != null) t.widthPercent = row.width_percent;
+  if (row.height_percent != null) t.heightPercent = row.height_percent;
+  if (row.rotation_deg != null) t.rotationDeg = row.rotation_deg;
   if (row.shape != null) t.shape = row.shape;
   if (row.color != null) t.color = row.color;
   if (row.visible_from != null) t.visibleFrom = row.visible_from;
@@ -348,6 +354,9 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
           center_x: t.centerX ?? t.x ?? null,
           center_y: t.centerY ?? t.y ?? null,
           size_percent: t.sizePercent ?? null,
+          width_percent: (t as { widthPercent?: number }).widthPercent ?? null,
+          height_percent: (t as { heightPercent?: number }).heightPercent ?? null,
+          rotation_deg: (t as { rotationDeg?: number }).rotationDeg ?? null,
           shape: t.shape ?? null,
           color: t.color ?? null,
           is_available: t.isAvailable ?? false,
@@ -391,6 +400,9 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
         center_x: t.centerX ?? t.x ?? null,
         center_y: t.centerY ?? t.y ?? null,
         size_percent: t.sizePercent ?? null,
+        width_percent: (t as { widthPercent?: number }).widthPercent ?? null,
+        height_percent: (t as { heightPercent?: number }).heightPercent ?? null,
+        rotation_deg: (t as { rotationDeg?: number }).rotationDeg ?? null,
         shape: t.shape ?? null,
         color: t.color ?? null,
         is_available: t.isAvailable ?? false,

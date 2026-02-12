@@ -43,6 +43,12 @@ export interface Table {
   centerY: number;
   // Shape identifier, e.g. 'round' | 'rectangle'
   sizePercent?: number;
+  /** For rect: width as % of container. Must be > 0 when shape=rect. */
+  widthPercent?: number;
+  /** For rect: height as % of container. Must be > 0 when shape=rect. */
+  heightPercent?: number;
+  /** Rotation in degrees (-180 to 180). */
+  rotationDeg?: number;
   shape?: 'circle' | 'rect' | string;
   color?: string;
 }
