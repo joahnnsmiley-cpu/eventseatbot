@@ -6,7 +6,7 @@ type SectionTitleProps = {
 
 export default function SectionTitle({ title }: SectionTitleProps) {
   return (
-    <h2 className="text-xs uppercase tracking-widest text-gray-500 mb-3">
+    <h2 className="text-xs uppercase tracking-widest text-muted mb-3">
       {title}
     </h2>
   );

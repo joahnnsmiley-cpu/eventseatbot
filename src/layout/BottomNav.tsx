@@ -26,9 +26,9 @@ export default function BottomNav({
       {isActive ? (
         <div className="text-[#FFC107]">{icon}</div>
       ) : (
-        <div className="text-gray-400">{icon}</div>
+        <div className="text-muted-light">{icon}</div>
       )}
-      <span className={`text-[10px] tracking-wide uppercase ${isActive ? 'text-[#FFC107]' : 'text-gray-400'}`}>
+      <span className={`text-[10px] tracking-wide uppercase ${isActive ? 'text-[#FFC107]' : 'text-muted-light'}`}>
         {label}
       </span>
     </div>

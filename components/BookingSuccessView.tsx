@@ -101,7 +101,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
         Бронирование подтверждено
       </h1>
 
-      <p className="text-gray-400 text-sm">
+      <p className="text-muted-light text-sm">
         Ваш стол успешно зарезервирован.
         Детали доступны в разделе «Мои билеты».
       </p>
@@ -116,7 +116,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
           <p className="text-[#FFC107]">
             {date}{time ? ` • ${time}` : ''}
           </p>
-          <p className="text-gray-400">
+          <p className="text-muted-light">
             {venue}
           </p>
         </div>
@@ -124,14 +124,14 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
 
       <Card>
         <div className="space-y-2 text-sm text-left">
-          <p className="text-gray-500 text-xs">
+          <p className="text-muted text-xs">
             {UI_TEXT.app.bookingNumber} {booking.id}
           </p>
-          <p className="text-gray-500 text-xs">
+          <p className="text-muted text-xs">
             {UI_TEXT.app.seats} {tablesAndSeats}
           </p>
           {!isAwaitingPayment && (
-            <p className="text-gray-500 text-xs">
+            <p className="text-muted text-xs">
               {UI_TEXT.app.status} {statusLabel}
             </p>
           )}
@@ -142,17 +142,17 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
         <Card>
           <div className="space-y-2 text-sm text-left">
             <div className="text-white font-semibold">{UI_TEXT.booking.paymentDetailsTitle}</div>
-            <p className="text-gray-400">
+            <p className="text-muted-light">
               {UI_TEXT.booking.paymentTransferTo} <span className="text-white font-medium">{event.paymentPhone.trim()}</span>
             </p>
-            <p className="text-gray-400">
+            <p className="text-muted-light">
               {UI_TEXT.booking.paymentPurpose} {booking.id}
             </p>
           </div>
         </Card>
       )}
 
-      <p className="text-gray-400 text-sm whitespace-pre-wrap text-left">{UI_TEXT.booking.paymentPrompt}</p>
+      <p className="text-muted-light text-sm whitespace-pre-wrap text-left">{UI_TEXT.booking.paymentPrompt}</p>
 
       {isAwaitingConfirmation && (
         <p className="text-sm text-[#6E6A64] bg-[#E7E3DB] rounded-lg p-3 text-left">{UI_TEXT.booking.awaitingConfirmationMessage}</p>
@@ -179,7 +179,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
         <button
           type="button"
           onClick={onBackToEvents}
-          className="w-full px-4 py-2 text-sm font-medium text-gray-400 border border-white/20 rounded-xl hover:bg-white/5 transition"
+          className="w-full px-4 py-2 text-sm font-medium text-muted-light border border-white/20 rounded-xl hover:bg-white/5 transition"
         >
           {UI_TEXT.booking.backToEvents}
         </button>

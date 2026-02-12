@@ -407,17 +407,17 @@ function App() {
                   setSelectedEventId(null);
                   setSelectedEvent(null);
                 }}
-                className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400"
+                className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light"
               >
                 {UI_TEXT.app.back}
               </button>
-              <button onClick={() => selectedEventId && loadEvent(selectedEventId)} className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400">
+              <button onClick={() => selectedEventId && loadEvent(selectedEventId)} className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light">
                 {UI_TEXT.app.refresh}
               </button>
             </div>
-            {eventLoading && <div className="text-xs text-gray-500">{UI_TEXT.app.loadingLayout}</div>}
+            {eventLoading && <div className="text-xs text-muted">{UI_TEXT.app.loadingLayout}</div>}
             {eventError && <div className="text-sm text-red-400">{eventError}</div>}
-            <div className="text-xs text-gray-500">{UI_TEXT.app.loadingEvent}</div>
+            <div className="text-xs text-muted">{UI_TEXT.app.loadingEvent}</div>
           </div>
         </div>
       );
@@ -446,9 +446,9 @@ function App() {
 
   if (view === 'seats' && (!selectedEvent || !selectedTableId || !selectedTable)) {
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
+      <div className="max-w-md mx-auto min-h-screen bg-surface shadow-2xl relative">
         <div className="p-4">
-          <div className="text-xs text-gray-500">{UI_TEXT.app.returningToLayout}</div>
+          <div className="text-xs text-muted">{UI_TEXT.app.returningToLayout}</div>
         </div>
       </div>
     );
@@ -465,28 +465,28 @@ function App() {
                 setSelectedTableId(null);
               }}
               disabled={bookingLoading}
-              className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400"
+              className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light"
             >
               {UI_TEXT.app.back}
             </button>
-            <div className="text-xs text-gray-400">{selectedEvent.title || UI_TEXT.app.event}</div>
+            <div className="text-xs text-muted-light">{selectedEvent.title || UI_TEXT.app.event}</div>
             <button
               onClick={() => selectedEventId && loadEvent(selectedEventId)}
               disabled={bookingLoading}
-              className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400"
+              className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light"
             >
               {UI_TEXT.app.refresh}
             </button>
           </div>
 
-          {eventLoading && <div className="text-xs text-gray-500">{UI_TEXT.app.loadingSeats}</div>}
+          {eventLoading && <div className="text-xs text-muted">{UI_TEXT.app.loadingSeats}</div>}
           {eventError && <div className="text-sm text-red-400 mb-3">{eventError}</div>}
 
           {selectedTable ? (
             <div className="space-y-6">
               <Card>
                 <div className="text-sm font-semibold text-white">{UI_TEXT.tables.table} {selectedTable.number}</div>
-                <div className="text-xs text-gray-400 mt-1">
+                <div className="text-xs text-muted-light mt-1">
                   {UI_TEXT.app.freeSeats} {selectedTable.seatsAvailable} / {selectedTable.seatsTotal}
                 </div>
                 {selectedTable.isAvailable !== true && (
@@ -519,7 +519,7 @@ function App() {
               </Card>
 
               <Card>
-                <div className="text-sm uppercase tracking-widest text-gray-400">
+                <div className="text-sm uppercase tracking-widest text-muted-light">
                   {UI_TEXT.app.numberOfSeats}
                 </div>
                 <div className="flex items-center gap-2 mt-2">
@@ -585,10 +585,10 @@ function App() {
                   >
                     +
                   </button>
-                  <span className="text-xs text-gray-400">/ {selectedTable.seatsTotal}</span>
+                  <span className="text-xs text-muted-light">/ {selectedTable.seatsTotal}</span>
                 </div>
                 {selectedTable.seatsAvailable === 0 && (
-                  <div className="text-xs text-gray-400 mt-2">
+                  <div className="text-xs text-muted-light mt-2">
                     {UI_TEXT.app.tableFullyBooked}
                   </div>
                 )}
@@ -628,7 +628,7 @@ function App() {
               )}
 
               <Card>
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-muted-light">
                   {UI_TEXT.app.availabilityRefreshes}
                 </div>
               </Card>
@@ -728,12 +728,12 @@ function App() {
                 {bookingLoading ? UI_TEXT.app.booking : UI_TEXT.app.continueBook}
               </PrimaryButton>
               {bookingLoading && (
-                <div className="text-xs text-gray-400 mt-2">{UI_TEXT.app.submitting}</div>
+                <div className="text-xs text-muted-light mt-2">{UI_TEXT.app.submitting}</div>
               )}
             </div>
           ) : (
             <Card>
-              <div className="text-sm text-gray-400">{UI_TEXT.app.tableNotFound}</div>
+              <div className="text-sm text-muted-light">{UI_TEXT.app.tableNotFound}</div>
             </Card>
           )}
         </div>
@@ -745,7 +745,7 @@ function App() {
     if (!lastCreatedEvent || !lastCreatedBooking) {
       return wrapWithLayout(
         <div className="max-w-md mx-auto min-h-screen p-4">
-          <button onClick={() => setView('events')} className="text-sm border border-white/20 rounded px-3 py-2 text-gray-400">
+          <button onClick={() => setView('events')} className="text-sm border border-white/20 rounded px-3 py-2 text-muted-light">
             {UI_TEXT.app.backToEvents}
           </button>
         </div>
@@ -778,7 +778,7 @@ function App() {
 
   if (view === 'my-bookings') {
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative">
+      <div className="max-w-md mx-auto min-h-screen bg-surface shadow-2xl relative">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
             <button
@@ -794,7 +794,7 @@ function App() {
             >
               Back
             </button>
-            <div className="text-xs text-gray-500">{UI_TEXT.app.myBookings}</div>
+            <div className="text-xs text-muted">{UI_TEXT.app.myBookings}</div>
             <button
               onClick={() => loadMyBookings()}
               disabled={myBookingsLoading}
@@ -807,7 +807,7 @@ function App() {
           {bookingSuccessMessage && (
             <div className="text-sm text-green-700 mb-4">{bookingSuccessMessage}</div>
           )}
-          {myBookingsLoading && <div className="text-xs text-gray-500">{UI_TEXT.app.loadingBookings}</div>}
+          {myBookingsLoading && <div className="text-xs text-muted">{UI_TEXT.app.loadingBookings}</div>}
           {myBookingsError && (
             <div className="text-xs text-red-600 mb-3">
               {myBookingsError}
@@ -824,24 +824,24 @@ function App() {
             </div>
           )}
           {!myBookingsError && bookingsStale && (
-            <div className="text-xs text-gray-500 mb-3">
+            <div className="text-xs text-muted mb-3">
               {UI_TEXT.app.couldNotRefresh}
             </div>
           )}
 
           {!myBookingsLoading && !myBookingsError && myBookings.length === 0 && (
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-muted">
               {UI_TEXT.app.noBookingsYet}
             </div>
           )}
 
           <div className="grid grid-cols-1 gap-3">
             {myBookings.map((b) => (
-              <div key={b.id} className="bg-white p-3 rounded border">
+              <div key={b.id} className="bg-card p-3 rounded border">
                 <div className="text-sm font-semibold">
                   {b.event?.title ? b.event.title : `${UI_TEXT.app.bookingNumber}${b.id}`}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-muted mt-1">
                   {UI_TEXT.app.status} {UI_TEXT.booking.statusLabels[b.status] ?? b.status ?? '—'}
                 </div>
                 {b.status === 'reserved' && formatCountdown(b.expiresAt) && (
@@ -849,14 +849,14 @@ function App() {
                     {UI_TEXT.app.expiresIn} {formatCountdown(b.expiresAt)}
                   </div>
                 )}
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-muted">
                   {UI_TEXT.app.seats} {typeof b.seatsCount === 'number'
                     ? b.seatsCount
                     : Array.isArray(b.seatIds) && b.seatIds.length > 0
                       ? b.seatIds.length
                       : '—'}
                 </div>
-                <div className="text-xs text-gray-500">{UI_TEXT.app.total} {b.totalAmount ?? '—'}</div>
+                <div className="text-xs text-muted">{UI_TEXT.app.total} {b.totalAmount ?? '—'}</div>
                 {b.status === 'paid' && Array.isArray(b.tickets) && b.tickets.length > 0 && (
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     {b.tickets.map((t) => {
@@ -874,7 +874,7 @@ function App() {
                   </div>
                 )}
                 {b.status === 'paid' && (!Array.isArray(b.tickets) || b.tickets.length === 0) && (
-                  <div className="text-xs text-gray-600 mt-2">
+                  <div className="text-xs text-muted mt-2">
                     {UI_TEXT.app.ticketsAfterPayment}
                   </div>
                 )}
@@ -908,7 +908,7 @@ function App() {
             <p className="text-[#FFC107] text-sm tracking-[6px] uppercase">
               КАССА
             </p>
-            <p className="text-gray-400 text-sm">
+            <p className="text-muted-light text-sm">
               Выберите ваше эксклюзивное событие
             </p>
           </div>
@@ -934,8 +934,8 @@ function App() {
           )}
           {!loading && hasLoaded && publishedEvents.length === 0 && !error && (
             <div className="py-8 text-center">
-              <p className="text-base text-gray-400 mb-2">{UI_TEXT.admin.emptyEventsList}</p>
-              <p className="text-sm text-gray-500">{UI_TEXT.app.noPublishedEvents}</p>
+              <p className="text-base text-muted-light mb-2">{UI_TEXT.admin.emptyEventsList}</p>
+              <p className="text-sm text-muted">{UI_TEXT.app.noPublishedEvents}</p>
             </div>
           )}
           {!loading && publishedEvents.length > 0 && (() => {
@@ -945,7 +945,7 @@ function App() {
             return (
               <>
                 <div>
-                  <p className="text-gray-500 text-xs tracking-widest uppercase mb-2">
+                  <p className="text-muted text-xs tracking-widest uppercase mb-2">
                     Главное событие
                   </p>
                   <div className="relative">
@@ -978,7 +978,7 @@ function App() {
                         <p className="text-white text-lg">
                           {fmt?.time ?? ''}
                         </p>
-                        <p className="text-gray-400 text-sm uppercase tracking-widest">
+                        <p className="text-muted-light text-sm uppercase tracking-widest">
                           {(featured as { venue?: string })?.venue ?? ''}
                         </p>
                       </div>
@@ -988,7 +988,7 @@ function App() {
 
                 {thisMonthEvents.length > 0 && (
                   <div>
-                    <p className="text-gray-500 text-xs tracking-widest uppercase mb-2">
+                    <p className="text-muted text-xs tracking-widest uppercase mb-2">
                       В этом месяце
                     </p>
                     <div className="space-y-3">
@@ -1012,9 +1012,9 @@ function App() {
                             <div className="flex-1 p-4 flex items-center justify-between">
                               <div>
                                 <p className="font-bold text-white">{evt.title?.trim() || UI_TEXT.event.eventFallback}</p>
-                                <p className="text-gray-400 text-sm">Площадка</p>
+                                <p className="text-muted-light text-sm">Площадка</p>
                               </div>
-                              <svg className="w-5 h-5 text-gray-500 shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                              <svg className="w-5 h-5 text-muted shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                               </svg>
                             </div>

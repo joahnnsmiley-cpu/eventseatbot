@@ -49,7 +49,7 @@ export default function TicketModal({ ticketImageUrl, isOpen = true, onClose }: 
             className="max-w-[90%] rounded-xl object-contain"
           />
         ) : (
-          <div className="w-64 h-80 rounded-xl bg-gray-800 flex items-center justify-center text-gray-500 text-sm">
+          <div className="w-64 h-80 rounded-xl bg-gray-800 flex items-center justify-center text-muted text-sm">
             Нет изображения билета
           </div>
         )}

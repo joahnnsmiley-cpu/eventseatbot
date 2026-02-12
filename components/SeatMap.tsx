@@ -4,6 +4,7 @@ import { UI_TEXT } from '../constants/uiText';
 import { getTableCategoryColor } from '../src/ui/theme';
 import { computeTableSizes } from '../src/ui/tableSizing';
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
+import { mapTableFromDb } from '../src/utils/mapTableFromDb';
 import { TableNumber, SeatInfo } from './TableLabel';
 
 type SeatStatus = 'available' | 'reserved' | 'sold';
@@ -73,6 +74,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
   const tables = rawTables
     .filter((t: { is_active?: boolean }) => t.is_active !== false)
     .sort((a: { number?: number }, b: { number?: number }) => (a.number ?? Infinity) - (b.number ?? Infinity));
+  const mappedTables = tables.map(mapTableFromDb);
   const seats = seatState?.seats ?? [];
   const selectedSet = new Set(selectedSeats);
   const layoutImageUrl = (event?.layout_image_url ?? event?.layoutImageUrl ?? '').trim();
@@ -120,7 +122,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
   return (
     <div
       ref={layoutRef}
-      className="relative w-full overflow-hidden bg-gray-100 rounded-lg border border-gray-300"
+      className="relative w-full overflow-hidden bg-surface rounded-lg border border-gray-300"
       style={{
         width: '100%',
         aspectRatio: layoutAspectRatio ?? 16 / 9,
@@ -156,32 +158,29 @@ const SeatMap: React.FC<SeatMapProps> = ({
           onClick={handleMapClick}
         >
       {!layoutImageUrl && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-muted pointer-events-none">
           {UI_TEXT.seatMap.noLayoutImage}
         </div>
       )}
 
-      {tables.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
+      {mappedTables.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-muted pointer-events-none">
           {UI_TEXT.seatMap.noTablesYet}
         </div>
       )}
-      {layoutWidth > 0 && tables.map((table) => {
-        const centerX = (table as any).centerX ?? 0;
-        const centerY = (table as any).centerY ?? 0;
-        const rotationDeg = (table as any).rotationDeg ?? 0;
-        const isAvailableForSale = (table as any).isAvailable === true;
+      {layoutWidth > 0 && mappedTables.map((table) => {
+        const isAvailableForSale = table.isAvailable === true;
         const isSoldOut = !isEditable && table.seatsAvailable === 0;
         const isTableDisabled = !isEditable && (!isAvailableForSale || isSoldOut);
         const isSelected = selectedTableId === table.id;
         const sizes = computeTableSizes(layoutWidth, {
-          sizePercent: (table as any).sizePercent,
-          widthPercent: (table as any).widthPercent,
-          heightPercent: (table as any).heightPercent,
+          sizePercent: table.sizePercent,
+          widthPercent: table.widthPercent,
+          heightPercent: table.heightPercent,
         });
         const isRect = typeof sizes.borderRadius === 'number';
         const rectBg = isSelected ? '#F3EBDD' : '#F9F6F1';
-        const categoryColor = getTableCategoryColor((table as any).category ?? (table as any).color);
+        const categoryColor = getTableCategoryColor(table.category ?? table.color);
         const shapeStyle = {
           width: sizes.width,
           height: sizes.height,
@@ -196,9 +195,9 @@ const SeatMap: React.FC<SeatMapProps> = ({
             className={`table-wrapper ${isTableDisabled ? 'opacity-60' : ''} ${isSelected ? 'table-selected' : ''}`}
             style={{
               position: 'absolute',
-              left: `${centerX}%`,
-              top: `${centerY}%`,
-              transform: `translate(-50%, -50%) rotate(${rotationDeg}deg)`,
+              left: `${table.centerX}%`,
+              top: `${table.centerY}%`,
+              transform: `translate(-50%, -50%) rotate(${table.rotationDeg}deg)`,
               transformOrigin: 'center',
               cursor: isTableDisabled ? 'not-allowed' : 'pointer',
             }}
@@ -228,7 +227,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
 
       {!isEditable && seats.length > 0 && (
         <div className="absolute bottom-0 left-0 right-0 bg-[#0B0B0B] border-t border-white/10 p-4">
-          <div className="text-xs uppercase tracking-widest text-gray-400 mb-3">{UI_TEXT.seatMap.seats}</div>
+          <div className="text-xs uppercase tracking-widest text-muted-light mb-3">{UI_TEXT.seatMap.seats}</div>
           <div className="grid grid-cols-6 gap-3">
             {seats.map((seat) => {
               const key = `${seat.tableId}-${seat.id}`;
@@ -239,7 +238,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
                 ? 'bg-[#FFC107] text-black shadow-[0_0_15px_rgba(255,193,7,0.6)] scale-105'
                 : seat.status === 'available'
                   ? 'bg-[#1a1a1a] border border-white/10 text-white hover:border-[#FFC107] hover:scale-105'
-                  : 'bg-[#111] text-gray-500 opacity-40 cursor-not-allowed';
+                  : 'bg-[#111] text-muted opacity-40 cursor-not-allowed';
 
               return (
                 <button
@@ -258,7 +257,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
               );
             })}
           </div>
-          <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-gray-500">
+          <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-muted">
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[#1a1a1a] border border-white/10 inline-block" />{UI_TEXT.seatMap.available}</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[#FFC107] inline-block" />{UI_TEXT.seatMap.selected}</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[#111] opacity-40 inline-block" />{UI_TEXT.seatMap.sold}</span>

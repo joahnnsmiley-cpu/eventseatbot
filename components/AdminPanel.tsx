@@ -10,6 +10,8 @@ import PrimaryButton from '../src/ui/PrimaryButton';
 import SecondaryButton from '../src/ui/SecondaryButton';
 import DangerButton from '../src/ui/DangerButton';
 import EventCard, { EventCardSkeleton } from './EventCard';
+import AdminCard from '../src/ui/AdminCard';
+import { mapTableFromDb } from '../src/utils/mapTableFromDb';
 
 type AdminBooking = {
   id: string;
@@ -228,7 +230,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setSuccessMessage(null);
     try {
       const ev = await StorageService.getAdminEvent(eventId);
-      setSelectedEvent(ev);
+      const mappedEv = ev ? { ...ev, tables: (ev.tables ?? []).map(mapTableFromDb) } : ev;
+      setSelectedEvent(mappedEv);
       setLayoutUrl(ev?.layoutImageUrl || '');
       setLayoutUploadVersion(null);
       setEventPosterUrl(ev?.imageUrl ?? '');
@@ -300,7 +303,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
       // Never use PUT response: it returns reduced shape (toEvent) without tables and would overwrite state.
       const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
-      setSelectedEvent(refreshed);
+      const mappedRefreshed = refreshed ? { ...refreshed, tables: (refreshed.tables ?? []).map(mapTableFromDb) } : refreshed;
+      setSelectedEvent(mappedRefreshed);
       setLayoutUrl(refreshed?.layoutImageUrl || '');
       setEventPosterUrl(refreshed?.imageUrl ?? '');
       setEventTitle(refreshed?.title || '');
@@ -388,7 +392,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
       // Never use PUT response: it returns reduced shape (toEvent) without tables and would overwrite state.
       const refreshed = await StorageService.getAdminEvent(selectedEvent.id);
-      setSelectedEvent(refreshed);
+      const mappedRefreshed = refreshed ? { ...refreshed, tables: (refreshed.tables ?? []).map(mapTableFromDb) } : refreshed;
+      setSelectedEvent(mappedRefreshed);
       setLayoutUrl(refreshed?.layoutImageUrl || '');
       setEventPosterUrl(refreshed?.imageUrl ?? '');
       setEventTitle(refreshed?.title || '');
@@ -405,7 +410,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       if (selectedEventId) {
         try {
           const refreshed = await StorageService.getAdminEvent(selectedEventId);
-          setSelectedEvent(refreshed);
+          const mappedRefreshed = refreshed ? { ...refreshed, tables: (refreshed.tables ?? []).map(mapTableFromDb) } : refreshed;
+          setSelectedEvent(mappedRefreshed);
         } catch {
           /* ignore reload failure */
         }
@@ -461,7 +467,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const tables: Table[] = selectedEvent?.tables ?? [];
 
   return (
-    <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gray-50 min-h-screen">
+    <div className="admin-root">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">{UI_TEXT.admin.title}</h1>
         <div className="flex items-center gap-2">
@@ -497,19 +503,19 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setMode('bookings')}
-          className={`px-3 py-2 rounded text-sm ${mode === 'bookings' ? 'bg-gray-900 text-white' : 'bg-white border text-gray-700'}`}
+          className={`px-3 py-2 rounded text-sm ${mode === 'bookings' ? 'bg-gray-900 text-white' : 'bg-card border text-gray-700'}`}
         >
           {UI_TEXT.admin.bookings}
         </button>
         <button
           onClick={() => setMode('layout')}
-          className={`px-3 py-2 rounded text-sm ${mode === 'layout' ? 'bg-gray-900 text-white' : 'bg-white border text-gray-700'}`}
+          className={`px-3 py-2 rounded text-sm ${mode === 'layout' ? 'bg-gray-900 text-white' : 'bg-card border text-gray-700'}`}
         >
           {UI_TEXT.admin.venueLayout}
         </button>
       </div>
 
-      {loading && <div className="text-sm text-gray-500">{UI_TEXT.admin.loadingBookings}</div>}
+      {loading && <div className="text-sm text-muted">{UI_TEXT.admin.loadingBookings}</div>}
       {error && <div className="text-sm text-red-600 mb-4">{error}</div>}
       {successMessage && <div className="text-sm text-green-700 mb-4">{successMessage}</div>}
 
@@ -517,7 +523,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         <>
           {!loading && hasBookings && (
             <div className="mb-4">
-              <label className="text-xs text-gray-500 block mb-1">{UI_TEXT.booking.status}</label>
+              <label className="text-xs text-muted block mb-1">{UI_TEXT.booking.status}</label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -552,13 +558,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 const userPhone = b.user_phone ?? b.userPhone;
 
                 return (
-                  <div key={b.id} className="bg-white p-4 rounded shadow-sm border flex justify-between items-start gap-4">
+                  <div key={b.id} className="bg-card p-4 rounded shadow-sm border flex justify-between items-start gap-4">
                     <div className="min-w-0">
                       <div className="font-semibold">{b.event?.title || b.event_id || UI_TEXT.event.eventFallback}</div>
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-muted mt-1">
                         Event ID: {b.event_id ?? b.event?.id ?? '—'}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted">
                         Table:{' '}
                         {(() => {
                           const eventId = b.event_id ?? b.event?.id ?? '';
@@ -576,16 +582,16 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           return table ? `Table ${table.number}` : b.table_id;
                         })()}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted">
                         Seat indices: {seatIndicesStr || '—'}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted">
                         Seats booked: {b.seats_booked ?? (Array.isArray(b.seat_indices) ? b.seat_indices.length : '—')}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted">
                         Telegram ID: {typeof telegramId === 'number' ? telegramId : '—'}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted">
                         {UI_TEXT.booking.phone} {userPhone || '—'}
                       </div>
                       <div className="text-sm text-gray-700 mt-1">
@@ -597,15 +603,15 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-[#E8CFCF] text-[#7A2E2E]">CANCELLED</span>
                         )}
                         {status !== 'paid' && status !== 'cancelled' && (
-                          <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${statusStyle[status] ?? 'bg-gray-100 text-gray-700'}`}>
+                          <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${statusStyle[status] ?? 'bg-surface text-gray-700'}`}>
                             {UI_TEXT.booking.statusLabels[status] ?? status ?? '—'}
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-muted mt-1">
                         Created at: {b.created_at ?? '—'}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted">
                         {UI_TEXT.booking.bookingId} {b.id}
                       </div>
                     </div>
@@ -653,7 +659,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
       {mode === 'layout' && (
         <div className="grid grid-cols-1 gap-4">
-          <div className="bg-white p-4 rounded border">
+          <div className="bg-card p-4 rounded border">
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <button
                 onClick={loadEvents}
@@ -713,188 +719,187 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           </div>
 
           {selectedEvent && (
-            <div className="bg-white p-4 rounded border space-y-4">
-              <div>
-                <div className="text-sm font-semibold mb-1">{UI_TEXT.event.title}</div>
-                <input
-                  type="text"
-                  value={eventTitle}
-                  onChange={(e) => setEventTitle(e.target.value)}
-                  placeholder={UI_TEXT.event.titlePlaceholder}
-                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
-                />
-              </div>
-              <div>
-                <div className="text-sm font-semibold mb-1">{UI_TEXT.event.description}</div>
-                <textarea
-                  value={eventDescription}
-                  onChange={(e) => setEventDescription(e.target.value)}
-                  placeholder={UI_TEXT.event.descriptionPlaceholder}
-                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
-                  rows={3}
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm font-semibold mb-1">{UI_TEXT.event.eventDate}</div>
-                  <input
-                    type="date"
-                    value={eventDate}
-                    onChange={(e) => setEventDate(e.target.value)}
-                    placeholder={UI_TEXT.event.eventDatePlaceholder}
-                    className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
-                  />
+            <>
+              <AdminCard>
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.title}</div>
+                    <input
+                      type="text"
+                      value={eventTitle}
+                      onChange={(e) => setEventTitle(e.target.value)}
+                      placeholder={UI_TEXT.event.titlePlaceholder}
+                      className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.description}</div>
+                    <textarea
+                      value={eventDescription}
+                      onChange={(e) => setEventDescription(e.target.value)}
+                      placeholder={UI_TEXT.event.descriptionPlaceholder}
+                      className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-sm font-semibold mb-1">{UI_TEXT.event.eventDate}</div>
+                      <input
+                        type="date"
+                        value={eventDate}
+                        onChange={(e) => setEventDate(e.target.value)}
+                        placeholder={UI_TEXT.event.eventDatePlaceholder}
+                        className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold mb-1">{UI_TEXT.event.eventTime}</div>
+                      <input
+                        type="time"
+                        value={eventTime}
+                        onChange={(e) => setEventTime(e.target.value)}
+                        placeholder={UI_TEXT.event.eventTimePlaceholder}
+                        className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.venue}</div>
+                    <input
+                      type="text"
+                      value={venue}
+                      onChange={(e) => setVenue(e.target.value)}
+                      placeholder={UI_TEXT.event.venuePlaceholder}
+                      className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                    />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.organizerPhone}</div>
+                    <input
+                      type="text"
+                      value={eventPhone}
+                      onChange={(e) => setEventPhone(e.target.value)}
+                      placeholder={UI_TEXT.event.phonePlaceholder}
+                      className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <div className="text-sm font-semibold mb-1">{UI_TEXT.event.eventTime}</div>
-                  <input
-                    type="time"
-                    value={eventTime}
-                    onChange={(e) => setEventTime(e.target.value)}
-                    placeholder={UI_TEXT.event.eventTimePlaceholder}
-                    className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
-                  />
+              </AdminCard>
+              <AdminCard>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-gray-600">{UI_TEXT.admin.statusLabel}</span>
+                  <span className="admin-status-badge">
+                    {selectedEvent?.status === 'published' ? UI_TEXT.admin.published : selectedEvent?.status === 'archived' ? UI_TEXT.admin.archived : UI_TEXT.admin.draft}
+                  </span>
+                  {selectedEvent?.status === 'draft' && (
+                    <PrimaryButton
+                      type="button"
+                      onClick={async () => {
+                        if (!selectedEventId || !selectedEvent) return;
+                        const rawTables = selectedEvent?.tables ?? [];
+                        const numErr = validateTableNumbers(rawTables);
+                        if (numErr) { setError(numErr); return; }
+                        const rectErr = validateRectTables(rawTables);
+                        if (rectErr) { setError(rectErr); return; }
+                        setStatusActionLoading(true);
+                        setError(null);
+                        setSuccessMessage(null);
+                        try {
+                          const payload = {
+                            status: 'published' as const,
+                            tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
+                          };
+                          await StorageService.updateAdminEvent(selectedEvent.id, payload);
+                          setSuccessMessage(UI_TEXT.admin.eventPublished);
+                          await loadEvent(selectedEventId);
+                        } catch (e) {
+                          console.error('[AdminPanel] Publish failed', e);
+                          setError(toFriendlyError(e));
+                        } finally {
+                          setStatusActionLoading(false);
+                        }
+                      }}
+                      disabled={statusActionLoading}
+                      className="px-3 py-1.5 text-sm disabled:opacity-50"
+                    >
+                      {statusActionLoading ? '…' : UI_TEXT.admin.publishEvent}
+                    </PrimaryButton>
+                  )}
+                  {selectedEvent?.status === 'published' && (
+                    <DangerButton
+                      type="button"
+                      onClick={async () => {
+                        if (!selectedEventId) return;
+                        setStatusActionLoading(true);
+                        setError(null);
+                        setSuccessMessage(null);
+                        try {
+                          await StorageService.archiveAdminEvent(selectedEventId);
+                          setSuccessMessage(UI_TEXT.admin.eventArchived);
+                          await loadEvent(selectedEventId);
+                        } catch (e) {
+                          console.error('[AdminPanel] Archive failed', e);
+                          setError(toFriendlyError(e));
+                        } finally {
+                          setStatusActionLoading(false);
+                        }
+                      }}
+                      disabled={statusActionLoading}
+                      className="px-3 py-1.5 text-sm disabled:opacity-50"
+                    >
+                      {statusActionLoading ? '…' : UI_TEXT.admin.archiveEvent}
+                    </DangerButton>
+                )}
+                  {selectedEvent?.status === 'archived' && (
+                    <PrimaryButton
+                      type="button"
+                      onClick={async () => {
+                        if (!selectedEventId || !selectedEvent) return;
+                        const rawTables = selectedEvent?.tables ?? [];
+                        const numErr = validateTableNumbers(rawTables);
+                        if (numErr) { setError(numErr); return; }
+                        const rectErr = validateRectTables(rawTables);
+                        if (rectErr) { setError(rectErr); return; }
+                        setStatusActionLoading(true);
+                        setError(null);
+                        setSuccessMessage(null);
+                        try {
+                          const payload = {
+                            status: 'published' as const,
+                            tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
+                          };
+                          await StorageService.updateAdminEvent(selectedEvent.id, payload);
+                          setSuccessMessage(UI_TEXT.admin.eventPublishedAgain);
+                          await loadEvent(selectedEventId);
+                        } catch (e) {
+                          console.error('[AdminPanel] Publish again failed', e);
+                          setError(toFriendlyError(e));
+                        } finally {
+                          setStatusActionLoading(false);
+                        }
+                      }}
+                      disabled={statusActionLoading}
+                      className="px-3 py-1.5 text-sm disabled:opacity-50"
+                    >
+                      {statusActionLoading ? '…' : UI_TEXT.admin.publishAgain}
+                    </PrimaryButton>
+                  )}
                 </div>
-              </div>
-              <div>
-                <div className="text-sm font-semibold mb-1">{UI_TEXT.event.venue}</div>
-                <input
-                  type="text"
-                  value={venue}
-                  onChange={(e) => setVenue(e.target.value)}
-                  placeholder={UI_TEXT.event.venuePlaceholder}
-                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
-                />
-              </div>
-              <div>
-                <div className="text-sm font-semibold mb-1">{UI_TEXT.event.organizerPhone}</div>
-                <input
-                  type="text"
-                  value={eventPhone}
-                  onChange={(e) => setEventPhone(e.target.value)}
-                  placeholder={UI_TEXT.event.phonePlaceholder}
-                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm text-gray-600">{UI_TEXT.admin.statusLabel}</span>
-                <span
-                  className={`inline-block px-2 py-0.5 text-xs font-medium uppercase tracking-wide rounded-lg ${
-                    selectedEvent?.status === 'published'
-                      ? 'bg-[#E7E3DB] text-[#6E6A64]'
-                      : selectedEvent?.status === 'archived'
-                        ? 'bg-[#ECE6DD] text-[#9B948A]'
-                        : 'bg-[#E7E3DB] text-[#6E6A64]'
-                  }`}
-                >
-                  {selectedEvent?.status === 'published' ? UI_TEXT.admin.published : selectedEvent?.status === 'archived' ? UI_TEXT.admin.archived : UI_TEXT.admin.draft}
-                </span>
-                {selectedEvent?.status === 'draft' && (
-                  <PrimaryButton
-                    type="button"
-                    onClick={async () => {
-                      if (!selectedEventId || !selectedEvent) return;
-                      const rawTables = selectedEvent?.tables ?? [];
-                      const numErr = validateTableNumbers(rawTables);
-                      if (numErr) { setError(numErr); return; }
-                      const rectErr = validateRectTables(rawTables);
-                      if (rectErr) { setError(rectErr); return; }
-                      setStatusActionLoading(true);
-                      setError(null);
-                      setSuccessMessage(null);
-                      try {
-                        const payload = {
-                          status: 'published' as const,
-                          tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
-                        };
-                        await StorageService.updateAdminEvent(selectedEvent.id, payload);
-                        setSuccessMessage(UI_TEXT.admin.eventPublished);
-                        await loadEvent(selectedEventId);
-                      } catch (e) {
-                        console.error('[AdminPanel] Publish failed', e);
-                        setError(toFriendlyError(e));
-                      } finally {
-                        setStatusActionLoading(false);
-                      }
-                    }}
-                    disabled={statusActionLoading}
-                    className="px-3 py-1.5 text-sm disabled:opacity-50"
-                  >
-                    {statusActionLoading ? '…' : UI_TEXT.admin.publishEvent}
-                  </PrimaryButton>
-                )}
-                {selectedEvent?.status === 'published' && (
-                  <DangerButton
-                    type="button"
-                    onClick={async () => {
-                      if (!selectedEventId) return;
-                      setStatusActionLoading(true);
-                      setError(null);
-                      setSuccessMessage(null);
-                      try {
-                        await StorageService.archiveAdminEvent(selectedEventId);
-                        setSuccessMessage(UI_TEXT.admin.eventArchived);
-                        await loadEvent(selectedEventId);
-                      } catch (e) {
-                        console.error('[AdminPanel] Archive failed', e);
-                        setError(toFriendlyError(e));
-                      } finally {
-                        setStatusActionLoading(false);
-                      }
-                    }}
-                    disabled={statusActionLoading}
-                    className="px-3 py-1.5 text-sm disabled:opacity-50"
-                  >
-                    {statusActionLoading ? '…' : UI_TEXT.admin.archiveEvent}
-                  </DangerButton>
-                )}
-                {selectedEvent?.status === 'archived' && (
-                  <PrimaryButton
-                    type="button"
-                    onClick={async () => {
-                      if (!selectedEventId || !selectedEvent) return;
-                      const rawTables = selectedEvent?.tables ?? [];
-                      const numErr = validateTableNumbers(rawTables);
-                      if (numErr) { setError(numErr); return; }
-                      const rectErr = validateRectTables(rawTables);
-                      if (rectErr) { setError(rectErr); return; }
-                      setStatusActionLoading(true);
-                      setError(null);
-                      setSuccessMessage(null);
-                      try {
-                        const payload = {
-                          status: 'published' as const,
-                          tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
-                        };
-                        await StorageService.updateAdminEvent(selectedEvent.id, payload);
-                        setSuccessMessage(UI_TEXT.admin.eventPublishedAgain);
-                        await loadEvent(selectedEventId);
-                      } catch (e) {
-                        console.error('[AdminPanel] Publish again failed', e);
-                        setError(toFriendlyError(e));
-                      } finally {
-                        setStatusActionLoading(false);
-                      }
-                    }}
-                    disabled={statusActionLoading}
-                    className="px-3 py-1.5 text-sm disabled:opacity-50"
-                  >
-                    {statusActionLoading ? '…' : UI_TEXT.admin.publishAgain}
-                  </PrimaryButton>
-                )}
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={eventPublished}
-                  onChange={(e) => setEventPublished(e.target.checked)}
-                />
-                {UI_TEXT.admin.publishedCheckbox}
-              </label>
-              <div className="border rounded p-3 space-y-3">
+                <label className="flex items-center gap-2 text-sm mt-3">
+                  <input
+                    type="checkbox"
+                    checked={eventPublished}
+                    onChange={(e) => setEventPublished(e.target.checked)}
+                  />
+                  {UI_TEXT.admin.publishedCheckbox}
+                </label>
+              </AdminCard>
+              <AdminCard>
+                <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-semibold">{UI_TEXT.tables.tables}</div>
-                  <button
+                  <PrimaryButton
                     onClick={() => {
                       const nextId = `tbl-${Date.now()}`;
                       const count = tables?.length ?? 0;
@@ -914,17 +919,17 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       };
                       setSelectedEvent((prev) => (prev ? { ...prev, tables: [...(prev.tables ?? []), newTable] } : null));
                     }}
-                    className="px-2 py-1 text-xs border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="text-sm"
                   >
                     {UI_TEXT.tables.addTable}
-                  </button>
+                  </PrimaryButton>
                 </div>
                 {tables.length === 0 && (
-                  <div className="text-xs text-gray-500">{UI_TEXT.tables.noTablesYet}</div>
+                  <div className="text-xs text-muted">{UI_TEXT.tables.noTablesYet}</div>
                 )}
                 {tables.map((t, idx) => (
                   <div key={t.id} className="flex flex-wrap gap-2 items-center">
-                    <div className="text-xs text-gray-500">#{idx + 1}</div>
+                    <div className="text-xs text-muted">#{idx + 1}</div>
                     <label className="text-xs text-gray-600">
                       {UI_TEXT.tables.tableNumber}
                       <input
@@ -1136,7 +1141,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     })()}
                   </div>
                 ))}
-              </div>
+                </div>
+              </AdminCard>
               <div>
                 <div className="text-sm font-semibold mb-1">{UI_TEXT.event.posterLabel}</div>
                 <input
@@ -1146,7 +1152,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   placeholder={UI_TEXT.event.posterPlaceholder}
                   className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                 />
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-muted mt-1">
                   URL изображения афиши (обложка события).
                 </div>
               </div>
@@ -1172,9 +1178,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     }
                   }}
                   disabled={layoutUploadLoading || !selectedEvent?.id}
-                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-gray-100 file:cursor-pointer"
+                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-surface file:cursor-pointer"
                 />
-                {layoutUploadLoading && <div className="text-xs text-gray-500 mt-1">{UI_TEXT.common.loading}</div>}
+                {layoutUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
                 {layoutUploadError && <div className="text-xs text-red-600 mt-1">{layoutUploadError}</div>}
                 <input
                   type="text"
@@ -1183,16 +1189,16 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   placeholder={UI_TEXT.tables.layoutImagePlaceholder}
                   className="w-full max-w-full border rounded px-3 py-2 text-sm box-border mt-2"
                 />
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-muted mt-1">
                   {UI_TEXT.tables.layoutImageHint}
                 </div>
                 {layoutUrl && (
                   <div className="mt-2">
-                    <div className="rounded border overflow-hidden bg-gray-100 max-h-32">
+                    <div className="rounded border overflow-hidden bg-surface max-h-32">
                       <img src={layoutUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => {}} />
                     </div>
                     {layoutUploadVersion != null && (
-                      <div className="text-xs text-gray-500 mt-1">v{layoutUploadVersion}</div>
+                      <div className="text-xs text-muted mt-1">v{layoutUploadVersion}</div>
                     )}
                   </div>
                 )}
@@ -1218,7 +1224,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 {/* Layout container: same aspect ratio as image so admin and user coordinates match 1:1. */}
                 <div
                   ref={layoutPreviewRef}
-                  className="relative w-full border rounded bg-gray-100 overflow-hidden"
+                  className="relative w-full border rounded bg-surface overflow-hidden"
                   style={{
                     position: 'relative',
                     width: '100%',
@@ -1232,14 +1238,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   }}
                 >
                   {!layoutUrl && (
-                    <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
+                    <div className="absolute inset-0 flex items-center justify-center text-xs text-muted pointer-events-none">
                       {UI_TEXT.tables.noLayoutImage}
                     </div>
                   )}
                   {layoutPreviewWidth > 0 && [...tables].sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity)).map((t) => {
-                    const centerX = t.centerX ?? 0;
-                    const centerY = t.centerY ?? 0;
-                    const rotationDeg = t.rotationDeg ?? 0;
                     const available = typeof t.seatsAvailable === 'number' ? t.seatsAvailable : t.seatsTotal ?? 0;
                     const total = typeof t.seatsTotal === 'number' ? t.seatsTotal : 4;
                     const categoryColor = getTableCategoryColor(t.category ?? t.color);
@@ -1261,9 +1264,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         className="table-wrapper"
                         style={{
                           position: 'absolute',
-                          left: `${centerX}%`,
-                          top: `${centerY}%`,
-                          transform: `translate(-50%, -50%) rotate(${rotationDeg}deg)`,
+                          left: `${t.centerX}%`,
+                          top: `${t.centerY}%`,
+                          transform: `translate(-50%, -50%) rotate(${t.rotationDeg}deg)`,
                           transformOrigin: 'center',
                         }}
                       >
@@ -1276,11 +1279,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     );
                   })}
                 </div>
-                <div className="text-xs text-gray-500 mt-2">
+                <div className="text-xs text-muted mt-2">
                   {UI_TEXT.tables.layoutHint}
                 </div>
               </div>
-            </div>
+            </>
           )}
         </div>
       )}

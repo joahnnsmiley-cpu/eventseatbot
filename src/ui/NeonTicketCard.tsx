@@ -47,7 +47,7 @@ export default function NeonTicketCard({
         </div>
         <div className="h-px bg-white/10 mb-4" />
         <div className="flex items-end justify-between">
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-muted-light">
             <div>{tableLabel}</div>
             <div>{seatLabel}</div>
           </div>

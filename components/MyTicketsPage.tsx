@@ -124,7 +124,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         <div className="flex items-center justify-between">
           <button
             onClick={onBack}
-            className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400"
+            className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light"
           >
             {UI_TEXT.app.back}
           </button>
@@ -132,13 +132,13 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
         <SectionTitle title="Мои билеты" />
 
-        {loading && <div className="text-xs text-gray-500">Загрузка…</div>}
+        {loading && <div className="text-xs text-muted">Загрузка…</div>}
         {error && <div className="text-sm text-red-400">{error}</div>}
 
         {!loading && !error && bookings.length === 0 && (
           <Card>
             <div className="text-center space-y-3">
-              <p className="text-gray-400">
+              <p className="text-muted-light">
                 У вас пока нет билетов
               </p>
               <PrimaryButton onClick={onBack}>

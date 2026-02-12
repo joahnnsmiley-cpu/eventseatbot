@@ -49,7 +49,7 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
           isSelected
             ? `${baseSeatClass} bg-[#FFC107] text-black shadow-[0_0_15px_rgba(255,193,7,0.6)] scale-105`
             : isOccupied || allSeatsDisabled
-              ? `${baseSeatClass} bg-[#111] text-gray-500 opacity-40 cursor-not-allowed`
+              ? `${baseSeatClass} bg-[#111] text-muted opacity-40 cursor-not-allowed`
               : `${baseSeatClass} bg-[#1a1a1a] border border-white/10 text-white hover:border-[#FFC107] hover:scale-105`;
         return (
           <div

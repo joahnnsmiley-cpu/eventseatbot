@@ -51,16 +51,16 @@ const EventPage: React.FC<EventPageProps> = ({
         <div className="flex items-center justify-between">
           <button
             onClick={onBack}
-            className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400"
+            className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light"
           >
             {UI_TEXT.app.back}
           </button>
-          <button onClick={onRefresh} className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400">
+          <button onClick={onRefresh} className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light">
             {UI_TEXT.app.refresh}
           </button>
         </div>
 
-        {eventLoading && <div className="text-xs text-gray-500">{UI_TEXT.app.loadingLayout}</div>}
+        {eventLoading && <div className="text-xs text-muted">{UI_TEXT.app.loadingLayout}</div>}
         {eventError && <div className="text-sm text-red-400">{eventError}</div>}
 
         <div className="relative rounded-3xl overflow-hidden min-h-[220px]">
@@ -90,7 +90,7 @@ const EventPage: React.FC<EventPageProps> = ({
                 </p>
               )}
               {showVenue && (
-                <p className="text-gray-400">
+                <p className="text-muted-light">
                   {venue?.trim()}
                 </p>
               )}
@@ -130,7 +130,7 @@ const EventPage: React.FC<EventPageProps> = ({
             <div className="p-4 rounded-2xl border border-neutral-800 bg-neutral-900/60 space-y-4">
               <div>
                 <p className="text-base font-medium text-white">Связаться с организатором</p>
-                <p className="text-sm text-gray-400 mt-1">{UI_TEXT.event.contactOrganizerPrompt}</p>
+                <p className="text-sm text-muted-light mt-1">{UI_TEXT.event.contactOrganizerPrompt}</p>
               </div>
               <a
                 href={href}
