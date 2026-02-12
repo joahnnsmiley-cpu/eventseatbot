@@ -84,7 +84,7 @@ const EventPage: React.FC<EventPageProps> = ({
               )}
               {showVenue && (
                 <p className="text-gray-400">
-                  Площадка: {venue?.trim()}
+                  {venue?.trim()}
                 </p>
               )}
             </div>
@@ -118,15 +118,18 @@ const EventPage: React.FC<EventPageProps> = ({
             ? `https://t.me/+${username}`
             : `https://t.me/${username}`;
           return (
-            <div className="p-4 rounded-2xl border border-white/10 bg-[#0B0B0B] space-y-2">
-              <p className="text-sm text-gray-400">{UI_TEXT.event.contactOrganizerPrompt}</p>
+            <div className="p-5 rounded-2xl border border-neutral-800 bg-neutral-900 shadow-sm space-y-4">
+              <div>
+                <p className="text-base font-medium text-white">Связаться с организатором</p>
+                <p className="text-sm text-gray-400 mt-1">{UI_TEXT.event.contactOrganizerPrompt}</p>
+              </div>
               <a
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#0088cc] rounded-lg hover:opacity-90"
+                className="inline-flex items-center justify-center w-full bg-[#FFC107] text-black font-semibold rounded-xl px-6 py-3 transition active:scale-95"
               >
-                {UI_TEXT.event.contactOrganizerButton}
+                Связаться с организатором
               </a>
             </div>
           );
