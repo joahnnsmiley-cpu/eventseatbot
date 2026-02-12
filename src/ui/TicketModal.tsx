@@ -2,10 +2,12 @@ import React from 'react';
 
 type TicketModalProps = {
   ticketImageUrl: string;
+  isOpen?: boolean;
   onClose: () => void;
 };
 
-export default function TicketModal({ ticketImageUrl, onClose }: TicketModalProps) {
+export default function TicketModal({ ticketImageUrl, isOpen = true, onClose }: TicketModalProps) {
+  if (!isOpen) return null;
   const handleDownload = async () => {
     if (!ticketImageUrl) return;
     try {

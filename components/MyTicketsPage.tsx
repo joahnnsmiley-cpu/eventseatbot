@@ -33,7 +33,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [eventTablesMap, setEventTablesMap] = useState<Record<string, Set<string>>>({});
   /** event_id -> event info (title, date, table number by id) */
   const [eventInfoMap, setEventInfoMap] = useState<Record<string, EventInfo & { tableIdToNumber?: Record<string, number> }>>({});
-  const [modalTicketUrl, setModalTicketUrl] = useState<string | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
 
   useEffect(() => {
     const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
@@ -119,7 +119,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   };
 
   return (
-    <div className="max-w-md mx-auto min-h-screen relative">
+    <div className="max-w-[420px] mx-auto min-h-screen relative overflow-x-hidden">
       <div className="px-4 pt-6 pb-24 space-y-8">
         <div className="flex items-center justify-between">
           <button
@@ -171,7 +171,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     seatLabel={seatLabel}
                     status={getStatusType(b.status)}
                     ticketImageUrl={getTicketImageUrl(b)}
-                    onClick={() => setModalTicketUrl(getTicketImageUrl(b))}
+                    onClick={() => setSelectedTicket(getTicketImageUrl(b))}
                   />
                 </div>
               );
@@ -180,10 +180,11 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         )}
       </div>
 
-      {modalTicketUrl !== undefined && (
+      {selectedTicket !== null && (
         <TicketModal
-          ticketImageUrl={modalTicketUrl}
-          onClose={() => setModalTicketUrl(undefined)}
+          ticketImageUrl={selectedTicket}
+          isOpen={!!selectedTicket}
+          onClose={() => setSelectedTicket(null)}
         />
       )}
     </div>

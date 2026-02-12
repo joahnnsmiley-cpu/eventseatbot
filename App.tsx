@@ -6,6 +6,7 @@ import AuthService from './services/authService';
 import SeatMap from './components/SeatMap';
 import SeatPicker from './components/SeatPicker';
 import BookingSuccessView from './components/BookingSuccessView';
+import EventPage from './components/EventPage';
 import MyTicketsPage from './components/MyTicketsPage';
 import AppLayout from './src/layout/AppLayout';
 import BottomNav, { type BottomNavTab } from './src/layout/BottomNav';
@@ -394,125 +395,52 @@ function App() {
   }
 
   if (view === 'layout' && selectedEventId) {
-    const imgUrl = selectedEvent?.imageUrl ?? (selectedEvent as { image_url?: string })?.image_url;
-    const fmt = selectedEvent ? formatEventDate(selectedEvent.date) : null;
-    const venue = (selectedEvent as { venue?: string })?.venue ?? '';
-
-    return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-screen relative">
-        <div className="px-4 pt-6 space-y-8 pb-24">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => {
-                setView('events');
-                setSelectedTableId(null);
-                setSelectedEventId(null);
-                setSelectedEvent(null);
-              }}
-              className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400"
-            >
-              {UI_TEXT.app.back}
-            </button>
-            <button onClick={() => selectedEventId && loadEvent(selectedEventId)} className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400">
-              {UI_TEXT.app.refresh}
-            </button>
-          </div>
-
-          {eventLoading && <div className="text-xs text-gray-500">{UI_TEXT.app.loadingLayout}</div>}
-          {eventError && <div className="text-sm text-red-400">{eventError}</div>}
-
-          {!selectedEvent && (
-            <div className="text-xs text-gray-500">{UI_TEXT.app.loadingEvent}</div>
-          )}
-
-          {selectedEvent && (
-            <>
-              <div className="relative rounded-3xl overflow-hidden h-[220px]">
-                <div
-                  className="absolute inset-0 bg-cover bg-center"
-                  style={{ backgroundImage: imgUrl?.trim() ? `url(${imgUrl.trim()})` : undefined }}
-                />
-                <div className="absolute inset-0 bg-black/60" />
-                <div className="relative z-10 h-full flex flex-col justify-end p-6">
-                  <h1 className="text-2xl font-bold text-white">
-                    {selectedEvent.title?.trim() || UI_TEXT.event.eventFallback}
-                  </h1>
-                </div>
-              </div>
-
-              <Card>
-                <div className="space-y-2 text-sm">
-                  <p className="text-[#FFC107] font-semibold">
-                    {fmt?.date ?? selectedEvent.date} {fmt?.time ? `• ${fmt.time}` : ''}
-                  </p>
-                  <p className="text-gray-400">
-                    {venue || 'Площадка'}
-                  </p>
-                </div>
-              </Card>
-
-              <div>
-                <SectionTitle title="Выбор столов" />
-                <Card>
-                  <SeatMap
-                event={selectedEvent}
-                selectedSeatsByTable={selectedSeatsByTable}
-                onTableSelect={(tableId) => {
-                  setSelectedTableId(tableId);
-                  setView('seats');
-                  if (selectedEventId) loadEvent(selectedEventId, true);
-                }}
-                  />
-                </Card>
-              </div>
-
-              {selectedEvent.description != null && selectedEvent.description.trim() !== '' && (
-                <p className="text-sm text-gray-400 whitespace-pre-wrap">
-                  {selectedEvent.description.trim()}
-                </p>
-              )}
-
-              {(() => {
-                const placeholder = 'eventseatbot_support';
-                const raw = selectedEvent.adminTelegramId ?? placeholder;
-                const contactTarget = typeof raw === 'string' ? raw.trim() : '';
-                if (!contactTarget) return null;
-                const username = contactTarget.replace(/^@/, '');
-                const href = /^\d+$/.test(username)
-                  ? `https://t.me/+${username}`
-                  : `https://t.me/${username}`;
-                return (
-                  <div className="p-4 rounded-2xl border border-white/10 bg-[#0B0B0B] space-y-2">
-                    <p className="text-sm text-gray-400">{UI_TEXT.event.contactOrganizerPrompt}</p>
-                    <a
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#0088cc] rounded-lg hover:opacity-90"
-                    >
-                      {UI_TEXT.event.contactOrganizerButton}
-                    </a>
-                  </div>
-                );
-              })()}
-
-              <PrimaryButton
+    if (!selectedEvent) {
+      return wrapWithLayout(
+        <div className="max-w-md mx-auto min-h-screen relative">
+          <div className="px-4 pt-6 space-y-8 pb-24">
+            <div className="flex items-center justify-between">
+              <button
                 onClick={() => {
-                  const firstTable = selectedEvent.tables?.find((t) => t.is_active !== false);
-                  if (firstTable) {
-                    setSelectedTableId(firstTable.id);
-                    setView('seats');
-                    if (selectedEventId) loadEvent(selectedEventId, true);
-                  }
+                  setView('events');
+                  setSelectedTableId(null);
+                  setSelectedEventId(null);
+                  setSelectedEvent(null);
                 }}
-                className="w-full"
+                className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400"
               >
-                Перейти к бронированию
-              </PrimaryButton>
-            </>
-          )}
+                {UI_TEXT.app.back}
+              </button>
+              <button onClick={() => selectedEventId && loadEvent(selectedEventId)} className="text-xs px-2 py-1 rounded border border-white/20 text-gray-400">
+                {UI_TEXT.app.refresh}
+              </button>
+            </div>
+            {eventLoading && <div className="text-xs text-gray-500">{UI_TEXT.app.loadingLayout}</div>}
+            {eventError && <div className="text-sm text-red-400">{eventError}</div>}
+            <div className="text-xs text-gray-500">{UI_TEXT.app.loadingEvent}</div>
+          </div>
         </div>
-      </div>
+      );
+    }
+    return wrapWithLayout(
+      <EventPage
+        event={selectedEvent}
+        selectedSeatsByTable={selectedSeatsByTable}
+        onBack={() => {
+          setView('events');
+          setSelectedTableId(null);
+          setSelectedEventId(null);
+          setSelectedEvent(null);
+        }}
+        onRefresh={() => selectedEventId && loadEvent(selectedEventId)}
+        onTableSelect={(tableId) => {
+          setSelectedTableId(tableId);
+          setView('seats');
+          if (selectedEventId) loadEvent(selectedEventId, true);
+        }}
+        eventLoading={eventLoading}
+        eventError={eventError}
+      />
     );
   }
 

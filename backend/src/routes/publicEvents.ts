@@ -74,7 +74,7 @@ router.get('/events/:eventId/occupied-seats', async (req: Request, res: Response
   try {
     const { data: activeTables, error: tablesErr } = await supabase
       .from('event_tables')
-      .select('id, visible_from, visible_until')
+      .select('*')
       .eq('event_id', eventId)
       .eq('is_active', true);
     if (tablesErr) {
@@ -436,7 +436,7 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
   try {
     const { data: tableRow, error: tableErr } = await supabase
       .from('event_tables')
-      .select('id, is_active, visible_from, visible_until')
+      .select('*')
       .eq('id', tableId)
       .eq('event_id', eventId)
       .maybeSingle();
@@ -466,7 +466,9 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
     const id = uuid();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
-    const { error: insertErr } = await supabase.from('bookings').insert({
+    console.log('[BOOKING REQUEST BODY]', req.body);
+
+    const { data, error: insertErr } = await supabase.from('bookings').insert({
       id,
       event_id: eventId,
       table_id: tableId,
@@ -479,8 +481,10 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
       expires_at: expiresAt,
     });
 
+    console.log('[BOOKING INSERT RESULT]', { data, error: insertErr });
+
     if (insertErr) {
-      console.error('[bookings/seats] insert', insertErr);
+      console.error('[BOOKING ERROR DETAILS]', insertErr);
       if (String(insertErr.message ?? '').includes('prevent_seat_overlap')) {
         return res.status(409).json({ error: 'Seat conflict' });
       }
