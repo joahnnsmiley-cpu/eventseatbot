@@ -118,29 +118,41 @@ const SeatMap: React.FC<SeatMapProps> = ({
         minHeight: layoutAspectRatio == null ? 300 : undefined,
       }}
     >
-      {/* Pure coordinate container: same aspect ratio as admin so coordinates match 1:1. */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          width: '100%',
-          height: '100%',
-          padding: 0,
-          margin: 0,
-          border: 'none',
-          boxSizing: 'content-box',
-          display: 'block',
-          cursor: isEditable ? 'crosshair' : 'default',
-          backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'top left',
-          backgroundSize: '100% 100%',
-        }}
-        onClick={handleMapClick}
-      >
+      <div className="absolute inset-0 overflow-hidden rounded-2xl">
+        {backgroundUrl && (
+          <>
+            <img
+              src={backgroundUrl}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover grayscale brightness-[0.6] contrast-110"
+              aria-hidden
+            />
+            <div
+              className="absolute inset-0 bg-black/40 pointer-events-none"
+              aria-hidden
+            />
+          </>
+        )}
+        {/* Pure coordinate container: same aspect ratio as admin so coordinates match 1:1. */}
+        <div
+          className="relative z-10"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100%',
+            height: '100%',
+            padding: 0,
+            margin: 0,
+            border: 'none',
+            boxSizing: 'content-box',
+            display: 'block',
+            cursor: isEditable ? 'crosshair' : 'default',
+          }}
+          onClick={handleMapClick}
+        >
       {!backgroundUrl && (
         <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
           {UI_TEXT.seatMap.noLayoutImage}
@@ -241,6 +253,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
           </div>
         </div>
       )}
+        </div>
       </div>
     </div>
   );
