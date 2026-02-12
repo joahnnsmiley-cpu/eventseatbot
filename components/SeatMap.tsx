@@ -175,6 +175,9 @@ const SeatMap: React.FC<SeatMapProps> = ({
             onClick={(e) => {
                 if (isTableDisabled) return;
                 e.stopPropagation();
+                console.log('[TABLE CLICK]');
+                console.log('eventId:', event?.id);
+                console.log('tableId:', table.id);
                 if (onTableSelect) onTableSelect(table.id);
               }}
             aria-label={`${UI_TEXT.seatMap.tableFree.replace('{number}', String(table.number)).replace('{free}', String(table.seatsAvailable))}${!isAvailableForSale ? UI_TEXT.seatMap.notAvailableForSale : ''}`}

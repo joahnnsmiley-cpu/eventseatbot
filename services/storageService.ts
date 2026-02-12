@@ -69,7 +69,10 @@ export const getMyBookingsPublic = async (telegramId: number): Promise<{
 /** GET /public/events/:eventId/occupied-seats — returns [{ table_id, seat_indices }] */
 export const getOccupiedSeats = async (eventId: string): Promise<{ table_id: string; seat_indices: number[] }[]> => {
   const apiBaseUrl = getApiBaseUrl();
-  const res = await fetch(`${apiBaseUrl}/public/events/${eventId}/occupied-seats`);
+  const url = `${apiBaseUrl}/public/events/${eventId}/occupied-seats`;
+  console.log('[SEATS URL]', url);
+  const res = await fetch(url);
+  console.log('[SEATS RESPONSE STATUS]', res.status);
   if (!res.ok) throw new Error('Failed to load occupied seats');
   const data = await res.json();
   return Array.isArray(data) ? data : [];
