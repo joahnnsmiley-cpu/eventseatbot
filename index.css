@@ -292,9 +292,9 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   line-height: 1.15;
 }
 .table-number {
-  font-weight: 600;
-  color: #EAD9B0;
-  text-shadow: 0 0 6px rgba(198,167,94,0.6);
+  color: #111111;
+  font-weight: 700;
+  text-shadow: 0 1px 1px rgba(255,255,255,0.3);
 }
 .table-seats {
   color: #EAD9B0;

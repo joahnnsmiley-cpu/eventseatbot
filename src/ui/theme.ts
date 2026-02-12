@@ -4,8 +4,8 @@
  */
 export const TABLE_CATEGORY_COLORS: Record<string, string> = {
   VIP: '#C6A75E',
-  Premium: '#9F7A3A',
-  Standard: '#3A3A3A',
+  Premium: '#B8954C',
+  Standard: '#9C7C3A',
 };
 
 export function getTableCategoryColor(category: string | undefined): string {
