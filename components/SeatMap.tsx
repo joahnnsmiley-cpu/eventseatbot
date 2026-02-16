@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
+import { TransformWrapper, TransformComponent, MiniMap } from 'react-zoom-pan-pinch';
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
 import { getGoldToneByCategory } from '../src/ui/theme';
@@ -139,32 +139,53 @@ const SeatMap: React.FC<SeatMapProps> = ({
     >
       <div className="absolute inset-0 min-w-0 min-h-0">
         <TransformWrapper
-        minScale={0.5}
-        maxScale={3}
-        initialScale={1}
-        wheel={{ step: 0.1 }}
-        pinch={{ step: 5 }}
-        doubleClick={{ disabled: true }}
-        panning={{ velocityDisabled: true }}
-      >
-          <TransformComponent
-            wrapperStyle={{ width: '100%', height: '100%' }}
-            contentStyle={{ width: '100%', height: '100%', position: 'relative' }}
-          >
-            <div
-              className="relative w-full h-full"
-              style={{ touchAction: 'none' }}
-            >
-              {layoutImageUrl && (
-                <img
-                  src={layoutImageUrl}
-                  alt=""
-                  className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                  style={{ position: 'absolute', zIndex: 0 }}
-                />
-              )}
-              {/* Pure coordinate container: same aspect ratio as admin so coordinates match 1:1. */}
-              <div
+          minScale={0.8}
+          maxScale={3}
+          initialScale={1}
+          limitToBounds={true}
+          centerOnInit={true}
+          wheel={{ step: 0.08 }}
+          pinch={{ step: 5 }}
+          doubleClick={{ disabled: true }}
+          panning={{ velocityDisabled: false }}
+          alignmentAnimation={{
+            sizeX: 200,
+            sizeY: 200,
+          }}
+          velocityAnimation={{
+            sensitivity: 1,
+            animationTime: 200,
+          }}
+        >
+          {({ resetTransform }) => (
+            <>
+              <TransformComponent
+                wrapperStyle={{ width: '100%', height: '100%' }}
+                contentStyle={{ width: '100%', height: '100%', position: 'relative' }}
+              >
+                <div
+                  className="relative w-full h-full"
+                  style={{ touchAction: 'none' }}
+                >
+                  {layoutImageUrl && (
+                    <img
+                      src={layoutImageUrl}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                      style={{ position: 'absolute', zIndex: 0 }}
+                    />
+                  )}
+                  {/* Cinematic stage gradient overlay */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      zIndex: 5,
+                      background:
+                        'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 20%, rgba(0,0,0,0) 40%)',
+                    }}
+                  />
+                  {/* Pure coordinate container: same aspect ratio as admin so coordinates match 1:1. */}
+                  <div
                 className="relative z-10"
                 style={{
                   position: 'absolute',
@@ -304,9 +325,33 @@ const SeatMap: React.FC<SeatMapProps> = ({
           </div>
         </div>
       )}
-              </div>
-            </div>
-          </TransformComponent>
+                  </div>
+                </div>
+              </TransformComponent>
+
+              {/* Reset Zoom Button */}
+              <button
+                type="button"
+                onClick={() => resetTransform(300, 'easeOut')}
+                className="absolute top-3 right-3 z-20 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/10 active:scale-95 transition"
+              >
+                Сбросить масштаб
+              </button>
+
+              {/* Mini-map preview - layout image only, lightweight */}
+              {layoutImageUrl && (
+                <div className="absolute bottom-3 right-3 z-30 overflow-hidden rounded-lg border border-white/10 bg-black/70 backdrop-blur-sm pointer-events-none">
+                  <MiniMap width={96} height={64} borderColor="rgba(198,167,94,0.6)">
+                    <img
+                      src={layoutImageUrl}
+                      alt=""
+                      className="w-full h-full object-contain"
+                    />
+                  </MiniMap>
+                </div>
+              )}
+            </>
+          )}
         </TransformWrapper>
       </div>
     </div>
