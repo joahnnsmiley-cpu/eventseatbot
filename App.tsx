@@ -714,13 +714,16 @@ function App() {
                       telegramId,
                     });
                     const raw = res as Record<string, unknown>;
+                    const seatPriceFallback = selectedEvent?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
+                    const price = getPriceForTable(selectedEvent, selectedTable, seatPriceFallback);
+                    const total = seats.length * price;
                     const booking: Booking = {
                       id: String(raw.id ?? ''),
                       eventId: String(raw.event_id ?? raw.eventId ?? ''),
                       userPhone: String(raw.user_phone ?? raw.userPhone ?? normalizedPhone),
                       seatIds: seats.map((idx) => `${selectedTableId}-${idx}`),
                       status: (raw.status as Booking['status']) ?? 'reserved',
-                      totalAmount: Number(raw.totalAmount) || 0,
+                      totalAmount: Number(raw.totalAmount) || total,
                       createdAt: typeof raw.created_at === 'string' ? new Date(raw.created_at).getTime() : Number(raw.createdAt) || Date.now(),
                       expiresAt: (raw.expires_at ?? raw.expiresAt) as string | number | undefined,
                       tableId: String(raw.table_id ?? raw.tableId ?? selectedTableId),

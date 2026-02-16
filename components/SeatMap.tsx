@@ -227,18 +227,15 @@ const SeatMap: React.FC<SeatMapProps> = ({
           widthPercent: table.widthPercent,
           heightPercent: table.heightPercent,
         });
+        const category = event?.ticketCategories?.find((c) => c.id === table.ticketCategoryId);
         let tone: Record<string, string> | undefined;
-        if (table.ticketCategoryId && event?.ticketCategories) {
-          const category = event.ticketCategories.find(
-            (c) => c.id === table.ticketCategoryId
-          );
-          if (category) {
-            tone = getGoldToneFromStyleKey(category.styleKey);
-          }
+        if (category) {
+          tone = getGoldToneFromStyleKey(category.styleKey);
         }
         if (!tone) {
           tone = getGoldToneByCategory(table.color);
         }
+        const price = category?.price ?? 0;
         const borderRadius = sizes.borderRadius === '50%' ? '50%' : 12;
         const shapeStyle = {
           ...tone,
@@ -272,6 +269,9 @@ const SeatMap: React.FC<SeatMapProps> = ({
               <div className="table-label">
                 <TableNumber number={table.number ?? 0} fontSize={fontNumber} />
                 <SeatInfo available={table.seatsAvailable} total={table.seatsTotal} fontSize={fontSub} />
+                {!isEditable && price > 0 && (
+                  <div className="text-xs font-semibold mt-0.5">{price.toLocaleString('ru-RU')} ₽</div>
+                )}
               </div>
             {isEditable && (
               <button

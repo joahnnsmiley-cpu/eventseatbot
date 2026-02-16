@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { EventData } from '../types';
+import { getPriceForTable } from '../src/utils/getTablePrice';
 import Card from '../src/ui/Card';
 import SectionTitle from '../src/ui/SectionTitle';
 import PrimaryButton from '../src/ui/PrimaryButton';
@@ -42,6 +43,16 @@ const EventPage: React.FC<EventPageProps> = ({
   const displayDateTime = formatEventDateTime(eventDate, eventTime);
   const showDateTime = Boolean(eventDate && eventTime);
   const showVenue = Boolean(venue && String(venue).trim());
+
+  const totalAmount = useMemo(() => {
+    if (!event) return 0;
+    return Object.entries(selectedSeatsByTable).reduce((sum, [tableId, seats]) => {
+      const table = event.tables?.find((t) => t.id === tableId);
+      if (!table) return sum;
+      const price = getPriceForTable(event, table, 0);
+      return sum + seats.length * price;
+    }, 0);
+  }, [selectedSeatsByTable, event]);
 
   console.log('EVENT DATA:', event);
 
@@ -108,6 +119,15 @@ const EventPage: React.FC<EventPageProps> = ({
             onTableSelect={onTableSelect}
           />
         </div>
+
+        {totalAmount > 0 && (
+          <div className="mt-4 text-center">
+            <p className="text-muted text-sm">Итого</p>
+            <p className="text-2xl font-bold text-[#FFC107]">
+              {totalAmount.toLocaleString('ru-RU')} ₽
+            </p>
+          </div>
+        )}
 
         <PrimaryButton onClick={() => {
           console.log('[CONFIRM CLICKED]');

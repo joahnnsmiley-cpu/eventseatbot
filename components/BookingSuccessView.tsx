@@ -160,6 +160,19 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
         <Card>
           <div className="space-y-2 text-sm text-left">
             <div className="text-white font-semibold">{UI_TEXT.booking.paymentDetailsTitle}</div>
+            {(() => {
+              const seatCount = booking.tableBookings?.reduce((sum, tb) => sum + (tb.seats ?? 0), 0)
+                ?? booking.seatIds?.length ?? 0;
+              const tableId = booking.tableId ?? booking.tableBookings?.[0]?.tableId;
+              const table = tableId ? (event.tables ?? []).find((t) => t.id === tableId) : null;
+              const seatPriceFallback = event?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
+              const price = getPriceForTable(event, table ?? undefined, seatPriceFallback);
+              const total = seatCount * price;
+              const displayTotal = booking.totalAmount && booking.totalAmount > 0 ? booking.totalAmount : total;
+              return displayTotal > 0 ? (
+                <p className="text-[#FFC107] font-semibold">К оплате: {displayTotal.toLocaleString('ru-RU')} ₽</p>
+              ) : null;
+            })()}
             <p className="text-muted-light">
               {UI_TEXT.booking.paymentTransferTo} <span className="text-white font-medium">{event.paymentPhone.trim()}</span>
             </p>
