@@ -54,6 +54,21 @@ function formatEventDate(dateStr?: string): { day: number; date: string; time: s
   return { day, date, time };
 }
 
+const getEventDisplayDate = (event: EventData): { day: number; date: string; time: string } | null => {
+  if (event.event_date) {
+    const dateObj = new Date(event.event_date);
+    const day = dateObj.getDate();
+    const date = dateObj.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    const time = event.event_time ? event.event_time.slice(0, 5) : '';
+    return { day, date, time };
+  }
+  return formatEventDate(event.date);
+};
+
 function App() {
   const [tgAvailable, setTgAvailable] = useState(false);
   const [tgInitData, setTgInitData] = useState('');
@@ -941,7 +956,7 @@ function App() {
           {!loading && publishedEvents.length > 0 && (() => {
             const featured = events?.[0];
             const thisMonthEvents = publishedEvents.slice(1);
-            const fmt = featured ? formatEventDate(featured.date) : null;
+            const fmt = featured ? getEventDisplayDate(featured) : null;
             return (
               <>
                 <div>
@@ -993,7 +1008,7 @@ function App() {
                     </p>
                     <div className="space-y-3">
                       {thisMonthEvents.map((evt) => {
-                        const evtFmt = formatEventDate(evt.date);
+                        const evtFmt = getEventDisplayDate(evt);
                         return (
                           <motion.div
                             key={evt.id}
