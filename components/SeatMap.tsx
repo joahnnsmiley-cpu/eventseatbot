@@ -136,20 +136,23 @@ const SeatMap: React.FC<SeatMapProps> = ({
         minHeight: layoutAspectRatio == null ? '18rem' : undefined,
       }}
     >
-      <div className="absolute inset-0 overflow-hidden rounded-2xl">
+      <div className="absolute inset-0 min-w-0 min-h-0">
         <TransformWrapper
-          minScale={0.5}
-          maxScale={3}
-          initialScale={1}
-          wheel={{ step: 0.1 }}
-          pinch={{ step: 5 }}
-          doubleClick={{ disabled: true }}
-          panning={{ velocityDisabled: true }}
-        >
-          <TransformComponent>
+        minScale={0.5}
+        maxScale={3}
+        initialScale={1}
+        wheel={{ step: 0.1 }}
+        pinch={{ step: 5 }}
+        doubleClick={{ disabled: true }}
+        panning={{ velocityDisabled: true }}
+      >
+          <TransformComponent
+            wrapperStyle={{ width: '100%', height: '100%' }}
+            contentStyle={{ width: '100%', height: '100%', position: 'relative' }}
+          >
             <div
               className="relative w-full h-full"
-              style={{ touchAction: 'none', minHeight: '100%' }}
+              style={{ touchAction: 'none' }}
             >
               {layoutImageUrl && (
                 <img
