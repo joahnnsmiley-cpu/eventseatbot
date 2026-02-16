@@ -73,12 +73,13 @@ const toEvent = (e: EventData): Event => ({
   venue: e.venue ?? null,
 });
 
-/** Normalize table rows to EventData.tables shape. Accepts frontend Table (id, x, y, centerX, centerY, seatsTotal, seatsAvailable, shape, sizePercent, isAvailable, color). Fills x/y from centerX/centerY and vice versa; maps seatsCount → seatsTotal when missing. */
+/** Normalize table rows to EventData.tables shape. Accepts frontend Table (id, x, y, centerX, centerY, seatsTotal, seatsAvailable, shape, sizePercent, isAvailable, color). Fills x/y from centerX/centerY and vice versa; maps seatsCount → seatsTotal when missing. Preserves ticketCategoryId. */
 const normalizeTables = (tables: unknown): EventData['tables'] => {
   if (!Array.isArray(tables)) return [];
   return tables.map((t) => {
-    if (!t || typeof t !== 'object') return t as any;
-    const table = { ...(t as any) };
+    if (!t || typeof t !== 'object') return t as EventData['tables'][number];
+    const obj = t as Record<string, unknown>;
+    const table: Record<string, unknown> = { ...obj };
     const hasX = typeof table.x === 'number' && Number.isFinite(table.x);
     const hasY = typeof table.y === 'number' && Number.isFinite(table.y);
     const hasCenterX = typeof table.centerX === 'number' && Number.isFinite(table.centerX);
@@ -93,7 +94,9 @@ const normalizeTables = (tables: unknown): EventData['tables'] => {
       table.seatsTotal = table.seatsCount;
     }
 
-    return table;
+    table.ticketCategoryId = typeof obj.ticketCategoryId === 'string' ? obj.ticketCategoryId : null;
+
+    return table as unknown as EventData['tables'][number];
   });
 };
 

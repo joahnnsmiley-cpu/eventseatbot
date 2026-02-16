@@ -51,6 +51,8 @@ export interface Table {
   rotationDeg?: number;
   shape?: 'circle' | 'rect' | string;
   color?: string;
+  /** ticketCategoryId — links to ticket category. */
+  ticketCategoryId?: string | null;
 }
 
 export type EventStatus = 'draft' | 'published' | 'archived';

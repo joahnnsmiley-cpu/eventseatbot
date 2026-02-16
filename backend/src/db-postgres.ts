@@ -370,7 +370,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
           is_active: wantsActive,
           visible_from: visFrom || null,
           visible_until: visUntil || null,
-          ticket_category_id: (t as any).ticketCategoryId ?? null,
+          ticket_category_id: t.ticketCategoryId ?? null,
         })
         .eq('id', tableId)
         .eq('event_id', event.id);
@@ -417,7 +417,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
         is_active: true,
         visible_from: visFrom || null,
         visible_until: visUntil || null,
-        ticket_category_id: (t as any).ticketCategoryId ?? null,
+        ticket_category_id: t.ticketCategoryId ?? null,
       });
 
       if (insErr) {
