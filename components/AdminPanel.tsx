@@ -143,7 +143,24 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'dirty' | 'saving' | 'saved'>('idle');
   const [dirtyCause, setDirtyCause] = useState(0);
   const [sectionOrder, setSectionOrder] = useState(['basic', 'layout', 'tables', 'categories', 'publish']);
+  const [resyncLoading, setResyncLoading] = useState(false);
+  const [layoutUploadLoading, setLayoutUploadLoading] = useState(false);
+  const [layoutUploadError, setLayoutUploadError] = useState<string | null>(null);
+  const [layoutUploadVersion, setLayoutUploadVersion] = useState<number | null>(null);
+  const [addingTable, setAddingTable] = useState(false);
+  const [eventTablesMap, setEventTablesMap] = useState<Record<string, Table[]>>({});
+  const [activeTabLeft, setActiveTabLeft] = useState(0);
+  const [activeTabWidth, setActiveTabWidth] = useState(0);
+
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const saveLayoutRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
+  const [layoutPreviewRef, layoutPreviewWidth] = useContainerWidth<HTMLDivElement>();
+  const eventTabsScrollRef = useRef<HTMLDivElement>(null);
+  const eventTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  const hasEvents = useMemo(() => events.length > 0, [events.length]);
+
+  const handleSave = useCallback((silent = false) => saveLayoutRef.current?.(silent), []);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -165,8 +182,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setSaveStatus('dirty');
     setDirtyCause((c) => c + 1);
   }, []);
-
-  const saveLayoutRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -309,20 +324,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       </div>
     );
   };
-
-  const [resyncLoading, setResyncLoading] = useState(false);
-  const [layoutUploadLoading, setLayoutUploadLoading] = useState(false);
-  const [layoutUploadError, setLayoutUploadError] = useState<string | null>(null);
-  const [layoutUploadVersion, setLayoutUploadVersion] = useState<number | null>(null);
-  const [addingTable, setAddingTable] = useState(false);
-  /** event_id -> tables (from event_tables); used to check if booking.table_id still exists */
-  const [eventTablesMap, setEventTablesMap] = useState<Record<string, Table[]>>({});
-
-  const [layoutPreviewRef, layoutPreviewWidth] = useContainerWidth<HTMLDivElement>();
-  const eventTabsScrollRef = useRef<HTMLDivElement>(null);
-  const eventTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const [activeTabLeft, setActiveTabLeft] = useState(0);
-  const [activeTabWidth, setActiveTabWidth] = useState(0);
 
   useEffect(() => {
     const el = eventTabRefs.current[eventStatusFilter];
@@ -558,7 +559,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     }
   };
   saveLayoutRef.current = saveLayout;
-  const handleSave = useCallback((silent = false) => saveLayoutRef.current?.(silent), []);
 
   useEffect(() => {
     load();
@@ -728,7 +728,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     if (!statusFilter) return bookings;
     return bookings.filter((b) => String(b.status ?? '') === statusFilter);
   }, [bookings, statusFilter]);
-  const hasEvents = useMemo(() => events.length > 0, [events.length]);
 
   const filteredEvents = useMemo(() => {
     return events.filter((ev) => {
