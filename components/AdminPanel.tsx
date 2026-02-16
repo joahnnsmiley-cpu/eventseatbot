@@ -121,6 +121,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
   const [statusActionLoading, setStatusActionLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [eventStatusFilter, setEventStatusFilter] = useState<'published' | 'draft' | 'archived' | 'deleted'>('published');
   const [resyncLoading, setResyncLoading] = useState(false);
   const [layoutUploadLoading, setLayoutUploadLoading] = useState(false);
   const [layoutUploadError, setLayoutUploadError] = useState<string | null>(null);
@@ -502,6 +503,30 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   }, [bookings, statusFilter]);
   const hasEvents = useMemo(() => events.length > 0, [events.length]);
 
+  const filteredEvents = useMemo(() => {
+    return events.filter((ev) => {
+      const status = ev.status ?? (ev.published ? 'published' : 'draft');
+      const isDeleted = (ev as { is_deleted?: boolean }).is_deleted === true;
+      if (eventStatusFilter === 'deleted') return isDeleted;
+      if (isDeleted) return false;
+      if (eventStatusFilter === 'published') return status === 'published';
+      if (eventStatusFilter === 'draft') return status === 'draft';
+      if (eventStatusFilter === 'archived') return status === 'archived';
+      return true;
+    });
+  }, [events, eventStatusFilter]);
+
+  const eventCounts = useMemo(() => {
+    const status = (ev: EventData) => ev.status ?? (ev.published ? 'published' : 'draft');
+    const isDeleted = (ev: EventData) => (ev as { is_deleted?: boolean }).is_deleted === true;
+    return {
+      published: events.filter((ev) => status(ev) === 'published' && !isDeleted(ev)).length,
+      draft: events.filter((ev) => status(ev) === 'draft' && !isDeleted(ev)).length,
+      archived: events.filter((ev) => status(ev) === 'archived' && !isDeleted(ev)).length,
+      deleted: events.filter((ev) => isDeleted(ev)).length,
+    };
+  }, [events]);
+
   return (
     <div className="admin-root min-h-screen p-4">
       <div className="flex items-center justify-between mb-6">
@@ -704,6 +729,29 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 <EventCardSkeleton />
               </div>
             )}
+            {!eventsLoading && hasEvents && (
+              <div className="flex gap-2 mb-4">
+                {[
+                  { key: 'published' as const, label: 'Опубликованные', count: eventCounts.published },
+                  { key: 'draft' as const, label: 'Черновики', count: eventCounts.draft },
+                  { key: 'archived' as const, label: 'Архив', count: eventCounts.archived },
+                  { key: 'deleted' as const, label: 'Удалённые', count: eventCounts.deleted },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setEventStatusFilter(tab.key)}
+                    className={`px-4 py-2 rounded-xl text-sm transition ${
+                      eventStatusFilter === tab.key
+                        ? 'bg-[#FFC107] text-black'
+                        : 'bg-[#1A1A1A] text-white border border-white/10'
+                    }`}
+                  >
+                    {tab.label} ({tab.count})
+                  </button>
+                ))}
+              </div>
+            )}
             {!eventsLoading && !hasEvents && (
               <div className="py-8 text-center">
                 <p className="text-base text-[#6E6A64] mb-4">{UI_TEXT.admin.emptyEventsList}</p>
@@ -716,9 +764,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 </SecondaryButton>
               </div>
             )}
-            {!eventsLoading && hasEvents && (
+            {!eventsLoading && hasEvents && filteredEvents.length === 0 && (
+              <div className="py-8 text-center">
+                <p className="text-base text-[#6E6A64]">Нет событий в этой категории.</p>
+              </div>
+            )}
+            {!eventsLoading && hasEvents && filteredEvents.length > 0 && (
               <div className="space-y-3">
-                {events.map((ev) => (
+                {filteredEvents.map((ev) => (
                   <EventCard
                     key={ev.id}
                     event={ev}
