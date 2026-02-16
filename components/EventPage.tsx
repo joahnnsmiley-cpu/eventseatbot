@@ -100,7 +100,7 @@ const EventPage: React.FC<EventPageProps> = ({
 
         <div>
           <SectionTitle title="Выбор столов" />
-          <Card>
+          <div className="w-full">
             <SeatMap
               key={`seatmap-${event?.id}-${(event?.tables ?? []).map((t) => t.id).join('-')}`}
               event={event}
@@ -108,7 +108,7 @@ const EventPage: React.FC<EventPageProps> = ({
               selectedSeatsByTable={selectedSeatsByTable}
               onTableSelect={onTableSelect}
             />
-          </Card>
+          </div>
         </div>
 
         <PrimaryButton onClick={() => {

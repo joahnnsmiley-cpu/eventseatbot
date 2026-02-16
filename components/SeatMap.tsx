@@ -129,7 +129,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
   return (
     <div
       ref={layoutRef}
-      className="relative w-full overflow-hidden bg-surface rounded-lg border border-gray-300"
+      className="relative w-full overflow-hidden rounded-2xl"
       style={{
         width: '100%',
         aspectRatio: layoutAspectRatio ?? 16 / 9,
