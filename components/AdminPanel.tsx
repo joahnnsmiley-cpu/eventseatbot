@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import * as StorageService from '../services/storageService';
 import { EventData, Table } from '../types';
 import { UI_TEXT } from '../constants/uiText';
@@ -131,6 +132,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [eventTablesMap, setEventTablesMap] = useState<Record<string, Table[]>>({});
 
   const [layoutPreviewRef, layoutPreviewWidth] = useContainerWidth<HTMLDivElement>();
+  const eventTabsScrollRef = useRef<HTMLDivElement>(null);
+  const eventTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEffect(() => {
     if (!layoutUrl?.trim()) {
@@ -146,6 +149,20 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     img.onerror = () => setLayoutAspectRatio(null);
     img.src = layoutUrl.trim();
   }, [layoutUrl]);
+
+  useEffect(() => {
+    const el = eventTabRefs.current[eventStatusFilter];
+    const container = eventTabsScrollRef.current;
+    if (el && container) {
+      const elLeft = el.offsetLeft;
+      const elWidth = el.offsetWidth;
+      const containerWidth = container.offsetWidth;
+      container.scrollTo({
+        left: elLeft - containerWidth / 2 + elWidth / 2,
+        behavior: 'smooth',
+      });
+    }
+  }, [eventStatusFilter]);
 
   const toFriendlyError = (e: unknown) => {
     const raw = e instanceof Error ? e.message : String(e);
@@ -730,26 +747,60 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               </div>
             )}
             {!eventsLoading && hasEvents && (
-              <div className="flex gap-2 mb-4">
-                {[
-                  { key: 'published' as const, label: 'Опубликованные', count: eventCounts.published },
-                  { key: 'draft' as const, label: 'Черновики', count: eventCounts.draft },
-                  { key: 'archived' as const, label: 'Архив', count: eventCounts.archived },
-                  { key: 'deleted' as const, label: 'Удалённые', count: eventCounts.deleted },
-                ].map((tab) => (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setEventStatusFilter(tab.key)}
-                    className={`px-4 py-2 rounded-xl text-sm transition ${
-                      eventStatusFilter === tab.key
-                        ? 'bg-[#FFC107] text-black'
-                        : 'bg-[#1A1A1A] text-white border border-white/10'
-                    }`}
-                  >
-                    {tab.label} ({tab.count})
-                  </button>
-                ))}
+              <div className="relative mb-4">
+                <div ref={eventTabsScrollRef} className="overflow-x-auto no-scrollbar scroll-smooth">
+                  <div className="relative flex gap-2 min-w-max px-2">
+                    {[
+                      { key: 'published' as const, label: 'Опубликованные', count: eventCounts.published },
+                      { key: 'draft' as const, label: 'Черновики', count: eventCounts.draft },
+                      { key: 'archived' as const, label: 'Архив', count: eventCounts.archived },
+                      { key: 'deleted' as const, label: 'Удалённые', count: eventCounts.deleted },
+                    ].map((tab) => (
+                      <button
+                        key={tab.key}
+                        ref={(el) => { eventTabRefs.current[tab.key] = el; }}
+                        type="button"
+                        onClick={() => setEventStatusFilter(tab.key)}
+                        className={`relative z-10 shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                          eventStatusFilter !== tab.key ? 'border border-white/10 hover:border-white/20' : 'border border-transparent'
+                        }`}
+                        style={{
+                          color: eventStatusFilter === tab.key ? '#000' : '#fff',
+                          backgroundColor: eventStatusFilter === tab.key ? 'transparent' : '#1A1A1A',
+                        }}
+                      >
+                        {eventStatusFilter === tab.key && (
+                          <motion.div
+                            layoutId="eventActiveTab"
+                            className="absolute inset-0 rounded-xl z-0"
+                            style={{ background: '#FFC107' }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                          />
+                        )}
+                        <span className="relative z-10 flex items-center gap-2">
+                          {tab.label}
+                          <span
+                            className={`text-xs px-2 py-[2px] rounded-full ${
+                              eventStatusFilter === tab.key
+                                ? 'bg-black/20 text-black'
+                                : 'bg-[#FFC107]/20 text-[#FFC107]'
+                            }`}
+                          >
+                            {tab.count}
+                          </span>
+                        </span>
+                        {eventStatusFilter === tab.key && (
+                          <motion.div
+                            layoutId="eventTabUnderline"
+                            className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-xl z-10"
+                            style={{ background: 'rgba(255,193,7,0.7)' }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                          />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
             {!eventsLoading && !hasEvents && (
