@@ -265,7 +265,8 @@ function App() {
     }
     try {
       const ev = await StorageService.getEvent(eventId);
-      console.log('[USER EVENT FETCH]', ev);
+      console.log('[USER EVENT FETCH TABLES]', ev.tables);
+      console.log('[USER EVENT FETCH RAW]', ev);
       if (reqId !== eventRequestRef.current) return;
       setSelectedEvent(ev);
 

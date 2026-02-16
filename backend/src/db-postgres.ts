@@ -221,6 +221,7 @@ export async function findEventById(id: string): Promise<EventData | undefined> 
   });
 
   event.tables = tablesFromEventTables;
+  console.log('TABLE FROM DB', tablesFromEventTables);
   return event;
 }
 
