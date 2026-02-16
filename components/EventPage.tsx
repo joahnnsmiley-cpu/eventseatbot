@@ -102,6 +102,7 @@ const EventPage: React.FC<EventPageProps> = ({
           <SectionTitle title="Выбор столов" />
           <Card>
             <SeatMap
+              key={`seatmap-${event?.id}-${(event?.tables ?? []).map((t) => t.id).join('-')}`}
               event={event}
               tables={event?.tables ?? []}
               selectedSeatsByTable={selectedSeatsByTable}
