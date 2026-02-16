@@ -302,6 +302,9 @@ router.put('/events/:id', async (req: Request, res: Response) => {
     existing.tables = normalizeTables(req.body.tables);
     console.log('normalizeTables output', existing.tables);
   }
+  if (Array.isArray(req.body.ticketCategories)) {
+    existing.ticketCategories = req.body.ticketCategories;
+  }
 
   if (!existing.tables) {
     existing.tables = [];

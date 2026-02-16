@@ -78,6 +78,8 @@ export interface EventData {
   /** layoutImageUrl — подложка зала (seating map background). */
   layoutImageUrl?: string | null;
   schemaImageUrl?: string | null;
+  /** ticketCategories — stored in ticket_categories (jsonb). */
+  ticketCategories?: unknown[] | null;
 }
 
 export type BookingStatus = 'reserved' | 'paid' | 'expired' | 'pending' | 'awaiting_confirmation' | 'cancelled';

@@ -27,6 +27,7 @@ type EventsRow = {
   layout_image_url: string | null;
   organizer_phone: string | null;
   published: boolean | null;
+  ticket_categories?: any | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -51,6 +52,7 @@ type EventTablesRow = {
   is_active?: boolean | null;
   visible_from?: string | null;
   visible_until?: string | null;
+  ticket_category_id?: string | null;
   created_at?: string;
 };
 
@@ -94,6 +96,7 @@ function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
     tables,
     status: row.published ? 'published' : 'draft',
     published: row.published ?? false,
+    ticketCategories: row.ticket_categories ?? undefined,
   };
 }
 
@@ -122,6 +125,7 @@ function eventTablesRowToTable(row: EventTablesRow, bookedSeats?: number): Table
   if (row.color != null) t.color = row.color;
   if (row.visible_from != null) t.visibleFrom = row.visible_from;
   if (row.visible_until != null) t.visibleUntil = row.visible_until;
+  if (row.ticket_category_id != null) t.ticketCategoryId = row.ticket_category_id;
   return t;
 }
 
@@ -310,6 +314,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
     layout_image_url: event.layoutImageUrl ?? null,
     organizer_phone: event.paymentPhone || null,
     published: event.published ?? false,
+    ticket_categories: event.ticketCategories ?? null,
   };
   const { error: upsertErr } = await supabase.from('events').upsert(row, { onConflict: 'id' });
   if (upsertErr) throw upsertErr;
@@ -365,6 +370,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
           is_active: wantsActive,
           visible_from: visFrom || null,
           visible_until: visUntil || null,
+          ticket_category_id: (t as any).ticketCategoryId ?? null,
         })
         .eq('id', tableId)
         .eq('event_id', event.id);
@@ -411,6 +417,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
         is_active: true,
         visible_from: visFrom || null,
         visible_until: visUntil || null,
+        ticket_category_id: (t as any).ticketCategoryId ?? null,
       });
 
       if (insErr) {
