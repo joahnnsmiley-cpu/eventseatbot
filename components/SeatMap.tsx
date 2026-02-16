@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
 import { getGoldToneByCategory } from '../src/ui/theme';
@@ -136,35 +137,50 @@ const SeatMap: React.FC<SeatMapProps> = ({
       }}
     >
       <div className="absolute inset-0 overflow-hidden rounded-2xl">
-        {layoutImageUrl && (
-          <img
-            src={layoutImageUrl}
-            alt=""
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-            style={{ position: 'absolute', zIndex: 0 }}
-          />
-        )}
-        {/* Pure coordinate container: same aspect ratio as admin so coordinates match 1:1. */}
-        <div
-          className="relative z-10"
-          style={{
-            position: 'absolute',
-            zIndex: 10,
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            width: '100%',
-            height: '100%',
-            padding: 0,
-            margin: 0,
-            border: 'none',
-            boxSizing: 'content-box',
-            display: 'block',
-            cursor: isEditable ? 'crosshair' : 'default',
-          }}
-          onClick={handleMapClick}
+        <TransformWrapper
+          minScale={0.5}
+          maxScale={3}
+          initialScale={1}
+          wheel={{ step: 0.1 }}
+          pinch={{ step: 5 }}
+          doubleClick={{ disabled: true }}
+          panning={{ velocityDisabled: true }}
         >
+          <TransformComponent>
+            <div
+              className="relative w-full h-full"
+              style={{ touchAction: 'none', minHeight: '100%' }}
+            >
+              {layoutImageUrl && (
+                <img
+                  src={layoutImageUrl}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                  style={{ position: 'absolute', zIndex: 0 }}
+                />
+              )}
+              {/* Pure coordinate container: same aspect ratio as admin so coordinates match 1:1. */}
+              <div
+                className="relative z-10"
+                style={{
+                  position: 'absolute',
+                  zIndex: 10,
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  width: '100%',
+                  height: '100%',
+                  padding: 0,
+                  margin: 0,
+                  border: 'none',
+                  boxSizing: 'content-box',
+                  display: 'block',
+                  cursor: isEditable ? 'crosshair' : 'default',
+                  pointerEvents: 'auto',
+                }}
+                onClick={handleMapClick}
+              >
       {!layoutImageUrl && (
         <div className="absolute inset-0 flex items-center justify-center text-xs text-muted pointer-events-none">
           {UI_TEXT.seatMap.noLayoutImage}
@@ -284,7 +300,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
           </div>
         </div>
       )}
-        </div>
+              </div>
+            </div>
+          </TransformComponent>
+        </TransformWrapper>
       </div>
     </div>
   );
