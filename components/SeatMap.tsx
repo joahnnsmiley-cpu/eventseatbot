@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { TransformWrapper, TransformComponent, MiniMap } from 'react-zoom-pan-pinch';
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
@@ -50,6 +49,10 @@ interface SeatMapProps {
   seatState?: SeatSelectionState;
   selectedSeatsByTable?: Record<string, number[]>;
   selectedTableId?: string | null;
+  /** When true, minimap moves up to avoid overlapping floating booking bar. */
+  hasSelection?: boolean;
+  /** Height of floating bar in px; used to compute minimap bottom offset when hasSelection. */
+  floatingBarHeight?: number;
   onSeatToggle?: (seat: SeatModel) => void;
   onSelectedSeatsChange?: (selectedSeats: string[]) => void;
   onTableAdd?: (x: number, y: number) => void;
@@ -63,6 +66,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
   isEditable = false, 
   seatState,
   selectedTableId = null,
+  hasSelection = false,
+  floatingBarHeight = 96,
   onSeatToggle,
   onSelectedSeatsChange,
   onTableAdd,
@@ -379,26 +384,24 @@ const SeatMap: React.FC<SeatMapProps> = ({
                 Сбросить масштаб
               </button>
 
-              {/* Mini-map preview - layout image only, lightweight; hide when seats selected to avoid overlap with floating bar */}
-              <AnimatePresence>
-                {layoutImageUrl && totalSeats === 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute bottom-3 right-3 z-30 overflow-hidden rounded-lg border border-white/10 bg-black/70 backdrop-blur-sm pointer-events-none"
-                  >
-                    <MiniMap width={96} height={64} borderColor="rgba(198,167,94,0.6)">
-                      <img
-                        src={layoutImageUrl}
-                        alt=""
-                        className="w-full h-full object-contain"
-                      />
-                    </MiniMap>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* Mini-map preview - layout image only, lightweight; moves up when seats selected to avoid overlap with floating bar */}
+              {layoutImageUrl && (
+                <div
+                  className="absolute right-3 z-30 overflow-hidden rounded-lg border border-white/10 bg-black/70 backdrop-blur-sm pointer-events-none"
+                  style={{
+                    bottom: hasSelection ? `${floatingBarHeight + 16}px` : '12px',
+                    transition: 'bottom 0.2s ease',
+                  }}
+                >
+                  <MiniMap width={96} height={64} borderColor="rgba(198,167,94,0.6)">
+                    <img
+                      src={layoutImageUrl}
+                      alt=""
+                      className="w-full h-full object-contain"
+                    />
+                  </MiniMap>
+                </div>
+              )}
             </>
             );
           }}

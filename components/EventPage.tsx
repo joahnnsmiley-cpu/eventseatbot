@@ -9,6 +9,8 @@ import PrimaryButton from '../src/ui/PrimaryButton';
 import SeatMap from './SeatMap';
 import { UI_TEXT } from '../constants/uiText';
 
+const FLOATING_BAR_HEIGHT = 96; // approximate px height of floating booking bar
+
 /** Format event_date + event_time as "11 февраля 2026 г. · 01:58" (ru-RU). Returns empty string if either missing. */
 function formatEventDateTime(dateStr?: string | null, timeStr?: string | null): string {
   if (!dateStr || typeof dateStr !== 'string' || !timeStr || typeof timeStr !== 'string') return '';
@@ -173,6 +175,8 @@ const EventPage: React.FC<EventPageProps> = ({
             tables={event?.tables ?? []}
             selectedSeatsByTable={selectedSeatsByTable}
             onTableSelect={onTableSelect}
+            hasSelection={totalSeats > 0}
+            floatingBarHeight={FLOATING_BAR_HEIGHT}
           />
         </div>
 
