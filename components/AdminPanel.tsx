@@ -1,5 +1,20 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import * as StorageService from '../services/storageService';
 import { EventData, Table } from '../types';
 import { UI_TEXT } from '../constants/uiText';
@@ -123,6 +138,179 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [statusActionLoading, setStatusActionLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [eventStatusFilter, setEventStatusFilter] = useState<'published' | 'draft' | 'archived' | 'deleted'>('published');
+  const [openSections, setOpenSections] = useState<string[]>(['basic']);
+  const [isDirty, setIsDirty] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'dirty' | 'saving' | 'saved'>('idle');
+  const [dirtyCause, setDirtyCause] = useState(0);
+  const [sectionOrder, setSectionOrder] = useState(['basic', 'layout', 'tables', 'categories', 'publish']);
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setSectionOrder((items) => {
+        const oldIndex = items.indexOf(String(active.id));
+        const newIndex = items.indexOf(String(over.id));
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  }, []);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  const markDirty = useCallback(() => {
+    setIsDirty(true);
+    setSaveStatus('dirty');
+    setDirtyCause((c) => c + 1);
+  }, []);
+
+  const saveLayoutRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!isDirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  useEffect(() => {
+    if (!isDirty || !selectedEvent?.id) return;
+    const timeout = setTimeout(() => {
+      handleSave(true);
+    }, 2000);
+    return () => clearTimeout(timeout);
+  }, [isDirty, selectedEvent?.id, dirtyCause, handleSave]);
+
+  const toggleSection = (key: string) => {
+    const isOpening = !openSections.includes(key);
+    setOpenSections((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+    if (isOpening) {
+      setTimeout(() => {
+        const el = sectionRefs.current[key];
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 50);
+    }
+  };
+
+  const AccordionSection = ({
+    title,
+    sectionKey,
+    children,
+    dirtyIndicator,
+    dragHandle,
+  }: {
+    title: string;
+    sectionKey: string;
+    children: React.ReactNode;
+    dirtyIndicator?: boolean;
+    dragHandle?: React.ReactNode;
+  }) => {
+    const isOpen = openSections.includes(sectionKey);
+    return (
+      <div
+        ref={(el) => { sectionRefs.current[sectionKey] = el; }}
+        className="relative border border-white/10 rounded-2xl mb-4 bg-[#121212] overflow-hidden"
+      >
+        <div className="sticky top-0 z-20 bg-[#121212] border-b border-white/5">
+          <button
+            type="button"
+            onClick={() => toggleSection(sectionKey)}
+            className="w-full flex items-center justify-between px-4 py-4 text-left hover:bg-white/5 transition"
+          >
+            <span className="font-semibold text-white flex items-center gap-2">
+              {dragHandle}
+              {title}
+              {dirtyIndicator && isDirty && (
+                <span className="ml-2 text-xs text-[#FFC107]">●</span>
+              )}
+            </span>
+            <motion.span
+              animate={{ rotate: isOpen ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+              className="text-[#C6A75E]"
+            >
+              ▼
+            </motion.span>
+          </button>
+        </div>
+        <AnimatePresence initial={false}>
+          {isOpen && (
+            <motion.div
+              layout
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="px-4 pb-4">{children}</div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
+  const SortableSection = ({
+    id,
+    title,
+    sectionKey,
+    dirtyIndicator,
+    children,
+  }: {
+    id: string;
+    title: string;
+    sectionKey: string;
+    dirtyIndicator?: boolean;
+    children: React.ReactNode;
+  }) => {
+    const {
+      setNodeRef,
+      setActivatorNodeRef,
+      listeners,
+      attributes,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id });
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
+    return (
+      <div ref={setNodeRef} style={style} className={isDragging ? 'opacity-50' : ''}>
+        <AccordionSection
+          title={title}
+          sectionKey={sectionKey}
+          dirtyIndicator={dirtyIndicator}
+          dragHandle={
+            <span
+              ref={setActivatorNodeRef}
+              {...listeners}
+              {...attributes}
+              className="cursor-grab active:cursor-grabbing text-[#6E6A64] text-lg px-1 select-none"
+              title="Перетащить"
+              onClick={(e) => e.stopPropagation()}
+            >
+              ☰
+            </span>
+          }
+        >
+          {children}
+        </AccordionSection>
+      </div>
+    );
+  };
+
   const [resyncLoading, setResyncLoading] = useState(false);
   const [layoutUploadLoading, setLayoutUploadLoading] = useState(false);
   const [layoutUploadError, setLayoutUploadError] = useState<string | null>(null);
@@ -267,6 +455,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       const fresh = await StorageService.getAdminEvent(eventId);
       setEventFromFresh(fresh);
       setLayoutUploadVersion(null);
+      setIsDirty(false);
+      setSaveStatus('idle');
     } catch (e) {
       console.error('[AdminPanel] Failed to load event', e);
       if (e instanceof Error && e.message) {
@@ -302,7 +492,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     }
   };
 
-  const saveLayout = async () => {
+  const saveLayout = async (silent = false) => {
     if (!selectedEvent?.id) return;
     const rawTables = selectedEvent?.tables ?? [];
     const numErr = validateTableNumbers(rawTables);
@@ -310,8 +500,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     const rectErr = validateRectTables(rawTables);
     if (rectErr) { setError(rectErr); return; }
     setSavingLayout(true);
-    setError(null);
-    setSuccessMessage(null);
+    setSaveStatus('saving');
+    if (!silent) {
+      setError(null);
+      setSuccessMessage(null);
+    }
     try {
       const payload: Partial<EventData> = {
         title: eventTitle.trim(),
@@ -329,8 +522,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
       const fresh = await StorageService.getAdminEvent(selectedEvent.id);
       setEventFromFresh(fresh);
-      setError(null);
-      setSuccessMessage(UI_TEXT.admin.eventUpdated);
+      setIsDirty(false);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+      if (!silent) {
+        setError(null);
+        setSuccessMessage(UI_TEXT.admin.eventUpdated);
+      }
     } catch (e) {
       console.error('[AdminPanel] Failed to save event', e);
       if (e instanceof Error && e.message) {
@@ -345,10 +543,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setError(
         isForbidden ? UI_TEXT.event.publishedWarning : toFriendlyError(e),
       );
+      setSaveStatus('dirty');
     } finally {
       setSavingLayout(false);
     }
   };
+  saveLayoutRef.current = saveLayout;
+  const handleSave = useCallback((silent = false) => saveLayoutRef.current?.(silent), []);
 
   useEffect(() => {
     load();
@@ -546,12 +747,47 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   return (
     <div className="admin-root min-h-screen p-4">
+      {isDirty && selectedEvent && (
+        <div className="sticky top-0 z-50 bg-[#111] border-b border-white/10 px-4 py-3 -mx-4 -mt-4 mb-4">
+          <div className="flex items-center justify-between max-w-[420px] mx-auto">
+            <span className="text-sm text-[#FFC107]">
+              Есть несохранённые изменения
+            </span>
+            <button
+              type="button"
+              onClick={() => handleSave(false)}
+              disabled={savingLayout}
+              className="bg-[#FFC107] text-black px-4 py-2 rounded-xl font-semibold active:scale-95 transition disabled:opacity-50"
+            >
+              Сохранить всё
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">{UI_TEXT.admin.title}</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-semibold">{UI_TEXT.admin.title}</h1>
+          <div className="flex items-center gap-2 text-xs">
+            {saveStatus === 'dirty' && (
+              <span className="text-[#FFC107]">Есть изменения</span>
+            )}
+            {saveStatus === 'saving' && (
+              <span className="text-white">Сохранение...</span>
+            )}
+            {saveStatus === 'saved' && (
+              <span className="text-green-400 flex items-center gap-1">
+                ✓ Сохранено
+              </span>
+            )}
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           {onBack && (
             <button
-              onClick={onBack}
+              onClick={() => {
+                if (isDirty && !window.confirm('Есть несохранённые изменения. Выйти без сохранения?')) return;
+                onBack();
+              }}
               disabled={loading || eventsLoading || savingLayout || addingTable || confirmingId !== null || cancellingId !== null}
               className="text-sm text-[#6E6A64]"
             >
@@ -843,14 +1079,34 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
           {selectedEvent && (
             <>
-              <AdminCard className="p-4 mb-4">
+              <div className="flex justify-end gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setOpenSections([])}
+                  className="text-xs text-muted hover:text-[#C6A75E] transition"
+                >
+                  Свернуть всё
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOpenSections([...sectionOrder])}
+                  className="text-xs text-muted hover:text-[#C6A75E] transition"
+                >
+                  Развернуть всё
+                </button>
+              </div>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
+                  {sectionOrder.map((key) => {
+                    if (key === 'basic') return (
+                      <SortableSection key="basic" id="basic" title="Основная информация" sectionKey="basic" dirtyIndicator>
                 <div className="space-y-4">
                   <div>
                     <div className="text-sm font-semibold mb-1">{UI_TEXT.event.title}</div>
                     <input
                       type="text"
                       value={eventTitle}
-                      onChange={(e) => setEventTitle(e.target.value)}
+                      onChange={(e) => { setEventTitle(e.target.value); markDirty(); }}
                       placeholder={UI_TEXT.event.titlePlaceholder}
                       className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                     />
@@ -859,7 +1115,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     <div className="text-sm font-semibold mb-1">{UI_TEXT.event.description}</div>
                     <textarea
                       value={eventDescription}
-                      onChange={(e) => setEventDescription(e.target.value)}
+                      onChange={(e) => { setEventDescription(e.target.value); markDirty(); }}
                       placeholder={UI_TEXT.event.descriptionPlaceholder}
                       className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                       rows={3}
@@ -871,7 +1127,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       <input
                         type="date"
                         value={eventDate}
-                        onChange={(e) => setEventDate(e.target.value)}
+                        onChange={(e) => { setEventDate(e.target.value); markDirty(); }}
                         placeholder={UI_TEXT.event.eventDatePlaceholder}
                         className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                       />
@@ -881,7 +1137,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       <input
                         type="time"
                         value={eventTime}
-                        onChange={(e) => setEventTime(e.target.value)}
+                        onChange={(e) => { setEventTime(e.target.value); markDirty(); }}
                         placeholder={UI_TEXT.event.eventTimePlaceholder}
                         className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                       />
@@ -892,7 +1148,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     <input
                       type="text"
                       value={venue}
-                      onChange={(e) => setVenue(e.target.value)}
+                      onChange={(e) => { setVenue(e.target.value); markDirty(); }}
                       placeholder={UI_TEXT.event.venuePlaceholder}
                       className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                     />
@@ -902,15 +1158,16 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     <input
                       type="text"
                       value={eventPhone}
-                      onChange={(e) => setEventPhone(e.target.value)}
+                      onChange={(e) => { setEventPhone(e.target.value); markDirty(); }}
                       placeholder={UI_TEXT.event.phonePlaceholder}
                       className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                     />
                   </div>
                 </div>
-              </AdminCard>
-
-              <AdminCard className="p-4 mb-4">
+                      </SortableSection>
+                    );
+                    if (key === 'categories') return (
+                      <SortableSection key="categories" id="categories" title={`Категории (${selectedEvent?.ticketCategories?.length ?? 0})`} sectionKey="categories">
                 <div className="text-sm font-semibold mb-3">Категории билетов</div>
                 <div className="space-y-4">
                   {(selectedEvent?.ticketCategories ?? []).map((cat) => {
@@ -938,6 +1195,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                                     }
                                   : null
                               );
+                              markDirty();
                             }}
                             placeholder="Название"
                             className="flex-1 border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
@@ -957,6 +1215,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                                       }
                                     : null
                                 );
+                                markDirty();
                               }}
                             />
                             Активна
@@ -979,6 +1238,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                                     }
                                   : null
                               );
+                              markDirty();
                             }}
                             className="px-2 py-1 text-xs"
                             title="Отключить (soft delete)"
@@ -1006,6 +1266,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                                       }
                                     : null
                                 );
+                                markDirty();
                               }}
                               className="w-full border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
                             />
@@ -1026,6 +1287,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                                       }
                                     : null
                                 );
+                                markDirty();
                               }}
                               className="w-full border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
                             >
@@ -1053,6 +1315,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                                     }
                                   : null
                               );
+                              markDirty();
                             }}
                             placeholder="Описание категории"
                             rows={2}
@@ -1082,14 +1345,16 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           }
                         : null
                     );
+                    markDirty();
                   }}
                   className="mt-3"
                 >
                   + Добавить категорию
                 </PrimaryButton>
-              </AdminCard>
-
-              <AdminCard className="p-4 mb-4">
+                      </SortableSection>
+                    );
+                    if (key === 'publish') return (
+                      <SortableSection key="publish" id="publish" title="Публикация" sectionKey="publish">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm text-[#6E6A64]">{UI_TEXT.admin.statusLabel}</span>
                   <span className="px-2 py-1 text-xs rounded-md bg-[#1A1A1A] text-[#C6A75E] border border-[#2A2A2A]">
@@ -1195,12 +1460,33 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   <input
                     type="checkbox"
                     checked={eventPublished}
-                    onChange={(e) => setEventPublished(e.target.checked)}
+                    onChange={(e) => { setEventPublished(e.target.checked); markDirty(); }}
                   />
                   {UI_TEXT.admin.publishedCheckbox}
                 </label>
-              </AdminCard>
-              <AdminCard className="p-4 mb-4">
+                {selectedEvent?.id && (
+                  <div className="mt-4 space-y-2">
+                    {selectedEvent?.status !== 'published' && (
+                      <p className="text-xs text-[#6E6A64]">Черновик — доступен только вам</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        window.open(
+                          `${window.location.origin}/event/${selectedEvent?.id}`,
+                          '_blank'
+                        )
+                      }
+                      className="bg-[#1A1A1A] border border-white/10 text-white px-4 py-2 rounded-xl text-sm hover:border-white/20 transition"
+                    >
+                      👁 Просмотреть как пользователь
+                    </button>
+                  </div>
+                )}
+                      </SortableSection>
+                    );
+                    if (key === 'tables') return (
+                      <SortableSection key="tables" id="tables" title={`Столы (${selectedEvent?.tables?.length ?? 0})`} sectionKey="tables">
                 <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-semibold">{UI_TEXT.tables.tables}</div>
@@ -1228,11 +1514,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           const raw = e.target.value;
                           if (raw === '') {
                             setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, number: 1 } : it) } : null);
+                            markDirty();
                             return;
                           }
                           const parsed = parseInt(raw, 10);
                           const val = Number.isInteger(parsed) && parsed >= 1 ? parsed : 1;
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, number: val } : it) } : null);
+                          markDirty();
                         }}
                         className="ml-1 w-16 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
@@ -1258,6 +1546,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         onChange={(e) => {
                           const val = Number(e.target.value);
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, x: val, centerX: val } : it) } : null);
+                          markDirty();
                         }}
                         className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
@@ -1272,6 +1561,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         onChange={(e) => {
                           const val = Number(e.target.value);
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, y: val, centerY: val } : it) } : null);
+                          markDirty();
                         }}
                         className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
@@ -1287,6 +1577,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         onChange={(e) => {
                           const val = Math.max(1, Math.min(20, Number(e.target.value) || 6));
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, sizePercent: val } : it) } : null);
+                          markDirty();
                         }}
                         className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
@@ -1300,6 +1591,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         onChange={(e) => {
                           const val = Number(e.target.value);
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, seatsTotal: val, seatsAvailable: val } : it) } : null);
+                          markDirty();
                         }}
                         className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
@@ -1314,6 +1606,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                             ? { widthPercent: (t as { widthPercent?: number }).widthPercent ?? 8, heightPercent: (t as { heightPercent?: number }).heightPercent ?? 6, rotationDeg: (t as { rotationDeg?: number }).rotationDeg ?? 0 }
                             : {};
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, shape: val, ...defaults } : it) } : null);
+                          markDirty();
                         }}
                         className="ml-1 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       >
@@ -1334,6 +1627,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                               const raw = e.target.value;
                               const val = raw === '' ? undefined : Math.max(0.1, Number(raw));
                               setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, widthPercent: val } : it) } : null);
+                              markDirty();
                             }}
                             className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                           />
@@ -1349,6 +1643,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                               const raw = e.target.value;
                               const val = raw === '' ? undefined : Math.max(0.1, Number(raw));
                               setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, heightPercent: val } : it) } : null);
+                              markDirty();
                             }}
                             className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                           />
@@ -1364,6 +1659,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                             onChange={(e) => {
                               const val = Math.max(-180, Math.min(180, Number(e.target.value) || 0));
                               setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, rotationDeg: val } : it) } : null);
+                              markDirty();
                             }}
                             className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                           />
@@ -1379,6 +1675,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           setSelectedEvent((prev) =>
                             prev ? { ...prev, tables: (prev.tables ?? []).map((it) => (it.id === t.id ? { ...it, ticketCategoryId: val } : it)) } : null
                           );
+                          markDirty();
                         }}
                         className="ml-1 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       >
@@ -1400,6 +1697,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         onChange={(e) => {
                           const val = e.target.value ? new Date(e.target.value).toISOString() : '';
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, visibleFrom: val || null } : it) } : null);
+                          markDirty();
                         }}
                         className="ml-1 w-36 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
@@ -1412,6 +1710,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         onChange={(e) => {
                           const val = e.target.value ? new Date(e.target.value).toISOString() : '';
                           setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, visibleUntil: val || null } : it) } : null);
+                          markDirty();
                         }}
                         className="ml-1 w-36 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       />
@@ -1436,8 +1735,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   </div>
                 ))}
                 </div>
-              </AdminCard>
-              <div>
+                      </SortableSection>
+                    );
+                    if (key === 'layout') return (
+                      <SortableSection key="layout" id="layout" title="План зала" sectionKey="layout">
+                <div>
                 <div className="text-sm font-semibold mb-1">{UI_TEXT.event.posterLabel}</div>
                 <input
                   type="file"
@@ -1489,6 +1791,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       const { url, version } = await StorageService.uploadLayoutImage(selectedEvent.id, file);
                       setLayoutUrl(url);
                       setLayoutUploadVersion(version ?? null);
+                      markDirty();
                     } catch (err) {
                       setLayoutUploadError(err instanceof Error ? err.message : 'Upload failed');
                     } finally {
@@ -1504,7 +1807,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 <input
                   type="text"
                   value={layoutUrl}
-                  onChange={(e) => { setLayoutUrl(e.target.value); setLayoutUploadError(null); setLayoutUploadVersion(null); }}
+                  onChange={(e) => { setLayoutUrl(e.target.value); setLayoutUploadError(null); setLayoutUploadVersion(null); markDirty(); }}
                   placeholder={UI_TEXT.tables.layoutImagePlaceholder}
                   className="w-full max-w-full border rounded px-3 py-2 text-sm box-border mt-2"
                 />
@@ -1614,6 +1917,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   {UI_TEXT.tables.layoutHint}
                 </div>
               </div>
+                      </SortableSection>
+                    );
+                    return null;
+                  })}
+                </SortableContext>
+              </DndContext>
             </>
           )}
         </div>

@@ -129,12 +129,32 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const syncFromHash = () => {
-      if (window.location.hash === '#/my-tickets') setView('my-tickets');
+    const syncFromRoute = () => {
+      const hash = window.location.hash;
+      const pathname = window.location.pathname || '/';
+
+      if (hash === '#/my-tickets') {
+        setView('my-tickets');
+        return;
+      }
+
+      const eventMatch =
+        hash.match(/^#\/event\/([a-zA-Z0-9_-]+)$/) ||
+        pathname.match(/^\/event\/([a-zA-Z0-9_-]+)$/);
+      if (eventMatch) {
+        const eventId = eventMatch[1];
+        setSelectedEventId(eventId);
+        setView('layout');
+        loadEvent(eventId);
+      }
     };
-    syncFromHash();
-    window.addEventListener('hashchange', syncFromHash);
-    return () => window.removeEventListener('hashchange', syncFromHash);
+    syncFromRoute();
+    window.addEventListener('hashchange', syncFromRoute);
+    window.addEventListener('popstate', syncFromRoute);
+    return () => {
+      window.removeEventListener('hashchange', syncFromRoute);
+      window.removeEventListener('popstate', syncFromRoute);
+    };
   }, []);
 
   useEffect(() => {
