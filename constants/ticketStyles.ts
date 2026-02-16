@@ -71,6 +71,11 @@ export function getTicketStyleVars(styleKey: string | undefined): Record<string,
   };
 }
 
+/** Returns solid color for legend dots and small UI elements. */
+export function getColorFromStyleKey(styleKey: string | undefined): string {
+  return getTicketStyle(styleKey).base;
+}
+
 /** Returns gold-tone CSS vars (--gold-light, --gold-base, --gold-dark) for table rendering. */
 export function getGoldToneFromStyleKey(styleKey: string | undefined): Record<string, string> {
   const tokens = getTicketStyle(styleKey);

@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { EventData } from '../types';
 import { getPriceForTable } from '../src/utils/getTablePrice';
+import { getColorFromStyleKey } from '../constants/ticketStyles';
 import Card from '../src/ui/Card';
 import SectionTitle from '../src/ui/SectionTitle';
 import PrimaryButton from '../src/ui/PrimaryButton';
@@ -53,6 +55,19 @@ const EventPage: React.FC<EventPageProps> = ({
       return sum + seats.length * price;
     }, 0);
   }, [selectedSeatsByTable, event]);
+
+  const totalSeats = useMemo(
+    () => Object.values(selectedSeatsByTable).reduce((n, arr) => n + arr.length, 0),
+    [selectedSeatsByTable]
+  );
+
+  const handleBooking = useCallback(() => {
+    const tableId = Object.keys(selectedSeatsByTable)[0];
+    const table = tableId
+      ? event.tables?.find((t) => t.id === tableId)
+      : event.tables?.find((t) => t.is_active !== false);
+    if (table) onTableSelect(table.id);
+  }, [selectedSeatsByTable, event.tables, onTableSelect]);
 
   console.log('EVENT DATA:', event);
 
@@ -120,22 +135,38 @@ const EventPage: React.FC<EventPageProps> = ({
           />
         </div>
 
-        {totalAmount > 0 && (
-          <div className="mt-4 text-center">
-            <p className="text-muted text-sm">Итого</p>
-            <p className="text-2xl font-bold text-[#FFC107]">
-              {totalAmount.toLocaleString('ru-RU')} ₽
-            </p>
+        {event?.ticketCategories?.filter((c) => c.isActive).length ? (
+          <div className="mt-6 space-y-2 px-2">
+            {event.ticketCategories
+              .filter((c) => c.isActive)
+              .map((cat) => (
+                <div key={cat.id} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full shrink-0"
+                      style={{ background: getColorFromStyleKey(cat.styleKey) }}
+                    />
+                    <span className="text-white font-medium">{cat.name}</span>
+                  </div>
+                  <span className="text-[#FFC107] font-semibold">
+                    {cat.price.toLocaleString('ru-RU')} ₽
+                  </span>
+                </div>
+              ))}
           </div>
-        )}
+        ) : null}
 
-        <PrimaryButton onClick={() => {
-          console.log('[CONFIRM CLICKED]');
-          const firstTable = event.tables?.find((t) => t.is_active !== false);
-          if (firstTable) onTableSelect(firstTable.id);
-        }} className="w-full">
-          Перейти к бронированию
-        </PrimaryButton>
+        {totalAmount === 0 && (
+          <PrimaryButton
+            onClick={() => {
+              const firstTable = event.tables?.find((t) => t.is_active !== false);
+              if (firstTable) onTableSelect(firstTable.id);
+            }}
+            className="w-full"
+          >
+            Перейти к бронированию
+          </PrimaryButton>
+        )}
 
         {(() => {
           const placeholder = 'eventseatbot_support';
@@ -164,6 +195,50 @@ const EventPage: React.FC<EventPageProps> = ({
           );
         })()}
       </div>
+
+      <AnimatePresence>
+        {totalAmount > 0 && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed bottom-0 left-0 right-0 z-50"
+            style={{
+              background:
+                'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.85) 70%, rgba(0,0,0,0) 100%)',
+              paddingBottom: 'env(safe-area-inset-bottom)',
+            }}
+          >
+            <div className="max-w-[420px] mx-auto px-4 pb-4 pt-6">
+              <div
+                className="flex items-center justify-between rounded-2xl px-5 py-3"
+                style={{
+                  background: 'rgba(20,20,20,0.9)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+                }}
+              >
+                <div>
+                  <p className="text-xs text-muted tracking-wide">
+                    {totalSeats} мест выбрано
+                  </p>
+                  <p className="text-xl font-bold text-[#FFC107]">
+                    {totalAmount.toLocaleString('ru-RU')} ₽
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleBooking}
+                  className="bg-[#FFC107] text-black font-semibold px-5 py-2 rounded-xl active:scale-95 transition"
+                >
+                  Продолжить
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
