@@ -245,7 +245,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         <AnimatePresence initial={false}>
           {isOpen && (
             <motion.div
-              layout
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -322,6 +321,16 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [layoutPreviewRef, layoutPreviewWidth] = useContainerWidth<HTMLDivElement>();
   const eventTabsScrollRef = useRef<HTMLDivElement>(null);
   const eventTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [activeTabLeft, setActiveTabLeft] = useState(0);
+  const [activeTabWidth, setActiveTabWidth] = useState(0);
+
+  useEffect(() => {
+    const el = eventTabRefs.current[eventStatusFilter];
+    if (el) {
+      setActiveTabLeft(el.offsetLeft);
+      setActiveTabWidth(el.offsetWidth);
+    }
+  }, [eventStatusFilter, hasEvents, eventsLoading]);
 
   useEffect(() => {
     if (!layoutUrl?.trim()) {
@@ -986,6 +995,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               <div className="relative mb-4">
                 <div ref={eventTabsScrollRef} className="overflow-x-auto no-scrollbar scroll-smooth">
                   <div className="relative flex gap-2 min-w-max px-2">
+                    <motion.div
+                      animate={{ left: activeTabLeft, width: activeTabWidth }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                      className="absolute top-0 h-full bg-[#FFC107] rounded-xl z-0 pointer-events-none"
+                    />
                     {[
                       { key: 'published' as const, label: 'Опубликованные', count: eventCounts.published },
                       { key: 'draft' as const, label: 'Черновики', count: eventCounts.draft },
@@ -1005,14 +1019,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           backgroundColor: eventStatusFilter === tab.key ? 'transparent' : '#1A1A1A',
                         }}
                       >
-                        {eventStatusFilter === tab.key && (
-                          <motion.div
-                            layoutId="eventActiveTab"
-                            className="absolute inset-0 rounded-xl z-0"
-                            style={{ background: '#FFC107' }}
-                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                          />
-                        )}
                         <span className="relative z-10 flex items-center gap-2">
                           {tab.label}
                           <span
@@ -1025,14 +1031,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                             {tab.count}
                           </span>
                         </span>
-                        {eventStatusFilter === tab.key && (
-                          <motion.div
-                            layoutId="eventTabUnderline"
-                            className="absolute bottom-0 left-0 right-0 h-[2px] rounded-b-xl z-10"
-                            style={{ background: 'rgba(255,193,7,0.7)' }}
-                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                          />
-                        )}
                       </button>
                     ))}
                   </div>
