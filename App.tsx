@@ -14,6 +14,7 @@ import Card from './src/ui/Card';
 import SectionTitle from './src/ui/SectionTitle';
 import PrimaryButton from './src/ui/PrimaryButton';
 import type { Booking, EventData, Table } from './types';
+import { getPriceForTable } from './src/utils/getTablePrice';
 import { UI_TEXT } from './constants/uiText';
 
 declare global {
@@ -641,6 +642,23 @@ function App() {
               {bookingError && (
                 <div className="text-sm text-red-400">{bookingError}</div>
               )}
+
+              {(() => {
+                const seatCount = (selectedSeatsByTable[selectedTableId!] ?? []).length;
+                const seatPriceFallback = selectedEvent?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
+                const price = getPriceForTable(selectedEvent, selectedTable, seatPriceFallback);
+                const total = seatCount * price;
+                return seatCount > 0 ? (
+                  <Card>
+                    <div className="text-sm font-semibold text-white">
+                      {UI_TEXT.app.total} {total.toLocaleString('ru-RU')} ₽
+                    </div>
+                    <div className="text-xs text-muted-light mt-1">
+                      {seatCount} × {price.toLocaleString('ru-RU')} ₽
+                    </div>
+                  </Card>
+                ) : null;
+              })()}
 
               <Card>
                 <div className="text-xs text-muted-light">

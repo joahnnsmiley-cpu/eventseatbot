@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { EventData, Booking } from '../types';
+import { getPriceForTable } from '../src/utils/getTablePrice';
 import { UI_TEXT } from '../constants/uiText';
 import * as StorageService from '../services/storageService';
 import Card from '../src/ui/Card';
@@ -130,6 +131,23 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
           <p className="text-muted text-xs">
             {UI_TEXT.app.seats} {tablesAndSeats}
           </p>
+          {(() => {
+            const seatCount = booking.tableBookings?.reduce((sum, tb) => sum + (tb.seats ?? 0), 0)
+              ?? booking.seatIds?.length ?? 0;
+            const tableId = booking.tableId ?? booking.tableBookings?.[0]?.tableId;
+            const table = tableId ? (event.tables ?? []).find((t) => t.id === tableId) : null;
+            const seatPriceFallback = event?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
+            const price = getPriceForTable(event, table ?? undefined, seatPriceFallback);
+            const total = seatCount * price;
+            const displayTotal = booking.totalAmount && booking.totalAmount > 0
+              ? booking.totalAmount
+              : total;
+            return displayTotal > 0 ? (
+              <p className="text-muted text-xs">
+                {UI_TEXT.app.total} {displayTotal.toLocaleString('ru-RU')} ₽
+              </p>
+            ) : null;
+          })()}
           {!isAwaitingPayment && (
             <p className="text-muted text-xs">
               {UI_TEXT.app.status} {statusLabel}

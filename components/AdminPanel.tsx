@@ -12,6 +12,8 @@ import DangerButton from '../src/ui/DangerButton';
 import EventCard, { EventCardSkeleton } from './EventCard';
 import AdminCard from '../src/ui/AdminCard';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
+import { TICKET_STYLES, DEFAULT_TICKET_CATEGORIES, getGoldToneFromStyleKey } from '../constants/ticketStyles';
+import type { TicketCategory } from '../types';
 
 type AdminBooking = {
   id: string;
@@ -221,7 +223,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setSelectedEvent(null);
       return;
     }
-    const mapped = { ...fresh, tables: (fresh.tables ?? []).map(mapTableFromDb) };
+    const ticketCategories = fresh.ticketCategories?.length ? fresh.ticketCategories : DEFAULT_TICKET_CATEGORIES;
+    const mapped = { ...fresh, ticketCategories, tables: (fresh.tables ?? []).map(mapTableFromDb) };
     setSelectedEvent(mapped);
     setLayoutUrl(fresh.layoutImageUrl || '');
     setEventPosterUrl(fresh.imageUrl ?? '');
@@ -300,6 +303,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
+        ticketCategories: selectedEvent?.ticketCategories ?? [],
         tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
       };
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
@@ -359,6 +363,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     if (!selectedEvent?.id) return;
     const currentTables = selectedEvent?.tables ?? [];
     const nextId = `tbl-${Date.now()}`;
+    const firstActiveCatId = (selectedEvent?.ticketCategories ?? []).find((c) => c.isActive)?.id;
     const newTable: Table = {
       id: nextId,
       number: currentTables.length + 1,
@@ -370,7 +375,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       centerY: 50,
       sizePercent: 6,
       shape: 'circle',
-      color: 'Standard',
+      ticketCategoryId: firstActiveCatId,
       isAvailable: true,
     };
     const newTables = [...currentTables, newTable];
@@ -392,6 +397,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
+        ticketCategories: selectedEvent?.ticketCategories ?? [],
         tables: newTables.map((t, idx) => tableForBackend(t, idx)),
       };
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
@@ -427,6 +433,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
+        ticketCategories: selectedEvent?.ticketCategories ?? [],
         tables: newTables.map((t, idx) => tableForBackend(t, idx)),
       };
       await StorageService.updateAdminEvent(selectedEvent.id, payload);
@@ -796,6 +803,186 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   </div>
                 </div>
               </AdminCard>
+
+              <AdminCard className="p-4 mb-4">
+                <div className="text-sm font-semibold mb-3">Категории билетов</div>
+                <div className="space-y-4">
+                  {(selectedEvent?.ticketCategories ?? []).map((cat) => {
+                    const styleTokens = TICKET_STYLES[cat.styleKey as keyof typeof TICKET_STYLES] ?? TICKET_STYLES.gold;
+                    return (
+                      <div key={cat.id} className="p-3 rounded-lg border border-[#2A2A2A] bg-[#141414] space-y-3">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-6 h-6 rounded border border-[#2A2A2A] shrink-0"
+                            style={{ backgroundColor: styleTokens.base }}
+                            title={cat.styleKey}
+                          />
+                          <input
+                            type="text"
+                            value={cat.name}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setSelectedEvent((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                        c.id === cat.id ? { ...c, name: val } : c
+                                      ),
+                                    }
+                                  : null
+                              );
+                            }}
+                            placeholder="Название"
+                            className="flex-1 border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
+                          />
+                          <label className="flex items-center gap-1 text-xs text-[#6E6A64]">
+                            <input
+                              type="checkbox"
+                              checked={cat.isActive}
+                              onChange={(e) => {
+                                setSelectedEvent((prev) =>
+                                  prev
+                                    ? {
+                                        ...prev,
+                                        ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                          c.id === cat.id ? { ...c, isActive: e.target.checked } : c
+                                        ),
+                                      }
+                                    : null
+                                );
+                              }}
+                            />
+                            Активна
+                          </label>
+                          <DangerButton
+                            type="button"
+                            onClick={() => {
+                              const isUsed = (selectedEvent?.tables ?? []).some((t) => t.ticketCategoryId === cat.id);
+                              if (isUsed) {
+                                alert('Нельзя отключить категорию, к которой привязаны столы.');
+                                return;
+                              }
+                              setSelectedEvent((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                        c.id === cat.id ? { ...c, isActive: false } : c
+                                      ),
+                                    }
+                                  : null
+                              );
+                            }}
+                            className="px-2 py-1 text-xs"
+                            title="Отключить (soft delete)"
+                          >
+                            ✕
+                          </DangerButton>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-xs text-[#6E6A64] block mb-1">Цена</label>
+                            <input
+                              type="number"
+                              min={0}
+                              step={100}
+                              value={cat.price}
+                              onChange={(e) => {
+                                const val = Math.max(0, Number(e.target.value) || 0);
+                                setSelectedEvent((prev) =>
+                                  prev
+                                    ? {
+                                        ...prev,
+                                        ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                          c.id === cat.id ? { ...c, price: val } : c
+                                        ),
+                                      }
+                                    : null
+                                );
+                              }}
+                              className="w-full border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-[#6E6A64] block mb-1">Стиль</label>
+                            <select
+                              value={cat.styleKey}
+                              onChange={(e) => {
+                                const val = e.target.value as TicketCategory['styleKey'];
+                                setSelectedEvent((prev) =>
+                                  prev
+                                    ? {
+                                        ...prev,
+                                        ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                          c.id === cat.id ? { ...c, styleKey: val } : c
+                                        ),
+                                      }
+                                    : null
+                                );
+                              }}
+                              className="w-full border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
+                            >
+                              {(Object.keys(TICKET_STYLES) as (keyof typeof TICKET_STYLES)[]).map((k) => (
+                                <option key={k} value={k}>
+                                  {k}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs text-[#6E6A64] block mb-1">Описание</label>
+                          <textarea
+                            value={cat.description}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setSelectedEvent((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                        c.id === cat.id ? { ...c, description: val } : c
+                                      ),
+                                    }
+                                  : null
+                              );
+                            }}
+                            placeholder="Описание категории"
+                            rows={2}
+                            className="w-full border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <PrimaryButton
+                  type="button"
+                  onClick={() => {
+                    const newCat: TicketCategory = {
+                      id: crypto.randomUUID(),
+                      name: 'Новая категория',
+                      price: 1000,
+                      description: '',
+                      styleKey: 'gold',
+                      isActive: true,
+                    };
+                    setSelectedEvent((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            ticketCategories: [...(prev.ticketCategories ?? []), newCat],
+                          }
+                        : null
+                    );
+                  }}
+                  className="mt-3"
+                >
+                  + Добавить категорию
+                </PrimaryButton>
+              </AdminCard>
+
               <AdminCard className="p-4 mb-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm text-[#6E6A64]">{UI_TEXT.admin.statusLabel}</span>
@@ -816,8 +1003,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         setError(null);
                         setSuccessMessage(null);
                         try {
-                          const payload = {
+                          const payload: Partial<EventData> = {
                             status: 'published' as const,
+                            ticketCategories: selectedEvent?.ticketCategories ?? [],
                             tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
                           };
                           await StorageService.updateAdminEvent(selectedEvent.id, payload);
@@ -875,8 +1063,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         setError(null);
                         setSuccessMessage(null);
                         try {
-                          const payload = {
+                          const payload: Partial<EventData> = {
                             status: 'published' as const,
+                            ticketCategories: selectedEvent?.ticketCategories ?? [],
                             tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
                           };
                           await StorageService.updateAdminEvent(selectedEvent.id, payload);
@@ -1078,16 +1267,23 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     <label className="text-xs text-[#6E6A64]">
                       {UI_TEXT.tables.tableCategory}
                       <select
-                        value={/^(VIP|Premium|Standard)$/.test(t.color ?? '') ? t.color! : 'Standard'}
+                        value={t.ticketCategoryId ?? ''}
                         onChange={(e) => {
-                          const val = e.target.value as 'VIP' | 'Premium' | 'Standard';
-                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, color: val } : it) } : null);
+                          const val = e.target.value || undefined;
+                          setSelectedEvent((prev) =>
+                            prev ? { ...prev, tables: (prev.tables ?? []).map((it) => (it.id === t.id ? { ...it, ticketCategoryId: val } : it)) } : null
+                          );
                         }}
                         className="ml-1 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        <option value="Standard">{UI_TEXT.tables.tableCategoryStandard}</option>
-                        <option value="Premium">{UI_TEXT.tables.tableCategoryPremium}</option>
-                        <option value="VIP">{UI_TEXT.tables.tableCategoryVIP}</option>
+                        <option value="">—</option>
+                        {(selectedEvent?.ticketCategories ?? [])
+                          .filter((c) => c.isActive)
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
                       </select>
                     </label>
                     <label className="text-xs text-[#6E6A64]" title={UI_TEXT.tables.visibleFromPlaceholder}>
@@ -1238,7 +1434,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     const table = mapTableFromDb(raw);
                     const available = typeof table.seatsAvailable === 'number' ? table.seatsAvailable : table.seatsTotal ?? 0;
                     const total = typeof table.seatsTotal === 'number' ? table.seatsTotal : 4;
-                    const goldTone = getGoldToneByCategory(table.color);
+                    const category = table.ticketCategoryId
+                      ? (selectedEvent?.ticketCategories ?? []).find((c) => c.id === table.ticketCategoryId)
+                      : null;
+                    const goldTone = category
+                      ? getGoldToneFromStyleKey(category.styleKey)
+                      : getGoldToneByCategory(table.color);
                     const effectiveWidth =
                       layoutPreviewWidth && layoutPreviewWidth > 0
                         ? layoutPreviewWidth

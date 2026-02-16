@@ -1,5 +1,14 @@
 export type SeatStatus = 'free' | 'locked' | 'sold';
 
+export interface TicketCategory {
+  id: string;
+  name: string;
+  price: number;
+  description: string;
+  styleKey: string;
+  isActive: boolean;
+}
+
 export interface Seat {
   id: string; // Unique within table
   number: number;
@@ -36,8 +45,8 @@ export interface Table {
   sizePercent?: number;
   shape?: 'circle' | 'rect' | string; // e.g. 'circle' | 'rect'
   color?: string;
-  /** Category for subtle background: VIP | Premium | Standard. Stored in color when using category picker. */
-  category?: 'VIP' | 'Premium' | 'Standard';
+  /** Reference to TicketCategory for styling and pricing. */
+  ticketCategoryId?: string;
 }
 
 export interface EventData {
@@ -59,6 +68,8 @@ export interface EventData {
   layout_image_url?: string | null;
   schemaImageUrl?: string | null;
   tables: Table[];
+  /** Ticket categories for the event. Stored in event; sent via PUT. */
+  ticketCategories?: TicketCategory[];
   paymentPhone: string;
   maxSeatsPerBooking: number;
   published?: boolean;

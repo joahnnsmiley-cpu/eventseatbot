@@ -178,7 +178,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
           widthPercent: table.widthPercent,
           heightPercent: table.heightPercent,
         });
-        const goldTone = getGoldToneByCategory(table.category ?? table.color);
+        const goldTone = getGoldToneByCategory(table.color);
         const borderRadius = sizes.borderRadius === '50%' ? '50%' : 12;
         const shapeStyle = {
           ...goldTone,
