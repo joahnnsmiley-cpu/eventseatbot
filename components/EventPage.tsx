@@ -103,6 +103,7 @@ const EventPage: React.FC<EventPageProps> = ({
           <Card>
             <SeatMap
               event={event}
+              tables={event?.tables ?? []}
               selectedSeatsByTable={selectedSeatsByTable}
               onTableSelect={onTableSelect}
             />

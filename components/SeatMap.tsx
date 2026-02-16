@@ -41,6 +41,8 @@ export type SeatSelectionState = {
 /** selectedSeatsByTable[tableId] = selected seat indices. Main map displays only; panel SeatPicker toggles. */
 interface SeatMapProps {
   event: EventData;
+  /** When provided, use these tables instead of deriving from event/seatState. Ensures fresh render. */
+  tables?: EventData['tables'];
   isEditable?: boolean; // For Admin
   seatState?: SeatSelectionState;
   selectedSeatsByTable?: Record<string, number[]>;
@@ -54,6 +56,7 @@ interface SeatMapProps {
 
 const SeatMap: React.FC<SeatMapProps> = ({ 
   event, 
+  tables: tablesProp,
   isEditable = false, 
   seatState,
   selectedTableId = null,
@@ -65,12 +68,14 @@ const SeatMap: React.FC<SeatMapProps> = ({
   selectedSeatsByTable,
 }) => {
   const selectedSeats = seatState?.selectedSeats ?? [];
-  // Рассадка: event.tables (backend event_tables); при отсутствии seatState берём event.tables
-  const rawTables = Array.isArray(seatState?.tables)
-    ? seatState.tables
-    : Array.isArray(event?.tables)
-      ? event.tables
-      : [];
+  // When tables prop provided, use it (ensures fresh event.tables). Else: seatState.tables or event.tables
+  const rawTables = Array.isArray(tablesProp)
+    ? tablesProp
+    : Array.isArray(seatState?.tables)
+      ? seatState.tables
+      : Array.isArray(event?.tables)
+        ? event.tables
+        : [];
   const tables = rawTables
     .filter((t: { is_active?: boolean }) => t.is_active !== false)
     .sort((a: { number?: number }, b: { number?: number }) => (a.number ?? Infinity) - (b.number ?? Infinity));
