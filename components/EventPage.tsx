@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { EventData } from '../types';
 import { getPriceForTable } from '../src/utils/getTablePrice';
@@ -25,6 +25,7 @@ export interface EventPageProps {
   onBack: () => void;
   onRefresh: () => void;
   onTableSelect: (tableId: string) => void;
+  onClearSelection?: () => void;
   eventLoading?: boolean;
   eventError?: string | null;
 }
@@ -35,6 +36,7 @@ const EventPage: React.FC<EventPageProps> = ({
   onBack,
   onRefresh,
   onTableSelect,
+  onClearSelection,
   eventLoading = false,
   eventError = null,
 }) => {
@@ -60,6 +62,45 @@ const EventPage: React.FC<EventPageProps> = ({
     () => Object.values(selectedSeatsByTable).reduce((n, arr) => n + arr.length, 0),
     [selectedSeatsByTable]
   );
+
+  const totalSeatsAvailable = useMemo(() => {
+    if (!event) return 0;
+    return event.tables?.reduce((sum, t) => sum + (t.seatsAvailable ?? 0), 0) ?? 0;
+  }, [event]);
+
+  const breakdown = useMemo(() => {
+    if (!event) return [];
+    return Object.entries(selectedSeatsByTable)
+      .map(([tableId, seats]) => {
+        const table = event.tables?.find((t) => t.id === tableId);
+        if (!table || seats.length === 0) return null;
+        const price = getPriceForTable(event, table, 0);
+        return {
+          tableId,
+          tableNumber: table.number,
+          count: seats.length,
+          price,
+          total: seats.length * price,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null);
+  }, [selectedSeatsByTable, event]);
+
+  const [hasAutoScrolled, setHasAutoScrolled] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
+  useEffect(() => {
+    if (totalSeats === 0) {
+      setHasAutoScrolled(false);
+      return;
+    }
+    if (totalSeats > 0 && !hasAutoScrolled) {
+      window.scrollTo({
+        top: document.body.scrollHeight,
+        behavior: 'smooth',
+      });
+      setHasAutoScrolled(true);
+    }
+  }, [totalSeats, hasAutoScrolled]);
 
   const handleBooking = useCallback(() => {
     const tableId = Object.keys(selectedSeatsByTable)[0];
@@ -136,23 +177,42 @@ const EventPage: React.FC<EventPageProps> = ({
         </div>
 
         {event?.ticketCategories?.filter((c) => c.isActive).length ? (
-          <div className="mt-6 space-y-2 px-2">
-            {event.ticketCategories
-              .filter((c) => c.isActive)
-              .map((cat) => (
-                <div key={cat.id} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full shrink-0"
-                      style={{ background: getColorFromStyleKey(cat.styleKey) }}
-                    />
-                    <span className="text-white font-medium">{cat.name}</span>
-                  </div>
-                  <span className="text-[#FFC107] font-semibold">
-                    {cat.price.toLocaleString('ru-RU')} ₽
-                  </span>
-                </div>
-              ))}
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => setLegendOpen(!legendOpen)}
+              className="text-sm text-muted flex items-center gap-2"
+            >
+              Категории билетов
+            </button>
+            <AnimatePresence>
+              {legendOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="overflow-hidden mt-2 space-y-2"
+                >
+                  {event.ticketCategories
+                    .filter((c) => c.isActive)
+                    .map((cat) => (
+                      <div key={cat.id} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full shrink-0"
+                            style={{ background: getColorFromStyleKey(cat.styleKey) }}
+                          />
+                          <span className="text-white font-medium">{cat.name}</span>
+                        </div>
+                        <span className="text-[#FFC107] font-semibold">
+                          {cat.price.toLocaleString('ru-RU')} ₽
+                        </span>
+                      </div>
+                    ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ) : null}
 
@@ -219,18 +279,47 @@ const EventPage: React.FC<EventPageProps> = ({
                   boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
                 }}
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-xs text-muted tracking-wide">
-                    {totalSeats} мест выбрано
+                    Выбрано {totalSeats} из {totalSeatsAvailable}
                   </p>
-                  <p className="text-xl font-bold text-[#FFC107]">
+                  <motion.p
+                    key={totalAmount}
+                    initial={{ scale: 1.1, opacity: 0.6, textShadow: '0 0 0px rgba(255,193,7,0)' }}
+                    animate={{ scale: 1, opacity: 1, textShadow: '0 0 12px rgba(255,193,7,0.5)' }}
+                    transition={{ duration: 0.3 }}
+                    className="text-xl font-bold text-[#FFC107]"
+                  >
                     {totalAmount.toLocaleString('ru-RU')} ₽
-                  </p>
+                  </motion.p>
+                  {breakdown.length > 0 && (
+                    <div className="mt-2 space-y-1 text-xs text-muted">
+                      {breakdown.map((item) => (
+                        <div key={item.tableId} className="flex justify-between">
+                          <span>
+                            Стол {item.tableNumber} — {item.count} × {item.price.toLocaleString('ru-RU')} ₽
+                          </span>
+                          <span className="text-white">
+                            {item.total.toLocaleString('ru-RU')} ₽
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {onClearSelection && (
+                    <button
+                      type="button"
+                      onClick={onClearSelection}
+                      className="mt-2 text-xs text-muted hover:text-white transition"
+                    >
+                      Очистить выбор
+                    </button>
+                  )}
                 </div>
                 <button
                   type="button"
                   onClick={handleBooking}
-                  className="bg-[#FFC107] text-black font-semibold px-5 py-2 rounded-xl active:scale-95 transition"
+                  className="bg-[#FFC107] text-black font-semibold px-5 py-2 rounded-xl active:scale-95 transition shrink-0 ml-4"
                 >
                   Продолжить
                 </button>

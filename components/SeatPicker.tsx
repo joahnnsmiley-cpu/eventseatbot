@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import SeatsLayer from './SeatsLayer';
 import type { Table } from '../types';
 
@@ -26,9 +27,21 @@ const SeatPicker: React.FC<SeatPickerProps> = ({
   const count = Math.max(0, Number(table.seatsTotal) || 0);
   const selectedSet = new Set(selectedIndices);
   const isRect = (table.shape ?? 'circle') === 'rect';
+  const [lastAddedSeat, setLastAddedSeat] = useState<{ seatIndex: number; timestamp: number } | null>(null);
+
+  const handleSeatClick = (seatIndex: number) => {
+    const wasSelected = selectedSet.has(seatIndex);
+    if (!wasSelected && window?.Telegram?.WebApp?.HapticFeedback) {
+      window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+    }
+    onToggleSeat(seatIndex);
+    if (!wasSelected) {
+      setLastAddedSeat({ seatIndex, timestamp: Date.now() });
+    }
+  };
 
   return (
-    <div className="seat-picker">
+    <div className="seat-picker relative">
       <SeatsLayer
         seatsTotal={count}
         seatsAvailable={table.seatsAvailable}
@@ -38,9 +51,20 @@ const SeatPicker: React.FC<SeatPickerProps> = ({
         paddingPx={12}
         selectedIndices={selectedSet}
         occupiedIndices={occupiedIndices}
-        onSeatClick={tableDisabled ? undefined : onToggleSeat}
+        onSeatClick={tableDisabled ? undefined : handleSeatClick}
         allSeatsDisabled={tableDisabled}
       />
+      {lastAddedSeat && (
+        <motion.div
+          key={lastAddedSeat.timestamp}
+          initial={{ y: 0, opacity: 1 }}
+          animate={{ y: -20, opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          className="absolute inset-0 flex items-center justify-center pointer-events-none text-[#FFC107] font-bold text-sm"
+        >
+          +1
+        </motion.div>
+      )}
     </div>
   );
 };

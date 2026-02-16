@@ -443,6 +443,7 @@ function App() {
       <EventPage
         event={selectedEvent}
         selectedSeatsByTable={selectedSeatsByTable}
+        onClearSelection={() => setSelectedSeatsByTable({})}
         onBack={() => {
           setView('events');
           setSelectedTableId(null);

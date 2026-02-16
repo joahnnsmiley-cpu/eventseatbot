@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { TransformWrapper, TransformComponent, MiniMap } from 'react-zoom-pan-pinch';
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
@@ -87,6 +87,13 @@ const SeatMap: React.FC<SeatMapProps> = ({
   const layoutImageUrl = (event?.layout_image_url ?? event?.layoutImageUrl ?? '').trim();
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
   const [layoutRef, layoutWidth] = useContainerWidth<HTMLDivElement>();
+  const zoomApiRef = useRef<{ zoomToElement?: (el: HTMLElement | string, scale?: number, time?: number, easing?: string) => void; centerView?: (scale?: number, time?: number, easing?: string) => void }>({});
+  const hasAutoZoomedRef = useRef(false);
+
+  const totalSeats = Object.values(selectedSeatsByTable ?? {}).reduce((n, arr) => n + arr.length, 0);
+  const lastSelectedTableId = totalSeats > 0
+    ? (Object.entries(selectedSeatsByTable ?? {}).find(([, seats]) => (seats?.length ?? 0) > 0)?.[0] ?? null)
+    : null;
 
   useEffect(() => {
     if (!layoutImageUrl) {
@@ -102,6 +109,21 @@ const SeatMap: React.FC<SeatMapProps> = ({
     img.onerror = () => setLayoutAspectRatio(null);
     img.src = layoutImageUrl;
   }, [layoutImageUrl]);
+
+  useEffect(() => {
+    if (totalSeats === 0) hasAutoZoomedRef.current = false;
+  }, [totalSeats]);
+
+  useEffect(() => {
+    if (!lastSelectedTableId || hasAutoZoomedRef.current) return;
+    const zoomToElement = zoomApiRef.current.zoomToElement;
+    if (!zoomToElement) return;
+    const el = document.getElementById(`table-${lastSelectedTableId}`);
+    if (el) {
+      hasAutoZoomedRef.current = true;
+      zoomToElement(el, 1.6, 300, 'easeOut');
+    }
+  }, [lastSelectedTableId]);
 
   const canSelectSeat = (seat: SeatModel) => seat.status === 'available';
 
@@ -157,7 +179,9 @@ const SeatMap: React.FC<SeatMapProps> = ({
             animationTime: 200,
           }}
         >
-          {({ resetTransform }) => (
+          {({ resetTransform, zoomToElement, centerView }) => {
+            zoomApiRef.current = { zoomToElement, centerView };
+            return (
             <>
               <TransformComponent
                 wrapperStyle={{ width: '100%', height: '100%' }}
@@ -173,6 +197,16 @@ const SeatMap: React.FC<SeatMapProps> = ({
                       alt=""
                       className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                       style={{ position: 'absolute', zIndex: 0 }}
+                    />
+                  )}
+                  {totalSeats > 0 && (
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        zIndex: 4,
+                        background: 'rgba(0,0,0,0.35)',
+                        transition: 'opacity 0.2s',
+                      }}
                     />
                   )}
                   {/* Cinematic stage gradient overlay */}
@@ -246,9 +280,11 @@ const SeatMap: React.FC<SeatMapProps> = ({
         };
         const fontNumber = `${sizes.fontNumber}px`;
         const fontSub = `${sizes.fontSub}px`;
+        const hasSelectedSeats = (selectedSeatsByTable?.[table.id]?.length ?? 0) > 0;
         return (
           <div
             key={table.id}
+            id={`table-${table.id}`}
             className={`table-wrapper ${isTableDisabled ? 'table-disabled' : ''} ${isSelected ? 'table-selected' : ''}`}
             style={{
               position: 'absolute',
@@ -257,10 +293,15 @@ const SeatMap: React.FC<SeatMapProps> = ({
               transform: `translate(-50%, -50%) rotate(${table.rotationDeg}deg)`,
               transformOrigin: 'center',
               cursor: isTableDisabled ? 'not-allowed' : 'pointer',
+              opacity: totalSeats > 0 ? (hasSelectedSeats ? 1 : 0.7) : 1,
+              transition: 'opacity 0.2s',
             }}
             onClick={(e) => {
                 if (isTableDisabled) return;
                 e.stopPropagation();
+                if (window?.Telegram?.WebApp?.HapticFeedback) {
+                  window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                }
                 if (onTableSelect) onTableSelect(table.id);
               }}
           >
@@ -328,7 +369,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
               {/* Reset Zoom Button */}
               <button
                 type="button"
-                onClick={() => resetTransform(300, 'easeOut')}
+                onClick={() => {
+                  resetTransform(300, 'easeOut');
+                  centerView?.(1, 300, 'easeOut');
+                }}
                 className="absolute top-3 right-3 z-20 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/10 active:scale-95 transition"
               >
                 Сбросить масштаб
@@ -347,7 +391,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
                 </div>
               )}
             </>
-          )}
+            );
+          }}
         </TransformWrapper>
       </div>
     </div>
