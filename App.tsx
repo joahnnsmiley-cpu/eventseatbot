@@ -1023,10 +1023,17 @@ function App() {
                           backgroundImage: (featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()
                             ? `url(${(featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()})`
                             : undefined,
+                          filter: 'brightness(1.15) contrast(1.08)',
+                          transform: 'scale(1.05)',
                         }}
                       />
-                      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-                      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/80" />
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          backdropFilter: 'blur(5px)',
+                          background: 'radial-gradient(circle at center, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0.75) 100%)',
+                        }}
+                      />
                       <div className="relative z-10 flex flex-col items-center justify-center text-center py-16 px-6 space-y-4">
                         <h2 className="text-3xl md:text-4xl font-extrabold uppercase tracking-wide text-white">
                           {featured?.title ?? UI_TEXT.event.eventFallback}

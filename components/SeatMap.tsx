@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { TransformWrapper, TransformComponent, MiniMap } from 'react-zoom-pan-pinch';
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
@@ -378,18 +379,26 @@ const SeatMap: React.FC<SeatMapProps> = ({
                 Сбросить масштаб
               </button>
 
-              {/* Mini-map preview - layout image only, lightweight */}
-              {layoutImageUrl && (
-                <div className="absolute bottom-3 right-3 z-30 overflow-hidden rounded-lg border border-white/10 bg-black/70 backdrop-blur-sm pointer-events-none">
-                  <MiniMap width={96} height={64} borderColor="rgba(198,167,94,0.6)">
-                    <img
-                      src={layoutImageUrl}
-                      alt=""
-                      className="w-full h-full object-contain"
-                    />
-                  </MiniMap>
-                </div>
-              )}
+              {/* Mini-map preview - layout image only, lightweight; hide when seats selected to avoid overlap with floating bar */}
+              <AnimatePresence>
+                {layoutImageUrl && totalSeats === 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute bottom-3 right-3 z-30 overflow-hidden rounded-lg border border-white/10 bg-black/70 backdrop-blur-sm pointer-events-none"
+                  >
+                    <MiniMap width={96} height={64} borderColor="rgba(198,167,94,0.6)">
+                      <img
+                        src={layoutImageUrl}
+                        alt=""
+                        className="w-full h-full object-contain"
+                      />
+                    </MiniMap>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </>
             );
           }}
