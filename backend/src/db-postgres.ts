@@ -21,8 +21,11 @@ type EventsRow = {
   event_date?: string | null;
   event_time?: string | null;
   venue?: string | null;
-  /** image_url — poster (event banner / cover image); not used as layout. */
+  /** image_url — poster (event banner / cover image); fallback when poster_image_path is null. */
   image_url: string | null;
+  /** poster_image_path — storage path in posters bucket; preferred over image_url when set. */
+  poster_image_path?: string | null;
+  poster_image_version?: number | null;
   /** layout_image_url — seating map only (рассадка); not for poster/cover. */
   layout_image_url: string | null;
   organizer_phone: string | null;
@@ -78,6 +81,11 @@ type AdminsRow = {
 
 // ---- Helpers: row → app type ----
 function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
+  let imageUrl = row.image_url ?? '';
+  if (row.poster_image_path && supabase) {
+    const { data } = supabase.storage.from('posters').getPublicUrl(row.poster_image_path);
+    imageUrl = data.publicUrl;
+  }
   return {
     id: row.id,
     title: row.title,
@@ -86,8 +94,8 @@ function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
     event_date: row.event_date ?? null,
     event_time: row.event_time ?? null,
     venue: row.venue ?? null,
-    // image_url → imageUrl: poster (banner/cover); not layout
-    imageUrl: row.image_url ?? '',
+    // poster_image_path → imageUrl when set; else image_url
+    imageUrl,
     // layout_image_url → layoutImageUrl: seating only (рассадка)
     layoutImageUrl: row.layout_image_url ?? null,
     schemaImageUrl: null,

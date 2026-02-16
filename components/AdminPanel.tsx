@@ -106,6 +106,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null);
   const [layoutUrl, setLayoutUrl] = useState('');
   const [eventPosterUrl, setEventPosterUrl] = useState('');
+  const [posterUploadLoading, setPosterUploadLoading] = useState(false);
+  const [posterUploadError, setPosterUploadError] = useState<string | null>(null);
   const [eventTitle, setEventTitle] = useState('');
   const [eventDescription, setEventDescription] = useState('');
   const [eventDate, setEventDate] = useState('');
@@ -1334,15 +1336,40 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               <div>
                 <div className="text-sm font-semibold mb-1">{UI_TEXT.event.posterLabel}</div>
                 <input
-                  type="text"
-                  value={eventPosterUrl}
-                  onChange={(e) => setEventPosterUrl(e.target.value)}
-                  placeholder={UI_TEXT.event.posterPlaceholder}
-                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !selectedEvent?.id) return;
+                    setPosterUploadLoading(true);
+                    setPosterUploadError(null);
+                    try {
+                      const { url } = await StorageService.uploadPosterImage(selectedEvent.id, file);
+                      setEventPosterUrl(url);
+                      const fresh = await StorageService.getAdminEvent(selectedEvent.id);
+                      setEventFromFresh(fresh);
+                    } catch (err) {
+                      setPosterUploadError(err instanceof Error ? err.message : 'Upload failed');
+                    } finally {
+                      setPosterUploadLoading(false);
+                      e.target.value = '';
+                    }
+                  }}
+                  disabled={posterUploadLoading || !selectedEvent?.id}
+                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-surface file:cursor-pointer"
                 />
+                {posterUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
+                {posterUploadError && <div className="text-xs text-[#6E6A64] mt-1">{posterUploadError}</div>}
                 <div className="text-xs text-muted mt-1">
-                  URL изображения афиши (обложка события).
+                  Загрузите изображение афиши (обложка события).
                 </div>
+                {eventPosterUrl && (
+                  <div className="mt-2">
+                    <div className="rounded border overflow-hidden bg-surface max-h-32">
+                      <img src={eventPosterUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => {}} />
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <div className="text-sm font-semibold mb-1">{UI_TEXT.tables.layoutImageUrl}</div>

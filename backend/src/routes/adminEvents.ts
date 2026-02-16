@@ -211,6 +211,65 @@ router.post('/events/:id/archive', async (req: Request, res: Response) => {
   return res.status(200).json(existing);
 });
 
+// POST /admin/events/:id/upload-poster — upload poster (cover) image to Supabase Storage, return public URL
+router.post('/events/:id/upload-poster', upload.single('file'), async (req: Request, res: Response) => {
+  const id = normalizeId(req.params.id);
+  if (!id) return respondBadRequest(res, new Error('Event id is required'), { error: 'Event id is required' });
+
+  const event = await db.findEventById(id);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
+
+  const file = (req as any).file;
+  if (!file || !file.buffer) return res.status(400).json({ error: 'No file uploaded' });
+
+  const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+  if (!allowed.includes(file.mimetype)) {
+    return res.status(400).json({ error: 'Invalid file type. Use PNG, JPEG, or WebP.' });
+  }
+
+  const ext = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/jpeg' ? 'jpg' : 'webp';
+
+  try {
+    const { data: eventRow } = await supabase.from('events').select('poster_image_version').eq('id', id).maybeSingle();
+    const prevVersion = Number((eventRow as any)?.poster_image_version ?? 0) || 0;
+    const newVersion = prevVersion + 1;
+    const timestamp = Date.now();
+    const filename = `v${newVersion}-${timestamp}.${ext}`;
+    const path = `events/${id}/${filename}`;
+
+    const { data: uploadData, error } = await supabase.storage.from('posters').upload(path, file.buffer, {
+      contentType: file.mimetype,
+      upsert: true,
+    });
+    if (error) {
+      console.error('[upload-poster]', error);
+      return res.status(500).json({ error: error.message });
+    }
+    const { data: urlData } = supabase.storage.from('posters').getPublicUrl(uploadData.path);
+    const publicUrl = urlData.publicUrl;
+
+    const { error: updateErr } = await supabase
+      .from('events')
+      .update({
+        poster_image_path: path,
+        poster_image_version: newVersion,
+      })
+      .eq('id', id);
+
+    if (updateErr) {
+      console.error('[upload-poster] update', updateErr);
+      return res.status(500).json({ error: 'Failed to update event' });
+    }
+
+    return res.json({ url: publicUrl, version: newVersion });
+  } catch (e) {
+    console.error('[upload-poster]', e);
+    return res.status(500).json({ error: 'Upload failed' });
+  }
+});
+
 // POST /admin/events/:id/upload-layout — upload layout image to Supabase Storage, return public URL
 router.post('/events/:id/upload-layout', upload.single('file'), async (req: Request, res: Response) => {
   const id = normalizeId(req.params.id);
