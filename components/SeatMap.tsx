@@ -134,6 +134,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
         width: '100%',
         aspectRatio: layoutAspectRatio ?? 16 / 9,
         minHeight: layoutAspectRatio == null ? '18rem' : undefined,
+        boxShadow: 'inset 0 0 40px rgba(0,0,0,0.6)',
       }}
     >
       <div className="absolute inset-0 min-w-0 min-h-0">
