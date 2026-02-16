@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
 import { getGoldToneByCategory } from '../src/ui/theme';
+import { getGoldToneFromStyleKey } from '../constants/ticketStyles';
 import { computeTableSizes } from '../src/ui/tableSizing';
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
@@ -185,10 +186,21 @@ const SeatMap: React.FC<SeatMapProps> = ({
           widthPercent: table.widthPercent,
           heightPercent: table.heightPercent,
         });
-        const goldTone = getGoldToneByCategory(table.color);
+        let tone: Record<string, string> | undefined;
+        if (table.ticketCategoryId && event?.ticketCategories) {
+          const category = event.ticketCategories.find(
+            (c) => c.id === table.ticketCategoryId
+          );
+          if (category) {
+            tone = getGoldToneFromStyleKey(category.styleKey);
+          }
+        }
+        if (!tone) {
+          tone = getGoldToneByCategory(table.color);
+        }
         const borderRadius = sizes.borderRadius === '50%' ? '50%' : 12;
         const shapeStyle = {
-          ...goldTone,
+          ...tone,
           width: sizes.width,
           height: sizes.height,
           borderRadius,
