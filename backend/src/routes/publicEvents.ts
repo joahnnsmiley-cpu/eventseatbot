@@ -68,6 +68,10 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     tables: filterTablesByVisibility(Array.isArray(ev.tables) ? ev.tables : []),
     paymentPhone: ev.paymentPhone ?? ev.organizer_phone ?? '',
   };
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
   res.json(mapped);
 });
 

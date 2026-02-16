@@ -24,7 +24,7 @@ async function handleAuthError(res: Response, defaultMessage: string): Promise<n
 
 export const getEvents = async (): Promise<EventData[]> => {
   const apiBaseUrl = getApiBaseUrl();
-  const res = await fetch(`${apiBaseUrl}/public/events`);
+  const res = await fetch(`${apiBaseUrl}/public/events`, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to load events');
   if (res.status === 204) return [];
   const data = await res.json();
@@ -39,7 +39,7 @@ export const getEvents = async (): Promise<EventData[]> => {
 
 export const getEvent = async (eventId: string): Promise<EventData> => {
   const apiBaseUrl = getApiBaseUrl();
-  const res = await fetch(`${apiBaseUrl}/public/events/${eventId}`);
+  const res = await fetch(`${apiBaseUrl}/public/events/${eventId}`, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to load event');
   const data = await res.json();
   // Public API returns coverImageUrl; normalize to imageUrl (poster). Tables from event_tables.

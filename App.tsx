@@ -479,6 +479,7 @@ function App() {
               onClick={() => {
                 setView('layout');
                 setSelectedTableId(null);
+                if (selectedEventId) loadEvent(selectedEventId, true);
               }}
               disabled={bookingLoading}
               className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light"
