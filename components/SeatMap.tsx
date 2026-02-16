@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
-import { getTableCategoryColor } from '../src/ui/theme';
+import { getGoldToneByCategory } from '../src/ui/theme';
 import { computeTableSizes } from '../src/ui/tableSizing';
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
@@ -178,21 +178,22 @@ const SeatMap: React.FC<SeatMapProps> = ({
           widthPercent: table.widthPercent,
           heightPercent: table.heightPercent,
         });
-        const isRect = typeof sizes.borderRadius === 'number';
-        const rectBg = isSelected ? '#F3EBDD' : '#F9F6F1';
-        const categoryColor = getTableCategoryColor(table.category ?? table.color);
+        const goldTone = getGoldToneByCategory(table.category ?? table.color);
+        const borderRadius = sizes.borderRadius === '50%' ? '50%' : 12;
         const shapeStyle = {
+          ...goldTone,
           width: sizes.width,
           height: sizes.height,
-          borderRadius: sizes.borderRadius,
-          backgroundColor: isRect ? rectBg : (isSelected ? '#F3EBDD' : categoryColor),
+          borderRadius,
+          background: 'linear-gradient(145deg, var(--gold-light), var(--gold-base))',
+          border: '1.5px solid var(--gold-dark)',
         };
         const fontNumber = `${sizes.fontNumber}px`;
         const fontSub = `${sizes.fontSub}px`;
         return (
           <div
             key={table.id}
-            className={`table-wrapper ${isTableDisabled ? 'opacity-60' : ''} ${isSelected ? 'table-selected' : ''}`}
+            className={`table-wrapper ${isTableDisabled ? 'table-disabled' : ''} ${isSelected ? 'table-selected' : ''}`}
             style={{
               position: 'absolute',
               left: `${table.centerX}%`,
@@ -207,7 +208,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
                 if (onTableSelect) onTableSelect(table.id);
               }}
           >
-              <div className="table-shape" style={shapeStyle} />
+              <div className="table-shape table-shape-gold" style={shapeStyle} />
               <div className="table-label">
                 <TableNumber number={table.number ?? 0} fontSize={fontNumber} />
                 <SeatInfo available={table.seatsAvailable} total={table.seatsTotal} fontSize={fontSub} />

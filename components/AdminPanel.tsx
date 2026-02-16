@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import * as StorageService from '../services/storageService';
 import { EventData, Table } from '../types';
 import { UI_TEXT } from '../constants/uiText';
-import { getTableCategoryColor } from '../src/ui/theme';
+import { getGoldToneByCategory } from '../src/ui/theme';
 import { computeTableSizes } from '../src/ui/tableSizing';
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
 import { TableNumber, SeatInfo } from './TableLabel';
@@ -1238,7 +1238,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     const table = mapTableFromDb(raw);
                     const available = typeof table.seatsAvailable === 'number' ? table.seatsAvailable : table.seatsTotal ?? 0;
                     const total = typeof table.seatsTotal === 'number' ? table.seatsTotal : 4;
-                    const borderColor = getTableCategoryColor(table.color);
+                    const goldTone = getGoldToneByCategory(table.color);
                     const effectiveWidth =
                       layoutPreviewWidth && layoutPreviewWidth > 0
                         ? layoutPreviewWidth
@@ -1248,17 +1248,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       widthPercent: table.widthPercent,
                       heightPercent: table.heightPercent,
                     });
+                    const borderRadius = sizes.borderRadius === '50%' ? '50%' : 12;
                     const shapeStyle = {
+                      ...goldTone,
                       width: sizes.width,
                       height: sizes.height,
-                      borderRadius: sizes.borderRadius,
-                      background: `linear-gradient(145deg, ${borderColor}, #8F7536)`,
-                      border: `2px solid #6E5A28`,
-                      boxShadow: `
-    inset 0 1px 2px rgba(255,255,255,0.25),
-    inset 0 -2px 6px rgba(0,0,0,0.4),
-    0 4px 12px rgba(0,0,0,0.6)
-  `,
+                      borderRadius,
+                      background: 'linear-gradient(145deg, var(--gold-light), var(--gold-base))',
+                      border: '1.5px solid var(--gold-dark)',
                     };
                     return (
                       <div
@@ -1272,7 +1269,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           transformOrigin: 'center',
                         }}
                       >
-                        <div className="table-shape" style={shapeStyle} />
+                        <div className="table-shape table-shape-gold" style={shapeStyle} />
                         <div className="table-label">
                           <TableNumber number={table.number ?? 0} fontSize={`${sizes.fontNumber}px`} />
                           <SeatInfo available={available} total={total} fontSize={`${sizes.fontSub}px`} />

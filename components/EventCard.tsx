@@ -34,7 +34,22 @@ const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = 
   // Cover = poster (imageUrl); layoutImageUrl is only for seating map, not shown on card
   const coverUrl = (event.imageUrl ?? (event as { coverImageUrl?: string | null }).coverImageUrl ?? '').trim();
   const title = event.title?.trim() || UI_TEXT.event.eventFallback;
-  const dateFormatted = formatDate(event.date);
+  let dateFormatted: string | null = null;
+  if (event.event_date) {
+    const datePart = new Date(event.event_date).toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    if (event.event_time) {
+      const time = event.event_time.slice(0, 5); // HH:mm
+      dateFormatted = `${datePart}, ${time}`;
+    } else {
+      dateFormatted = datePart;
+    }
+  } else {
+    dateFormatted = formatDate(event.date);
+  }
   const status = event.status ?? (event.published ? 'published' : 'draft');
   const badgeText = statusLabel(status);
   const isArchived = status === 'archived';

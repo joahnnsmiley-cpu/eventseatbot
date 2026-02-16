@@ -14,6 +14,22 @@ export function getTableCategoryColor(category: string | undefined): string {
   return c ?? TABLE_CATEGORY_COLORS.Standard;
 }
 
+/** Gold tone CSS variables by category for table rendering. */
+const GOLD_TONES: Record<string, { light: string; base: string; dark: string }> = {
+  VIP: { light: '#F8E7A1', base: '#D4AF37', dark: '#A67C00' },
+  Premium: { light: '#F3D98A', base: '#C9A227', dark: '#8F6F00' },
+  Standard: { light: '#E8C96A', base: '#B8931E', dark: '#7A5E00' },
+};
+
+export function getGoldToneByCategory(category: string | undefined): Record<string, string> {
+  const tone = GOLD_TONES[category ?? ''] ?? GOLD_TONES.Standard;
+  return {
+    '--gold-light': tone.light,
+    '--gold-base': tone.base,
+    '--gold-dark': tone.dark,
+  };
+}
+
 /**
  * Neutral luxury palette.
  * No bright colors, no pure green, no blue, no gradients, no neon.
