@@ -1023,15 +1023,26 @@ function App() {
                           backgroundImage: (featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()
                             ? `url(${(featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()})`
                             : undefined,
-                          filter: 'brightness(1.15) contrast(1.08)',
+                          filter: 'brightness(1.25) contrast(1.12) saturate(1.1)',
                           transform: 'scale(1.05)',
                         }}
                       />
                       <div
                         className="absolute inset-0"
                         style={{
-                          backdropFilter: 'blur(5px)',
-                          background: 'radial-gradient(circle at center, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0.75) 100%)',
+                          backdropFilter: 'blur(4px)',
+                          background: 'radial-gradient(circle at center, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.65) 100%)',
+                        }}
+                      />
+                      <div
+                        className="absolute z-[5] pointer-events-none"
+                        style={{
+                          width: '260px',
+                          height: '260px',
+                          background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
                         }}
                       />
                       <div className="relative z-10 flex flex-col items-center justify-center text-center py-16 px-6 space-y-4">
