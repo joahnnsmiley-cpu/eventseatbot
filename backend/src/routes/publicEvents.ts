@@ -66,6 +66,7 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     schemaImageUrl: ev.schemaImageUrl || ev.imageUrl || null,
     layoutImageUrl: typeof ev.layoutImageUrl === 'undefined' ? null : ev.layoutImageUrl,
     tables: filterTablesByVisibility(Array.isArray(ev.tables) ? ev.tables : []),
+    ticketCategories: ev.ticketCategories ?? [],
     paymentPhone: ev.paymentPhone ?? ev.organizer_phone ?? '',
   };
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
