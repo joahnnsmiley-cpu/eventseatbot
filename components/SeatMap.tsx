@@ -140,6 +140,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
             src={layoutImageUrl}
             alt=""
             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+            style={{ position: 'absolute', zIndex: 0 }}
           />
         )}
         {/* Pure coordinate container: same aspect ratio as admin so coordinates match 1:1. */}
@@ -147,6 +148,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
           className="relative z-10"
           style={{
             position: 'absolute',
+            zIndex: 10,
             top: 0,
             left: 0,
             right: 0,
