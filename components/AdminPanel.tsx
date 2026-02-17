@@ -2018,8 +2018,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     const category = table.ticketCategoryId
                       ? (selectedEvent?.ticketCategories ?? []).find((c) => c.id === table.ticketCategoryId)
                       : null;
-                    const colorKey = category ? resolveCategoryColorKey(category) : 'gold';
-                    const colorConfig = getCategoryColor(colorKey);
+                    const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
                     const effectiveWidth =
                       layoutPreviewWidth && layoutPreviewWidth > 0
                         ? layoutPreviewWidth
@@ -2034,9 +2033,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       width: sizes.width,
                       height: sizes.height,
                       borderRadius,
-                      background: colorConfig.gradient,
-                      border: colorConfig.border,
-                      boxShadow: colorConfig.glow,
+                      background: palette?.gradient ?? '#2a2a2a',
+                      border: palette?.border ?? '1.5px solid #3a3a3a',
+                      boxShadow: palette?.glow ?? 'none',
                     };
                     return (
                       <div

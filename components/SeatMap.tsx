@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { TransformWrapper, TransformComponent, MiniMap } from 'react-zoom-pan-pinch';
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
-import { getCategoryColor, resolveCategoryColorKey } from '../src/config/categoryColors';
+import { CATEGORY_COLORS, resolveCategoryColorKey } from '../src/config/categoryColors';
 import { computeTableSizes } from '../src/ui/tableSizing';
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
@@ -261,16 +261,15 @@ const SeatMap: React.FC<SeatMapProps> = ({
           heightPercent: table.heightPercent,
         });
         const category = event?.ticketCategories?.find((c) => c.id === table.ticketCategoryId);
-        const colorKey = category ? resolveCategoryColorKey(category) : 'gold';
-        const colorConfig = getCategoryColor(colorKey);
+        const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
         const borderRadius = sizes.borderRadius === '50%' ? '50%' : 12;
         const shapeStyle = {
           width: sizes.width,
           height: sizes.height,
           borderRadius,
-          background: colorConfig.gradient,
-          border: colorConfig.border,
-          boxShadow: colorConfig.glow,
+          background: palette?.gradient ?? '#2a2a2a',
+          border: palette?.border ?? '1.5px solid #3a3a3a',
+          boxShadow: palette?.glow ?? 'none',
         };
         const fontNumber = `${sizes.fontNumber}px`;
         const fontSub = `${sizes.fontSub}px`;
