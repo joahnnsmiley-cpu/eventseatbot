@@ -1,5 +1,6 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
 import type { EventData } from '../types';
 import { getPriceForTable } from '../src/utils/getTablePrice';
 import { getColorFromStyleKey } from '../constants/ticketStyles';
@@ -177,13 +178,21 @@ const EventPage: React.FC<EventPageProps> = ({
         </div>
 
         {event?.ticketCategories?.filter((c) => c.isActive).length ? (
-          <div className="mt-6">
+          <div className="mt-4">
             <button
               type="button"
               onClick={() => setLegendOpen(!legendOpen)}
-              className="text-sm text-muted flex items-center gap-2"
+              aria-expanded={legendOpen}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/10 transition-all duration-300 text-left"
             >
-              Категории билетов
+              <span className="text-sm font-medium text-white">Категории билетов</span>
+              <motion.span
+                animate={{ rotate: legendOpen ? 180 : 0 }}
+                transition={{ duration: 0.3 }}
+                className="text-muted shrink-0"
+              >
+                <ChevronDown size={24} strokeWidth={2} />
+              </motion.span>
             </button>
             <AnimatePresence>
               {legendOpen && (
@@ -191,7 +200,7 @@ const EventPage: React.FC<EventPageProps> = ({
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25 }}
+                  transition={{ duration: 0.3 }}
                   className="overflow-hidden mt-2 space-y-2"
                 >
                   {event.ticketCategories
