@@ -37,23 +37,22 @@ export default function NeonTicketCard({
     <button
       type="button"
       onClick={onClick}
-      className="relative w-full text-left rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(255,193,7,0.4)]"
+      className="relative w-full text-left rounded-2xl overflow-hidden bg-black border border-white/10"
     >
       {posterImageUrl && (
         <>
           <img
             src={posterImageUrl}
             alt=""
-            className="absolute inset-0 w-full h-full object-cover opacity-40 blur-sm"
+            className="absolute inset-0 w-full h-full object-cover"
             loading="lazy"
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/80" />
+          <div className="absolute inset-0 bg-black/65" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
         </>
       )}
-      {!posterImageUrl && (
-        <div className="absolute inset-0 bg-[#0b0b0b] after:absolute after:inset-0 after:rounded-2xl after:blur-xl after:bg-gradient-to-r after:from-yellow-500/20 after:to-purple-600/20 after:pointer-events-none after:content-['']" />
-      )}
-      <div className="relative z-10 p-6">
+      {!posterImageUrl && <div className="absolute inset-0 bg-black" />}
+      <div className="relative z-10 p-4">
         <div className="flex items-start justify-between mb-4">
           <h3 className="text-lg font-bold text-white pr-2">{eventTitle}</h3>
           <span className={`text-xs px-2 py-1 rounded shrink-0 ${className}`}>{label}</span>
