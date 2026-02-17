@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
@@ -329,13 +329,30 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     );
   };
 
-  useEffect(() => {
+  const eventTabsVisible = mode === 'layout' && hasEvents && !eventsLoading;
+  const eventTabKeys = useMemo(() => ['published', 'draft', 'archived', 'deleted'] as const, []);
+
+  useLayoutEffect(() => {
     const el = eventTabRefs.current[eventStatusFilter];
     if (el) {
       setActiveTabLeft(el.offsetLeft);
       setActiveTabWidth(el.offsetWidth);
     }
-  }, [eventStatusFilter, hasEvents, eventsLoading]);
+  }, [eventStatusFilter, eventTabsVisible, eventTabKeys]);
+
+  useLayoutEffect(() => {
+    const el = eventTabRefs.current[eventStatusFilter];
+    const container = eventTabsScrollRef.current;
+    if (el && container) {
+      const elLeft = el.offsetLeft;
+      const elWidth = el.offsetWidth;
+      const containerWidth = container.offsetWidth;
+      container.scrollTo({
+        left: elLeft - containerWidth / 2 + elWidth / 2,
+        behavior: eventTabsVisible ? 'smooth' : 'auto',
+      });
+    }
+  }, [eventStatusFilter, eventTabsVisible, eventTabKeys]);
 
   useEffect(() => {
     if (!layoutUrl?.trim()) {
@@ -351,20 +368,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     img.onerror = () => setLayoutAspectRatio(null);
     img.src = layoutUrl.trim();
   }, [layoutUrl]);
-
-  useEffect(() => {
-    const el = eventTabRefs.current[eventStatusFilter];
-    const container = eventTabsScrollRef.current;
-    if (el && container) {
-      const elLeft = el.offsetLeft;
-      const elWidth = el.offsetWidth;
-      const containerWidth = container.offsetWidth;
-      container.scrollTo({
-        left: elLeft - containerWidth / 2 + elWidth / 2,
-        behavior: 'smooth',
-      });
-    }
-  }, [eventStatusFilter]);
 
   const toFriendlyError = (e: unknown) => {
     const raw = e instanceof Error ? e.message : String(e);
@@ -784,6 +787,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     [bookings]
   );
 
+  useEffect(() => {
+    if (bookings.length && statusFilter && !uniqueBookingStatuses.includes(statusFilter)) {
+      setStatusFilter('');
+    }
+  }, [bookings.length, statusFilter, uniqueBookingStatuses]);
+
   const filteredBookings = useMemo(() => {
     if (!statusFilter) return bookings;
     return bookings.filter((b) => String(b.status ?? '') === statusFilter);
@@ -1063,6 +1072,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       <button
                         key={tab.key}
                         ref={(el) => { eventTabRefs.current[tab.key] = el; }}
+                        data-active={eventStatusFilter === tab.key ? 'true' : undefined}
                         type="button"
                         onClick={() => setEventStatusFilter(tab.key)}
                         className={`relative z-10 shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
