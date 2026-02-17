@@ -314,6 +314,25 @@ export const uploadPosterImage = async (eventId: string, file: File): Promise<{ 
   return res.json();
 };
 
+/** POST /admin/events/:id/upload-ticket-template — upload ticket template PNG to Supabase */
+export const uploadTicketTemplateImage = async (eventId: string, file: File): Promise<{ url: string }> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(eventId)}/upload-ticket-template`, {
+    method: 'POST',
+    headers: AuthService.getAuthHeader(),
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'Upload failed');
+  }
+  return res.json();
+};
+
 /** POST /admin/upload-layout — upload layout image to Supabase, returns { url, version } */
 export const uploadLayoutImage = async (eventId: string, file: File): Promise<{ url: string; version?: number }> => {
   const apiBaseUrl = getApiBaseUrl();

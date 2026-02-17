@@ -79,6 +79,8 @@ export interface EventData {
   published?: boolean;
   /** layoutImageUrl — подложка зала (seating map background). */
   layoutImageUrl?: string | null;
+  /** ticketTemplateUrl — public URL of ticket template image for ticket generation. */
+  ticketTemplateUrl?: string | null;
   schemaImageUrl?: string | null;
   /** ticketCategories — stored in ticket_categories (jsonb). */
   ticketCategories?: unknown[] | null;

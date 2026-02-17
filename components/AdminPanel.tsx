@@ -278,6 +278,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [eventPosterUrl, setEventPosterUrl] = useState('');
   const [posterUploadLoading, setPosterUploadLoading] = useState(false);
   const [posterUploadError, setPosterUploadError] = useState<string | null>(null);
+  const [eventTicketTemplateUrl, setEventTicketTemplateUrl] = useState('');
+  const [ticketTemplateUploadLoading, setTicketTemplateUploadLoading] = useState(false);
+  const [ticketTemplateUploadError, setTicketTemplateUploadError] = useState<string | null>(null);
   const [eventTitle, setEventTitle] = useState('');
   const [eventDescription, setEventDescription] = useState('');
   const [eventDate, setEventDate] = useState('');
@@ -515,6 +518,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setSelectedEvent(mapped);
     setLayoutUrl(fresh.layoutImageUrl || '');
     setEventPosterUrl(fresh.imageUrl ?? '');
+    setEventTicketTemplateUrl(fresh.ticketTemplateUrl ?? '');
     setEventTitle(fresh.title || '');
     setEventDescription(fresh.description || '');
     setEventDate(fresh.event_date ?? '');
@@ -539,6 +543,22 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setPosterUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setPosterUploadLoading(false);
+    }
+  }, [selectedEvent?.id]);
+
+  const handleTicketTemplateUpload = useCallback(async (file: File) => {
+    if (!selectedEvent?.id) return;
+    setTicketTemplateUploadLoading(true);
+    setTicketTemplateUploadError(null);
+    try {
+      const { url } = await StorageService.uploadTicketTemplateImage(selectedEvent.id, file);
+      setEventTicketTemplateUrl(url);
+      const fresh = await StorageService.getAdminEvent(selectedEvent.id);
+      setEventFromFresh(fresh);
+    } catch (err) {
+      setTicketTemplateUploadError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setTicketTemplateUploadLoading(false);
     }
   }, [selectedEvent?.id]);
 
@@ -1387,6 +1407,51 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     )}
                     {posterUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
                     {posterUploadError && <div className="text-xs text-[#6E6A64] mt-1">{posterUploadError}</div>}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.ticketTemplateSectionLabel}</div>
+                    {eventTicketTemplateUrl ? (
+                      <div className="space-y-2">
+                        <div className="rounded border overflow-hidden bg-surface max-h-32">
+                          <img src={eventTicketTemplateUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => {}} />
+                        </div>
+                        <label className="inline-block">
+                          <span className="px-4 py-2 text-sm rounded-xl border border-white/20 hover:bg-white/5 cursor-pointer transition">
+                            Заменить
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleTicketTemplateUpload(file);
+                              e.target.value = '';
+                            }}
+                            disabled={ticketTemplateUploadLoading || !selectedEvent?.id}
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <label className="block">
+                        <span className="inline-block px-4 py-2 text-sm rounded-xl border border-white/20 hover:bg-white/5 cursor-pointer transition">
+                          Загрузить шаблон PNG
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleTicketTemplateUpload(file);
+                            e.target.value = '';
+                          }}
+                          disabled={ticketTemplateUploadLoading || !selectedEvent?.id}
+                        />
+                      </label>
+                    )}
+                    {ticketTemplateUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
+                    {ticketTemplateUploadError && <div className="text-xs text-[#6E6A64] mt-1">{ticketTemplateUploadError}</div>}
                   </div>
                 </div>
                       </SortableSectionInner>

@@ -66,6 +66,8 @@ export interface EventData {
   imageUrl?: string | null;
   /** layoutImageUrl — подложка зала (seating map background). */
   layoutImageUrl?: string | null;
+  /** ticketTemplateUrl — ticket template image for ticket generation. */
+  ticketTemplateUrl?: string | null;
   /** layout_image_url — snake_case alias from API. */
   layout_image_url?: string | null;
   schemaImageUrl?: string | null;

@@ -27,7 +27,8 @@
     "test:all": "npm run test:booking-events && npm run test:booking-expiration && npm run test:booking-scheduler && npm run test:payment-domain && npm run test:payment-api && npm run test:payment-admin && npm run test:payment-events && npm run test:payment-confirm && npm run test:telegram-commands && npm run test:pending-payments && npm run test:confirm-payment && npm run test:telegram-security && npm run test:telegram-admin-commands && npm run test:telegram-inline-keyboard && npm run test:telegram-callbacks && npm run test:inline-payment-confirmation && npm run test:reset-data",
     "reset:data": "ts-node src/scripts/resetData.ts",
     "storage:create-layouts-bucket": "ts-node scripts/create-layouts-bucket.ts",
-    "storage:create-tickets-bucket": "ts-node scripts/create-tickets-bucket.ts"
+    "storage:create-tickets-bucket": "ts-node scripts/create-tickets-bucket.ts",
+    "storage:create-ticket-templates-bucket": "ts-node scripts/create-ticket-templates-bucket.ts"
   },
   "keywords": [],
   "author": "",

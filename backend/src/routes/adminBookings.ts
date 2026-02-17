@@ -22,7 +22,7 @@ async function generateAndSendTicket(booking: Booking): Promise<void> {
     const seats = booking.seatsBooked ?? booking.tableBookings?.[0]?.seats ?? 0;
 
     const ticketUrl = await generateTicket({
-      templateUrl: ev?.imageUrl ?? '',
+      templateUrl: (ev as any)?.ticketTemplateUrl ?? ev?.imageUrl ?? '',
       bookingId: booking.id,
       eventId: booking.eventId,
       eventTitle: ev?.title ?? '',

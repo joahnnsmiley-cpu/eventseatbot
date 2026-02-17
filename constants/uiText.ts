@@ -64,6 +64,7 @@ export const UI_TEXT = {
     posterLabel: 'Афиша события',
     posterSectionLabel: 'Афиша мероприятия',
     posterPlaceholder: 'https://example.com/poster.jpg',
+    ticketTemplateSectionLabel: 'Афиша билета (шаблон)',
     organizerPhone: 'Телефон организатора',
     contactOrganizer: 'Связаться с организатором',
     contactOrganizerTelegram: 'Задать вопрос организатору в Telegram',

@@ -270,6 +270,56 @@ router.post('/events/:id/upload-poster', upload.single('file'), async (req: Requ
   }
 });
 
+// POST /admin/events/:id/upload-ticket-template — upload ticket template PNG to Supabase Storage
+router.post('/events/:id/upload-ticket-template', upload.single('file'), async (req: Request, res: Response) => {
+  const id = normalizeId(req.params.id);
+  if (!id) return respondBadRequest(res, new Error('Event id is required'), { error: 'Event id is required' });
+
+  const event = await db.findEventById(id);
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
+
+  const file = (req as any).file;
+  if (!file || !file.buffer) return res.status(400).json({ error: 'No file uploaded' });
+
+  const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+  if (!allowed.includes(file.mimetype)) {
+    return res.status(400).json({ error: 'Invalid file type. Use PNG, JPEG, or WebP.' });
+  }
+
+  const ext = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/jpeg' ? 'jpg' : 'webp';
+  const path = `${id}.${ext}`;
+
+  try {
+    const { data: uploadData, error } = await supabase.storage.from('ticket-templates').upload(path, file.buffer, {
+      contentType: file.mimetype,
+      upsert: true,
+    });
+    if (error) {
+      console.error('[upload-ticket-template]', error);
+      return res.status(500).json({ error: error.message });
+    }
+    const { data: urlData } = supabase.storage.from('ticket-templates').getPublicUrl(uploadData.path);
+    const publicUrl = urlData.publicUrl;
+
+    const { error: updateErr } = await supabase
+      .from('events')
+      .update({ ticket_template_url: publicUrl })
+      .eq('id', id);
+
+    if (updateErr) {
+      console.error('[upload-ticket-template] update', updateErr);
+      return res.status(500).json({ error: 'Failed to update event' });
+    }
+
+    return res.json({ url: publicUrl });
+  } catch (e) {
+    console.error('[upload-ticket-template]', e);
+    return res.status(500).json({ error: 'Upload failed' });
+  }
+});
+
 // POST /admin/events/:id/upload-layout — upload layout image to Supabase Storage, return public URL
 router.post('/events/:id/upload-layout', upload.single('file'), async (req: Request, res: Response) => {
   const id = normalizeId(req.params.id);
