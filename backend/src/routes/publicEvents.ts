@@ -4,7 +4,7 @@ import { db } from '../db';
 import { supabase } from '../supabaseClient';
 import { emitBookingCreated, emitBookingCancelled, calculateBookingExpiration } from '../domain/bookings';
 import { getPriceForTable } from '../utils/getTablePrice';
-import { sendTelegramMessage, notifyAdmins, formatDateForNotification } from '../services/telegramService';
+import { sendTelegramMessage, notifyAdmins, formatDateForNotification, escapeHtml } from '../services/telegramService';
 
 const router = Router();
 
@@ -307,7 +307,11 @@ router.post('/bookings', async (req: Request, res: Response) => {
     await db.addBooking(booking);
     // Fire-and-forget: notify admins only (no user telegramId)
     const tableNumber = tbl?.number ?? tableId;
-    const adminMsg = `🆕 Новая бронь\n\n${ev.title}\nСтол ${tableNumber}\nМеста: ${seatIndices.length}\nСумма: ${totalAmount} ₽\nTelegram ID: —`;
+    const phoneLine = normalizedPhone ? `📞 Телефон: ${escapeHtml(normalizedPhone)}` : '';
+    const commentLine = '';
+    const extras = [phoneLine, commentLine].filter(Boolean);
+    const extrasBlock = extras.length ? '\n' + extras.join('\n') : '';
+    const adminMsg = `🆕 <b>Новая бронь</b>\n\n<b>${ev.title}</b>\nСтол ${tableNumber}\nМеста: ${seatIndices.length}\nСумма: ${totalAmount} ₽\n\n👤 Telegram ID: —${extrasBlock}`;
     notifyAdmins(adminMsg).catch((err) => console.error('Telegram notify admins:', err));
     res.status(201).json({ ok: true, id: booking.id });
   } catch (e) {
@@ -418,7 +422,11 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
       const ev = (result as any).ev;
       const tbl = (result as any).tbl;
       const tableNumber = tbl?.number ?? b.tableId;
-      const adminMsg = `🆕 Новая бронь\n\n${ev?.title ?? '—'}\nСтол ${tableNumber}\nМеста: ${b.seatsBooked ?? b.seats ?? 0}\nСумма: ${b.totalAmount ?? 0} ₽\nTelegram ID: ${b.userTelegramId ?? '—'}`;
+      const phoneLine = b.userPhone ? `📞 Телефон: ${escapeHtml(b.userPhone)}` : '';
+      const commentLine = b.userComment ? `💬 Комментарий: ${escapeHtml(b.userComment)}` : '';
+      const extras = [phoneLine, commentLine].filter(Boolean);
+      const extrasBlock = extras.length ? '\n' + extras.join('\n') : '';
+      const adminMsg = `🆕 <b>Новая бронь</b>\n\n<b>${ev?.title ?? '—'}</b>\nСтол ${tableNumber}\nМеста: ${b.seatsBooked ?? b.seats ?? 0}\nСумма: ${b.totalAmount ?? 0} ₽\n\n👤 Telegram ID: ${b.userTelegramId ?? '—'}${extrasBlock}`;
       notifyAdmins(adminMsg).catch((err) => console.error('Telegram notify admins:', err));
     }
 
@@ -576,7 +584,11 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
     const formattedDate = formatDateForNotification(ev?.event_date ?? ev?.date);
     const userMsg = `🎟 <b>Бронь создана</b>\n\n<b>${ev.title}</b>\n${formattedDate}\n\nСтол: ${tableNumber}\nМеста: ${indices.length}\nСумма: ${totalAmountVal} ₽\n\n⏳ Бронь действует до ${formatDateForNotification(expiresAt) || '—'}`;
     sendTelegramMessage(tgId, userMsg).catch((err) => console.error('Telegram user:', err));
-    const adminMsg = `🆕 Новая бронь\n\n${ev.title}\nСтол ${tableNumber}\nМеста: ${indices.length}\nСумма: ${totalAmountVal} ₽\nTelegram ID: ${tgId}`;
+    const phoneLine = normalizedPhone ? `📞 Телефон: ${escapeHtml(normalizedPhone)}` : '';
+    const commentLine = normalizedUserComment ? `💬 Комментарий: ${escapeHtml(normalizedUserComment)}` : '';
+    const extras = [phoneLine, commentLine].filter(Boolean);
+    const extrasBlock = extras.length ? '\n' + extras.join('\n') : '';
+    const adminMsg = `🆕 <b>Новая бронь</b>\n\n<b>${ev.title}</b>\nСтол ${tableNumber}\nМеста: ${indices.length}\nСумма: ${totalAmountVal} ₽\n\n👤 Telegram ID: ${tgId}${extrasBlock}`;
     notifyAdmins(adminMsg).catch((err) => console.error('Telegram notify admins:', err));
 
     return res.status(201).json(booking);
@@ -628,7 +640,11 @@ router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
   if (Number.isFinite(userChatId) && userChatId > 0) {
     sendTelegramMessage(userChatId, '💳 Платеж отправлен\n\nОжидайте подтверждения администратора.').catch((err) => console.error('Telegram user:', err));
   }
-  const adminMsg = `💳 Пользователь сообщил об оплате\n\n${ev?.title ?? '—'}\nСтол ${tableNumber}\nСумма: ${updated.totalAmount ?? 0} ₽\nTelegram ID: ${userChatId || '—'}`;
+  const phoneLine = updated.userPhone ? `📞 Телефон: ${escapeHtml(updated.userPhone)}` : '';
+  const commentLine = updated.userComment ? `💬 Комментарий: ${escapeHtml(updated.userComment)}` : '';
+  const extras = [phoneLine, commentLine].filter(Boolean);
+  const extrasBlock = extras.length ? '\n' + extras.join('\n') : '';
+  const adminMsg = `💳 <b>Пользователь сообщил об оплате</b>\n\n<b>${ev?.title ?? '—'}</b>\nСтол ${tableNumber}\nСумма: ${updated.totalAmount ?? 0} ₽\n\n👤 Telegram ID: ${userChatId || '—'}${extrasBlock}`;
   notifyAdmins(adminMsg).catch((err) => console.error('Telegram notify admins:', err));
 
   return res.json({ ok: true, booking: updated });

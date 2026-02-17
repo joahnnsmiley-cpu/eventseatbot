@@ -37,6 +37,14 @@ export async function notifyAdmins(text: string): Promise<void> {
   }
 }
 
+/** Escape user input for Telegram HTML parse_mode */
+export function escapeHtml(s: string): string {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 /** Format date for display (DD.MM.YYYY HH:mm) */
 export function formatDateForNotification(date: string | number | Date | null | undefined): string {
   if (date == null) return '';
