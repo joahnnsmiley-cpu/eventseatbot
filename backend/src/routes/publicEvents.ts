@@ -4,6 +4,7 @@ import { db } from '../db';
 import { supabase } from '../supabaseClient';
 import { emitBookingCreated, emitBookingCancelled, calculateBookingExpiration } from '../domain/bookings';
 import { getPriceForTable } from '../utils/getTablePrice';
+import { sendTelegramMessage, notifyAdmins, formatDateForNotification } from '../services/telegramService';
 
 const router = Router();
 
@@ -304,6 +305,10 @@ router.post('/bookings', async (req: Request, res: Response) => {
       totalAmount,
     } as any;
     await db.addBooking(booking);
+    // Fire-and-forget: notify admins only (no user telegramId)
+    const tableNumber = tbl?.number ?? tableId;
+    const adminMsg = `🆕 Новая бронь\n\n${ev.title}\nСтол ${tableNumber}\nМеста: ${seatIndices.length}\nСумма: ${totalAmount} ₽\nTelegram ID: —`;
+    notifyAdmins(adminMsg).catch((err) => console.error('Telegram notify admins:', err));
     res.status(201).json({ ok: true, id: booking.id });
   } catch (e) {
     console.error('BOOKINGS ERROR', e);
@@ -404,8 +409,18 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
         seats: booking.seatsBooked,
       }).catch(() => {}); // Already handled in emitter
 
-      return { status: 201, body: booking };
+      return { status: 201, body: booking, ev, tbl };
     });
+
+    // Fire-and-forget Telegram notifications (no user telegramId for /table)
+    if (result.status === 201 && result.body) {
+      const b = result.body as any;
+      const ev = (result as any).ev;
+      const tbl = (result as any).tbl;
+      const tableNumber = tbl?.number ?? b.tableId;
+      const adminMsg = `🆕 Новая бронь\n\n${ev?.title ?? '—'}\nСтол ${tableNumber}\nМеста: ${b.seatsBooked ?? b.seats ?? 0}\nСумма: ${b.totalAmount ?? 0} ₽\nTelegram ID: ${b.userTelegramId ?? '—'}`;
+      notifyAdmins(adminMsg).catch((err) => console.error('Telegram notify admins:', err));
+    }
 
     return res.status(result.status).json(result.body);
   } catch (err) {
@@ -556,6 +571,14 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
       expires_at: expiresAt,
     };
 
+    // Fire-and-forget Telegram notifications (user + admins)
+    const tableNumber = tbl?.number ?? tableId;
+    const formattedDate = formatDateForNotification(ev?.event_date ?? ev?.date);
+    const userMsg = `🎟 <b>Бронь создана</b>\n\n<b>${ev.title}</b>\n${formattedDate}\n\nСтол: ${tableNumber}\nМеста: ${indices.length}\nСумма: ${totalAmountVal} ₽\n\n⏳ Бронь действует до ${formatDateForNotification(expiresAt) || '—'}`;
+    sendTelegramMessage(tgId, userMsg).catch((err) => console.error('Telegram user:', err));
+    const adminMsg = `🆕 Новая бронь\n\n${ev.title}\nСтол ${tableNumber}\nМеста: ${indices.length}\nСумма: ${totalAmountVal} ₽\nTelegram ID: ${tgId}`;
+    notifyAdmins(adminMsg).catch((err) => console.error('Telegram notify admins:', err));
+
     return res.status(201).json(booking);
   } catch (err) {
     console.error('[bookings/seats]', err);
@@ -596,6 +619,18 @@ router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
 
   const updated = await db.updateBookingStatus(bookingId, 'awaiting_confirmation');
   if (!updated) return res.status(500).json({ error: 'Failed to update booking status' });
+
+  // Fire-and-forget: user "I paid" notifications
+  const ev = (await db.findEventById(booking.eventId)) as any;
+  const tbl = ev?.tables?.find((t: any) => t.id === booking.tableId);
+  const tableNumber = tbl?.number ?? booking.tableId;
+  const userChatId = typeof updated.userTelegramId === 'number' ? updated.userTelegramId : 0;
+  if (Number.isFinite(userChatId) && userChatId > 0) {
+    sendTelegramMessage(userChatId, '💳 Платеж отправлен\n\nОжидайте подтверждения администратора.').catch((err) => console.error('Telegram user:', err));
+  }
+  const adminMsg = `💳 Пользователь сообщил об оплате\n\n${ev?.title ?? '—'}\nСтол ${tableNumber}\nСумма: ${updated.totalAmount ?? 0} ₽\nTelegram ID: ${userChatId || '—'}`;
+  notifyAdmins(adminMsg).catch((err) => console.error('Telegram notify admins:', err));
+
   return res.json({ ok: true, booking: updated });
 });
 

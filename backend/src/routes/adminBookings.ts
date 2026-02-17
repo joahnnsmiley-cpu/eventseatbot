@@ -4,7 +4,7 @@ import { authMiddleware } from '../auth/auth.middleware';
 import { adminOnly } from '../auth/admin.middleware';
 import { db } from '../db';
 import { supabase } from '../supabaseClient';
-import { notifyUser } from '../bot';
+import { sendTelegramMessage } from '../services/telegramService';
 import type { Ticket } from '../models';
 
 const router = Router();
@@ -111,6 +111,17 @@ router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
 
   const updated = await db.updateBookingStatus(id, status);
   if (!updated) return res.status(500).json({ error: 'Failed to update booking status' });
+
+  // Fire-and-forget: notify user on paid/cancelled
+  const userChatId = typeof updated.userTelegramId === 'number' ? updated.userTelegramId : 0;
+  if (Number.isFinite(userChatId) && userChatId > 0) {
+    if (status === 'paid') {
+      sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch((err) => console.error('Telegram user:', err));
+    } else if (status === 'cancelled') {
+      sendTelegramMessage(userChatId, '❌ Бронь отменена\n\nСвяжитесь с организатором при необходимости.').catch((err) => console.error('Telegram user:', err));
+    }
+  }
+
   return res.json(updated);
 });
 
@@ -147,6 +158,13 @@ router.patch('/bookings/:id/confirm', async (req: Request, res: Response) => {
       console.error('[PATCH confirm]', updateErr);
       return res.status(500).json({ error: updateErr.message });
     }
+
+    // Fire-and-forget: notify user
+    const userChatId = Number(updated?.user_telegram_id ?? 0);
+    if (Number.isFinite(userChatId) && userChatId > 0) {
+      sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch((err) => console.error('Telegram user:', err));
+    }
+
     return res.json(updated);
   } catch (err) {
     console.error('[PATCH confirm]', err);
@@ -187,6 +205,13 @@ router.patch('/bookings/:id/cancel', async (req: Request, res: Response) => {
         console.error('[PATCH cancel]', updateErr);
         return res.status(500).json({ error: updateErr.message });
       }
+
+      // Fire-and-forget: notify user
+      const userChatId = Number(updated?.user_telegram_id ?? 0);
+      if (Number.isFinite(userChatId) && userChatId > 0) {
+        sendTelegramMessage(userChatId, '❌ Бронь отменена\n\nСвяжитесь с организатором при необходимости.').catch((err) => console.error('Telegram user:', err));
+      }
+
       return res.json(updated);
     }
 
@@ -272,7 +297,7 @@ router.post('/bookings/:id/confirm', async (req: Request, res: Response) => {
 
   const userChatId = typeof updated.userTelegramId === 'number' ? updated.userTelegramId : 0;
   if (Number.isFinite(userChatId) && userChatId > 0) {
-    await notifyUser(userChatId, `Ваше бронирование ${booking.id} подтверждено. Оплата зафиксирована, билеты сформированы.`);
+    sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch((err) => console.error('Telegram user:', err));
   }
 
   res.json({ ok: true, booking: { ...updated, tickets }, tickets });
