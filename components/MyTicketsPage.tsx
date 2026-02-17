@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import * as StorageService from '../services/storageService';
 import NeonTicketCard from '../src/ui/NeonTicketCard';
@@ -51,6 +51,61 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [eventInfoMap, setEventInfoMap] = useState<Record<string, EventInfo>>({});
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    let isDown = false;
+    let startX = 0;
+    let scrollLeft = 0;
+
+    const onMouseDown = (e: MouseEvent) => {
+      isDown = true;
+      startX = e.pageX - el.offsetLeft;
+      scrollLeft = el.scrollLeft;
+      el.style.cursor = 'grabbing';
+    };
+
+    const onMouseLeave = () => {
+      isDown = false;
+      el.style.cursor = 'grab';
+    };
+
+    const onMouseUp = () => {
+      isDown = false;
+      el.style.cursor = 'grab';
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - el.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      el.scrollLeft = scrollLeft - walk;
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0) {
+        el.scrollLeft += e.deltaY;
+      }
+    };
+
+    el.addEventListener('mousedown', onMouseDown);
+    el.addEventListener('mouseleave', onMouseLeave);
+    el.addEventListener('mouseup', onMouseUp);
+    el.addEventListener('mousemove', onMouseMove);
+    el.addEventListener('wheel', onWheel);
+
+    return () => {
+      el.removeEventListener('mousedown', onMouseDown);
+      el.removeEventListener('mouseleave', onMouseLeave);
+      el.removeEventListener('mouseup', onMouseUp);
+      el.removeEventListener('mousemove', onMouseMove);
+      el.removeEventListener('wheel', onWheel);
+    };
+  }, []);
 
   const load = React.useCallback(async () => {
     const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
@@ -213,7 +268,10 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         {!loading && !error && bookings.length > 0 && (
           <div className="flex items-center gap-2">
             <div className="flex flex-1 min-w-0 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-1">
-              <div className="flex flex-nowrap overflow-x-auto gap-2 py-2 no-scrollbar scroll-smooth">
+              <div
+                ref={scrollRef}
+                className="flex flex-nowrap overflow-x-auto gap-2 py-2 no-scrollbar scroll-smooth cursor-grab select-none"
+              >
                 {['all', ...rawStatuses].map((status) => {
                   const label = status === 'all' ? 'Все' : STATUS_LABELS[status] ?? status;
                   return (
