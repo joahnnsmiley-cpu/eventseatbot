@@ -834,7 +834,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       )}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-4 min-w-0">
-          <h1 className="text-2xl font-semibold">{UI_TEXT.admin.title}</h1>
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-semibold tracking-wide bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">
+              {UI_TEXT.admin.title}
+            </h1>
+            <span className="text-xs text-white/40 mt-1">{UI_TEXT.admin.subtitle}</span>
+          </div>
           <div className="flex items-center gap-2 text-xs">
             {saveStatus === 'dirty' && (
               <span className="text-[#FFC107]">Есть изменения</span>

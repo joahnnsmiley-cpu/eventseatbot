@@ -14,7 +14,8 @@ export const UI_TEXT = {
     profile: 'ПРОФИЛЬ',
   },
   admin: {
-    title: 'Админка',
+    title: 'Центр управления',
+    subtitle: 'Управление мероприятием',
     exit: 'Выход',
     reload: 'Обновить',
     bookings: 'Бронирования',
