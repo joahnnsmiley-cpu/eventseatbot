@@ -30,15 +30,10 @@ type EventInfo = {
 
 const PAYABLE_STATUSES = ['pending', 'reserved', 'awaiting_payment'];
 
-/** Backend status → display label. Keys must match real backend values. */
-const STATUS_LABELS: Record<string, string> = {
-  reserved: 'Зарезервировано',
-  pending: 'Ожидает оплаты',
-  awaiting_confirmation: 'Ожидает подтверждения',
-  paid: 'Оплачено',
-  cancelled: 'Отменено',
-  expired: 'Истекло',
-};
+function formatStatusLabel(status: string): string {
+  if (status === 'all') return 'All';
+  return status.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+}
 
 const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
@@ -181,15 +176,10 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return `${human.length} мест`;
   };
 
-  const uniqueStatuses = React.useMemo(
-    () => [...new Set(bookings.map((b) => b.status).filter(Boolean))].sort(),
-    [bookings]
-  );
-
-  const statusOptions = React.useMemo(
-    () => [{ key: 'all', label: 'Все' }, ...uniqueStatuses.map((s) => ({ key: s, label: STATUS_LABELS[s] ?? s }))],
-    [uniqueStatuses]
-  );
+  const uniqueStatuses = React.useMemo(() => {
+    const values = bookings.map((b) => b.status).filter(Boolean);
+    return ['all', ...Array.from(new Set(values))];
+  }, [bookings]);
 
   const filteredBookings = React.useMemo(() => {
     return bookings.filter((b) => {
@@ -237,18 +227,18 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           <div className="flex items-center gap-2">
             <div className="flex flex-1 min-w-0 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-1">
               <div className="flex flex-nowrap overflow-x-auto gap-2 py-2 no-scrollbar scroll-smooth">
-                {statusOptions.map((opt) => (
+                {uniqueStatuses.map((status) => (
                   <button
-                    key={opt.key}
+                    key={status}
                     type="button"
-                    onClick={() => setStatusFilter(opt.key)}
+                    onClick={() => setStatusFilter(status)}
                     className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm whitespace-nowrap transition-all duration-300 ${
-                      statusFilter === opt.key
+                      statusFilter === status
                         ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-black shadow-md shadow-yellow-500/30'
                         : 'bg-white/5 text-white/60 hover:text-white'
                     }`}
                   >
-                    {opt.label}
+                    {formatStatusLabel(status)}
                   </button>
                 ))}
                 <button
