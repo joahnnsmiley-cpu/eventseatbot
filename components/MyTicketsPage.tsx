@@ -50,7 +50,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
       const eventIds = [...new Set(data.map((b) => b.event_id).filter(Boolean))];
       const tableMap: Record<string, Set<string>> = {};
-      const infoMap: Record<string, EventInfo & { tableIdToNumber?: Record<string, number }> = {};
+      const infoMap: Record<string, EventInfo & { tableIdToNumber?: Record<string, number> }> = {};
       for (const eventId of eventIds) {
         try {
           const ev = await StorageService.getEvent(eventId);
