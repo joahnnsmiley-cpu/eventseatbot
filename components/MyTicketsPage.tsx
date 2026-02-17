@@ -30,24 +30,14 @@ type EventInfo = {
 
 const PAYABLE_STATUSES = ['pending', 'reserved', 'awaiting_payment'];
 
-const STATUS_OPTIONS = [
-  { key: 'all', label: 'Все' },
-  { key: 'pending', label: 'Ожидает оплаты' },
-  { key: 'payment_submitted', label: 'Ожидает подтверждения' },
-  { key: 'confirmed', label: 'Оплачено' },
-  { key: 'cancelled', label: 'Отменено' },
-  { key: 'expired', label: 'Истекло' },
-] as const;
-
-const STATUS_KEY_MAP: Record<string, string> = {
-  pending: 'pending',
-  reserved: 'pending',
-  awaiting_payment: 'pending',
-  awaiting_confirmation: 'payment_submitted',
-  paid: 'confirmed',
-  confirmed: 'confirmed',
-  cancelled: 'cancelled',
-  expired: 'expired',
+/** Backend status → display label. Keys must match real backend values. */
+const STATUS_LABELS: Record<string, string> = {
+  reserved: 'Зарезервировано',
+  pending: 'Ожидает оплаты',
+  awaiting_confirmation: 'Ожидает подтверждения',
+  paid: 'Оплачено',
+  cancelled: 'Отменено',
+  expired: 'Истекло',
 };
 
 const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
@@ -191,10 +181,19 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return `${human.length} мест`;
   };
 
+  const uniqueStatuses = React.useMemo(
+    () => [...new Set(bookings.map((b) => b.status).filter(Boolean))].sort(),
+    [bookings]
+  );
+
+  const statusOptions = React.useMemo(
+    () => [{ key: 'all', label: 'Все' }, ...uniqueStatuses.map((s) => ({ key: s, label: STATUS_LABELS[s] ?? s }))],
+    [uniqueStatuses]
+  );
+
   const filteredBookings = React.useMemo(() => {
     return bookings.filter((b) => {
-      const statusKey = STATUS_KEY_MAP[b.status] ?? b.status;
-      const statusMatch = statusFilter === 'all' || statusKey === statusFilter;
+      const statusMatch = statusFilter === 'all' || b.status === statusFilter;
       const categoryId = b.table_id ? eventInfoMap[b.event_id]?.categoryByTableId?.[b.table_id]?.id ?? null : null;
       const categoryMatch = !categoryFilter || categoryId === categoryFilter;
       return statusMatch && categoryMatch;
@@ -235,29 +234,31 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         {error && <div className="text-sm text-red-400">{error}</div>}
 
         {!loading && !error && bookings.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative flex overflow-x-auto gap-2 p-1 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 no-scrollbar flex-1 min-w-0">
-              {STATUS_OPTIONS.map((opt) => (
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 min-w-0 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-1">
+              <div className="flex flex-nowrap overflow-x-auto gap-2 py-2 no-scrollbar scroll-smooth">
+                {statusOptions.map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setStatusFilter(opt.key)}
+                    className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm whitespace-nowrap transition-all duration-300 ${
+                      statusFilter === opt.key
+                        ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-black shadow-md shadow-yellow-500/30'
+                        : 'bg-white/5 text-white/60 hover:text-white'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
                 <button
-                  key={opt.key}
                   type="button"
-                  onClick={() => setStatusFilter(opt.key)}
-                  className={`px-4 py-2 rounded-xl text-sm whitespace-nowrap transition-all duration-300 ${
-                    statusFilter === opt.key
-                      ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-black shadow-lg shadow-yellow-500/20'
-                      : 'text-white/60 hover:text-white'
-                  }`}
+                  onClick={() => setIsCategoryOpen(true)}
+                  className="flex-shrink-0 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm whitespace-nowrap"
                 >
-                  {opt.label}
+                  {selectedCategoryName ?? 'Категория ▾'}
                 </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setIsCategoryOpen(true)}
-                className="shrink-0 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm whitespace-nowrap"
-              >
-                {selectedCategoryName ?? 'Категория ▾'}
-              </button>
+              </div>
             </div>
             {hasActiveFilters && (
               <button

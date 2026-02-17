@@ -60,6 +60,7 @@ router.get('/bookings', async (_req: Request, res: Response) => {
           : [],
       userTelegramId: b.userTelegramId,
       userPhone: b.userPhone,
+      user_comment: b.userComment ?? null,
       totalAmount: b.totalAmount,
       expiresAt: b.expiresAt,
     };

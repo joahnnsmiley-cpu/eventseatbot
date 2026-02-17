@@ -48,6 +48,7 @@ type AdminBooking = {
   userTelegramId?: number;
   totalAmount?: number;
   total_amount?: number;
+  user_comment?: string | null;
   expiresAt?: string | number;
 };
 
@@ -777,6 +778,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   };
 
   const hasBookings = useMemo(() => bookings.length > 0, [bookings.length]);
+  const uniqueBookingStatuses = useMemo(
+    () => [...new Set(bookings.map((b) => b.status).filter(Boolean))].sort(),
+    [bookings]
+  );
+
   const filteredBookings = useMemo(() => {
     if (!statusFilter) return bookings;
     return bookings.filter((b) => String(b.status ?? '') === statusFilter);
@@ -896,21 +902,32 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       {mode === 'bookings' && (
         <>
           {!loading && hasBookings && (
-            <div className="mb-4">
-              <label className="text-xs text-muted block mb-1">{UI_TEXT.booking.status}</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="border rounded px-3 py-2 text-sm min-w-[180px]"
+            <div className="flex flex-wrap gap-2 bg-[#141414] border border-white/10 rounded-xl p-1 mb-4">
+              <button
+                type="button"
+                onClick={() => setStatusFilter('')}
+                className={`px-3 py-2 text-sm rounded-lg transition-all ${
+                  !statusFilter
+                    ? 'bg-white/10 text-white border border-white/20'
+                    : 'text-white/50 hover:text-white'
+                }`}
               >
-                <option value="">{UI_TEXT.booking.statusFilterAll}</option>
-                <option value="pending">{UI_TEXT.booking.statusLabels.pending}</option>
-                <option value="awaiting_confirmation">{UI_TEXT.booking.statusLabels.awaiting_confirmation}</option>
-                <option value="paid">{UI_TEXT.booking.statusLabels.paid}</option>
-                <option value="cancelled">{UI_TEXT.booking.statusLabels.cancelled}</option>
-                <option value="expired">{UI_TEXT.booking.statusLabels.expired}</option>
-                <option value="reserved">{UI_TEXT.booking.statusLabels.reserved}</option>
-              </select>
+                {UI_TEXT.booking.statusFilterAll}
+              </button>
+              {uniqueBookingStatuses.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatusFilter(s)}
+                  className={`px-3 py-2 text-sm rounded-lg transition-all ${
+                    statusFilter === s
+                      ? 'bg-white/10 text-white border border-white/20'
+                      : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  {UI_TEXT.booking.statusLabels[s] ?? s}
+                </button>
+              ))}
             </div>
           )}
 
@@ -956,6 +973,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       <div>Telegram ID: {typeof telegramId === 'number' ? telegramId : '—'}</div>
                       <div>Создано: {formatAdminDate(b.created_at)}</div>
                     </div>
+
+                    {b.user_comment && b.user_comment.trim() !== '' && (
+                      <div className="mt-3 text-sm text-white/80 bg-[#1c1c1c] border border-white/10 p-3 rounded-xl italic">
+                        <div className="text-white/60 not-italic mb-1">Комментарий пользователя</div>
+                        {b.user_comment}
+                      </div>
+                    )}
 
                     {canConfirm && (
                       <div className="flex gap-2 pt-2">
