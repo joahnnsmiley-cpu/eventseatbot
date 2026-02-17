@@ -30,10 +30,15 @@ type EventInfo = {
 
 const PAYABLE_STATUSES = ['pending', 'reserved', 'awaiting_payment'];
 
-function formatStatusLabel(status: string): string {
-  if (status === 'all') return 'All';
-  return status.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
-}
+/** Real backend status → Russian label. Keys must match DB booking.status. */
+const STATUS_LABELS: Record<string, string> = {
+  reserved: 'Забронировано',
+  pending: 'Ожидает оплаты',
+  awaiting_confirmation: 'Ждет подтверждения',
+  paid: 'Оплачено',
+  cancelled: 'Отменено',
+  expired: 'Истекло',
+};
 
 const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
@@ -46,8 +51,6 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [eventInfoMap, setEventInfoMap] = useState<Record<string, EventInfo>>({});
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
 
   const load = React.useCallback(async () => {
     const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
@@ -176,35 +179,19 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return `${human.length} мест`;
   };
 
-  const uniqueStatuses = React.useMemo(() => {
+  const rawStatuses = React.useMemo(() => {
     const values = bookings.map((b) => b.status).filter(Boolean);
-    return ['all', ...Array.from(new Set(values))];
+    return Array.from(new Set(values));
   }, [bookings]);
 
   const filteredBookings = React.useMemo(() => {
     return bookings.filter((b) => {
-      const statusMatch = statusFilter === 'all' || b.status === statusFilter;
-      const categoryId = b.table_id ? eventInfoMap[b.event_id]?.categoryByTableId?.[b.table_id]?.id ?? null : null;
-      const categoryMatch = !categoryFilter || categoryId === categoryFilter;
-      return statusMatch && categoryMatch;
+      if (statusFilter === 'all') return true;
+      return b.status === statusFilter;
     });
-  }, [bookings, statusFilter, categoryFilter, eventInfoMap]);
+  }, [bookings, statusFilter]);
 
-  const availableCategories = React.useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const b of bookings) {
-      if (!b.table_id) continue;
-      const cat = eventInfoMap[b.event_id]?.categoryByTableId?.[b.table_id];
-      if (cat && !seen.has(cat.id)) seen.set(cat.id, cat.name);
-    }
-    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
-  }, [bookings, eventInfoMap]);
-
-  const selectedCategoryName = categoryFilter
-    ? availableCategories.find((c) => c.id === categoryFilter)?.name ?? null
-    : null;
-
-  const hasActiveFilters = statusFilter !== 'all' || categoryFilter !== null;
+  const hasActiveFilters = statusFilter !== 'all';
 
   return (
     <div className="max-w-[420px] mx-auto min-h-screen relative overflow-x-hidden">
@@ -227,33 +214,29 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           <div className="flex items-center gap-2">
             <div className="flex flex-1 min-w-0 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-1">
               <div className="flex flex-nowrap overflow-x-auto gap-2 py-2 no-scrollbar scroll-smooth">
-                {uniqueStatuses.map((status) => (
-                  <button
-                    key={status}
-                    type="button"
-                    onClick={() => setStatusFilter(status)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm whitespace-nowrap transition-all duration-300 ${
-                      statusFilter === status
-                        ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-black shadow-md shadow-yellow-500/30'
-                        : 'bg-white/5 text-white/60 hover:text-white'
-                    }`}
-                  >
-                    {formatStatusLabel(status)}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setIsCategoryOpen(true)}
-                  className="flex-shrink-0 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm whitespace-nowrap"
-                >
-                  {selectedCategoryName ?? 'Категория ▾'}
-                </button>
+                {['all', ...rawStatuses].map((status) => {
+                  const label = status === 'all' ? 'Все' : STATUS_LABELS[status] ?? status;
+                  return (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => setStatusFilter(status)}
+                      className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm whitespace-nowrap transition-all duration-300 ${
+                        statusFilter === status
+                          ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-black shadow-md shadow-yellow-500/30'
+                          : 'bg-white/5 text-white/60 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             {hasActiveFilters && (
               <button
                 type="button"
-                onClick={() => { setStatusFilter('all'); setCategoryFilter(null); }}
+                onClick={() => setStatusFilter('all')}
                 className="text-xs text-yellow-400 shrink-0"
               >
                 Сбросить
@@ -324,55 +307,6 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           </motion.div>
         )}
       </div>
-
-      {isCategoryOpen && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/60 z-40"
-            onClick={() => setIsCategoryOpen(false)}
-            aria-hidden
-          />
-          <div
-            className="fixed bottom-0 left-0 right-0 max-w-[420px] mx-auto bg-[#111] rounded-t-3xl p-6 z-50 animate-slideUp"
-            role="dialog"
-            aria-label="Выбор категории"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Категория</h3>
-              <button
-                type="button"
-                onClick={() => setIsCategoryOpen(false)}
-                className="text-white/60 hover:text-white text-sm px-2 py-1"
-              >
-                Закрыть
-              </button>
-            </div>
-            <div className="space-y-1 max-h-[60vh] overflow-y-auto">
-              <button
-                type="button"
-                onClick={() => { setCategoryFilter(null); setIsCategoryOpen(false); }}
-                className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-colors ${
-                  !categoryFilter ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/5'
-                }`}
-              >
-                Все категории
-              </button>
-              {availableCategories.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => { setCategoryFilter(c.id); setIsCategoryOpen(false); }}
-                  className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-colors ${
-                    categoryFilter === c.id ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/5'
-                  }`}
-                >
-                  {c.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
 
       {selectedTicket !== null && (
         <TicketModal
