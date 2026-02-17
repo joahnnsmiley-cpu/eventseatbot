@@ -401,7 +401,7 @@ router.get('/bookings/my', async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from('bookings')
-      .select('id, event_id, table_id, seat_indices, seats_booked, status, created_at, expires_at')
+      .select('id, event_id, table_id, seat_indices, seats_booked, total_amount, status, created_at, expires_at')
       .eq('user_telegram_id', telegramId)
       .order('created_at', { ascending: false });
 
@@ -416,6 +416,7 @@ router.get('/bookings/my', async (req: Request, res: Response) => {
       table_id: r.table_id,
       seat_indices: r.seat_indices ?? [],
       seats_booked: r.seats_booked,
+      total_amount: r.total_amount ?? 0,
       status: r.status,
       created_at: r.created_at,
       expires_at: r.expires_at,
@@ -430,7 +431,7 @@ router.get('/bookings/my', async (req: Request, res: Response) => {
 
 // POST /public/bookings/seats
 router.post('/bookings/seats', async (req: Request, res: Response) => {
-  const { eventId, tableId, seatIndices, userPhone, telegramId } = req.body || {};
+  const { eventId, tableId, seatIndices, userPhone, telegramId, totalAmount } = req.body || {};
   if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
   const normalizedPhone = typeof userPhone === 'string' ? userPhone.trim() : '';
   if (!normalizedPhone) return res.status(400).json({ error: 'userPhone is required' });
@@ -479,6 +480,9 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
 
     console.log('[BOOKING REQUEST BODY]', req.body);
 
+    const totalAmountNum = Number(totalAmount);
+    const totalAmountVal = Number.isFinite(totalAmountNum) && totalAmountNum >= 0 ? totalAmountNum : 0;
+
     const { data, error: insertErr } = await supabase.from('bookings').insert({
       id,
       event_id: eventId,
@@ -487,6 +491,7 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
       user_phone: normalizedPhone,
       seat_indices: indices,
       seats_booked: indices.length,
+      total_amount: totalAmountVal,
       status: 'reserved',
       created_at: new Date().toISOString(),
       expires_at: expiresAt,
@@ -512,6 +517,7 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
       user_phone: normalizedPhone,
       seat_indices: indices,
       seats_booked: indices.length,
+      total_amount: totalAmountVal,
       status: 'reserved',
       created_at: new Date().toISOString(),
       expires_at: expiresAt,

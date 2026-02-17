@@ -727,17 +727,18 @@ function App() {
                   console.log('[BOOKING FUNCTION START]');
                   setBookingLoading(true);
                   try {
+                    const seatPriceFallback = selectedEvent?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
+                    const price = getPriceForTable(selectedEvent, selectedTable, seatPriceFallback);
+                    const total = seats.length * price;
                     const res = await StorageService.createSeatsBooking({
                       eventId: selectedEventId,
                       tableId: selectedTableId,
                       seatIndices: seats,
                       userPhone: normalizedPhone,
                       telegramId,
+                      totalAmount: total,
                     });
                     const raw = res as Record<string, unknown>;
-                    const seatPriceFallback = selectedEvent?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
-                    const price = getPriceForTable(selectedEvent, selectedTable, seatPriceFallback);
-                    const total = seats.length * price;
                     const booking: Booking = {
                       id: String(raw.id ?? ''),
                       eventId: String(raw.event_id ?? raw.eventId ?? ''),

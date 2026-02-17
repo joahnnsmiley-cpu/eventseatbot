@@ -925,7 +925,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             <div className="grid grid-cols-1 gap-4">
               {filteredBookings.map((b) => {
                 const status = String(b.status ?? '');
-                const canConfirm = status === 'reserved' || status === 'awaiting_confirmation';
+                const canConfirm = status === 'reserved' || status === 'awaiting_confirmation' || status === 'payment_submitted';
                 const telegramId = b.user_telegram_id ?? b.userTelegramId;
                 const userPhone = b.user_phone ?? b.userPhone;
                 const eventId = b.event_id ?? b.event?.id ?? '';

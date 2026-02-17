@@ -55,6 +55,7 @@ export const getMyBookingsPublic = async (telegramId: number): Promise<{
   table_id: string | null;
   seat_indices: number[];
   seats_booked: number;
+  total_amount?: number;
   status: string;
   created_at: string;
   expires_at: string | null;
@@ -109,6 +110,7 @@ export const createSeatsBooking = async (payload: {
   seatIndices: number[];
   userPhone: string;
   telegramId: number;
+  totalAmount?: number;
 }): Promise<any> => {
   const apiBaseUrl = getApiBaseUrl();
   const url = `${apiBaseUrl}/public/bookings/seats`;

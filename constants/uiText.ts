@@ -129,7 +129,7 @@ export const UI_TEXT = {
     statusReserved: 'Зарезервировано',
     statusExpired: 'Истекло',
     statusPending: 'Ожидание',
-    statusLabels: { paid: 'Оплачено', reserved: 'Зарезервировано', expired: 'Истекло', pending: 'Ожидание', awaiting_confirmation: 'Ожидает подтверждения', cancelled: 'Отменено' } as Record<string, string>,
+    statusLabels: { paid: 'Оплачено', reserved: 'Зарезервировано', expired: 'Истекло', pending: 'Ожидание', awaiting_confirmation: 'Ожидает подтверждения', payment_submitted: 'Ожидает подтверждения', cancelled: 'Отменено' } as Record<string, string>,
     statusFilterAll: 'Все статусы',
     noBookingsForFilter: 'Нет бронирований с выбранным статусом.',
     awaitingConfirmationMessage: 'Ожидаем подтверждения оплаты администратором.',

@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   user_comment TEXT,
   seat_indices INTEGER[],
   seats_booked INTEGER,
+  total_amount NUMERIC(12,2) DEFAULT 0,
   status TEXT NOT NULL,
   tickets JSONB,
   created_at TIMESTAMPTZ DEFAULT now(),

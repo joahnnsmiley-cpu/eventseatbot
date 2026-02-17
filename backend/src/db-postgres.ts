@@ -68,6 +68,7 @@ type BookingsRow = {
   user_comment: string | null;
   seat_indices: number[] | null;
   seats_booked: number | null;
+  total_amount?: number | null;
   status: string;
   tickets?: unknown;
   created_at?: string;
@@ -151,7 +152,7 @@ function bookingsRowToBooking(row: BookingsRow): Booking {
     username: '',
     userPhone: row.user_phone ?? '',
     seatIds: [],
-    totalAmount: 0,
+    totalAmount: Number(row.total_amount) || 0,
     status: row.status as BookingStatus,
     createdAt,
   };
@@ -509,6 +510,7 @@ export async function addBooking(booking: Booking): Promise<void> {
     user_comment: booking.userComment ?? null,
     seat_indices: booking.seatIndices ?? null,
     seats_booked: booking.seatsBooked ?? null,
+    total_amount: booking.totalAmount ?? 0,
     status: booking.status,
     created_at: new Date(booking.createdAt).toISOString(),
     expires_at: expiresAt,
