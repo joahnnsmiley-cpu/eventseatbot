@@ -29,7 +29,7 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
   }
 
   try {
-    let base: sharp.Sharp;
+    let baseBuffer: Buffer;
     let width: number;
     let height: number;
 
@@ -40,14 +40,17 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
         return null;
       }
       const templateBuffer = Buffer.from(await response.arrayBuffer());
-      base = sharp(templateBuffer).resize({ width: 1200 });
-      const metadata = await base.clone().metadata();
+      baseBuffer = await sharp(templateBuffer)
+        .resize({ width: 1200 })
+        .toBuffer();
+
+      const metadata = await sharp(baseBuffer).metadata();
       width = metadata.width ?? 1200;
       height = metadata.height ?? 600;
     } else {
       width = 1200;
       height = 800;
-      base = sharp({
+      baseBuffer = await sharp({
         create: {
           width,
           height,
@@ -55,7 +58,8 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
           background: { r: 26, g: 26, b: 46 },
         },
       })
-        .png();
+        .png()
+        .toBuffer();
     }
 
     // SVG text only (no embedded image)
@@ -96,7 +100,7 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
 
     const qrBuffer = await QRCode.toBuffer(qrUrl, { width: 180 });
 
-    const finalBuffer = await base
+    const finalBuffer = await sharp(baseBuffer)
       .composite([
         { input: Buffer.from(textSvg), top: 0, left: 0 },
         { input: qrBuffer, top: height - 240, left: 60 },
