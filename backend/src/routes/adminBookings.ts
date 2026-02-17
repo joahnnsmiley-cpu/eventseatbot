@@ -4,12 +4,54 @@ import { authMiddleware } from '../auth/auth.middleware';
 import { adminOnly } from '../auth/admin.middleware';
 import { db } from '../db';
 import { supabase } from '../supabaseClient';
-import { sendTelegramMessage } from '../services/telegramService';
+import { sendTelegramMessage, sendTelegramPhoto } from '../services/telegramService';
+import { generateTicket } from '../services/ticketGenerator';
 import type { Ticket } from '../models';
+import type { Booking } from '../models';
 
 const router = Router();
 
 router.use(authMiddleware, adminOnly);
+
+/** Fire-and-forget: generate ticket PNG, save URL, send to user. Does not block confirm. */
+async function generateAndSendTicket(booking: Booking): Promise<void> {
+  try {
+    const ev = (await db.findEventById(booking.eventId)) as { imageUrl?: string; event_date?: string; event_time?: string; title?: string; tables?: { id: string; number: number }[] } | null;
+    const tbl = ev?.tables?.find((t) => t.id === booking.tableId);
+    const tableNumber = tbl?.number ?? booking.tableId ?? '—';
+    const seats = booking.seatsBooked ?? booking.tableBookings?.[0]?.seats ?? 0;
+
+    const ticketUrl = await generateTicket({
+      templateUrl: ev?.imageUrl ?? '',
+      bookingId: booking.id,
+      eventId: booking.eventId,
+      eventTitle: ev?.title ?? '',
+      eventDate: [ev?.event_date, ev?.event_time].filter(Boolean).join(' ') || '',
+      tableNumber,
+      seats,
+    });
+
+    if (ticketUrl) {
+      await db.updateBookingTicketFileUrl(booking.id, ticketUrl);
+
+      const userChatId = typeof booking.userTelegramId === 'number' ? booking.userTelegramId : 0;
+      if (Number.isFinite(userChatId) && userChatId > 0) {
+        await sendTelegramPhoto(userChatId, ticketUrl, '🎟 Ваш билет');
+      }
+    } else {
+      const userChatId = typeof booking.userTelegramId === 'number' ? booking.userTelegramId : 0;
+      if (Number.isFinite(userChatId) && userChatId > 0) {
+        await sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!');
+      }
+    }
+  } catch (err) {
+    console.error('[generateAndSendTicket]', err);
+    const userChatId = typeof booking.userTelegramId === 'number' ? booking.userTelegramId : 0;
+    if (Number.isFinite(userChatId) && userChatId > 0) {
+      sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch(() => {});
+    }
+  }
+}
 
 // GET /admin/debug-bookings
 router.get('/debug-bookings', async (req, res) => {
@@ -63,6 +105,7 @@ router.get('/bookings', async (_req: Request, res: Response) => {
       user_comment: b.userComment ?? null,
       totalAmount: b.totalAmount,
       expiresAt: b.expiresAt,
+      ticket_file_url: (b as any).ticketFileUrl ?? null,
     };
   });
 
@@ -112,11 +155,11 @@ router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
   const updated = await db.updateBookingStatus(id, status);
   if (!updated) return res.status(500).json({ error: 'Failed to update booking status' });
 
-  // Fire-and-forget: notify user on paid/cancelled
+  // Fire-and-forget: notify user on paid/cancelled; for paid also generate and send ticket
   const userChatId = typeof updated.userTelegramId === 'number' ? updated.userTelegramId : 0;
   if (Number.isFinite(userChatId) && userChatId > 0) {
     if (status === 'paid') {
-      sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch((err) => console.error('Telegram user:', err));
+      generateAndSendTicket(updated).catch((err) => console.error('Telegram/ticket:', err));
     } else if (status === 'cancelled') {
       sendTelegramMessage(userChatId, '❌ Бронь отменена\n\nСвяжитесь с организатором при необходимости.').catch((err) => console.error('Telegram user:', err));
     }
@@ -159,10 +202,26 @@ router.patch('/bookings/:id/confirm', async (req: Request, res: Response) => {
       return res.status(500).json({ error: updateErr.message });
     }
 
-    // Fire-and-forget: notify user
+    // Fire-and-forget: generate ticket and notify user
+    const bookingForTicket: Booking = {
+      id: updated.id,
+      eventId: updated.event_id,
+      tableId: updated.table_id ?? undefined,
+      userTelegramId: Number(updated.user_telegram_id ?? 0),
+      username: '',
+      userPhone: updated.user_phone ?? '',
+      seatIds: [],
+      totalAmount: Number(updated.total_amount) || 0,
+      status: 'paid',
+      createdAt: Date.now(),
+    };
+    if (updated.seats_booked != null) bookingForTicket.seatsBooked = updated.seats_booked;
+    if (updated.table_id && updated.seats_booked != null) {
+      bookingForTicket.tableBookings = [{ tableId: updated.table_id, seats: updated.seats_booked }];
+    }
     const userChatId = Number(updated?.user_telegram_id ?? 0);
     if (Number.isFinite(userChatId) && userChatId > 0) {
-      sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch((err) => console.error('Telegram user:', err));
+      generateAndSendTicket(bookingForTicket).catch((err) => console.error('Telegram/ticket:', err));
     }
 
     return res.json(updated);
@@ -297,7 +356,7 @@ router.post('/bookings/:id/confirm', async (req: Request, res: Response) => {
 
   const userChatId = typeof updated.userTelegramId === 'number' ? updated.userTelegramId : 0;
   if (Number.isFinite(userChatId) && userChatId > 0) {
-    sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch((err) => console.error('Telegram user:', err));
+    generateAndSendTicket(updated).catch((err) => console.error('Telegram/ticket:', err));
   }
 
   res.json({ ok: true, booking: { ...updated, tickets }, tickets });

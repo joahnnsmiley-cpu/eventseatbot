@@ -65,7 +65,15 @@ export default function NeonTicketCard({
             <div>{tableLabel}</div>
             <div>{seatLabel}</div>
           </div>
-          <div className="w-16 h-16 rounded-lg bg-gray-700/50 shrink-0" />
+          {ticketImageUrl ? (
+            <img
+              src={ticketImageUrl}
+              alt="Билет"
+              className="w-16 h-16 rounded-lg object-cover shrink-0 border border-white/20"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-lg bg-gray-700/50 shrink-0" />
+          )}
         </div>
       </div>
     </button>

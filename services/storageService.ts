@@ -59,6 +59,7 @@ export const getMyBookingsPublic = async (telegramId: number): Promise<{
   status: string;
   created_at: string;
   expires_at: string | null;
+  ticket_file_url?: string | null;
 }[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/public/bookings/my?telegramId=${encodeURIComponent(telegramId)}`);

@@ -25,6 +25,22 @@ function filterTablesByVisibility(tables: { is_active?: boolean; visibleFrom?: s
   return (tables ?? []).filter(isTableVisible);
 }
 
+// GET /public/ticket/:id — redirect to ticket image (for QR code)
+router.get('/ticket/:id', async (req: Request, res: Response) => {
+  const bookingId = String(req.params.id);
+  if (!bookingId) return res.status(400).json({ error: 'Booking id required' });
+  try {
+    const bookings = await db.getBookings();
+    const b = bookings.find((x: any) => x.id === bookingId);
+    const url = (b as any)?.ticketFileUrl ?? (b as any)?.ticket_file_url;
+    if (url) return res.redirect(302, url);
+    return res.status(404).json({ error: 'Ticket not found' });
+  } catch (err) {
+    console.error('[ticket/:id]', err);
+    return res.status(500).json({ error: 'Internal error' });
+  }
+});
+
 // Return published events only
 router.get('/events', async (_req: Request, res: Response) => {
   try {
@@ -464,6 +480,7 @@ router.get('/bookings/my', async (req: Request, res: Response) => {
       status: r.status,
       created_at: r.created_at,
       expires_at: r.expires_at,
+      ticket_file_url: r.ticket_file_url ?? null,
     }));
 
     return res.json(result);

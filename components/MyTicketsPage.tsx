@@ -17,6 +17,7 @@ type BookingItem = {
   status: string;
   created_at: string;
   expires_at: string | null;
+  ticket_file_url?: string | null;
 };
 
 type EventInfo = {
@@ -218,8 +219,8 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return 'reserved';
   };
 
-  const getTicketImageUrl = (_b: BookingItem): string => {
-    return '';
+  const getTicketImageUrl = (b: BookingItem): string => {
+    return b.ticket_file_url ?? '';
   };
 
   const formatSeatLabel = (seat_indices: number[], seats_booked: number): string => {
@@ -345,7 +346,10 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     status={getStatusType(b.status)}
                     ticketImageUrl={getTicketImageUrl(b)}
                     posterImageUrl={info?.imageUrl ?? undefined}
-                    onClick={() => setSelectedTicket(getTicketImageUrl(b))}
+                    onClick={() => {
+                      const url = getTicketImageUrl(b);
+                      if (url) setSelectedTicket(url);
+                    }}
                   />
                   {canPay && (
                     <PrimaryButton

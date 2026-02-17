@@ -5,6 +5,8 @@
 - `PORT` — Server port (default: 4000)
 - `BOT_TOKEN` — Telegram bot token (optional; bot disabled if missing)
 - `API_BASE_URL` — Public API base URL (e.g. `https://your-app.onrender.com`)
+- `BASE_URL` — Base URL for ticket QR links (e.g. `https://your-app.onrender.com`); used when no custom domain
+- `TICKET_SECRET` — HMAC secret for signing ticket tokens (required for ticket generation)
 - `WEBAPP_URL` — Telegram Web App URL (default: `{API_BASE_URL}/public/view`)
 - `JWT_SECRET` — Secret for admin JWT signing
 - `TELEGRAM_BOT_TOKEN` / `TELEGRAM_ADMIN_CHAT_ID` — Optional; Telegram notifiers

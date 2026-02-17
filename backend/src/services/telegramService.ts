@@ -5,6 +5,27 @@ const ADMIN_IDS = process.env.ADMINS_IDS
 
 console.log('Admin IDs:', ADMIN_IDS);
 
+export async function sendTelegramPhoto(chatId: string | number, photoUrl: string, caption?: string): Promise<void> {
+  if (!BOT_TOKEN) return;
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: photoUrl,
+        caption: caption ?? '🎟 Ваш билет',
+      }),
+    });
+    if (res.status === 403) {
+      console.warn('[Telegram] 403 Forbidden — admin may not have started the bot. Chat ID:', chatId);
+    }
+  } catch (error) {
+    console.error('Telegram sendPhoto error:', error);
+  }
+}
+
 export async function sendTelegramMessage(chatId: string | number, text: string): Promise<void> {
   if (!BOT_TOKEN) return;
 

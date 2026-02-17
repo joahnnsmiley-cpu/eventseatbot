@@ -51,6 +51,7 @@ const mapBooking = (b: any, events: any[]) => {
     totalAmount: b.totalAmount,
     userPhone: b.userPhone,
     tickets: b.status === 'paid' ? (Array.isArray(b.tickets) ? b.tickets : []) : undefined,
+    ticketFileUrl: b.ticketFileUrl ?? b.ticket_file_url ?? null,
   };
 };
 

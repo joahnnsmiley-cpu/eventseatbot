@@ -104,6 +104,10 @@ export interface Booking {
   seatIndices?: number[];
   tableBookings?: Array<{ tableId: string; seats: number; totalPrice?: number }>;
   tickets?: Ticket[];
+  /** Public URL of generated ticket PNG in storage */
+  ticketFileUrl?: string | null;
+  /** Whether ticket has been used/verified at entry */
+  isUsed?: boolean | null;
 }
 
 export interface Admin {

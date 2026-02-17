@@ -23,6 +23,7 @@ import { TelegramPaymentNotifier } from './infra/telegram/telegram.payment-notif
 import { startBookingExpirationJob } from './infra/scheduler';
 import { createPendingBookingFromWebAppPayload } from './webappBooking';
 import { supabase } from './supabaseClient';
+import { verifyTicketToken } from './services/ticketToken';
 
 
 const app = express();
@@ -83,6 +84,43 @@ app.use(cors({
 app.use(bodyParser.json());
 app.use('/auth', authRoutes);
 app.use('/me', meRoutes);
+
+/**
+ * GET /verify-ticket/:token — verify signed ticket QR (for entry check, bot, etc.)
+ */
+app.get('/verify-ticket/:token', async (req, res) => {
+  const token = req.params.token;
+  if (!token) return res.status(400).json({ valid: false });
+
+  const payload = verifyTicketToken(token);
+  if (!payload) return res.json({ valid: false });
+
+  try {
+    const bookings = await db.getBookings();
+    const booking = bookings.find((b: any) => b.id === payload.bookingId);
+    if (!booking) return res.json({ valid: false });
+
+    if (booking.status !== 'paid') return res.json({ valid: false });
+    if (booking.isUsed === true) return res.json({ valid: false, is_used: true });
+
+    const events = await db.getEvents();
+    const ev = events.find((e: any) => e.id === booking.eventId);
+    const tbl = ev?.tables?.find((t: any) => t.id === booking.tableId);
+    const tableNumber = tbl?.number ?? payload.tableNumber ?? booking.tableId;
+    const seats = booking.seatsBooked ?? payload.seats ?? 0;
+
+    return res.json({
+      valid: true,
+      eventTitle: ev?.title ?? '',
+      tableNumber,
+      seats,
+      is_used: booking.isUsed ?? false,
+    });
+  } catch (err) {
+    console.error('[verify-ticket]', err);
+    return res.status(500).json({ valid: false });
+  }
+});
 
 /**
  * ==============================

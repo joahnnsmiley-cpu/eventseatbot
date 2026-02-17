@@ -71,6 +71,8 @@ type BookingsRow = {
   total_amount: number;
   status: string;
   tickets?: unknown;
+  ticket_file_url?: string | null;
+  is_used?: boolean | null;
   created_at?: string;
   expires_at: string | null;
 };
@@ -157,6 +159,8 @@ function bookingsRowToBooking(row: BookingsRow): Booking {
     createdAt,
   };
   if (row.table_id != null) booking.tableId = row.table_id;
+  if (row.ticket_file_url != null) booking.ticketFileUrl = row.ticket_file_url;
+  if (row.is_used != null) booking.isUsed = row.is_used;
   if (row.seats_booked != null) booking.seatsBooked = row.seats_booked;
   if (row.seat_indices != null) booking.seatIndices = row.seat_indices;
   if (row.user_comment != null) booking.userComment = row.user_comment;
@@ -554,6 +558,12 @@ export async function updateBookingStatus(bookingId: string, status: BookingStat
 export async function updateBookingTickets(bookingId: string, tickets: Ticket[]): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from('bookings').update({ tickets }).eq('id', bookingId);
+  if (error) throw error;
+}
+
+export async function updateBookingTicketFileUrl(bookingId: string, ticketFileUrl: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('bookings').update({ ticket_file_url: ticketFileUrl }).eq('id', bookingId);
   if (error) throw error;
 }
 
