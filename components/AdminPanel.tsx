@@ -832,8 +832,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           </div>
         </div>
       )}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-4 min-w-0">
           <h1 className="text-2xl font-semibold">{UI_TEXT.admin.title}</h1>
           <div className="flex items-center gap-2 text-xs">
             {saveStatus === 'dirty' && (
@@ -849,7 +849,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex gap-2 items-center flex-shrink-0">
           {onBack && (
             <button
               onClick={() => {
@@ -857,7 +857,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 onBack();
               }}
               disabled={loading || eventsLoading || savingLayout || addingTable || confirmingId !== null || cancellingId !== null}
-              className="text-sm text-[#6E6A64]"
+              className="h-10 px-4 py-2.5 rounded-xl text-sm text-[#6E6A64] whitespace-nowrap min-w-fit"
             >
               {UI_TEXT.admin.exit}
             </button>
@@ -868,13 +868,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               if (mode === 'layout') loadEvents();
             }}
             disabled={loading || eventsLoading}
+            className="h-10 px-4 py-2.5 rounded-xl text-sm whitespace-nowrap min-w-fit"
           >
             {UI_TEXT.admin.reload}
           </PrimaryButton>
           <SecondaryButton
             onClick={handleResyncSeats}
             disabled={resyncLoading || loading || eventsLoading}
-            className="px-4 py-2 rounded-xl bg-[#ECE6DD] text-[#1C1C1C] hover:bg-[#DDD6CC]"
+            className="h-10 px-4 py-2.5 rounded-xl text-sm whitespace-nowrap min-w-fit bg-[#ECE6DD] text-[#1C1C1C] hover:bg-[#DDD6CC] border-0"
           >
             {resyncLoading ? UI_TEXT.common.loading : UI_TEXT.admin.resyncSeats}
           </SecondaryButton>
