@@ -23,6 +23,7 @@ type EventInfo = {
   title: string;
   date: string;
   tableNumber?: number;
+  imageUrl?: string | null;
 };
 
 const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
@@ -67,6 +68,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               title: ev?.title ?? 'Событие',
               date: ev?.date ?? '',
               tableIdToNumber,
+              imageUrl: ev?.imageUrl ?? ev?.coverImageUrl ?? null,
             };
           } catch {
             tableMap[eventId] = new Set();
@@ -118,6 +120,18 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return '';
   };
 
+  const formatSeatLabel = (seat_indices: number[], seats_booked: number): string => {
+    if (!Array.isArray(seat_indices) || seat_indices.length === 0) {
+      return `${seats_booked} ${seats_booked === 1 ? 'место' : 'мест'}`;
+    }
+    const sorted = [...seat_indices].sort((a, b) => a - b);
+    const human = sorted.map((i) => i + 1);
+    if (human.length <= 5) {
+      return `Места: ${human.join(', ')}`;
+    }
+    return `${human.length} мест`;
+  };
+
   return (
     <div className="max-w-[420px] mx-auto min-h-screen relative overflow-x-hidden">
       <div className="px-4 pt-6 space-y-8">
@@ -158,9 +172,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             {bookings.map((b) => {
               const info = eventInfoMap[b.event_id];
               const { date, time } = parseDateAndTime(info?.date ?? b.created_at);
-              const seatLabel = Array.isArray(b.seat_indices) && b.seat_indices.length > 0
-                ? `Места: ${b.seat_indices.join(', ')}`
-                : `${b.seats_booked} ${b.seats_booked === 1 ? 'место' : 'мест'}`;
+              const seatLabel = formatSeatLabel(b.seat_indices, b.seats_booked);
               return (
                 <div key={b.id} className="space-y-4">
                   <NeonTicketCard
@@ -171,6 +183,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     seatLabel={seatLabel}
                     status={getStatusType(b.status)}
                     ticketImageUrl={getTicketImageUrl(b)}
+                    posterImageUrl={info?.imageUrl ?? undefined}
                     onClick={() => setSelectedTicket(getTicketImageUrl(b))}
                   />
                 </div>
