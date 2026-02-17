@@ -49,6 +49,7 @@ type AdminBooking = {
   totalAmount?: number;
   total_amount?: number;
   user_comment?: string | null;
+  userComment?: string | null;
   expiresAt?: string | number;
 };
 
@@ -974,12 +975,16 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       <div>Создано: {formatAdminDate(b.created_at)}</div>
                     </div>
 
-                    {b.user_comment && b.user_comment.trim() !== '' && (
-                      <div className="mt-3 text-sm text-white/80 bg-[#1c1c1c] border border-white/10 p-3 rounded-xl italic">
-                        <div className="text-white/60 not-italic mb-1">Комментарий пользователя</div>
-                        {b.user_comment}
-                      </div>
-                    )}
+                    {(() => {
+                      const comment = b.user_comment ?? b.userComment;
+                      if (!comment || typeof comment !== 'string' || comment.trim() === '') return null;
+                      return (
+                        <div className="mt-3 bg-[#1c1c1c] border border-white/10 rounded-xl p-3 text-sm text-white/80 italic">
+                          <div className="text-white/50 text-xs mb-1">Комментарий пользователя</div>
+                          {comment}
+                        </div>
+                      );
+                    })()}
 
                     {canConfirm && (
                       <div className="flex gap-2 pt-2">
