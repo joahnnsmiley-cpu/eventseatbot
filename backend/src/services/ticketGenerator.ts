@@ -17,7 +17,7 @@ export interface GenerateTicketParams {
 
 /**
  * Generate ticket PNG from template: resize to 1200px width (keep aspect ratio),
- * overlay centered text + QR code, upload to Supabase storage.
+ * composite text + QR overlay via sharp.composite.
  * Returns public URL of the ticket image.
  */
 export async function generateTicket(params: GenerateTicketParams): Promise<string | null> {
@@ -29,33 +29,25 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
   }
 
   try {
-    let templateBase64: string;
+    let base: sharp.Sharp;
     let width: number;
     let height: number;
 
     if (templateUrl) {
-      // 1. Download template
       const response = await fetch(templateUrl);
       if (!response.ok) {
         console.error('[ticketGenerator] Failed to fetch template:', response.status, response.statusText);
         return null;
       }
       const templateBuffer = Buffer.from(await response.arrayBuffer());
-
-      // 2. Resize template to 1200px width, keep aspect ratio
-      const resized = await sharp(templateBuffer)
-        .resize({ width: 1200 })
-        .toBuffer();
-
-      const metadata = await sharp(resized).metadata();
+      base = sharp(templateBuffer).resize({ width: 1200 });
+      const metadata = await base.clone().metadata();
       width = metadata.width ?? 1200;
       height = metadata.height ?? 600;
-      templateBase64 = resized.toString('base64');
     } else {
-      // Fallback: solid background
       width = 1200;
       height = 800;
-      const fallbackBuffer = await sharp({
+      base = sharp({
         create: {
           width,
           height,
@@ -63,12 +55,30 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
           background: { r: 26, g: 26, b: 46 },
         },
       })
-        .png()
-        .toBuffer();
-      templateBase64 = fallbackBuffer.toString('base64');
+        .png();
     }
 
-    // 3. Generate signed token and QR code
+    // SVG text only (no embedded image)
+    const textSvg = `
+<svg width="${width}" height="${height}">
+  <text x="950" y="480"
+    font-size="48"
+    fill="white"
+    font-weight="bold"
+    text-anchor="middle">
+    Стол ${tableNumber}
+  </text>
+
+  <text x="950" y="530"
+    font-size="48"
+    fill="white"
+    font-weight="bold"
+    text-anchor="middle">
+    Места ${seats}
+  </text>
+</svg>
+`;
+
     let qrUrl: string;
     try {
       const token = generateTicketToken({
@@ -83,51 +93,17 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
       console.error('[ticketGenerator] TICKET_SECRET not set, cannot generate signed QR');
       return null;
     }
-    const qrBuffer = await QRCode.toBuffer(qrUrl, { width: 200 });
-    const qrBase64 = qrBuffer.toString('base64');
 
-    // Coordinates: dynamic based on template height
-    const centerX = 950;
-    const tableY = height - 330;
-    const seatsY = height - 280;
-    const qrY = height - 220;
+    const qrBuffer = await QRCode.toBuffer(qrUrl, { width: 180 });
 
-    const svg = `
-      <svg width="${width}" height="${height}">
-        <image href="data:image/png;base64,${templateBase64}" width="${width}" height="${height}"/>
-        
-        <text x="${centerX}" y="${tableY}"
-          font-size="48"
-          fill="white"
-          font-weight="bold"
-          text-anchor="middle"
-        >
-          Стол ${tableNumber}
-        </text>
-
-        <text x="${centerX}" y="${seatsY}"
-          font-size="48"
-          fill="white"
-          font-weight="bold"
-          text-anchor="middle"
-        >
-          Места ${seats}
-        </text>
-
-        <image href="data:image/png;base64,${qrBase64}"
-          x="${centerX - 90}"
-          y="${qrY}"
-          width="180"
-          height="180"
-        />
-      </svg>
-    `;
-
-    const finalBuffer = await sharp(Buffer.from(svg))
+    const finalBuffer = await base
+      .composite([
+        { input: Buffer.from(textSvg), top: 0, left: 0 },
+        { input: qrBuffer, top: height - 240, left: 60 },
+      ])
       .png()
       .toBuffer();
 
-    // 4. Upload to Supabase
     const filePath = `tickets/${bookingId}.png`;
 
     const { error: uploadErr } = await supabase.storage

@@ -45,7 +45,8 @@ export default function NeonTicketCard({
           <img
             src={ticketImageUrl}
             alt="Билет"
-            className="absolute inset-0 w-full h-full object-contain"
+            className="absolute inset-0 block"
+            style={{ width: '100%', height: 'auto', objectFit: 'cover' }}
             loading="lazy"
           />
           <div className="absolute top-3 right-3">
