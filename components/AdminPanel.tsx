@@ -149,6 +149,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [layoutUploadVersion, setLayoutUploadVersion] = useState<number | null>(null);
   const [addingTable, setAddingTable] = useState(false);
   const [eventTablesMap, setEventTablesMap] = useState<Record<string, Table[]>>({});
+  const [eventDetailsMap, setEventDetailsMap] = useState<Record<string, EventData>>({});
   const [activeTabLeft, setActiveTabLeft] = useState(0);
   const [activeTabWidth, setActiveTabWidth] = useState(0);
 
@@ -389,15 +390,18 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
       const eventIds = [...new Set((data as AdminBooking[]).map((b) => b.event_id ?? b.event?.id).filter(Boolean))] as string[];
       const map: Record<string, Table[]> = {};
+      const detailsMap: Record<string, EventData> = {};
       for (const eventId of eventIds) {
         try {
           const ev = await StorageService.getAdminEvent(eventId);
           map[eventId] = Array.isArray(ev?.tables) ? ev.tables : [];
+          if (ev) detailsMap[eventId] = ev;
         } catch {
           map[eventId] = [];
         }
       }
       setEventTablesMap(map);
+      setEventDetailsMap(detailsMap);
     } catch (e) {
       setError(toFriendlyError(e));
     } finally {
@@ -565,14 +569,62 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     loadEvents();
   }, []);
 
-  const formatSeats = (b: AdminBooking) => {
-    if (Array.isArray(b.tableBookings) && b.tableBookings.length > 0) {
-      return b.tableBookings.map((tb) => `Стол ${tb.tableId}: ${tb.seats} ${tb.seats === 1 ? 'место' : 'мест'}`).join('; ');
+  const formatAdminSeatLabel = (b: AdminBooking): string => {
+    if (Array.isArray(b.seat_indices) && b.seat_indices.length > 0) {
+      const sorted = [...b.seat_indices].sort((a, b) => a - b);
+      const human = sorted.map((i) => i + 1);
+      if (human.length <= 5) return `Места: ${human.join(', ')}`;
+      return `${human.length} мест`;
     }
-    if (Array.isArray(b.seatIds) && b.seatIds.length > 0) {
-      return b.seatIds.join(', ');
-    }
+    const count = b.seats_booked ?? (Array.isArray(b.tableBookings) ? b.tableBookings.reduce((s, tb) => s + tb.seats, 0) : 0);
+    if (typeof count === 'number' && count > 0) return `${count} ${count === 1 ? 'место' : 'мест'}`;
     return '—';
+  };
+
+  const getAdminTableLabel = (b: AdminBooking): string => {
+    const eventId = b.event_id ?? b.event?.id ?? '';
+    const tables = eventTablesMap[eventId] ?? [];
+    const tableId = b.table_id ?? b.tableBookings?.[0]?.tableId;
+    if (!tableId) return '—';
+    const exists = tables.some((t) => t.id === tableId);
+    if (!exists) return 'Стол удалён';
+    const table = tables.find((t) => t.id === tableId);
+    return table ? `Стол ${table.number}` : '—';
+  };
+
+  const getAdminCategoryLabel = (b: AdminBooking): string => {
+    const eventId = b.event_id ?? b.event?.id ?? '';
+    const ev = eventDetailsMap[eventId];
+    const tableId = b.table_id ?? b.tableBookings?.[0]?.tableId;
+    if (!tableId || !ev?.ticketCategories) return '—';
+    const table = (ev.tables ?? []).find((t) => t.id === tableId);
+    const catId = table?.ticketCategoryId;
+    if (!catId) return '—';
+    const cat = ev.ticketCategories.find((c) => c.id === catId);
+    return cat?.name ?? '—';
+  };
+
+  const formatAdminDate = (s: string | null | undefined): string => {
+    if (!s) return '—';
+    try {
+      const d = new Date(s);
+      return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return String(s);
+    }
+  };
+
+  const formatEventDateDisplay = (ev: EventData | undefined): string => {
+    if (!ev) return '—';
+    const d = ev.event_date ?? ev.date;
+    if (!d) return '—';
+    try {
+      const dateStr = new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+      const time = ev.event_time;
+      return time ? `${dateStr}, ${time}` : dateStr;
+    } catch {
+      return String(d);
+    }
   };
 
   const tableIdsWithBookings = useMemo(() => {
@@ -874,87 +926,54 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               {filteredBookings.map((b) => {
                 const status = String(b.status ?? '');
                 const canConfirm = status === 'reserved' || status === 'awaiting_confirmation';
-                const seatIndicesStr = Array.isArray(b.seat_indices) ? b.seat_indices.join(', ') : formatSeats(b);
                 const telegramId = b.user_telegram_id ?? b.userTelegramId;
                 const userPhone = b.user_phone ?? b.userPhone;
+                const eventId = b.event_id ?? b.event?.id ?? '';
+                const eventDetails = eventDetailsMap[eventId];
 
                 return (
-                  <div key={b.id} className="admin-card p-4 mb-4 flex justify-between items-start gap-4">
-                    <div className="min-w-0">
-                      <div className="font-semibold">{b.event?.title || b.event_id || UI_TEXT.event.eventFallback}</div>
-                      <div className="text-xs text-muted mt-1">
-                        Event ID: {b.event_id ?? b.event?.id ?? '—'}
+                  <div key={b.id} className="rounded-2xl bg-white/5 border border-white/10 p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="text-lg font-bold text-white">{b.event?.title || UI_TEXT.event.eventFallback}</h3>
+                        <div className="text-sm text-white/60 mt-0.5">{formatEventDateDisplay(eventDetails) || formatAdminDate(b.event?.date)}</div>
                       </div>
-                      <div className="text-xs text-muted">
-                        Table:{' '}
-                        {(() => {
-                          const eventId = b.event_id ?? b.event?.id ?? '';
-                          const eventTables = eventTablesMap[eventId] ?? [];
-                          const existingTableIds = new Set(eventTables.map((t) => t.id));
-                          if (!b.table_id) return '—';
-                          if (!existingTableIds.has(b.table_id)) {
-                            return (
-                              <span className="px-2 py-1 text-xs rounded-md bg-[#1A1A1A] text-[#C6A75E] border border-[#2A2A2A]">
-                                ⚠ Table deleted
-                              </span>
-                            );
-                          }
-                          const table = eventTables.find((t) => t.id === b.table_id);
-                          return table ? `Table ${table.number}` : b.table_id;
-                        })()}
-                      </div>
-                      <div className="text-xs text-muted">
-                        Seat indices: {seatIndicesStr || '—'}
-                      </div>
-                      <div className="text-xs text-muted">
-                        Seats booked: {b.seats_booked ?? (Array.isArray(b.seat_indices) ? b.seat_indices.length : '—')}
-                      </div>
-                      <div className="text-xs text-muted">
-                        Telegram ID: {typeof telegramId === 'number' ? telegramId : '—'}
-                      </div>
-                      <div className="text-xs text-muted">
-                        {UI_TEXT.booking.phone} {userPhone || '—'}
-                      </div>
-                      <div className="text-sm text-[#1C1C1C] mt-1">
-                        Status:{' '}
-                        <span className="px-2 py-1 text-xs rounded-md bg-[#1A1A1A] text-[#C6A75E] border border-[#2A2A2A]">
-                          {UI_TEXT.booking.statusLabels[status] ?? status ?? '—'}
-                        </span>
-                      </div>
-                      <div className="text-xs text-muted mt-1">
-                        Created at: {b.created_at ?? '—'}
-                      </div>
-                      <div className="text-xs text-muted">
-                        {UI_TEXT.booking.bookingId} {b.id}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2 shrink-0">
-                      <span className="px-2 py-1 text-xs rounded-md bg-[#1A1A1A] text-[#C6A75E] border border-[#2A2A2A]">
+                      <span className="shrink-0 px-3 py-1 text-xs rounded-full bg-white/10 text-white">
                         {UI_TEXT.booking.statusLabels[status] ?? status ?? '—'}
                       </span>
-                      {canConfirm && (
-                        <>
-                          <button
-                            onClick={() => confirmBooking(b.id)}
-                            disabled={confirmingId !== null || cancellingId !== null || isExpired(b.expiresAt ?? b.expires_at)}
-                            className={`px-3 py-1 rounded text-sm ${
-                              confirmingId !== null || cancellingId !== null || isExpired(b.expiresAt ?? b.expires_at)
-                                ? 'bg-[#ECE6DD] text-[#6E6A64]'
-                                : 'bg-[#C6A75E] text-white'
-                            }`}
-                          >
-                            {confirmingId === b.id ? UI_TEXT.booking.confirming : isExpired(b.expiresAt ?? b.expires_at) ? UI_TEXT.booking.expired : 'Confirm Payment'}
-                          </button>
-                          <button
-                            onClick={() => cancelBookingAction(b.id)}
-                            disabled={confirmingId !== null || cancellingId !== null}
-                            className="px-4 py-2 rounded-xl bg-[#141414] text-[#C6A75E] border border-[#2A2A2A] hover:border-[#C6A75E] hover:bg-[#1C1C1C] transition disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {cancellingId === b.id ? 'Отмена…' : 'Cancel'}
-                          </button>
-                        </>
-                      )}
                     </div>
+
+                    <div className="space-y-1 text-sm text-white/80">
+                      <div>{getAdminTableLabel(b)}</div>
+                      <div>{formatAdminSeatLabel(b)}</div>
+                      <div>Категория: {getAdminCategoryLabel(b)}</div>
+                      <div>Сумма: {b.totalAmount != null && b.totalAmount > 0 ? `${b.totalAmount} ₽` : '—'}</div>
+                    </div>
+
+                    <div className="border-t border-white/10 pt-3 space-y-1 text-xs text-white/60">
+                      <div>Покупатель: {userPhone || '—'}</div>
+                      <div>Telegram ID: {typeof telegramId === 'number' ? telegramId : '—'}</div>
+                      <div>Создано: {formatAdminDate(b.created_at)}</div>
+                    </div>
+
+                    {canConfirm && (
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          onClick={() => confirmBooking(b.id)}
+                          disabled={confirmingId !== null || cancellingId !== null || isExpired(b.expiresAt ?? b.expires_at)}
+                          className="px-4 py-2 rounded-xl text-sm font-medium bg-[#C6A75E] text-black hover:bg-[#D4B86A] disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        >
+                          {confirmingId === b.id ? UI_TEXT.booking.confirming : isExpired(b.expiresAt ?? b.expires_at) ? UI_TEXT.booking.expired : 'Подтвердить оплату'}
+                        </button>
+                        <button
+                          onClick={() => cancelBookingAction(b.id)}
+                          disabled={confirmingId !== null || cancellingId !== null}
+                          className="px-4 py-2 rounded-xl text-sm font-medium bg-white/5 text-white border border-white/20 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        >
+                          {cancellingId === b.id ? 'Отмена…' : 'Отменить'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
