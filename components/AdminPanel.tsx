@@ -47,6 +47,7 @@ type AdminBooking = {
   tableBookings?: Array<{ tableId: string; seats: number }>;
   userTelegramId?: number;
   totalAmount?: number;
+  total_amount?: number;
   expiresAt?: string | number;
 };
 
@@ -947,7 +948,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       <div>{getAdminTableLabel(b)}</div>
                       <div>{formatAdminSeatLabel(b)}</div>
                       <div>Категория: {getAdminCategoryLabel(b)}</div>
-                      <div>Сумма: {b.totalAmount != null && b.totalAmount > 0 ? `${b.totalAmount} ₽` : '—'}</div>
+                      <div>Сумма: {(b.totalAmount ?? b.total_amount ?? 0) > 0 ? `${b.totalAmount ?? b.total_amount} ₽` : '—'}</div>
                     </div>
 
                     <div className="border-t border-white/10 pt-3 space-y-1 text-xs text-white/60">

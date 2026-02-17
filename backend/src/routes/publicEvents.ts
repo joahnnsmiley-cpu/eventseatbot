@@ -3,6 +3,7 @@ import { v4 as uuid } from 'uuid';
 import { db } from '../db';
 import { supabase } from '../supabaseClient';
 import { emitBookingCreated, emitBookingCancelled, calculateBookingExpiration } from '../domain/bookings';
+import { getPriceForTable } from '../utils/getTablePrice';
 
 const router = Router();
 
@@ -276,6 +277,16 @@ router.post('/bookings', async (req: Request, res: Response) => {
       return;
     }
 
+    const seatPriceFallback = Array.isArray(ev.ticketCategories)
+      ? (ev.ticketCategories as { isActive?: boolean; price?: number }[]).find((c) => c.isActive)?.price ?? 0
+      : 0;
+    const pricePerSeat = getPriceForTable(ev, tbl, seatPriceFallback);
+    const totalAmount = seatIndices.length * pricePerSeat;
+    if (totalAmount <= 0) {
+      res.status(400).json({ error: 'Cannot create booking: price is not configured for this table' });
+      return;
+    }
+
     const id = (require('uuid').v4)();
     const createdAt = Date.now();
     const booking = {
@@ -290,7 +301,7 @@ router.post('/bookings', async (req: Request, res: Response) => {
       userTelegramId: 0,
       username: '',
       seatIds: [],
-      totalAmount: 0,
+      totalAmount,
     } as any;
     await db.addBooking(booking);
     res.status(201).json({ ok: true, id: booking.id });
@@ -343,6 +354,15 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
       if (typeof tbl.seatsAvailable !== 'number') tbl.seatsAvailable = Number(tbl.seatsAvailable) || 0;
       if (tbl.seatsAvailable < seats) return { status: 409, body: { error: 'Not enough seats available' } };
 
+      const seatPriceFallback = Array.isArray(ev.ticketCategories)
+        ? (ev.ticketCategories as { isActive?: boolean; price?: number }[]).find((c) => c.isActive)?.price ?? 0
+        : 0;
+      const pricePerSeat = getPriceForTable(ev, tbl, seatPriceFallback);
+      const totalAmount = seats * pricePerSeat;
+      if (totalAmount <= 0) {
+        return { status: 400, body: { error: 'Cannot create booking: price is not configured for this table' } };
+      }
+
       // create booking record
       const createdAtMs = Date.now();
       const booking = {
@@ -350,12 +370,13 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
         eventId,
         tableId,
         seatsBooked: seats,
-        seats: seats, // alias for frontend
+        seats, // alias for frontend
         status: 'reserved',
         createdAt: createdAtMs,
         expiresAt: calculateBookingExpiration(createdAtMs), // Set expiration for reserved bookings
         userPhone: normalizedUserPhone,
         userComment: normalizedUserComment,
+        totalAmount,
         tableBookings: [{ tableId, seats }], // full shape for frontend
       } as any;
 
@@ -401,7 +422,7 @@ router.get('/bookings/my', async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from('bookings')
-      .select('id, event_id, table_id, seat_indices, seats_booked, total_amount, status, created_at, expires_at')
+      .select('*')
       .eq('user_telegram_id', telegramId)
       .order('created_at', { ascending: false });
 
@@ -416,7 +437,7 @@ router.get('/bookings/my', async (req: Request, res: Response) => {
       table_id: r.table_id,
       seat_indices: r.seat_indices ?? [],
       seats_booked: r.seats_booked,
-      total_amount: r.total_amount ?? 0,
+      total_amount: r.total_amount != null ? Number(r.total_amount) : 0,
       status: r.status,
       created_at: r.created_at,
       expires_at: r.expires_at,
@@ -431,7 +452,7 @@ router.get('/bookings/my', async (req: Request, res: Response) => {
 
 // POST /public/bookings/seats
 router.post('/bookings/seats', async (req: Request, res: Response) => {
-  const { eventId, tableId, seatIndices, userPhone, telegramId, totalAmount } = req.body || {};
+  const { eventId, tableId, seatIndices, userPhone, telegramId } = req.body || {};
   if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
   const normalizedPhone = typeof userPhone === 'string' ? userPhone.trim() : '';
   if (!normalizedPhone) return res.status(400).json({ error: 'userPhone is required' });
@@ -446,6 +467,20 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
   if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
 
   try {
+    const ev = await db.findEventById(eventId) as any;
+    if (!ev) return res.status(404).json({ error: 'Event not found' });
+    const tbl = Array.isArray(ev.tables) ? ev.tables.find((t: any) => t.id === tableId) : null;
+    if (!tbl) return res.status(400).json({ error: 'Table not found' });
+
+    const seatPriceFallback = Array.isArray(ev.ticketCategories)
+      ? (ev.ticketCategories as { isActive?: boolean; price?: number }[]).find((c) => c.isActive)?.price ?? 0
+      : 0;
+    const pricePerSeat = getPriceForTable(ev, tbl, seatPriceFallback);
+    const totalAmountVal = indices.length * pricePerSeat;
+    if (totalAmountVal <= 0) {
+      return res.status(400).json({ error: 'Cannot create booking: price is not configured for this table' });
+    }
+
     const { data: tableRow, error: tableErr } = await supabase
       .from('event_tables')
       .select('*')
@@ -453,12 +488,12 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
       .eq('event_id', eventId)
       .maybeSingle();
     if (tableErr || !tableRow) return res.status(400).json({ error: 'Table not found' });
-    const tbl = {
+    const tblVisibility = {
       is_active: tableRow.is_active,
       visibleFrom: tableRow.visible_from,
       visibleUntil: tableRow.visible_until,
     };
-    if (!isTableVisible(tbl)) return res.status(403).json({ error: 'Table is not visible for booking' });
+    if (!isTableVisible(tblVisibility)) return res.status(403).json({ error: 'Table is not visible for booking' });
 
     const { data: existing } = await supabase
       .from('bookings')
@@ -477,11 +512,6 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
 
     const id = uuid();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-    console.log('[BOOKING REQUEST BODY]', req.body);
-
-    const totalAmountNum = Number(totalAmount);
-    const totalAmountVal = Number.isFinite(totalAmountNum) && totalAmountNum >= 0 ? totalAmountNum : 0;
 
     const { data, error: insertErr } = await supabase.from('bookings').insert({
       id,

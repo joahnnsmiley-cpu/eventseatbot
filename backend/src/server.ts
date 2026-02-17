@@ -21,6 +21,7 @@ import { TelegramBookingNotifier } from './infra/telegram';
 import { TelegramPaymentNotifier } from './infra/telegram/telegram.payment-notifier';
 import { startBookingExpirationJob } from './infra/scheduler';
 import { createPendingBookingFromWebAppPayload } from './webappBooking';
+import { supabase } from './supabaseClient';
 
 
 const app = express();
@@ -53,6 +54,12 @@ if (token && chatId) {
 // Storage state on boot — warn if empty (ephemeral disk loses data on restart/redeploy)
 void (async () => {
   try {
+    if (supabase) {
+      const { error } = await supabase.from('bookings').select('total_amount').limit(1);
+      if (error && (error.message.includes('total_amount') || /column.*does not exist/i.test(error.message))) {
+        console.error('[Storage] Boot: bookings.total_amount column missing. Run: ALTER TABLE bookings ADD COLUMN total_amount NUMERIC(12,2) NOT NULL DEFAULT 0;');
+      }
+    }
     const events = await db.getEvents();
     const bookings = await db.getBookings();
     if (events.length === 0 && bookings.length === 0) {

@@ -5,6 +5,7 @@
 import { db } from './db';
 import type { Booking } from './models';
 import { v4 as uuid } from 'uuid';
+import { getPriceForTable } from './utils/getTablePrice';
 
 export type WebAppBookingPayload = {
   eventId: string;
@@ -39,6 +40,15 @@ export async function createPendingBookingFromWebAppPayload(payload: WebAppBooki
     throw new Error('Table is not available for sale');
   }
 
+  const seatPriceFallback = Array.isArray(ev.ticketCategories)
+    ? (ev.ticketCategories as { isActive?: boolean; price?: number }[]).find((c) => c.isActive)?.price ?? 0
+    : 0;
+  const pricePerSeat = getPriceForTable(ev, tbl, seatPriceFallback);
+  const totalAmount = seatIndices.length * pricePerSeat;
+  if (totalAmount <= 0) {
+    throw new Error('Cannot create booking: price is not configured for this table');
+  }
+
   const id = uuid();
   const createdAt = Date.now();
   const booking: Booking = {
@@ -53,7 +63,7 @@ export async function createPendingBookingFromWebAppPayload(payload: WebAppBooki
     userTelegramId: 0,
     username: '',
     seatIds: [],
-    totalAmount: 0,
+    totalAmount,
   };
   await db.addBooking(booking);
   return { id: booking.id };

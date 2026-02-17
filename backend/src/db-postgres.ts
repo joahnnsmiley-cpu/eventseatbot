@@ -68,7 +68,7 @@ type BookingsRow = {
   user_comment: string | null;
   seat_indices: number[] | null;
   seats_booked: number | null;
-  total_amount?: number | null;
+  total_amount: number;
   status: string;
   tickets?: unknown;
   created_at?: string;
@@ -510,7 +510,7 @@ export async function addBooking(booking: Booking): Promise<void> {
     user_comment: booking.userComment ?? null,
     seat_indices: booking.seatIndices ?? null,
     seats_booked: booking.seatsBooked ?? null,
-    total_amount: booking.totalAmount ?? 0,
+    total_amount: booking.totalAmount,
     status: booking.status,
     created_at: new Date(booking.createdAt).toISOString(),
     expires_at: expiresAt,
