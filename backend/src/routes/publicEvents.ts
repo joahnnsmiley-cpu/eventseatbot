@@ -452,7 +452,7 @@ router.get('/bookings/my', async (req: Request, res: Response) => {
 
 // POST /public/bookings/seats
 router.post('/bookings/seats', async (req: Request, res: Response) => {
-  const { eventId, tableId, seatIndices, userPhone, telegramId } = req.body || {};
+  const { eventId, tableId, seatIndices, userPhone, telegramId, userComment } = req.body || {};
   if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
   const normalizedPhone = typeof userPhone === 'string' ? userPhone.trim() : '';
   if (!normalizedPhone) return res.status(400).json({ error: 'userPhone is required' });
@@ -512,6 +512,7 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
 
     const id = uuid();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const normalizedUserComment = typeof userComment === 'string' ? userComment.trim() || null : null;
 
     const { data, error: insertErr } = await supabase.from('bookings').insert({
       id,
@@ -519,6 +520,7 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
       table_id: tableId,
       user_telegram_id: tgId,
       user_phone: normalizedPhone,
+      user_comment: normalizedUserComment,
       seat_indices: indices,
       seats_booked: indices.length,
       total_amount: totalAmountVal,
@@ -545,6 +547,7 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
       table_id: tableId,
       user_telegram_id: tgId,
       user_phone: normalizedPhone,
+      user_comment: normalizedUserComment,
       seat_indices: indices,
       seats_booked: indices.length,
       total_amount: totalAmountVal,

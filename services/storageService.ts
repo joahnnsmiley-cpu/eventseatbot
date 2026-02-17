@@ -111,6 +111,7 @@ export const createSeatsBooking = async (payload: {
   userPhone: string;
   telegramId: number;
   totalAmount?: number;
+  userComment?: string;
 }): Promise<any> => {
   const apiBaseUrl = getApiBaseUrl();
   const url = `${apiBaseUrl}/public/bookings/seats`;

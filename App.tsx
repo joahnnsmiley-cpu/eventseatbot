@@ -737,6 +737,7 @@ function App() {
                       userPhone: normalizedPhone,
                       telegramId,
                       totalAmount: total,
+                      userComment: userComment.trim() || undefined,
                     });
                     const raw = res as Record<string, unknown>;
                     const booking: Booking = {
