@@ -62,19 +62,28 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
         .toBuffer();
     }
 
-    // SVG text only (no embedded image)
+    // Relative coordinates for text (scale with image)
+    const lineCenterX = width * 0.78;
+    const tableY = height * 0.63;
+    const seatsY = height * 0.7;
+    const fontSize = Math.round(width * 0.04);
+
     const textSvg = `
 <svg width="${width}" height="${height}">
-  <text x="950" y="480"
-    font-size="48"
+  <text
+    x="${lineCenterX}"
+    y="${tableY}"
+    font-size="${fontSize}"
     fill="white"
     font-weight="bold"
     text-anchor="middle">
     Стол ${tableNumber}
   </text>
 
-  <text x="950" y="530"
-    font-size="48"
+  <text
+    x="${lineCenterX}"
+    y="${seatsY}"
+    font-size="${fontSize}"
     fill="white"
     font-weight="bold"
     text-anchor="middle">
