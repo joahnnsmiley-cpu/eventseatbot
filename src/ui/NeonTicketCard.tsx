@@ -37,18 +37,17 @@ export default function NeonTicketCard({
     <button
       type="button"
       onClick={onClick}
-      className="relative w-full text-left rounded-2xl overflow-hidden bg-black border border-white/10"
+      className="relative w-full text-left rounded-2xl overflow-hidden bg-black border border-white/10 ring-1 ring-white/10"
     >
       {posterImageUrl && (
         <>
           <img
             src={posterImageUrl}
             alt=""
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover brightness-90"
             loading="lazy"
           />
-          <div className="absolute inset-0 bg-black/65" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
         </>
       )}
       {!posterImageUrl && <div className="absolute inset-0 bg-black" />}
