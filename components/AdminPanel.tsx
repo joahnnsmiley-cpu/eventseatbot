@@ -1939,14 +1939,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     )}
                   </div>
                 )}
-                <div className="mt-3 flex flex-wrap gap-2 flex-col md:flex-row">
-                  <PrimaryButton
-                    onClick={saveLayout}
-                    disabled={savingLayout}
-                    className="w-full md:w-auto"
-                  >
-                    {savingLayout ? UI_TEXT.common.saving : UI_TEXT.common.save}
-                  </PrimaryButton>
+                <div className="mt-3">
                   <SecondaryButton
                     onClick={() => { setLayoutUrl(selectedEvent?.layoutImageUrl || ''); setLayoutUploadVersion(null); }}
                     className="w-full md:w-auto"
@@ -2040,6 +2033,22 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               </DndContext>
             </>
           )}
+        </div>
+      )}
+
+      {selectedEvent && (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-50 max-w-[420px] mx-auto bg-black/95 border-t border-white/10 p-4"
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+        >
+          <button
+            type="button"
+            onClick={() => handleSave(false)}
+            disabled={!isDirty || savingLayout}
+            className="w-full py-3 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-500 text-black font-semibold shadow-lg shadow-yellow-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {savingLayout ? UI_TEXT.common.saving : UI_TEXT.common.save}
+          </button>
         </div>
       )}
 
