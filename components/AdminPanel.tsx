@@ -468,6 +468,22 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setEvents((prev) => prev.map((e) => (e.id === fresh.id ? { ...e, title: fresh.title } : e)));
   };
 
+  const handlePosterUpload = useCallback(async (file: File) => {
+    if (!selectedEvent?.id) return;
+    setPosterUploadLoading(true);
+    setPosterUploadError(null);
+    try {
+      const { url } = await StorageService.uploadPosterImage(selectedEvent.id, file);
+      setEventPosterUrl(url);
+      const fresh = await StorageService.getAdminEvent(selectedEvent.id);
+      setEventFromFresh(fresh);
+    } catch (err) {
+      setPosterUploadError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setPosterUploadLoading(false);
+    }
+  }, [selectedEvent?.id]);
+
   const loadEvent = async (eventId: string) => {
     if (!eventId) return;
     setEventsLoading(true);
@@ -1255,6 +1271,51 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
                     />
                   </div>
+                  <div>
+                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.posterSectionLabel}</div>
+                    {eventPosterUrl ? (
+                      <div className="space-y-2">
+                        <div className="rounded border overflow-hidden bg-surface max-h-32">
+                          <img src={eventPosterUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => {}} />
+                        </div>
+                        <label className="inline-block">
+                          <span className="px-4 py-2 text-sm rounded-xl border border-white/20 hover:bg-white/5 cursor-pointer transition">
+                            Заменить
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handlePosterUpload(file);
+                              e.target.value = '';
+                            }}
+                            disabled={posterUploadLoading || !selectedEvent?.id}
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <label className="block">
+                        <span className="inline-block px-4 py-2 text-sm rounded-xl border border-white/20 hover:bg-white/5 cursor-pointer transition">
+                          Загрузить афишу
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handlePosterUpload(file);
+                            e.target.value = '';
+                          }}
+                          disabled={posterUploadLoading || !selectedEvent?.id}
+                        />
+                      </label>
+                    )}
+                    {posterUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
+                    {posterUploadError && <div className="text-xs text-[#6E6A64] mt-1">{posterUploadError}</div>}
+                  </div>
                 </div>
                       </SortableSection>
                     );
@@ -1832,44 +1893,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     if (key === 'layout') return (
                       <SortableSection key="layout" id="layout" title="План зала" sectionKey="layout">
                 <div>
-                <div className="text-sm font-semibold mb-1">{UI_TEXT.event.posterLabel}</div>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file || !selectedEvent?.id) return;
-                    setPosterUploadLoading(true);
-                    setPosterUploadError(null);
-                    try {
-                      const { url } = await StorageService.uploadPosterImage(selectedEvent.id, file);
-                      setEventPosterUrl(url);
-                      const fresh = await StorageService.getAdminEvent(selectedEvent.id);
-                      setEventFromFresh(fresh);
-                    } catch (err) {
-                      setPosterUploadError(err instanceof Error ? err.message : 'Upload failed');
-                    } finally {
-                      setPosterUploadLoading(false);
-                      e.target.value = '';
-                    }
-                  }}
-                  disabled={posterUploadLoading || !selectedEvent?.id}
-                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-surface file:cursor-pointer"
-                />
-                {posterUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
-                {posterUploadError && <div className="text-xs text-[#6E6A64] mt-1">{posterUploadError}</div>}
-                <div className="text-xs text-muted mt-1">
-                  Загрузите изображение афиши (обложка события).
-                </div>
-                {eventPosterUrl && (
-                  <div className="mt-2">
-                    <div className="rounded border overflow-hidden bg-surface max-h-32">
-                      <img src={eventPosterUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => {}} />
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div>
                 <div className="text-sm font-semibold mb-1">{UI_TEXT.tables.layoutImageUrl}</div>
                 <input
                   type="file"

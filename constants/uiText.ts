@@ -62,6 +62,7 @@ export const UI_TEXT = {
     venue: 'Площадка',
     venuePlaceholder: 'Название площадки или адрес',
     posterLabel: 'Афиша события',
+    posterSectionLabel: 'Афиша мероприятия',
     posterPlaceholder: 'https://example.com/poster.jpg',
     organizerPhone: 'Телефон организатора',
     contactOrganizer: 'Связаться с организатором',
