@@ -9,8 +9,6 @@ import PrimaryButton from '../src/ui/PrimaryButton';
 import SeatMap from './SeatMap';
 import { UI_TEXT } from '../constants/uiText';
 
-const FLOATING_BAR_HEIGHT = 96; // approximate px height of floating booking bar
-
 /** Format event_date + event_time as "11 февраля 2026 г. · 01:58" (ru-RU). Returns empty string if either missing. */
 function formatEventDateTime(dateStr?: string | null, timeStr?: string | null): string {
   if (!dateStr || typeof dateStr !== 'string' || !timeStr || typeof timeStr !== 'string') return '';
@@ -116,7 +114,7 @@ const EventPage: React.FC<EventPageProps> = ({
 
   return (
     <div className="max-w-md mx-auto min-h-screen relative">
-      <div className="px-4 pt-6 space-y-8 pb-24">
+      <div className="px-4 pt-6 space-y-8">
         <div className="flex items-center justify-between">
           <button
             onClick={onBack}
@@ -175,8 +173,6 @@ const EventPage: React.FC<EventPageProps> = ({
             tables={event?.tables ?? []}
             selectedSeatsByTable={selectedSeatsByTable}
             onTableSelect={onTableSelect}
-            hasSelection={totalSeats > 0}
-            floatingBarHeight={FLOATING_BAR_HEIGHT}
           />
         </div>
 
@@ -258,80 +254,66 @@ const EventPage: React.FC<EventPageProps> = ({
             </div>
           );
         })()}
-      </div>
 
-      <AnimatePresence>
         {totalAmount > 0 && (
           <motion.div
-            initial={{ y: 100, opacity: 0 }}
+            initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="fixed bottom-0 left-0 right-0 z-50"
+            className="mt-8 flex items-center justify-between rounded-2xl px-5 py-4"
             style={{
-              background:
-                'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.85) 70%, rgba(0,0,0,0) 100%)',
-              paddingBottom: 'env(safe-area-inset-bottom)',
+              background: 'rgba(20,20,20,0.95)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
             }}
           >
-            <div className="max-w-[420px] mx-auto px-4 pb-4 pt-6">
-              <div
-                className="flex items-center justify-between rounded-2xl px-5 py-3"
-                style={{
-                  background: 'rgba(20,20,20,0.9)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
-                }}
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-muted tracking-wide">
+                Выбрано {totalSeats} из {totalSeatsAvailable}
+              </p>
+              <motion.p
+                key={totalAmount}
+                initial={{ scale: 1.1, opacity: 0.6, textShadow: '0 0 0px rgba(255,193,7,0)' }}
+                animate={{ scale: 1, opacity: 1, textShadow: '0 0 12px rgba(255,193,7,0.5)' }}
+                transition={{ duration: 0.3 }}
+                className="text-xl font-bold text-[#FFC107]"
               >
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs text-muted tracking-wide">
-                    Выбрано {totalSeats} из {totalSeatsAvailable}
-                  </p>
-                  <motion.p
-                    key={totalAmount}
-                    initial={{ scale: 1.1, opacity: 0.6, textShadow: '0 0 0px rgba(255,193,7,0)' }}
-                    animate={{ scale: 1, opacity: 1, textShadow: '0 0 12px rgba(255,193,7,0.5)' }}
-                    transition={{ duration: 0.3 }}
-                    className="text-xl font-bold text-[#FFC107]"
-                  >
-                    {totalAmount.toLocaleString('ru-RU')} ₽
-                  </motion.p>
-                  {breakdown.length > 0 && (
-                    <div className="mt-2 space-y-1 text-xs text-muted">
-                      {breakdown.map((item) => (
-                        <div key={item.tableId} className="flex justify-between">
-                          <span>
-                            Стол {item.tableNumber} — {item.count} × {item.price.toLocaleString('ru-RU')} ₽
-                          </span>
-                          <span className="text-white">
-                            {item.total.toLocaleString('ru-RU')} ₽
-                          </span>
-                        </div>
-                      ))}
+                {totalAmount.toLocaleString('ru-RU')} ₽
+              </motion.p>
+              {breakdown.length > 0 && (
+                <div className="mt-2 space-y-1 text-xs text-muted">
+                  {breakdown.map((item) => (
+                    <div key={item.tableId} className="flex justify-between">
+                      <span>
+                        Стол {item.tableNumber} — {item.count} × {item.price.toLocaleString('ru-RU')} ₽
+                      </span>
+                      <span className="text-white">
+                        {item.total.toLocaleString('ru-RU')} ₽
+                      </span>
                     </div>
-                  )}
-                  {onClearSelection && (
-                    <button
-                      type="button"
-                      onClick={onClearSelection}
-                      className="mt-2 text-xs text-muted hover:text-white transition"
-                    >
-                      Очистить выбор
-                    </button>
-                  )}
+                  ))}
                 </div>
+              )}
+              {onClearSelection && (
                 <button
                   type="button"
-                  onClick={handleBooking}
-                  className="bg-[#FFC107] text-black font-semibold px-5 py-2 rounded-xl active:scale-95 transition shrink-0 ml-4"
+                  onClick={onClearSelection}
+                  className="mt-2 text-xs text-muted hover:text-white transition"
                 >
-                  Продолжить
+                  Очистить выбор
                 </button>
-              </div>
+              )}
             </div>
+            <button
+              type="button"
+              onClick={handleBooking}
+              className="bg-[#FFC107] text-black font-semibold px-5 py-2 rounded-xl active:scale-95 transition shrink-0 ml-4"
+            >
+              Продолжить
+            </button>
           </motion.div>
         )}
-      </AnimatePresence>
+      </div>
     </div>
   );
 };

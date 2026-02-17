@@ -435,7 +435,7 @@ function App() {
     if (!selectedEvent) {
       return wrapWithLayout(
         <div className="max-w-md mx-auto min-h-screen relative">
-          <div className="px-4 pt-6 space-y-8 pb-24">
+          <div className="px-4 pt-6 space-y-8">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => {
@@ -494,8 +494,8 @@ function App() {
 
   if (view === 'seats' && selectedEvent) {
     return wrapWithLayout(
-      <div className="max-w-[420px] mx-auto overflow-x-hidden pb-24 bg-black min-h-screen">
-        <div className="px-4 pt-6 pb-24 space-y-6">
+      <div className="max-w-[420px] mx-auto overflow-x-hidden bg-black min-h-screen">
+        <div className="px-4 pt-6 space-y-6">
           <div className="flex items-center justify-between">
             <button
               onClick={() => {
@@ -948,7 +948,7 @@ function App() {
   return wrapWithLayout(
     <div className="max-w-md mx-auto min-h-screen relative">
       <motion.div
-        className="px-4 pt-8 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-6"
+        className="px-4 pt-8 space-y-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}

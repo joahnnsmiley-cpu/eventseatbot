@@ -120,7 +120,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   return (
     <div className="max-w-[420px] mx-auto min-h-screen relative overflow-x-hidden">
-      <div className="px-4 pt-6 pb-24 space-y-8">
+      <div className="px-4 pt-6 space-y-8">
         <div className="flex items-center justify-between">
           <button
             onClick={onBack}

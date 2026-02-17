@@ -93,7 +93,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
   const venue = (event as { venue?: string }).venue ?? 'Площадка';
 
   return (
-    <div className="max-w-md mx-auto px-4 pt-16 pb-24 space-y-10 text-center">
+    <div className="max-w-md mx-auto px-4 pt-16 space-y-10 text-center">
       <div className="mx-auto w-16 h-16 rounded-full border border-[#FFC107] flex items-center justify-center">
         <div className="w-6 h-6 rounded-full bg-[#FFC107]" />
       </div>
