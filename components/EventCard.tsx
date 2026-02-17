@@ -10,6 +10,8 @@ export interface EventCardProps {
   onClick?: () => void;
   /** When true, card is shown as selected (e.g. admin list). */
   selected?: boolean;
+  /** When provided (admin mode), shows delete button. Called with event.id on click. */
+  onDelete?: (eventId: string) => void;
 }
 
 const statusLabel = (status?: string) => {
@@ -30,7 +32,7 @@ const formatDate = (dateStr?: string) => {
   return timePart ? `${datePart}, ${timePart}` : datePart;
 };
 
-const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = false }) => {
+const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = false, onDelete }) => {
   // Cover = poster (imageUrl); layoutImageUrl is only for seating map, not shown on card
   const coverUrl = (event.imageUrl ?? (event as { coverImageUrl?: string | null }).coverImageUrl ?? '').trim();
   const title = event.title?.trim() || UI_TEXT.event.eventFallback;
@@ -97,15 +99,37 @@ const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = 
     </>
   );
 
+  const deleteButton = mode === 'admin' && onDelete && (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onDelete(event.id);
+      }}
+      className="absolute bottom-3 right-3 z-10 px-4 py-2 text-sm rounded-xl text-red-400 border border-red-400/30 hover:bg-red-500/10 transition-colors"
+    >
+      {UI_TEXT.admin.deleteEvent}
+    </button>
+  );
+
   if (isClickable) {
     return (
-      <button type="button" onClick={onClick} className={cardClassName}>
-        {content}
-      </button>
+      <div className="relative">
+        <button type="button" onClick={onClick} className={cardClassName}>
+          {content}
+        </button>
+        {deleteButton}
+      </div>
     );
   }
 
-  return <div className={cardClassName} role="presentation">{content}</div>;
+  return (
+    <div className="relative">
+      <div className={cardClassName} role="presentation">{content}</div>
+      {deleteButton}
+    </div>
+  );
 };
 
 /** Skeleton placeholder for event list loading (same proportions as EventCard). */

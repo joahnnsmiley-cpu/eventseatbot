@@ -46,6 +46,11 @@ export const UI_TEXT = {
     resyncSeats: 'Пересчитать места',
     resyncSeatsSuccess: 'Места пересчитаны',
     resyncSeatsError: 'Ошибка пересчёта',
+    deleteEvent: 'Удалить событие',
+    deleteEventConfirmTitle: 'Удалить событие?',
+    deleteEventConfirmText: 'Это действие нельзя отменить.',
+    deleteEventActiveBookings: 'Есть активные бронирования.',
+    deleteEventButton: 'Удалить',
   },
   event: {
     title: 'Название события',

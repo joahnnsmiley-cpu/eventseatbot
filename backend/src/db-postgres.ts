@@ -485,6 +485,14 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
   console.log('[UPSERT EVENT]', 'event_id:', event.id, 'tables:', incomingTables.length);
 }
 
+/** Delete event by id. Cascades to event_tables and bookings via FK. */
+export async function deleteEvent(id: string): Promise<boolean> {
+  if (!supabase) return false;
+  const { error } = await supabase.from('events').delete().eq('id', id);
+  if (error) throw error;
+  return true;
+}
+
 // ---- Bookings ----
 export async function getBookings(): Promise<Booking[]> {
   if (!supabase) return [];

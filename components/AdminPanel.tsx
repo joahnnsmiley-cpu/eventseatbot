@@ -155,6 +155,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [eventDetailsMap, setEventDetailsMap] = useState<Record<string, EventData>>({});
   const [activeTabLeft, setActiveTabLeft] = useState(0);
   const [activeTabWidth, setActiveTabWidth] = useState(0);
+  const [deleteConfirmEvent, setDeleteConfirmEvent] = useState<EventData | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const saveLayoutRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
@@ -822,6 +824,33 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     };
   }, [events]);
 
+  const getActiveBookingsCount = useCallback((eventId: string) => {
+    const active = ['reserved', 'pending', 'awaiting_confirmation', 'paid', 'payment_submitted'];
+    return bookings.filter(
+      (b) => (b.event_id ?? b.event?.id) === eventId && active.includes(String(b.status ?? ''))
+    ).length;
+  }, [bookings]);
+
+  const handleDeleteEvent = useCallback(async () => {
+    const ev = deleteConfirmEvent;
+    if (!ev) return;
+    setDeleteLoading(true);
+    try {
+      await StorageService.deleteAdminEvent(ev.id);
+      setDeleteConfirmEvent(null);
+      if (selectedEventId === ev.id) {
+        setSelectedEventId('');
+        setSelectedEvent(null);
+      }
+      await loadEvents();
+    } catch (e) {
+      console.error('[AdminPanel] Failed to delete event', e);
+      setError(toFriendlyError(e));
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, [deleteConfirmEvent, selectedEventId, loadEvents]);
+
   return (
     <div className="admin-root min-h-screen p-4">
       {isDirty && selectedEvent && (
@@ -1133,6 +1162,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       setSuccessMessage(null);
                       loadEvent(ev.id);
                     }}
+                    onDelete={() => setDeleteConfirmEvent(ev)}
                   />
                 ))}
               </div>
@@ -1987,6 +2017,42 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               </DndContext>
             </>
           )}
+        </div>
+      )}
+
+      {deleteConfirmEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-lg font-semibold text-white mb-2">
+              {UI_TEXT.admin.deleteEventConfirmTitle}
+            </h3>
+            <p className="text-sm text-white/70 mb-4">
+              {UI_TEXT.admin.deleteEventConfirmText}
+            </p>
+            {getActiveBookingsCount(deleteConfirmEvent.id) > 0 && (
+              <p className="text-sm text-red-400 mb-4">
+                {UI_TEXT.admin.deleteEventActiveBookings}
+              </p>
+            )}
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmEvent(null)}
+                disabled={deleteLoading}
+                className="px-4 py-2 text-sm rounded-xl border border-white/20 text-white/80 hover:bg-white/5 transition"
+              >
+                {UI_TEXT.common.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteEvent}
+                disabled={deleteLoading}
+                className="px-4 py-2 text-sm rounded-xl bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition"
+              >
+                {deleteLoading ? UI_TEXT.common.loading : UI_TEXT.admin.deleteEventButton}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -389,6 +389,21 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   res.json(toEvent(existing));
 });
 
+// DELETE /admin/events/:id — hard delete; cascades to event_tables and bookings via FK
+router.delete('/events/:id', async (req: Request, res: Response) => {
+  const id = normalizeId(req.params.id);
+
+  if (!id) {
+    return respondBadRequest(res, new Error('Event id is required'), { error: 'Event id is required' });
+  }
+
+  const existing = await db.findEventById(id);
+  if (!existing) return res.status(404).json({ error: 'Event not found' });
+
+  await db.deleteEvent(id);
+  return res.status(204).send();
+});
+
 // POST /admin/resync-seats — recalculate seatsAvailable from bookings
 router.post('/resync-seats', async (_req: Request, res: Response) => {
   const events = await db.getEvents();
