@@ -24,9 +24,31 @@ type EventInfo = {
   date: string;
   tableNumber?: number;
   imageUrl?: string | null;
+  tableIdToNumber?: Record<string, number>;
+  categoryByTableId?: Record<string, { id: string; name: string }>;
 };
 
 const PAYABLE_STATUSES = ['pending', 'reserved', 'awaiting_payment'];
+
+const STATUS_OPTIONS = [
+  { key: 'all', label: 'Все' },
+  { key: 'pending', label: 'Ожидает оплаты' },
+  { key: 'payment_submitted', label: 'Ожидает подтверждения' },
+  { key: 'confirmed', label: 'Оплачено' },
+  { key: 'cancelled', label: 'Отменено' },
+  { key: 'expired', label: 'Истекло' },
+] as const;
+
+const STATUS_KEY_MAP: Record<string, string> = {
+  pending: 'pending',
+  reserved: 'pending',
+  awaiting_payment: 'pending',
+  awaiting_confirmation: 'payment_submitted',
+  paid: 'confirmed',
+  confirmed: 'confirmed',
+  cancelled: 'cancelled',
+  expired: 'expired',
+};
 
 const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
@@ -36,8 +58,11 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   /** event_id -> Set of table ids that exist in event */
   const [eventTablesMap, setEventTablesMap] = useState<Record<string, Set<string>>>({});
   /** event_id -> event info (title, date, table number by id) */
-  const [eventInfoMap, setEventInfoMap] = useState<Record<string, EventInfo & { tableIdToNumber?: Record<string, number> }>>({});
+  const [eventInfoMap, setEventInfoMap] = useState<Record<string, EventInfo>>({});
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
 
   const load = React.useCallback(async () => {
     const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
@@ -50,7 +75,9 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
       const eventIds = [...new Set(data.map((b) => b.event_id).filter(Boolean))];
       const tableMap: Record<string, Set<string>> = {};
-      const infoMap: Record<string, EventInfo & { tableIdToNumber?: Record<string, number> }> = {};
+      const infoMap: Record<string, EventInfo> = {};
+      const ticketCats = (ev: { ticketCategories?: Array<{ id?: string; name?: string }> }) =>
+        ev?.ticketCategories ?? [];
       for (const eventId of eventIds) {
         try {
           const ev = await StorageService.getEvent(eventId);
@@ -58,13 +85,20 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           const tableIds = new Set(tables.map((t: { id?: string }) => t?.id).filter(Boolean) as string[]);
           tableMap[eventId] = tableIds;
           const tableIdToNumber: Record<string, number> = {};
-          for (const t of tables as { id?: string; number?: number }[]) {
+          const categoryByTableId: Record<string, { id: string; name: string }> = {};
+          const cats = ticketCats(ev);
+          for (const t of tables as { id?: string; number?: number; ticketCategoryId?: string }[]) {
             if (t?.id) tableIdToNumber[t.id] = t.number ?? 0;
+            if (t?.id && t.ticketCategoryId) {
+              const cat = cats.find((c: { id?: string }) => c.id === t.ticketCategoryId);
+              if (cat?.id) categoryByTableId[t.id] = { id: cat.id, name: cat.name ?? cat.id };
+            }
           }
           infoMap[eventId] = {
             title: ev?.title ?? 'Событие',
             date: ev?.date ?? '',
             tableIdToNumber,
+            categoryByTableId,
             imageUrl: ev?.imageUrl ?? ev?.coverImageUrl ?? null,
           };
         } catch {
@@ -157,6 +191,32 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return `${human.length} мест`;
   };
 
+  const filteredBookings = React.useMemo(() => {
+    return bookings.filter((b) => {
+      const statusKey = STATUS_KEY_MAP[b.status] ?? b.status;
+      const statusMatch = statusFilter === 'all' || statusKey === statusFilter;
+      const categoryId = b.table_id ? eventInfoMap[b.event_id]?.categoryByTableId?.[b.table_id]?.id ?? null : null;
+      const categoryMatch = !categoryFilter || categoryId === categoryFilter;
+      return statusMatch && categoryMatch;
+    });
+  }, [bookings, statusFilter, categoryFilter, eventInfoMap]);
+
+  const availableCategories = React.useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const b of bookings) {
+      if (!b.table_id) continue;
+      const cat = eventInfoMap[b.event_id]?.categoryByTableId?.[b.table_id];
+      if (cat && !seen.has(cat.id)) seen.set(cat.id, cat.name);
+    }
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
+  }, [bookings, eventInfoMap]);
+
+  const selectedCategoryName = categoryFilter
+    ? availableCategories.find((c) => c.id === categoryFilter)?.name ?? null
+    : null;
+
+  const hasActiveFilters = statusFilter !== 'all' || categoryFilter !== null;
+
   return (
     <div className="max-w-[420px] mx-auto min-h-screen relative overflow-x-hidden">
       <div className="px-4 pt-6 space-y-8">
@@ -174,6 +234,43 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         {loading && <div className="text-xs text-muted">Загрузка…</div>}
         {error && <div className="text-sm text-red-400">{error}</div>}
 
+        {!loading && !error && bookings.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative flex overflow-x-auto gap-2 p-1 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 no-scrollbar flex-1 min-w-0">
+              {STATUS_OPTIONS.map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setStatusFilter(opt.key)}
+                  className={`px-4 py-2 rounded-xl text-sm whitespace-nowrap transition-all duration-300 ${
+                    statusFilter === opt.key
+                      ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-black shadow-lg shadow-yellow-500/20'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setIsCategoryOpen(true)}
+                className="shrink-0 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm whitespace-nowrap"
+              >
+                {selectedCategoryName ?? 'Категория ▾'}
+              </button>
+            </div>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={() => { setStatusFilter('all'); setCategoryFilter(null); }}
+                className="text-xs text-yellow-400 shrink-0"
+              >
+                Сбросить
+              </button>
+            )}
+          </div>
+        )}
+
         {!loading && !error && bookings.length === 0 && (
           <Card>
             <div className="text-center space-y-3">
@@ -187,14 +284,20 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           </Card>
         )}
 
-        {!loading && !error && bookings.length > 0 && (
+        {!loading && !error && bookings.length > 0 && filteredBookings.length === 0 && (
+          <Card>
+            <p className="text-muted-light text-center text-sm">Нет билетов по выбранным фильтрам</p>
+          </Card>
+        )}
+
+        {!loading && !error && bookings.length > 0 && filteredBookings.length > 0 && (
           <motion.div
             className="space-y-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4 }}
           >
-            {bookings.map((b) => {
+            {filteredBookings.map((b) => {
               const info = eventInfoMap[b.event_id];
               const { date, time } = parseDateAndTime(info?.date ?? b.created_at);
               const seatLabel = formatSeatLabel(b.seat_indices, b.seats_booked);
@@ -230,6 +333,55 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           </motion.div>
         )}
       </div>
+
+      {isCategoryOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 z-40"
+            onClick={() => setIsCategoryOpen(false)}
+            aria-hidden
+          />
+          <div
+            className="fixed bottom-0 left-0 right-0 max-w-[420px] mx-auto bg-[#111] rounded-t-3xl p-6 z-50 animate-slideUp"
+            role="dialog"
+            aria-label="Выбор категории"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Категория</h3>
+              <button
+                type="button"
+                onClick={() => setIsCategoryOpen(false)}
+                className="text-white/60 hover:text-white text-sm px-2 py-1"
+              >
+                Закрыть
+              </button>
+            </div>
+            <div className="space-y-1 max-h-[60vh] overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => { setCategoryFilter(null); setIsCategoryOpen(false); }}
+                className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-colors ${
+                  !categoryFilter ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/5'
+                }`}
+              >
+                Все категории
+              </button>
+              {availableCategories.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => { setCategoryFilter(c.id); setIsCategoryOpen(false); }}
+                  className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-colors ${
+                    categoryFilter === c.id ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/5'
+                  }`}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {selectedTicket !== null && (
         <TicketModal
