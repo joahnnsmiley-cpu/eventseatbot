@@ -88,7 +88,7 @@ export function getGoldToneFromStyleKey(styleKey: string | undefined): Record<st
 
 /** Default ticket categories for new events. IDs are stable for migration. */
 export const DEFAULT_TICKET_CATEGORIES: TicketCategory[] = [
-  { id: 'default-vip', name: 'VIP', price: 5000, description: '', styleKey: 'vip', isActive: true },
-  { id: 'default-gold', name: 'Gold', price: 3000, description: '', styleKey: 'gold', isActive: true },
-  { id: 'default-standard', name: 'Standard', price: 1500, description: '', styleKey: 'silver', isActive: true },
+  { id: 'default-vip', name: 'VIP', price: 5000, description: '', styleKey: 'vip', color_key: 'vip', isActive: true },
+  { id: 'default-gold', name: 'Gold', price: 3000, description: '', styleKey: 'gold', color_key: 'gold', isActive: true },
+  { id: 'default-standard', name: 'Standard', price: 1500, description: '', styleKey: 'silver', color_key: 'silver', isActive: true },
 ];

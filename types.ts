@@ -6,6 +6,8 @@ export interface TicketCategory {
   price: number;
   description: string;
   styleKey: string;
+  /** Color key from CATEGORY_COLORS (vip, gold, silver, bronze, emerald, sapphire). Stored instead of raw hex. */
+  color_key?: string;
   isActive: boolean;
 }
 

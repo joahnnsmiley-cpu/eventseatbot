@@ -2,8 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { TransformWrapper, TransformComponent, MiniMap } from 'react-zoom-pan-pinch';
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
-import { getGoldToneByCategory } from '../src/ui/theme';
-import { getGoldToneFromStyleKey } from '../constants/ticketStyles';
+import { getCategoryColor, resolveCategoryColorKey } from '../src/config/categoryColors';
 import { computeTableSizes } from '../src/ui/tableSizing';
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
@@ -262,21 +261,16 @@ const SeatMap: React.FC<SeatMapProps> = ({
           heightPercent: table.heightPercent,
         });
         const category = event?.ticketCategories?.find((c) => c.id === table.ticketCategoryId);
-        let tone: Record<string, string> | undefined;
-        if (category) {
-          tone = getGoldToneFromStyleKey(category.styleKey);
-        }
-        if (!tone) {
-          tone = getGoldToneByCategory(table.color);
-        }
+        const colorKey = category ? resolveCategoryColorKey(category) : 'gold';
+        const colorConfig = getCategoryColor(colorKey);
         const borderRadius = sizes.borderRadius === '50%' ? '50%' : 12;
         const shapeStyle = {
-          ...tone,
           width: sizes.width,
           height: sizes.height,
           borderRadius,
-          background: 'linear-gradient(145deg, var(--gold-light), var(--gold-base))',
-          border: '1.5px solid var(--gold-dark)',
+          background: colorConfig.gradient,
+          border: colorConfig.border,
+          boxShadow: colorConfig.glow,
         };
         const fontNumber = `${sizes.fontNumber}px`;
         const fontSub = `${sizes.fontSub}px`;

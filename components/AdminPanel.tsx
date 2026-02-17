@@ -18,7 +18,6 @@ import { CSS } from '@dnd-kit/utilities';
 import * as StorageService from '../services/storageService';
 import { EventData, Table } from '../types';
 import { UI_TEXT } from '../constants/uiText';
-import { getGoldToneByCategory } from '../src/ui/theme';
 import { computeTableSizes } from '../src/ui/tableSizing';
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
 import { TableNumber, SeatInfo } from './TableLabel';
@@ -28,7 +27,8 @@ import DangerButton from '../src/ui/DangerButton';
 import EventCard, { EventCardSkeleton } from './EventCard';
 import AdminCard from '../src/ui/AdminCard';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
-import { TICKET_STYLES, DEFAULT_TICKET_CATEGORIES, getGoldToneFromStyleKey } from '../constants/ticketStyles';
+import { DEFAULT_TICKET_CATEGORIES } from '../constants/ticketStyles';
+import { CATEGORY_COLORS, CATEGORY_COLOR_KEYS, getCategoryColor, resolveCategoryColorKey } from '../src/config/categoryColors';
 import type { TicketCategory } from '../types';
 
 type AdminBooking = {
@@ -1373,14 +1373,15 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 <div className="text-sm font-semibold mb-3">Категории билетов</div>
                 <div className="space-y-4">
                   {(selectedEvent?.ticketCategories ?? []).map((cat) => {
-                    const styleTokens = TICKET_STYLES[cat.styleKey as keyof typeof TICKET_STYLES] ?? TICKET_STYLES.gold;
+                    const colorKey = resolveCategoryColorKey(cat);
+                    const colorConfig = getCategoryColor(colorKey);
                     return (
                       <div key={cat.id} className="p-3 rounded-lg border border-[#2A2A2A] bg-[#141414] space-y-3">
                         <div className="flex items-center gap-2">
                           <div
                             className="w-6 h-6 rounded border border-[#2A2A2A] shrink-0"
-                            style={{ backgroundColor: styleTokens.base }}
-                            title={cat.styleKey}
+                            style={{ background: colorConfig.gradient }}
+                            title={colorConfig.label}
                           />
                           <input
                             type="text"
@@ -1470,30 +1471,39 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                             />
                           </div>
                           <div>
-                            <label className="text-xs text-[#6E6A64] block mb-1">Стиль</label>
-                            <select
-                              value={cat.styleKey}
-                              onChange={(e) => {
-                                const val = e.target.value as TicketCategory['styleKey'];
-                                setSelectedEvent((prev) =>
-                                  prev
-                                    ? {
-                                        ...prev,
-                                        ticketCategories: (prev.ticketCategories ?? []).map((c) =>
-                                          c.id === cat.id ? { ...c, styleKey: val } : c
-                                        ),
-                                      }
-                                    : null
+                            <label className="text-xs text-[#6E6A64] block mb-2">Цвет</label>
+                            <div className="grid grid-cols-3 gap-3">
+                              {CATEGORY_COLOR_KEYS.map((key) => {
+                                const config = CATEGORY_COLORS[key];
+                                const isSelected = (cat.color_key ?? cat.styleKey ?? 'gold') === key;
+                                return (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedEvent((prev) =>
+                                        prev
+                                          ? {
+                                              ...prev,
+                                              ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                                c.id === cat.id ? { ...c, color_key: key } : c
+                                              ),
+                                            }
+                                          : null
+                                      );
+                                    }}
+                                    className={`h-10 w-10 rounded-full transition-all hover:scale-105 ${
+                                      isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-[#141414]' : ''
+                                    }`}
+                                    style={{
+                                      background: config.gradient,
+                                      boxShadow: isSelected ? config.glow : 'none',
+                                    }}
+                                    title={config.label}
+                                  />
                                 );
-                              }}
-                              className="w-full border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
-                            >
-                              {(Object.keys(TICKET_STYLES) as (keyof typeof TICKET_STYLES)[]).map((k) => (
-                                <option key={k} value={k}>
-                                  {k}
-                                </option>
-                              ))}
-                            </select>
+                              })}
+                            </div>
                           </div>
                         </div>
                         <div>
@@ -1531,6 +1541,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       price: 1000,
                       description: '',
                       styleKey: 'gold',
+                      color_key: 'gold',
                       isActive: true,
                     };
                     setSelectedEvent((prev) =>
@@ -2007,9 +2018,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     const category = table.ticketCategoryId
                       ? (selectedEvent?.ticketCategories ?? []).find((c) => c.id === table.ticketCategoryId)
                       : null;
-                    const goldTone = category
-                      ? getGoldToneFromStyleKey(category.styleKey)
-                      : getGoldToneByCategory(table.color);
+                    const colorKey = category ? resolveCategoryColorKey(category) : 'gold';
+                    const colorConfig = getCategoryColor(colorKey);
                     const effectiveWidth =
                       layoutPreviewWidth && layoutPreviewWidth > 0
                         ? layoutPreviewWidth
@@ -2021,12 +2031,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     });
                     const borderRadius = sizes.borderRadius === '50%' ? '50%' : 12;
                     const shapeStyle = {
-                      ...goldTone,
                       width: sizes.width,
                       height: sizes.height,
                       borderRadius,
-                      background: 'linear-gradient(145deg, var(--gold-light), var(--gold-base))',
-                      border: '1.5px solid var(--gold-dark)',
+                      background: colorConfig.gradient,
+                      border: colorConfig.border,
+                      boxShadow: colorConfig.glow,
                     };
                     return (
                       <div
