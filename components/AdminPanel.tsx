@@ -672,8 +672,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     if (Array.isArray(b.seat_indices) && b.seat_indices.length > 0) {
       const sorted = [...b.seat_indices].sort((a, b) => a - b);
       const human = sorted.map((i) => i + 1);
-      if (human.length <= 5) return `Места: ${human.join(', ')}`;
-      return `${human.length} мест`;
+      return `Места: ${human.join(', ')}`;
     }
     const count = b.seats_booked ?? (Array.isArray(b.tableBookings) ? b.tableBookings.reduce((s, tb) => s + tb.seats, 0) : 0);
     if (typeof count === 'number' && count > 0) return `${count} ${count === 1 ? 'место' : 'мест'}`;

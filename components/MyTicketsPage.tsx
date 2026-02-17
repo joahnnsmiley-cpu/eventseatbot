@@ -23,6 +23,8 @@ type BookingItem = {
 type EventInfo = {
   title: string;
   date: string;
+  event_date?: string | null;
+  event_time?: string | null;
   tableNumber?: number;
   imageUrl?: string | null;
   tableIdToNumber?: Record<string, number>;
@@ -141,6 +143,8 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           infoMap[eventId] = {
             title: ev?.title ?? 'Событие',
             date: ev?.date ?? '',
+            event_date: (ev as any)?.event_date ?? null,
+            event_time: (ev as any)?.event_time ?? null,
             tableIdToNumber,
             categoryByTableId,
             imageUrl: ev?.imageUrl ?? ev?.coverImageUrl ?? null,
@@ -200,16 +204,28 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return typeof num === 'number' ? `Стол ${num}` : b.table_id;
   };
 
-  const parseDateAndTime = (s: string | null) => {
-    if (!s) return { date: '—', time: '' };
+  /** Format event date and time as "22 марта 2026 г., 17:00" */
+  const formatEventDateTime = (info: EventInfo | undefined): { date: string; time: string } => {
+    if (!info) return { date: '—', time: '' };
+    const eventDate = info.event_date;
+    const eventTime = info.event_time;
+    let d: Date;
+    if (eventDate) {
+      const combined = eventTime ? `${eventDate}T${eventTime}` : `${eventDate}T00:00`;
+      d = new Date(combined);
+    } else if (info.date) {
+      d = new Date(info.date);
+    } else {
+      return { date: '—', time: '' };
+    }
+    if (isNaN(d.getTime())) return { date: '—', time: '' };
     try {
-      const d = new Date(s);
-      return {
-        date: d.toLocaleDateString('ru-RU'),
-        time: d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
-      };
+      const dateStr = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+      const hasTime = eventTime || (info.date && info.date.includes('T'));
+      const timeStr = hasTime ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+      return { date: dateStr, time: timeStr };
     } catch {
-      return { date: s, time: '' };
+      return { date: '—', time: '' };
     }
   };
 
@@ -229,10 +245,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     }
     const sorted = [...seat_indices].sort((a, b) => a - b);
     const human = sorted.map((i) => i + 1);
-    if (human.length <= 5) {
-      return `Места: ${human.join(', ')}`;
-    }
-    return `${human.length} мест`;
+    return `Места: ${human.join(', ')}`;
   };
 
   const rawStatuses = React.useMemo(() => {
@@ -332,7 +345,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           >
             {filteredBookings.map((b) => {
               const info = eventInfoMap[b.event_id];
-              const { date, time } = parseDateAndTime(info?.date ?? b.created_at);
+              const { date, time } = formatEventDateTime(info);
               const seatLabel = formatSeatLabel(b.seat_indices, b.seats_booked);
               const canPay = PAYABLE_STATUSES.includes(b.status) && !isExpired(b.expires_at);
               return (

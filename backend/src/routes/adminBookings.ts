@@ -13,13 +13,23 @@ const router = Router();
 
 router.use(authMiddleware, adminOnly);
 
+/** Format seats for ticket/card: seat_indices as "1, 2, 3" (human 1-based). Fallback to count for table-only. */
+function formatSeatsForTicket(booking: { seatIndices?: number[]; seatsBooked?: number; tableBookings?: { seats: number }[] }): string {
+  if (Array.isArray(booking.seatIndices) && booking.seatIndices.length > 0) {
+    const sorted = [...booking.seatIndices].sort((a, b) => a - b);
+    return sorted.map((i) => i + 1).join(', ');
+  }
+  const count = booking.seatsBooked ?? booking.tableBookings?.[0]?.seats ?? 0;
+  return String(count);
+}
+
 /** Fire-and-forget: generate ticket PNG, save URL, send to user. Does not block confirm. */
 async function generateAndSendTicket(booking: Booking): Promise<void> {
   try {
     const ev = (await db.findEventById(booking.eventId)) as { imageUrl?: string; event_date?: string; event_time?: string; title?: string; tables?: { id: string; number: number }[] } | null;
     const tbl = ev?.tables?.find((t) => t.id === booking.tableId);
     const tableNumber = tbl?.number ?? booking.tableId ?? '—';
-    const seats = booking.seatsBooked ?? booking.tableBookings?.[0]?.seats ?? 0;
+    const seats = formatSeatsForTicket(booking);
 
     const ticketUrl = await generateTicket({
       templateUrl: (ev as any)?.ticketTemplateUrl ?? ev?.imageUrl ?? '',
@@ -215,6 +225,7 @@ router.patch('/bookings/:id/confirm', async (req: Request, res: Response) => {
       status: 'paid',
       createdAt: Date.now(),
     };
+    if (Array.isArray(updated.seat_indices)) bookingForTicket.seatIndices = updated.seat_indices;
     if (updated.seats_booked != null) bookingForTicket.seatsBooked = updated.seats_booked;
     if (updated.table_id && updated.seats_booked != null) {
       bookingForTicket.tableBookings = [{ tableId: updated.table_id, seats: updated.seats_booked }];

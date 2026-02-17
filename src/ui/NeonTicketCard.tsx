@@ -32,50 +32,56 @@ export default function NeonTicketCard({
   onClick,
 }: NeonTicketCardProps) {
   const { label, className } = statusConfig[status] ?? statusConfig.reserved;
+  const hasTicket = Boolean(ticketImageUrl);
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="relative w-full text-left rounded-2xl overflow-hidden bg-black border border-white/10 ring-1 ring-white/10"
+      className={`relative w-full text-left rounded-2xl overflow-hidden bg-black border border-white/10 ring-1 ring-white/10 ${hasTicket ? 'aspect-[2/1] min-h-[180px]' : ''}`}
     >
-      {posterImageUrl && (
+      {hasTicket ? (
         <>
           <img
-            src={posterImageUrl}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover brightness-90"
+            src={ticketImageUrl}
+            alt="Билет"
+            className="absolute inset-0 w-full h-full object-contain"
             loading="lazy"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+          <div className="absolute top-3 right-3">
+            <span className={`text-xs px-2 py-1 rounded shrink-0 ${className}`}>{label}</span>
+          </div>
+        </>
+      ) : (
+        <>
+          {posterImageUrl && (
+            <>
+              <img
+                src={posterImageUrl}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover brightness-90"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+            </>
+          )}
+          {!posterImageUrl && <div className="absolute inset-0 bg-black" />}
+          <div className="relative z-10 p-4">
+            <div className="flex items-start justify-between mb-4">
+              <h3 className="text-lg font-bold text-white pr-2">{eventTitle}</h3>
+              <span className={`text-xs px-2 py-1 rounded shrink-0 ${className}`}>{label}</span>
+            </div>
+            <div className="text-[#FFC107] text-sm mb-3">
+              {date}{time ? `, ${time}` : ''}
+            </div>
+            <div className="h-px bg-white/10 mb-4" />
+            <div className="text-xs text-muted-light">
+              <div>{tableLabel}</div>
+              <div>{seatLabel}</div>
+            </div>
+          </div>
         </>
       )}
-      {!posterImageUrl && <div className="absolute inset-0 bg-black" />}
-      <div className="relative z-10 p-4">
-        <div className="flex items-start justify-between mb-4">
-          <h3 className="text-lg font-bold text-white pr-2">{eventTitle}</h3>
-          <span className={`text-xs px-2 py-1 rounded shrink-0 ${className}`}>{label}</span>
-        </div>
-        <div className="text-[#FFC107] text-sm mb-3">
-          {date} {time && `• ${time}`}
-        </div>
-        <div className="h-px bg-white/10 mb-4" />
-        <div className="flex items-end justify-between">
-          <div className="text-xs text-muted-light">
-            <div>{tableLabel}</div>
-            <div>{seatLabel}</div>
-          </div>
-          {ticketImageUrl ? (
-            <img
-              src={ticketImageUrl}
-              alt="Билет"
-              className="w-16 h-16 rounded-lg object-cover shrink-0 border border-white/20"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-lg bg-gray-700/50 shrink-0" />
-          )}
-        </div>
-      </div>
     </button>
   );
 }

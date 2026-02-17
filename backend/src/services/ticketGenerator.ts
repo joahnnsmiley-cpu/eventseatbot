@@ -47,9 +47,9 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
         .resize({ width: 1200 })
         .toBuffer();
 
-      const meta = await sharp(resized).metadata();
-      width = meta.width ?? 1200;
-      height = meta.height ?? 600;
+      const metadata = await sharp(resized).metadata();
+      width = metadata.width ?? 1200;
+      height = metadata.height ?? 600;
       templateBase64 = resized.toString('base64');
     } else {
       // Fallback: solid background
@@ -86,10 +86,11 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
     const qrBuffer = await QRCode.toBuffer(qrUrl, { width: 200 });
     const qrBase64 = qrBuffer.toString('base64');
 
-    // Coordinates (tune if needed)
+    // Coordinates: dynamic based on template height
     const centerX = 950;
-    const tableY = 470;
-    const seatsY = 520;
+    const tableY = height - 330;
+    const seatsY = height - 280;
+    const qrY = height - 220;
 
     const svg = `
       <svg width="${width}" height="${height}">
@@ -115,7 +116,7 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
 
         <image href="data:image/png;base64,${qrBase64}"
           x="${centerX - 90}"
-          y="${height - 200}"
+          y="${qrY}"
           width="180"
           height="180"
         />
