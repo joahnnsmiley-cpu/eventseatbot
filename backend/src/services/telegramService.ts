@@ -1,14 +1,15 @@
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const ADMIN_IDS = (process.env.ADMINS_ID ?? '')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
+const ADMIN_IDS = process.env.ADMINS_IDS
+  ? process.env.ADMINS_IDS.split(',').map((id) => id.trim()).filter(Boolean)
+  : [];
+
+console.log('Admin IDs:', ADMIN_IDS);
 
 export async function sendTelegramMessage(chatId: string | number, text: string): Promise<void> {
   if (!BOT_TOKEN) return;
 
   try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -17,6 +18,9 @@ export async function sendTelegramMessage(chatId: string | number, text: string)
         parse_mode: 'HTML',
       }),
     });
+    if (res.status === 403) {
+      console.warn('[Telegram] 403 Forbidden — admin may not have started the bot. Chat ID:', chatId);
+    }
   } catch (error) {
     console.error('Telegram send error:', error);
   }
@@ -24,6 +28,7 @@ export async function sendTelegramMessage(chatId: string | number, text: string)
 
 export async function notifyAdmins(text: string): Promise<void> {
   for (const adminId of ADMIN_IDS) {
+    console.log('Sending admin notification to:', adminId);
     try {
       await sendTelegramMessage(adminId, text);
     } catch (error) {

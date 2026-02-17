@@ -11,6 +11,7 @@ import publicEventsRouter from './routes/publicEvents';
 import publicPaymentsRouter from './routes/publicPayments';
 import adminPaymentsRouter from './routes/adminPayments';
 import debugRouter from './routes/debug-routes';
+import { notifyAdmins } from './services/telegramService';
 import { authMiddleware } from './auth/auth.middleware';
 import 'dotenv/config';
 import authRoutes from './auth/auth.routes';
@@ -209,6 +210,17 @@ app.use('/admin', adminPaymentsRouter);
 app.use('/public', publicEventsRouter);
 app.use('/public', publicPaymentsRouter);
 app.use('/debug', debugRouter);
+
+// Temporary test: GET /test-admin-notify — calls notifyAdmins("Test message")
+app.get('/test-admin-notify', async (_req, res) => {
+  try {
+    await notifyAdmins('Test message');
+    res.json({ ok: true, message: 'notifyAdmins called' });
+  } catch (err) {
+    console.error('[test-admin-notify]', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
 
 // NOTE: seat reservation expiry is handled by the booking expiration job
 // which moves reserved seats back to available when bookings expire.
