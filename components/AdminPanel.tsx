@@ -117,6 +117,137 @@ function validateTableNumbers(tables: Table[]): string | null {
   return null;
 }
 
+/** Accordion section — defined outside AdminPanel to avoid remount on parent re-render (fixes scroll jump). */
+const AccordionSection = React.memo(function AccordionSection({
+  title,
+  sectionKey,
+  children,
+  dirtyIndicator,
+  dragHandle,
+  openSections,
+  toggleSection,
+  sectionRefs,
+  isDirty,
+}: {
+  title: string;
+  sectionKey: string;
+  children: React.ReactNode;
+  dirtyIndicator?: boolean;
+  dragHandle?: React.ReactNode;
+  openSections: string[];
+  toggleSection: (key: string) => void;
+  sectionRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
+  isDirty: boolean;
+}) {
+  const isOpen = openSections.includes(sectionKey);
+  return (
+    <div
+      ref={(el) => { sectionRefs.current[sectionKey] = el; }}
+      className="relative border border-white/10 rounded-2xl mb-4 bg-[#121212] overflow-hidden"
+    >
+      <div className="sticky top-0 z-20 bg-[#121212] border-b border-white/5">
+        <button
+          type="button"
+          onClick={() => toggleSection(sectionKey)}
+          className="w-full flex items-center justify-between px-4 py-4 text-left hover:bg-white/5 transition"
+        >
+          <span className="font-semibold text-white flex items-center gap-2">
+            {dragHandle}
+            {title}
+            {dirtyIndicator && isDirty && (
+              <span className="ml-2 text-xs text-[#FFC107]">●</span>
+            )}
+          </span>
+          <motion.span
+            animate={{ rotate: isOpen ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+            className="text-[#C6A75E]"
+          >
+            ▼
+          </motion.span>
+        </button>
+      </div>
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+});
+
+/** Sortable section wrapper — defined outside AdminPanel to avoid remount on parent re-render. */
+function SortableSectionInner({
+  id,
+  title,
+  sectionKey,
+  dirtyIndicator,
+  children,
+  openSections,
+  toggleSection,
+  sectionRefs,
+  isDirty,
+}: {
+  id: string;
+  title: string;
+  sectionKey: string;
+  dirtyIndicator?: boolean;
+  children: React.ReactNode;
+  openSections: string[];
+  toggleSection: (key: string) => void;
+  sectionRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
+  isDirty: boolean;
+}) {
+  const {
+    setNodeRef,
+    setActivatorNodeRef,
+    listeners,
+    attributes,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className={isDragging ? 'opacity-50' : ''}>
+      <AccordionSection
+        title={title}
+        sectionKey={sectionKey}
+        dirtyIndicator={dirtyIndicator}
+        dragHandle={
+          <span
+            ref={setActivatorNodeRef}
+            {...listeners}
+            {...attributes}
+            className="cursor-grab active:cursor-grabbing text-[#6E6A64] text-lg px-1 select-none"
+            title="Перетащить"
+            onClick={(e) => e.stopPropagation()}
+          >
+            ☰
+          </span>
+        }
+        openSections={openSections}
+        toggleSection={toggleSection}
+        sectionRefs={sectionRefs}
+        isDirty={isDirty}
+      >
+        {children}
+      </AccordionSection>
+    </div>
+  );
+}
+
 /** Validate rect tables: width_percent > 0, height_percent > 0, rotation in [-180, 180]. Returns error or null. */
 function validateRectTables(tables: Table[]): string | null {
   for (const t of tables) {
@@ -240,129 +371,21 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   }, [isDirty]);
 
 
-  const toggleSection = (key: string) => {
-    const isOpening = !openSections.includes(key);
-    setOpenSections((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-    );
-    if (isOpening) {
-      setTimeout(() => {
-        const el = sectionRefs.current[key];
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 50);
-    }
-  };
-
-  const AccordionSection = ({
-    title,
-    sectionKey,
-    children,
-    dirtyIndicator,
-    dragHandle,
-  }: {
-    title: string;
-    sectionKey: string;
-    children: React.ReactNode;
-    dirtyIndicator?: boolean;
-    dragHandle?: React.ReactNode;
-  }) => {
-    const isOpen = openSections.includes(sectionKey);
-    return (
-      <div
-        ref={(el) => { sectionRefs.current[sectionKey] = el; }}
-        className="relative border border-white/10 rounded-2xl mb-4 bg-[#121212] overflow-hidden"
-      >
-        <div className="sticky top-0 z-20 bg-[#121212] border-b border-white/5">
-          <button
-            type="button"
-            onClick={() => toggleSection(sectionKey)}
-            className="w-full flex items-center justify-between px-4 py-4 text-left hover:bg-white/5 transition"
-          >
-            <span className="font-semibold text-white flex items-center gap-2">
-              {dragHandle}
-              {title}
-              {dirtyIndicator && isDirty && (
-                <span className="ml-2 text-xs text-[#FFC107]">●</span>
-              )}
-            </span>
-            <motion.span
-              animate={{ rotate: isOpen ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-              className="text-[#C6A75E]"
-            >
-              ▼
-            </motion.span>
-          </button>
-        </div>
-        <AnimatePresence initial={false}>
-          {isOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="px-4 pb-4">{children}</div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    );
-  };
-
-  const SortableSection = ({
-    id,
-    title,
-    sectionKey,
-    dirtyIndicator,
-    children,
-  }: {
-    id: string;
-    title: string;
-    sectionKey: string;
-    dirtyIndicator?: boolean;
-    children: React.ReactNode;
-  }) => {
-    const {
-      setNodeRef,
-      setActivatorNodeRef,
-      listeners,
-      attributes,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id });
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-    };
-    return (
-      <div ref={setNodeRef} style={style} className={isDragging ? 'opacity-50' : ''}>
-        <AccordionSection
-          title={title}
-          sectionKey={sectionKey}
-          dirtyIndicator={dirtyIndicator}
-          dragHandle={
-            <span
-              ref={setActivatorNodeRef}
-              {...listeners}
-              {...attributes}
-              className="cursor-grab active:cursor-grabbing text-[#6E6A64] text-lg px-1 select-none"
-              title="Перетащить"
-              onClick={(e) => e.stopPropagation()}
-            >
-              ☰
-            </span>
+  const toggleSection = useCallback((key: string) => {
+    setOpenSections((prev) => {
+      const isOpening = !prev.includes(key);
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
+      if (isOpening) {
+        setTimeout(() => {
+          const el = sectionRefs.current[key];
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }
-        >
-          {children}
-        </AccordionSection>
-      </div>
-    );
-  };
+        }, 50);
+      }
+      return next;
+    });
+  }, []);
 
   const eventTabsVisible = mode === 'layout' && hasEvents && !eventsLoading;
   const eventTabKeys = useMemo(() => ['published', 'draft', 'archived', 'deleted'] as const, []);
@@ -1256,7 +1279,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
                   {sectionOrder.map((key) => {
                     if (key === 'basic') return (
-                      <SortableSection key="basic" id="basic" title="Основная информация" sectionKey="basic" dirtyIndicator>
+                      <SortableSectionInner key="basic" id="basic" title="Основная информация" sectionKey="basic" dirtyIndicator openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
                 <div className="space-y-4">
                   <div>
                     <div className="text-sm font-semibold mb-1">{UI_TEXT.event.title}</div>
@@ -1366,10 +1389,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     {posterUploadError && <div className="text-xs text-[#6E6A64] mt-1">{posterUploadError}</div>}
                   </div>
                 </div>
-                      </SortableSection>
+                      </SortableSectionInner>
                     );
                     if (key === 'categories') return (
-                      <SortableSection key="categories" id="categories" title={`Категории (${selectedEvent?.ticketCategories?.length ?? 0})`} sectionKey="categories">
+                      <SortableSectionInner key="categories" id="categories" title={`Категории (${selectedEvent?.ticketCategories?.length ?? 0})`} sectionKey="categories" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
                 <div className="text-sm font-semibold mb-3">Категории билетов</div>
                 <div className="space-y-4">
                   {(selectedEvent?.ticketCategories ?? []).map((cat) => {
@@ -1557,10 +1580,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 >
                   + Добавить категорию
                 </PrimaryButton>
-                      </SortableSection>
+                      </SortableSectionInner>
                     );
                     if (key === 'publish') return (
-                      <SortableSection key="publish" id="publish" title="Публикация" sectionKey="publish">
+                      <SortableSectionInner key="publish" id="publish" title="Публикация" sectionKey="publish" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm text-[#6E6A64]">{UI_TEXT.admin.statusLabel}</span>
                   <span className="px-2 py-1 text-xs rounded-md bg-[#1A1A1A] text-[#C6A75E] border border-[#2A2A2A]">
@@ -1689,10 +1712,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     </button>
                   </div>
                 )}
-                      </SortableSection>
+                      </SortableSectionInner>
                     );
                     if (key === 'tables') return (
-                      <SortableSection key="tables" id="tables" title={`Столы (${selectedEvent?.tables?.length ?? 0})`} sectionKey="tables">
+                      <SortableSectionInner key="tables" id="tables" title={`Столы (${selectedEvent?.tables?.length ?? 0})`} sectionKey="tables" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
                 <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-semibold">{UI_TEXT.tables.tables}</div>
@@ -1928,10 +1951,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   </div>
                 ))}
                 </div>
-                      </SortableSection>
+                      </SortableSectionInner>
                     );
                     if (key === 'layout') return (
-                      <SortableSection key="layout" id="layout" title="План зала" sectionKey="layout">
+                      <SortableSectionInner key="layout" id="layout" title="План зала" sectionKey="layout" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
                 <div>
                 <div className="text-sm font-semibold mb-1">{UI_TEXT.tables.layoutImageUrl}</div>
                 <input
@@ -2062,7 +2085,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   {UI_TEXT.tables.layoutHint}
                 </div>
               </div>
-                      </SortableSection>
+                      </SortableSectionInner>
                     );
                     return null;
                   })}
