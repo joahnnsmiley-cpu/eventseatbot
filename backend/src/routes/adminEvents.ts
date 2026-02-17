@@ -289,10 +289,10 @@ router.post('/events/:id/upload-ticket-template', upload.single('file'), async (
   }
 
   const ext = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/jpeg' ? 'jpg' : 'webp';
-  const path = `${id}.${ext}`;
+  const path = `ticket-templates/${id}.${ext}`;
 
   try {
-    const { data: uploadData, error } = await supabase.storage.from('ticket-templates').upload(path, file.buffer, {
+    const { data: uploadData, error } = await supabase.storage.from('tickets').upload(path, file.buffer, {
       contentType: file.mimetype,
       upsert: true,
     });
@@ -300,7 +300,7 @@ router.post('/events/:id/upload-ticket-template', upload.single('file'), async (
       console.error('[upload-ticket-template]', error);
       return res.status(500).json({ error: error.message });
     }
-    const { data: urlData } = supabase.storage.from('ticket-templates').getPublicUrl(uploadData.path);
+    const { data: urlData } = supabase.storage.from('tickets').getPublicUrl(uploadData.path);
     const publicUrl = urlData.publicUrl;
 
     const { error: updateErr } = await supabase
