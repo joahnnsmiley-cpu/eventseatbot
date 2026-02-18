@@ -279,16 +279,30 @@ const SeatMap: React.FC<SeatMapProps> = ({
         });
         const category = event?.ticketCategories?.find((c) => c.id === table.ticketCategoryId);
         const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
-        const shapeStyle = {
-          width: '100%',
-          height: '100%',
-          borderRadius,
-          background: 'linear-gradient(145deg, #1b1b1b, #111111)',
-          border: palette?.border ?? '1.5px solid #3a3a3a',
-          boxShadow: palette?.glow
-            ? `${palette.glow}, 0 0 12px rgba(0,0,0,0.6)`
-            : '0 0 8px rgba(0,0,0,0.6)',
-        };
+        const background = palette
+          ? `radial-gradient(circle at 35% 30%, ${(palette as { soft?: string }).soft ?? palette.base}55, transparent 70%), linear-gradient(145deg, #1b1b1b, #0f0f0f)`
+          : 'linear-gradient(145deg, #1b1b1b, #0f0f0f)';
+        const border = palette ? palette.border.replace('1.5px', '2px') : '1.5px solid #3a3a3a';
+        const boxShadow = palette
+          ? `0 0 18px ${(palette as { glowColor?: string }).glowColor ?? 'rgba(198,167,94,0.5)'}, inset 0 0 8px rgba(255,255,255,0.05)`
+          : '0 0 8px rgba(0,0,0,0.6)';
+        const shapeStyle: React.CSSProperties = isCircle
+          ? {
+              width: '100%',
+              aspectRatio: '1 / 1',
+              borderRadius: '50%',
+              background,
+              border,
+              boxShadow,
+            }
+          : {
+              width: '100%',
+              height: '100%',
+              borderRadius,
+              background,
+              border,
+              boxShadow,
+            };
         const hasSelectedSeats = (selectedSeatsByTable?.[table.id]?.length ?? 0) > 0;
         const wrapperStyle: React.CSSProperties = {
           position: 'absolute',
