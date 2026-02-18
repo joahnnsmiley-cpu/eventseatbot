@@ -300,8 +300,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     hasInitializedRef.current = true;
   }, [selectedEvent?.id]);
 
+  const [layoutScale, setLayoutScale] = useState(1);
   const layoutPreviewRef = useRef<HTMLDivElement>(null);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const pinchRef = useRef<{ initialDistance: number; initialScale: number } | null>(null);
+  const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const zoomContainerRef = useRef<HTMLDivElement | null>(null);
+  const [zoomContainerEl, setZoomContainerEl] = useState<HTMLDivElement | null>(null);
   const eventTabsScrollRef = useRef<HTMLDivElement>(null);
   const eventTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -334,6 +339,17 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
+  useEffect(() => {
+    const el = zoomContainerEl;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = -e.deltaY * 0.001;
+      setLayoutScale((prev) => Math.min(Math.max(prev + delta, 0.5), 3));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [zoomContainerEl]);
 
   const toggleSection = useCallback((key: string) => {
     setOpenSections((prev) => {
@@ -1805,49 +1821,104 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               </div>
 
                 <div>
-                <div className="text-sm font-semibold mb-2">{UI_TEXT.tables.layoutPreview}</div>
+                <div className="text-sm font-semibold mb-2 flex items-center justify-between gap-2">
+                  <span>{UI_TEXT.tables.layoutPreview}</span>
+                  {layoutScale !== 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setLayoutScale(1)}
+                      className="text-xs text-[#C6A75E] hover:underline"
+                    >
+                      Сбросить масштаб
+                    </button>
+                  )}
+                </div>
                 <div
-                  ref={layoutPreviewRef}
-                  className="border border-[#242424] rounded-xl bg-[#111111] cursor-crosshair"
-                  style={{
-                    position: 'relative',
-                    width: '100%',
-                    maxWidth: 600,
-                    margin: '0 auto',
+                  ref={(el) => {
+                    zoomContainerRef.current = el;
+                    setZoomContainerEl(el);
                   }}
+                  style={{ overflow: 'hidden', touchAction: 'none' }}
                   onPointerDown={(e) => {
-                    pointerStartRef.current = { x: e.clientX, y: e.clientY };
+                    const id = e.pointerId;
+                    activePointersRef.current.set(id, { x: e.clientX, y: e.clientY });
+                    if (activePointersRef.current.size === 2) {
+                      const [a, b] = Array.from(activePointersRef.current.values());
+                      const dist = Math.hypot(b.x - a.x, b.y - a.y);
+                      pinchRef.current = { initialDistance: dist, initialScale: layoutScale };
+                      pointerStartRef.current = null;
+                    } else if (activePointersRef.current.size > 2) {
+                      pinchRef.current = null;
+                    }
+                    if (!pinchRef.current) pointerStartRef.current = { x: e.clientX, y: e.clientY };
+                  }}
+                  onPointerMove={(e) => {
+                    const id = e.pointerId;
+                    const state = pinchRef.current;
+                    if (!state || activePointersRef.current.size !== 2) return;
+                    activePointersRef.current.set(id, { x: e.clientX, y: e.clientY });
+                    if (activePointersRef.current.size !== 2) return;
+                    const [a, b] = Array.from(activePointersRef.current.values());
+                    const newDist = Math.hypot(b.x - a.x, b.y - a.y);
+                    const ratio = newDist / state.initialDistance;
+                    const next = Math.min(Math.max(state.initialScale * ratio, 0.5), 3);
+                    setLayoutScale(next);
                   }}
                   onPointerUp={(e) => {
-                    console.log('POINTER UP TRIGGERED');
+                    const id = e.pointerId;
+                    activePointersRef.current.delete(id);
+                    if (activePointersRef.current.size < 2) pinchRef.current = null;
+                    if (pinchRef.current) return;
                     if (!pointerStartRef.current) return;
                     const dx = Math.abs(e.clientX - pointerStartRef.current.x);
                     const dy = Math.abs(e.clientY - pointerStartRef.current.y);
                     pointerStartRef.current = null;
                     if (dx > 5 || dy > 5) return;
+                    const target = e.target as HTMLElement;
+                    if (target.closest('[data-table-id]')) return;
                     const rect = layoutPreviewRef.current?.getBoundingClientRect();
                     if (!rect) return;
                     const percentX = ((e.clientX - rect.left) / rect.width) * 100;
                     const percentY = ((e.clientY - rect.top) / rect.height) * 100;
                     addTable(percentX, percentY);
                   }}
+                  onPointerCancel={(e) => {
+                    activePointersRef.current.delete(e.pointerId);
+                    if (activePointersRef.current.size < 2) pinchRef.current = null;
+                  }}
                 >
-                  {layoutUrl ? (
-                    <img
-                      src={layoutUrl}
-                      alt=""
+                  <div
+                    style={{
+                      transform: `scale(${layoutScale})`,
+                      transformOrigin: 'center center',
+                    }}
+                  >
+                    <div
+                      ref={layoutPreviewRef}
+                      className="border border-[#242424] rounded-xl bg-[#111111] cursor-crosshair"
                       style={{
+                        position: 'relative',
                         width: '100%',
-                        height: 'auto',
-                        display: 'block',
+                        maxWidth: 600,
+                        margin: '0 auto',
                       }}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center py-12 text-xs text-muted">
-                      {UI_TEXT.tables.noLayoutImage}
-                    </div>
-                  )}
-                  <AdminTablesLayer
+                    >
+                      {layoutUrl ? (
+                        <img
+                          src={layoutUrl}
+                          alt=""
+                          style={{
+                            width: '100%',
+                            height: 'auto',
+                            display: 'block',
+                          }}
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center py-12 text-xs text-muted">
+                          {UI_TEXT.tables.noLayoutImage}
+                        </div>
+                      )}
+                      <AdminTablesLayer
                         tables={tables}
                         ticketCategories={selectedEvent?.ticketCategories ?? []}
                         selectedTableId={selectedTableId}
@@ -1855,6 +1926,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         onTablesChange={(updater) => setTables(updater)}
                         onTableDelete={deleteTable}
                       />
+                    </div>
+                  </div>
                 </div>
                 <div className="text-xs text-muted mt-2">
                   {UI_TEXT.tables.layoutHint}
