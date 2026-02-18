@@ -311,7 +311,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     }
   }, [selectedEvent, tables.length]);
 
-  const [layoutPreviewRef, layoutPreviewWidth] = useContainerWidth<HTMLDivElement>();
+  const [layoutPreviewRef] = useContainerWidth<HTMLDivElement>();
   const eventTabsScrollRef = useRef<HTMLDivElement>(null);
   const eventTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -1812,35 +1812,45 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 <div>
                 <div className="text-sm font-semibold mb-2">{UI_TEXT.tables.layoutPreview}</div>
                 {/* Layout container: max-w-[420px], direct manipulation */}
-                <div className="max-w-[420px] mx-auto relative">
-                  <div
-                    ref={layoutPreviewRef}
-                    className="relative w-full border border-[#242424] rounded-xl bg-[#111111] overflow-hidden cursor-crosshair"
-                    style={{
-                      position: 'relative',
-                      width: '100%',
-                      aspectRatio: layoutAspectRatio ?? 16 / 9,
-                      minHeight: layoutAspectRatio == null ? '18rem' : undefined,
-                      padding: 0,
-                      backgroundImage: layoutUrl ? `url(${layoutUrl})` : 'none',
-                      backgroundSize: '100% 100%',
-                      backgroundRepeat: 'no-repeat',
-                      backgroundPosition: 'top left',
-                    }}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest('.table-wrapper')) return;
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const x = ((e.clientX - rect.left) / rect.width) * 100;
-                      const y = ((e.clientY - rect.top) / rect.height) * 100;
-                      addTable(x, y);
-                    }}
-                  >
-                    {!layoutUrl && (
-                      <div className="absolute inset-0 flex items-center justify-center text-xs text-muted pointer-events-none">
-                        {UI_TEXT.tables.noLayoutImage}
-                      </div>
-                    )}
-                    <AdminTablesLayer
+                <div
+                  ref={layoutPreviewRef}
+                  className="border border-[#242424] rounded-xl bg-[#111111] overflow-hidden cursor-crosshair"
+                  style={{
+                    position: 'relative',
+                    width: '100%',
+                    maxWidth: 420,
+                    aspectRatio: layoutAspectRatio ?? 16 / 9,
+                    minHeight: layoutAspectRatio == null ? '18rem' : undefined,
+                    margin: '0 auto',
+                    padding: 0,
+                  }}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('.table-wrapper')) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const percentX = ((e.clientX - rect.left) / rect.width) * 100;
+                    const percentY = ((e.clientY - rect.top) / rect.height) * 100;
+                    addTable(percentX, percentY);
+                  }}
+                >
+                  {layoutUrl ? (
+                    <img
+                      src={layoutUrl}
+                      alt=""
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-xs text-muted pointer-events-none">
+                      {UI_TEXT.tables.noLayoutImage}
+                    </div>
+                  )}
+                  <AdminTablesLayer
                         tables={tables}
                         ticketCategories={selectedEvent?.ticketCategories ?? []}
                         selectedTableId={selectedTableId}
@@ -1848,7 +1858,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         onTablesChange={(updater) => setTables(updater)}
                         onTableDelete={deleteTable}
                       />
-                  </div>
                 </div>
                 <div className="text-xs text-muted mt-2">
                   {UI_TEXT.tables.layoutHint}

@@ -3,7 +3,6 @@ import { TransformWrapper, TransformComponent, MiniMap } from 'react-zoom-pan-pi
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
 import { CATEGORY_COLORS, resolveCategoryColorKey } from '../src/config/categoryColors';
-import { computeTableSizes } from '../src/ui/tableSizing';
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
 import { TableNumber, SeatInfo } from './TableLabel';
@@ -85,7 +84,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
   const selectedSet = new Set(selectedSeats);
   const layoutImageUrl = (event?.layout_image_url ?? event?.layoutImageUrl ?? '').trim();
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
-  const [layoutRef, layoutWidth] = useContainerWidth<HTMLDivElement>();
+  const [layoutRef] = useContainerWidth<HTMLDivElement>();
   const zoomApiRef = useRef<{ zoomToElement?: (el: HTMLElement | string, scale?: number, time?: number, easing?: string) => void; centerView?: (scale?: number, time?: number, easing?: string) => void }>({});
   const hasAutoZoomedRef = useRef(false);
 
@@ -152,9 +151,13 @@ const SeatMap: React.FC<SeatMapProps> = ({
       ref={layoutRef}
       className="relative w-full overflow-hidden rounded-2xl"
       style={{
+        position: 'relative',
         width: '100%',
+        maxWidth: 420,
         aspectRatio: layoutAspectRatio ?? 16 / 9,
         minHeight: layoutAspectRatio == null ? '18rem' : undefined,
+        margin: '0 auto',
+        overflow: 'hidden',
         boxShadow: 'inset 0 0 40px rgba(0,0,0,0.6)',
       }}
     >
@@ -194,8 +197,15 @@ const SeatMap: React.FC<SeatMapProps> = ({
                     <img
                       src={layoutImageUrl}
                       alt=""
-                      className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                      style={{ position: 'absolute', zIndex: 0 }}
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        pointerEvents: 'none',
+                        zIndex: 0,
+                      }}
                     />
                   )}
                   {totalSeats > 0 && (
@@ -250,29 +260,24 @@ const SeatMap: React.FC<SeatMapProps> = ({
           {UI_TEXT.seatMap.noTablesYet}
         </div>
       )}
-      {layoutWidth > 0 && mappedTables.map((table) => {
+      {mappedTables.map((table) => {
         const isAvailableForSale = table.isAvailable === true;
         const isSoldOut = !isEditable && table.seatsAvailable === 0;
         const isTableDisabled = !isEditable && (!isAvailableForSale || isSoldOut);
         const isSelected = selectedTableId === table.id;
-        const sizes = computeTableSizes(layoutWidth, {
-          sizePercent: table.sizePercent,
-          widthPercent: table.widthPercent,
-          heightPercent: table.heightPercent,
-        });
+        const widthPct = table.widthPercent ? `${table.widthPercent}%` : `${table.sizePercent ?? 6}%`;
+        const heightPct = table.heightPercent ? `${table.heightPercent}%` : `${table.sizePercent ?? 6}%`;
+        const borderRadius = table.widthPercent && table.heightPercent ? 12 : '50%';
         const category = event?.ticketCategories?.find((c) => c.id === table.ticketCategoryId);
         const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
-        const borderRadius = sizes.borderRadius === '50%' ? '50%' : 12;
         const shapeStyle = {
-          width: sizes.width,
-          height: sizes.height,
+          width: '100%',
+          height: '100%',
           borderRadius,
           background: palette?.gradient ?? '#2a2a2a',
           border: palette?.border ?? '1.5px solid #3a3a3a',
           boxShadow: palette?.glow ?? 'none',
         };
-        const fontNumber = `${sizes.fontNumber}px`;
-        const fontSub = `${sizes.fontSub}px`;
         const hasSelectedSeats = (selectedSeatsByTable?.[table.id]?.length ?? 0) > 0;
         return (
           <div
@@ -283,11 +288,14 @@ const SeatMap: React.FC<SeatMapProps> = ({
               position: 'absolute',
               left: `${table.centerX}%`,
               top: `${table.centerY}%`,
-              transform: `translate(-50%, -50%) rotate(${table.rotationDeg}deg)`,
+              width: widthPct,
+              height: heightPct,
+              transform: `translate(-50%, -50%) rotate(${table.rotationDeg ?? 0}deg)`,
               transformOrigin: 'center',
               cursor: isTableDisabled ? 'not-allowed' : 'pointer',
               opacity: totalSeats > 0 ? (hasSelectedSeats ? 1 : 0.7) : 1,
               transition: 'opacity 0.2s',
+              pointerEvents: 'auto',
             }}
             onClick={(e) => {
                 if (isTableDisabled) return;
@@ -298,10 +306,12 @@ const SeatMap: React.FC<SeatMapProps> = ({
                 if (onTableSelect) onTableSelect(table.id);
               }}
           >
-              <div className="table-shape table-shape-gold" style={shapeStyle} />
-              <div className="table-label">
-                <TableNumber number={table.number ?? 0} fontSize={fontNumber} />
-                <SeatInfo available={table.seatsAvailable} total={table.seatsTotal} fontSize={fontSub} />
+              <div className="relative w-full h-full">
+                <div className="table-shape table-shape-gold" style={shapeStyle} />
+              </div>
+              <div className="table-label" style={{ fontSize: 'clamp(8px, 2.5vw, 12px)' }}>
+                <TableNumber number={table.number ?? 0} />
+                <SeatInfo available={table.seatsAvailable} total={table.seatsTotal} />
               </div>
             {isEditable && (
               <button
