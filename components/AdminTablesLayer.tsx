@@ -210,6 +210,8 @@ function DraggableTable({
       </div>
       <div className="table-label">
         <TableNumber number={table.number ?? 0} />
+      </div>
+      <div className="seats-dots-wrapper">
         <SeatsDots total={table.seatsCount} available={table.seatsCount} />
       </div>
     </div>

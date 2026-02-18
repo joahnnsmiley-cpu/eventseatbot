@@ -272,15 +272,22 @@ const SeatMap: React.FC<SeatMapProps> = ({
           ? undefined
           : (table.heightPercent ? `${table.heightPercent}%` : `${table.sizePercent ?? 6}%`);
         const borderRadius = isCircle ? '50%' : 0;
+        console.log('TABLE CATEGORY CHECK', {
+          tableId: table.id,
+          tableCategoryId: table.ticketCategoryId,
+          availableCategories: event?.ticketCategories?.map(c => c.id)
+        });
         const category = event?.ticketCategories?.find((c) => c.id === table.ticketCategoryId);
         const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
         const shapeStyle = {
           width: '100%',
           height: '100%',
           borderRadius,
-          background: palette?.gradient ?? '#2a2a2a',
+          background: 'linear-gradient(145deg, #1b1b1b, #111111)',
           border: palette?.border ?? '1.5px solid #3a3a3a',
-          boxShadow: palette?.glow ?? 'none',
+          boxShadow: palette?.glow
+            ? `${palette.glow}, 0 0 12px rgba(0,0,0,0.6)`
+            : '0 0 8px rgba(0,0,0,0.6)',
         };
         const hasSelectedSeats = (selectedSeatsByTable?.[table.id]?.length ?? 0) > 0;
         const wrapperStyle: React.CSSProperties = {
@@ -317,6 +324,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
               </div>
               <div className="table-label">
                 <TableNumber number={table.number ?? 0} />
+              </div>
+              <div className="seats-dots-wrapper">
                 <SeatsDots total={table.seatsTotal} available={table.seatsAvailable} />
               </div>
             {isEditable && (

@@ -311,10 +311,18 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   line-height: 1;
   font-weight: 700;
 }
+.seats-dots-wrapper {
+  position: absolute;
+  bottom: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
 .seats-dots {
   display: flex;
   gap: 3px;
-  margin-top: 4px;
   justify-content: center;
 }
 .dot {
