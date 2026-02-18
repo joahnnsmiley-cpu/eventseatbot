@@ -718,7 +718,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       isAvailable: true,
     };
     setTables((prev) => {
-      const withNumber = { ...newTable, number: prev.length + 1 };
+      const maxNumber = prev.length ? Math.max(...prev.map((t) => t.number ?? 0)) : 0;
+      const nextNumber = maxNumber + 1;
+      const withNumber = { ...newTable, number: nextNumber };
       const next = [...prev, withNumber];
       console.log('NEXT TABLES COUNT:', next.length);
       const numErr = validateTableNumbers(next);
