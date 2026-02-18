@@ -11,6 +11,9 @@ type Stats = {
   fillPercent: number;
   ticketsSold: number;
   seatsFree: number;
+  revenueExpected?: number;
+  revenueCurrent?: number;
+  revenueReserved?: number;
 };
 
 type Tables = {
@@ -20,10 +23,28 @@ type Tables = {
   empty: number;
 };
 
+type CategoryStat = {
+  id: string;
+  name: string;
+  colorKey: string;
+  seatsTotal: number;
+  seatsSold: number;
+  seatsFree: number;
+  revenueExpected: number;
+  revenueCurrent: number;
+};
+
 type OrganizerStatsLazyProps = {
   stats: Stats;
   tables: Tables;
+  categoryStats?: CategoryStat[];
 };
+
+function formatMoney(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M ₽`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K ₽`;
+  return `${n} ₽`;
+}
 
 function StatBlock({ label, value }: { label: string; value: number | string }) {
   return (
@@ -63,7 +84,7 @@ function TableStat({ label, value }: { label: string; value: number }) {
   );
 }
 
-function OrganizerStatsLazyInner({ stats, tables }: OrganizerStatsLazyProps) {
+function OrganizerStatsLazyInner({ stats, tables, categoryStats = [] }: OrganizerStatsLazyProps) {
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
   const [minDelayPassed, setMinDelayPassed] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -97,6 +118,10 @@ function OrganizerStatsLazyInner({ stats, tables }: OrganizerStatsLazyProps) {
         <div style={{ height: 32 }} />
         <ProfileCard padding={24} rounded={24} variant="glass">
           <ProfileSectionSkeleton title rows={1} columns={4} dark />
+        </ProfileCard>
+        <div style={{ height: 32 }} />
+        <ProfileCard padding={24} rounded={24} variant="glass">
+          <ProfileSectionSkeleton title rows={1} columns={3} dark />
         </ProfileCard>
       </div>
     );
@@ -139,6 +164,67 @@ function OrganizerStatsLazyInner({ stats, tables }: OrganizerStatsLazyProps) {
           <TableStat label="Пустых" value={tables.empty} />
         </div>
       </ProfileCard>
+      {(stats.revenueExpected != null || stats.revenueCurrent != null) && (
+        <>
+          <div style={{ height: 32 }} />
+          <ProfileCard padding={24} rounded={24} variant="glass" interactive>
+            <p style={{ ...luxuryLabel, marginBottom: 20, marginTop: 0 }}>Прибыль</p>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 24,
+              }}
+            >
+              <StatBlock
+                label="Ожидается при полном выкупе"
+                value={formatMoney(stats.revenueExpected ?? 0)}
+              />
+              <StatBlock label="Получено" value={formatMoney(stats.revenueCurrent ?? 0)} />
+              <StatBlock label="В брони" value={formatMoney(stats.revenueReserved ?? 0)} />
+            </div>
+          </ProfileCard>
+        </>
+      )}
+      {categoryStats.length > 0 && (
+        <>
+          <div style={{ height: 32 }} />
+          <ProfileCard padding={24} rounded={24} variant="glass" interactive>
+            <p style={{ ...luxuryLabel, marginBottom: 20, marginTop: 0 }}>По категориям</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {categoryStats.map((c) => (
+                <div
+                  key={c.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '12px 16px',
+                    background: 'rgba(255,255,255,0.04)',
+                    borderRadius: 12,
+                    border: '1px solid rgba(255,255,255,0.06)',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: '#F5F2EB' }}>{c.name}</div>
+                    <div style={{ fontSize: 13, color: '#9B948A', marginTop: 4 }}>
+                      {c.seatsSold} выкуплено · {c.seatsFree} свободно
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#C6A75E' }}>
+                      {formatMoney(c.revenueCurrent)}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#9B948A', marginTop: 2 }}>
+                      из {formatMoney(c.revenueExpected)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ProfileCard>
+        </>
+      )}
     </motion.div>
   );
 }

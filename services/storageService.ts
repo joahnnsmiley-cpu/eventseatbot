@@ -272,9 +272,27 @@ export type ProfileOrganizerData =
   | {
       hasData: true;
       eventDate: string;
-      stats: { guestsTotal: number; fillPercent: number; ticketsSold: number; seatsFree: number };
+      stats: {
+        guestsTotal: number;
+        fillPercent: number;
+        ticketsSold: number;
+        seatsFree: number;
+        revenueExpected?: number;
+        revenueCurrent?: number;
+        revenueReserved?: number;
+      };
       tables: { total: number; full: number; partial: number; empty: number };
-      vipGuests: Array<{ name: string; category: string }>;
+      categoryStats?: Array<{
+        id: string;
+        name: string;
+        colorKey: string;
+        seatsTotal: number;
+        seatsSold: number;
+        seatsFree: number;
+        revenueExpected: number;
+        revenueCurrent: number;
+      }>;
+      vipGuests: Array<{ phone: string; names: string[]; category: string }>;
     };
 
 /** GET /me/profile-organizer — data for ProfileOrganizerScreen. eventId optional. */

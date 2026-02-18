@@ -4,6 +4,7 @@ import { db } from '../db';
 import { bot } from '../bot';
 import { getPremiumUserInfo } from '../config/premium';
 import { formatEventDateRu, parseEventToIso } from '../utils/formatDate';
+import { getPriceForTable } from '../utils/getTablePrice';
 
 const router = Router();
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:4000';
@@ -349,6 +350,87 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
   }
 
   const categories = (event as any).ticketCategories ?? [];
+  const seatPriceFallback = Array.isArray(categories)
+    ? (categories as { isActive?: boolean; price?: number }[]).find((c) => c.isActive)?.price ?? 0
+    : 0;
+
+  let revenueExpected = 0;
+  const categorySeatsTotal: Record<string, number> = {};
+  const categorySeatsSold: Record<string, number> = {};
+  for (const t of tables) {
+    const total = Number(t.seatsTotal) || 0;
+    const price = getPriceForTable(event, t, seatPriceFallback);
+    revenueExpected += total * price;
+    const catId = t.ticketCategoryId ?? 'default';
+    categorySeatsTotal[catId] = (categorySeatsTotal[catId] ?? 0) + total;
+    categorySeatsSold[catId] = (categorySeatsSold[catId] ?? 0) + (bookedByTable[t.id] ?? 0);
+  }
+
+  let revenueCurrent = 0;
+  let revenueReserved = 0;
+  const paidStatuses = ['paid'];
+  const reservedStatuses = ['reserved', 'awaiting_confirmation', 'payment_submitted', 'confirmed', 'pending'];
+  for (const b of eventBookings) {
+    const amt = Number((b as any).totalAmount ?? (b as any).total_amount ?? 0) || 0;
+    const st = String((b as any).status ?? '');
+    if (paidStatuses.includes(st)) revenueCurrent += amt;
+    else if (reservedStatuses.includes(st)) revenueReserved += amt;
+  }
+
+  const catList = Array.isArray(categories) ? categories : [];
+  const categoryStats = catList.map((c: any) => {
+    const id = c.id ?? 'default';
+    const name = c.name ?? c.color_key ?? '—';
+    const total = categorySeatsTotal[id] ?? 0;
+    const sold = categorySeatsSold[id] ?? 0;
+    const free = Math.max(0, total - sold);
+    const price = c.price ?? getPriceForTable(event, { ticketCategoryId: id }, seatPriceFallback);
+    return {
+      id,
+      name,
+      colorKey: c.color_key ?? 'gold',
+      seatsTotal: total,
+      seatsSold: sold,
+      seatsFree: free,
+      revenueExpected: total * price,
+      revenueCurrent: 0,
+    };
+  });
+
+  for (const catId of Object.keys(categorySeatsTotal)) {
+    if (categoryStats.some((c) => c.id === catId)) continue;
+    const total = categorySeatsTotal[catId] ?? 0;
+    const sold = categorySeatsSold[catId] ?? 0;
+    const t = tables.find((x: any) => x.ticketCategoryId === catId);
+    const price = t ? getPriceForTable(event, t, seatPriceFallback) : seatPriceFallback;
+    categoryStats.push({
+      id: catId,
+      name: catId,
+      colorKey: 'gold',
+      seatsTotal: total,
+      seatsSold: sold,
+      seatsFree: Math.max(0, total - sold),
+      revenueExpected: total * price,
+      revenueCurrent: 0,
+    });
+  }
+
+  for (const b of eventBookings) {
+    const amt = Number((b as any).totalAmount ?? (b as any).total_amount ?? 0) || 0;
+    const st = String((b as any).status ?? '');
+    if (st !== 'paid') continue;
+    let tid = (b as any).tableId ?? (b as any).table_id;
+    if (!tid) {
+      const tb = (b as any).tableBookings ?? (b as any).table_bookings;
+      if (Array.isArray(tb) && tb[0]) tid = tb[0].tableId ?? tb[0].table_id;
+    }
+    if (!tid) continue;
+    const t = tables.find((x: any) => x.id === tid);
+    const catId = t?.ticketCategoryId ?? 'default';
+    const cat = categoryStats.find((c: any) => c.id === catId);
+    if (cat) cat.revenueCurrent += amt;
+  }
+
   const vipCategoryIds = new Set(
     (Array.isArray(categories) ? categories : [])
       .filter((c: any) => isVipCategory(c))
@@ -365,13 +447,16 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
     if (c?.id) categoryIdToName[c.id] = (c as any).name ?? (c as any).color_key ?? 'VIP';
   }
 
-  const vipGuests: Array<{ name: string; category: string }> = [];
+  const vipGuests: Array<{ phone: string; names: string[]; category: string }> = [];
   for (const b of eventBookings) {
     const catId = b.tableId ? tableIdToCategoryId[b.tableId] : null;
     if (!catId || !vipCategoryIds.has(catId)) continue;
+    const raw = b as any;
     const catName = categoryIdToName[catId] ?? 'VIP';
-    const name = (b as any).username?.trim() || (b as any).userPhone || 'Гость';
-    vipGuests.push({ name, category: catName });
+    const phone = raw.userPhone?.trim() || raw.user_phone?.trim() || raw.username?.trim() || '—';
+    const comment = raw.userComment ?? raw.user_comment ?? '';
+    const names = parseCommentNames(comment);
+    vipGuests.push({ phone, names, category: catName });
   }
 
   const eventDate = (event as any).event_date ?? null;
@@ -387,6 +472,9 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
       fillPercent: occupancyPercent,
       ticketsSold: totalGuests,
       seatsFree,
+      revenueExpected,
+      revenueCurrent,
+      revenueReserved,
     },
     tables: {
       total: tables.length,
@@ -394,6 +482,7 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
       partial: partialTables,
       empty: emptyTables,
     },
+    categoryStats,
     vipGuests,
   });
 });

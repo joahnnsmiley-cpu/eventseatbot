@@ -57,8 +57,12 @@ export function ProfileGuestEmpty({ message = 'У вас пока нет заб�
 }
 
 // ─── ProfileGuestScreen ────────────────────────────────────────────────────
-/** Premium default avatar (silhouette in golden frame) — public/avatar-default.png */
-const DEFAULT_AVATAR = '/avatar-default.png';
+/** Premium default avatar — absolute URL for correct loading in WebApp/subpath */
+const getDefaultAvatarUrl = () => {
+  if (typeof window === 'undefined') return '/avatar-default.png';
+  const base = (import.meta.env?.BASE_URL ?? '/').replace(/\/$/, '') || '/';
+  return `${window.location.origin}${base}avatar-default.png`;
+};
 
 const FALLBACK_AVATAR =
   'data:image/svg+xml,' +
@@ -68,7 +72,7 @@ const FALLBACK_AVATAR =
 
 export default function ProfileGuestScreen({
   guestName,
-  avatarUrl = DEFAULT_AVATAR,
+  avatarUrl,
   event,
   category,
   categoryName,
@@ -79,6 +83,7 @@ export default function ProfileGuestScreen({
   privileges,
   privateAccess,
 }: ProfileGuestScreenProps) {
+  const effectiveAvatarUrl = avatarUrl || getDefaultAvatarUrl();
   const categoryConfig = CATEGORY_COLORS[category] ?? CATEGORY_COLORS.gold;
   const categoryLabel = categoryName ?? categoryConfig.label;
 
@@ -119,11 +124,20 @@ export default function ProfileGuestScreen({
               }}
             >
               <img
-                src={avatarUrl}
+                src={effectiveAvatarUrl}
                 alt=""
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = FALLBACK_AVATAR;
+                  const img = e.target as HTMLImageElement;
+                  const defaultUrl = getDefaultAvatarUrl();
+                  if (img.dataset.fallback === 'svg') return;
+                  if (img.src !== defaultUrl && !img.src.includes('avatar-default')) {
+                    img.src = defaultUrl;
+                    img.dataset.fallback = 'tried-default';
+                  } else {
+                    img.dataset.fallback = 'svg';
+                    img.src = FALLBACK_AVATAR;
+                  }
                 }}
               />
             </div>
@@ -198,7 +212,7 @@ export default function ProfileGuestScreen({
               </p>
               {seatNumbers.length > 0 && (
                 <p style={{ margin: '6px 0 0', fontSize: 18, fontWeight: 600, color: darkTextPrimary }}>
-                  Место{seatNumbers.length > 1 ? 'а' : ''} № {seatNumbers.join(', ')}
+                  {seatNumbers.length > 1 ? 'Места' : 'Место'} № {seatNumbers.join(', ')}
                 </p>
               )}
               <p style={{ margin: '6px 0 0', fontSize: 16, color: '#E8D48A', fontWeight: 600 }}>{categoryLabel}</p>

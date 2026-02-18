@@ -124,6 +124,7 @@ export default function ProfileScreen({
         eventDate={organizerData.eventDate}
         stats={organizerData.stats}
         tables={organizerData.tables}
+        categoryStats={organizerData.categoryStats}
         vipGuests={organizerData.vipGuests}
         onOpenAdmin={onOpenAdmin}
         onOpenMap={onOpenMap}

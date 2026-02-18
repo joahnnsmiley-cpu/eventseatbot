@@ -16,6 +16,9 @@ export type ProfileOrganizerScreenProps = {
     fillPercent: number;
     ticketsSold: number;
     seatsFree: number;
+    revenueExpected?: number;
+    revenueCurrent?: number;
+    revenueReserved?: number;
   };
   tables: {
     total: number;
@@ -23,7 +26,17 @@ export type ProfileOrganizerScreenProps = {
     partial: number;
     empty: number;
   };
-  vipGuests: Array<{ name: string; category: string }>;
+  categoryStats?: Array<{
+    id: string;
+    name: string;
+    colorKey: string;
+    seatsTotal: number;
+    seatsSold: number;
+    seatsFree: number;
+    revenueExpected: number;
+    revenueCurrent: number;
+  }>;
+  vipGuests: Array<{ phone: string; names: string[]; category: string }>;
   onOpenAdmin?: () => void;
   onOpenMap?: () => void;
   /** Switch to guest profile view (organizer preview) */
@@ -80,6 +93,7 @@ function ProfileOrganizerScreenInner({
   eventDate,
   stats,
   tables,
+  categoryStats = [],
   vipGuests,
   onOpenAdmin,
   onOpenMap,
@@ -149,8 +163,8 @@ function ProfileOrganizerScreenInner({
           />
         </ProfileCard>
 
-        {/* 3️⃣ & 4️⃣ LiveStatsCard + TablesOverviewCard — lazy loaded */}
-        <OrganizerStatsLazy stats={stats} tables={tables} />
+        {/* 3️⃣ & 4️⃣ LiveStatsCard + TablesOverviewCard + Profit + Categories — lazy loaded */}
+        <OrganizerStatsLazy stats={stats} tables={tables} categoryStats={categoryStats} />
 
         {/* 5️⃣ VIPGuestsCard */}
         <ProfileCard padding={24} rounded={24} variant="glass" interactive>
@@ -162,25 +176,30 @@ function ProfileOrganizerScreenInner({
                   key={i}
                   style={{
                     display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
+                    flexDirection: 'column',
+                    gap: 4,
                     padding: '12px 0',
                     borderBottom:
                       i < vipGuests.length - 1 ? '1px solid rgba(255,255,255,0.08)' : 'none',
-                    fontSize: 15,
-                    color: '#EAE6DD',
                   }}
                 >
-                  <span>{g.name}</span>
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: '#9B948A',
-                      fontWeight: 500,
-                    }}
-                  >
-                    {g.category}
-                  </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 15, color: '#EAE6DD', fontWeight: 500 }}>{g.phone}</span>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: '#9B948A',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {g.category}
+                    </span>
+                  </div>
+                  {g.names.length > 0 && (
+                    <span style={{ fontSize: 14, color: '#B8B2A8' }}>
+                      {g.names.join(', ')}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
