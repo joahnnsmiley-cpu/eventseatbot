@@ -280,6 +280,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [tables, setTables] = useState<TableModel[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const initialTablesRef = useRef<TableModel[]>([]);
+  const hasInitializedRef = useRef(false);
 
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const saveLayoutRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
@@ -287,11 +288,16 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const isDirty = useMemo(() => !deepEqual(tables, initialTablesRef.current), [tables]);
 
   useEffect(() => {
-    console.log('SYNC FROM selectedEvent TRIGGERED');
+    hasInitializedRef.current = false;
+  }, [selectedEvent?.id]);
+
+  useEffect(() => {
     if (!selectedEvent?.tables) return;
-    const tbls = selectedEvent.tables as TableModel[];
-    setTables(tbls);
-    initialTablesRef.current = deepClone(tbls);
+    if (hasInitializedRef.current) return;
+    const mapped = (selectedEvent.tables ?? []).map(mapTableFromDb);
+    setTables(mapped);
+    initialTablesRef.current = structuredClone(mapped);
+    hasInitializedRef.current = true;
   }, [selectedEvent?.id]);
 
   const layoutPreviewRef = useRef<HTMLDivElement>(null);
