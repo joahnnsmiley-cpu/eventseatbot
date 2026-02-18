@@ -688,37 +688,30 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   }, [bookings, selectedEventId]);
 
   const addTable = (percentX = 50, percentY = 50) => {
-    if (!selectedEvent?.id) return;
-    const currentTables = tables;
+    console.log('ADD TABLE CALLED');
     const defaultCategoryId = (selectedEvent?.ticketCategories ?? []).find((c) => c.isActive)?.id ?? '';
     const newTable = {
       id: crypto.randomUUID(),
-      number: currentTables.length + 1,
-      // основной формат
+      number: tables.length + 1,
       centerXPercent: percentX,
       centerYPercent: percentY,
-      widthPercent: 8,
-      heightPercent: 8,
-      rotationDeg: 0,
-      shape: 'circle' as const,
-      seatsCount: 4,
-      categoryId: defaultCategoryId,
-      isActive: true,
-      // legacy формат для публичного SeatMap
       centerX: percentX,
       centerY: percentY,
-      ticketCategoryId: defaultCategoryId,
+      widthPercent: 8,
+      heightPercent: 8,
+      sizePercent: 8,
+      shape: 'circle' as const,
+      rotationDeg: 0,
+      seatsCount: 4,
       seatsTotal: 4,
       seatsAvailable: 4,
+      categoryId: defaultCategoryId,
+      ticketCategoryId: defaultCategoryId,
+      isActive: true,
       isAvailable: true,
-      sizePercent: 8,
     };
-    const newTables = [...currentTables, newTable];
-    const numErr = validateTableNumbers(newTables);
-    if (numErr) { setError(numErr); return; }
-    const rectErr = validateRectTables(newTables);
-    if (rectErr) { setError(rectErr); return; }
-    setTables(newTables);
+    console.log('ADDING RAW TABLE:', newTable);
+    setTables((prev) => [...prev, newTable]);
     setSelectedTableId(newTable.id);
   };
 
@@ -1798,8 +1791,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     margin: '0 auto',
                   }}
                   onPointerDown={(e) => {
-                    const target = e.target as HTMLElement;
-                    if (target.closest('[data-table-id]')) return;
                     const rect = layoutPreviewRef.current?.getBoundingClientRect();
                     if (!rect) return;
                     const percentX = ((e.clientX - rect.left) / rect.width) * 100;
