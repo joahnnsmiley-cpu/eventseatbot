@@ -1,14 +1,16 @@
 import type { TableModel } from '../../types';
 
-/** Convert TableModel to API/backend payload format. */
-export function tableToApiPayload(t: TableModel, index: number): Record<string, unknown> {
+/** Convert TableModel to API/backend payload format. Uses centerX/centerY if present (legacy sync). */
+export function tableToApiPayload(t: TableModel & { centerX?: number; centerY?: number }, index: number): Record<string, unknown> {
+  const x = t.centerX ?? t.centerXPercent;
+  const y = t.centerY ?? t.centerYPercent;
   return {
     id: t.id || `tbl-${Date.now()}-${index}`,
     number: typeof t.number === 'number' ? t.number : index + 1,
-    centerX: t.centerXPercent,
-    centerY: t.centerYPercent,
-    x: t.centerXPercent,
-    y: t.centerYPercent,
+    centerX: x,
+    centerY: y,
+    x,
+    y,
     seatsTotal: t.seatsCount,
     seatsAvailable: t.seatsCount,
     widthPercent: t.widthPercent,

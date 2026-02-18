@@ -261,9 +261,15 @@ export default function AdminTablesLayer({
     onTablesChange((prev) =>
       prev.map((t) => {
         if (t.id !== active.id) return t;
-        const cx = Math.max(0, Math.min(100, t.centerXPercent + deltaXPercent));
-        const cy = Math.max(0, Math.min(100, t.centerYPercent + deltaYPercent));
-        return { ...t, centerXPercent: cx, centerYPercent: cy, centerX: cx, centerY: cy };
+        const newX = Math.max(0, Math.min(100, t.centerXPercent + deltaXPercent));
+        const newY = Math.max(0, Math.min(100, t.centerYPercent + deltaYPercent));
+        return {
+          ...t,
+          centerXPercent: newX,
+          centerYPercent: newY,
+          centerX: newX,
+          centerY: newY,
+        };
       })
     );
   };

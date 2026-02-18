@@ -687,7 +687,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return set;
   }, [bookings, selectedEventId]);
 
-  const addTable = (x = 50, y = 50) => {
+  const addTable = (percentX = 50, percentY = 50) => {
     if (!selectedEvent?.id) return;
     const currentTables = tables;
     const defaultCategoryId = (selectedEvent?.ticketCategories ?? []).find((c) => c.isActive)?.id ?? '';
@@ -695,8 +695,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       id: crypto.randomUUID(),
       number: currentTables.length + 1,
       // основной формат
-      centerXPercent: x,
-      centerYPercent: y,
+      centerXPercent: percentX,
+      centerYPercent: percentY,
       widthPercent: 8,
       heightPercent: 8,
       rotationDeg: 0,
@@ -705,8 +705,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       categoryId: defaultCategoryId,
       isActive: true,
       // legacy формат для публичного SeatMap
-      centerX: x,
-      centerY: y,
+      centerX: percentX,
+      centerY: percentY,
       ticketCategoryId: defaultCategoryId,
       seatsTotal: 4,
       seatsAvailable: 4,
