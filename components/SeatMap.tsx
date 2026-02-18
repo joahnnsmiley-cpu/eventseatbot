@@ -304,12 +304,14 @@ const SeatMap: React.FC<SeatMapProps> = ({
               boxShadow,
             };
         const hasSelectedSeats = (selectedSeatsByTable?.[table.id]?.length ?? 0) > 0;
+        const circleSize = `${table.widthPercent ?? table.sizePercent ?? 6}%`;
         const wrapperStyle: React.CSSProperties = {
           position: 'absolute',
           left: `${table.centerX}%`,
           top: `${table.centerY}%`,
-          width: widthPct,
-          ...(isCircle ? { aspectRatio: '1 / 1', borderRadius: '50%' } : { height: heightPct }),
+          width: isCircle ? circleSize : widthPct,
+          height: isCircle ? circleSize : heightPct,
+          ...(isCircle ? { borderRadius: '50%' } : {}),
           transform: `translate(-50%, -50%) rotate(${table.rotationDeg ?? 0}deg)`,
           transformOrigin: 'center',
           cursor: isTableDisabled ? 'not-allowed' : 'pointer',
@@ -322,7 +324,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
             key={table.id}
             data-table-id={table.id}
             id={`table-${table.id}`}
-            className={`table-wrapper ${isTableDisabled ? 'table-disabled' : ''} ${isSelected ? 'table-selected' : ''}`}
+            className={`table-wrapper seat-map-table ${isTableDisabled ? 'table-disabled' : ''} ${isSelected ? 'table-selected' : ''}`}
             style={wrapperStyle}
             onClick={(e) => {
                 if (isTableDisabled) return;
