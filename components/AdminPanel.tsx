@@ -1928,6 +1928,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         width: '100%',
                         maxWidth: 600,
                         margin: '0 auto',
+                        containerType: 'inline-size',
                       }}
                     >
                       {layoutUrl ? (

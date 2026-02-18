@@ -72,7 +72,7 @@ function DraggableTable({
   const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
   const wrapperSizeStyle: React.CSSProperties =
     table.shape === 'circle'
-      ? { width: `${table.widthPercent}%`, aspectRatio: '1 / 1' }
+      ? { width: `${table.widthPercent}cqw`, height: `${table.widthPercent}cqw` }
       : { width: `${table.widthPercent}%`, height: `${table.heightPercent}%`, borderRadius: 0 };
   const shapeStyle: React.CSSProperties = {
     width: '100%',
