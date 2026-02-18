@@ -8,6 +8,8 @@ export interface TicketCategory {
   styleKey: string;
   /** Color key from CATEGORY_COLORS (vip, gold, silver, bronze, emerald, sapphire). Stored instead of raw hex. */
   color_key?: string;
+  /** Custom hex color (e.g. #C9A227). When set, overrides color_key. */
+  custom_color?: string;
   isActive: boolean;
 }
 

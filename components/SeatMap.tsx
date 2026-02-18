@@ -2,9 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { TransformWrapper, TransformComponent, MiniMap } from 'react-zoom-pan-pinch';
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
-import { CATEGORY_COLORS, resolveCategoryColorKey } from '../src/config/categoryColors';
+import { getCategoryColorFromCategory } from '../src/config/categoryColors';
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
+import { getTableShapeStyle, getTableLabelStyle } from '../src/utils/tableShapeStyles';
 import { TableNumber } from './TableLabel';
 import { TableSeatDots } from './TableSeatDots';
 
@@ -283,31 +284,9 @@ const SeatMap: React.FC<SeatMapProps> = ({
         const circleSize = `${table.widthPercent ?? table.sizePercent ?? 6}%`;
         const widthPct = isCircle ? circleSize : (table.widthPercent ? `${table.widthPercent}%` : `${table.sizePercent ?? 6}%`);
         const heightPct = isCircle ? circleSize : (table.heightPercent ? `${table.heightPercent}%` : `${table.sizePercent ?? 6}%`);
-        const borderRadius = isCircle ? '50%' : 0;
         const category = event?.ticketCategories?.find((c) => c.id === table.ticketCategoryId);
-        const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
-        const background = palette
-          ? `radial-gradient(circle at 35% 30%, ${(palette as { soft?: string }).soft ?? palette.base}44, transparent 65%), linear-gradient(160deg, #0d0d0d, #050505)`
-          : 'linear-gradient(160deg, #0d0d0d, #050505)';
-        const border = palette ? palette.border.replace('1.5px', '2px') : '2px solid #2a2520';
-        const boxShadow = palette
-          ? `0 0 20px ${(palette as { glowColor?: string }).glowColor ?? 'rgba(198,167,94,0.4)'}, inset 0 1px 0 rgba(255,255,255,0.03)`
-          : '0 0 12px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.03)';
-        const shapeStyle: React.CSSProperties = isCircle
-          ? {
-              width: '100%',
-              background,
-              border,
-              boxShadow,
-            }
-          : {
-              width: '100%',
-              height: '100%',
-              borderRadius,
-              background,
-              border,
-              boxShadow,
-            };
+        const palette = category ? getCategoryColorFromCategory(category) : null;
+        const shapeStyle = getTableShapeStyle(palette, isCircle);
         const hasSelectedSeats = (selectedSeatsByTable?.[table.id]?.length ?? 0) > 0;
         const innerButtonStyle: React.CSSProperties = {
           position: 'absolute',
@@ -343,7 +322,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
             key={table.id}
             data-table-id={table.id}
             id={`table-${table.id}`}
-            className={`table-wrapper ${isTableDisabled ? 'table-disabled' : ''} ${isSelected ? 'table-selected' : ''}`}
+            className={`table-wrapper ${isCircle ? 'table-wrapper-circle' : ''} ${isTableDisabled ? 'table-disabled' : ''} ${isSelected ? 'table-selected' : ''}`}
             style={wrapperStyle}
             onClick={(e) => {
                 if (isTableDisabled) return;
@@ -362,17 +341,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
                       seatsAvailable={table.seatsAvailable ?? table.seatsTotal}
                       selectedIndices={selectedSeatsByTable?.[table.id]}
                       accentColor={palette?.base ?? '#FFC107'}
+                      tableShape={isCircle ? 'circle' : 'rect'}
                     />
                   )}
-                  <div
-                    className="table-label"
-                    style={palette ? {
-                      background: `linear-gradient(145deg, ${palette.base}55, ${palette.base}22)`,
-                      border: palette.border,
-                      boxShadow: `0 0 12px ${palette.base}40`,
-                      color: '#F3E6C0',
-                    } : undefined}
-                  >
+                  <div className="table-label" style={getTableLabelStyle(palette ?? null)}>
                     <TableNumber number={table.number ?? 0} />
                   </div>
                   {isEditable && (

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import type { EventData } from '../types';
 import { getPriceForTable } from '../src/utils/getTablePrice';
-import { getCategoryColor, resolveCategoryColorKey } from '../src/config/categoryColors';
+import { getCategoryColorFromCategory } from '../src/config/categoryColors';
 import Card from '../src/ui/Card';
 import SectionTitle from '../src/ui/SectionTitle';
 import PrimaryButton from '../src/ui/PrimaryButton';
@@ -210,7 +210,7 @@ const EventPage: React.FC<EventPageProps> = ({
                         <div className="flex items-center gap-2">
                           <div
                             className="w-3 h-3 rounded-full shrink-0"
-                            style={{ background: getCategoryColor(resolveCategoryColorKey(cat)).base }}
+                            style={{ background: getCategoryColorFromCategory(cat).base }}
                           />
                           <span className="text-white font-medium">{cat.name}</span>
                         </div>

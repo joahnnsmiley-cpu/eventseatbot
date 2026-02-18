@@ -32,7 +32,7 @@ import { DEFAULT_TICKET_CATEGORIES } from '../constants/ticketStyles';
 import AdminTablesLayer from './AdminTablesLayer';
 import TableEditPanel from './TableEditPanel';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { CATEGORY_COLORS, CATEGORY_COLOR_KEYS, getCategoryColor, resolveCategoryColorKey } from '../src/config/categoryColors';
+import { CATEGORY_COLORS, CATEGORY_COLOR_KEYS, getCategoryColorFromCategory } from '../src/config/categoryColors';
 import type { TicketCategory } from '../types';
 
 type AdminBooking = {
@@ -1415,16 +1415,30 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 <div className="text-sm font-semibold mb-3">Категории билетов</div>
                 <div className="space-y-4">
                   {(selectedEvent?.ticketCategories ?? []).map((cat) => {
-                    const colorKey = resolveCategoryColorKey(cat);
-                    const colorConfig = getCategoryColor(colorKey);
+                    const colorConfig = getCategoryColorFromCategory(cat);
                     return (
                       <div key={cat.id} className="p-3 rounded-lg border border-[#2A2A2A] bg-[#141414] space-y-3">
                         <div className="flex items-center gap-2">
-                          <div
-                            className="w-6 h-6 rounded border border-[#2A2A2A] shrink-0"
-                            style={{ background: colorConfig.gradient }}
-                            title={colorConfig.label}
-                          />
+                          <label className="relative w-6 h-6 rounded border border-[#2A2A2A] shrink-0 cursor-pointer block" style={{ background: colorConfig.gradient }} title={`${colorConfig.label}. Клик — выбрать цвет из палитры`}>
+                            <input
+                              type="color"
+                              value={cat.custom_color ?? colorConfig.base}
+                              onChange={(e) => {
+                                const hex = e.target.value;
+                                setSelectedEvent((prev) =>
+                                  prev
+                                    ? {
+                                        ...prev,
+                                        ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                          c.id === cat.id ? { ...c, custom_color: hex, color_key: undefined } : c
+                                        ),
+                                      }
+                                    : null
+                                );
+                              }}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                          </label>
                           <input
                             type="text"
                             value={cat.name}
@@ -1517,7 +1531,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                             <div className="grid grid-cols-3 gap-3">
                               {CATEGORY_COLOR_KEYS.map((key) => {
                                 const config = CATEGORY_COLORS[key];
-                                const isSelected = (cat.color_key ?? cat.styleKey ?? 'gold') === key;
+                                const isPresetSelected = !cat.custom_color && (cat.color_key ?? cat.styleKey ?? 'gold') === key;
                                 return (
                                   <button
                                     key={key}
@@ -1528,18 +1542,18 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                                     ? {
                                         ...prev,
                                         ticketCategories: (prev.ticketCategories ?? []).map((c) =>
-                                                c.id === cat.id ? { ...c, color_key: key } : c
+                                                c.id === cat.id ? { ...c, color_key: key, custom_color: undefined } : c
                                         ),
                                       }
                                     : null
                                 );
                                     }}
                                     className={`h-10 w-10 rounded-full transition-all hover:scale-105 ${
-                                      isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-[#141414]' : ''
+                                      isPresetSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-[#141414]' : ''
                                     }`}
                                     style={{
                                       background: config.gradient,
-                                      boxShadow: isSelected ? config.glow : 'none',
+                                      boxShadow: isPresetSelected ? config.glow : 'none',
                                     }}
                                     title={config.label}
                                   />

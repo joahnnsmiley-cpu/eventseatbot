@@ -216,6 +216,9 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   min-width: 0;
   flex: none;
 }
+.table-wrapper.table-wrapper-circle {
+  border-radius: 50%;
+}
 .table-shape {
   position: relative;
   overflow: hidden;
@@ -224,6 +227,7 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   padding: 0;
   min-width: 0;
   flex: none;
+  container-type: inline-size;
 }
 .table-shape.table-shape-circle {
   width: 100%;
@@ -238,15 +242,13 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
 /* Gold table: base applied via inline style; hover/selected via CSS (inline would block override) */
 .table-shape-gold {
   transition: transform 0.15s ease, box-shadow 0.15s ease, border 0.15s ease;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.5), 0 0 8px rgba(180,150,80,0.2);
 }
 .table-wrapper:not(.table-disabled):hover .table-shape-gold {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 14px rgba(198,167,94,0.35);
 }
 .table-wrapper.table-selected .table-shape-gold {
   border: 2px solid #C9A227 !important;
-  box-shadow: 0 0 0 2px rgba(201,162,39,0.5), 0 4px 16px rgba(0,0,0,0.7);
+  box-shadow: 0 0 0 1px rgba(201,162,39,0.35) !important;
 }
 .table-wrapper.table-disabled {
   opacity: 0.35;
@@ -302,7 +304,7 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   left: 50%;
   transform: translate(-50%, -50%);
   width: 45%;
-  min-width: 20px;
+  min-width: 10px;
   max-width: 56px;
   padding: 0;
   aspect-ratio: 1 / 1;
@@ -311,8 +313,8 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   justify-content: center;
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(180, 150, 80, 0.6);
-  box-shadow: 0 0 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+  border: 1px solid rgba(180, 150, 80, 0.5);
+  box-shadow: 0 0 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
   color: #E8E0C8;
   font-weight: 600;
   letter-spacing: 0.3px;
@@ -320,7 +322,7 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   text-align: center;
 }
 .table-number {
-  font-size: clamp(10px, 2.2vw, 16px);
+  font-size: clamp(6px, 14cqw, 16px);
   line-height: 1;
   font-weight: 700;
 }
@@ -332,8 +334,10 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
 }
 .table-seat-dot {
   position: absolute;
-  width: 4px;
-  height: 4px;
+  width: min(4px, 8cqw);
+  height: min(4px, 8cqw);
+  min-width: 2px;
+  min-height: 2px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   transition: background-color 0.2s, opacity 0.2s;

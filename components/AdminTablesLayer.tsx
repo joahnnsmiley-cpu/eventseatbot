@@ -9,7 +9,8 @@ import {
   useDraggable,
 } from '@dnd-kit/core';
 import type { TableModel } from '../types';
-import { CATEGORY_COLORS, resolveCategoryColorKey } from '../src/config/categoryColors';
+import { getCategoryColorFromCategory } from '../src/config/categoryColors';
+import { getTableShapeStyle, getTableLabelStyle } from '../src/utils/tableShapeStyles';
 import { TableNumber } from './TableLabel';
 import { UI_TEXT } from '../constants/uiText';
 
@@ -20,7 +21,7 @@ type HandlePos = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
 
 type Props = {
   tables: TableModel[];
-  ticketCategories: { id: string; name?: string; price?: number }[];
+  ticketCategories: { id: string; name?: string; price?: number; color_key?: string; styleKey?: string; custom_color?: string }[];
   selectedTableId: string | null;
   onTableSelect: (id: string) => void;
   onTablesChange: (updater: (prev: TableModel[]) => TableModel[]) => void;
@@ -62,26 +63,20 @@ function DraggableTable({
   containerRef,
 }: {
   table: TableModel;
-  ticketCategories: { id: string; name?: string; price?: number }[];
+  ticketCategories: { id: string; name?: string; price?: number; color_key?: string; styleKey?: string; custom_color?: string }[];
   isSelected: boolean;
   onSelect: () => void;
   onTablesChange: (updater: (prev: TableModel[]) => TableModel[]) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const category = ticketCategories.find((c) => c.id === table.categoryId);
-  const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
+  const palette = category ? getCategoryColorFromCategory(category) : null;
   const wrapperSizeStyle: React.CSSProperties =
     table.shape === 'circle'
       ? { width: `${table.widthPercent}cqw`, height: `${table.widthPercent}cqw` }
       : { width: `${table.widthPercent}%`, height: `${table.heightPercent}%`, borderRadius: 0 };
-  const shapeStyle: React.CSSProperties = {
-    width: '100%',
-    ...(table.shape === 'rect' ? { height: '100%' } : {}),
-    borderRadius: table.shape === 'circle' ? '50%' : 0,
-    background: palette?.gradient ?? 'linear-gradient(160deg, #1a1a1a, #0d0d0d)',
-    border: palette?.border ?? '1.5px solid #2a2520',
-    boxShadow: palette?.glow ?? '0 0 8px rgba(0,0,0,0.5)',
-  };
+  const isCircle = table.shape === 'circle';
+  const shapeStyle = getTableShapeStyle(palette, isCircle);
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: table.id,
@@ -188,7 +183,7 @@ function DraggableTable({
       ref={setNodeRef}
       data-table-id={table.id}
       id={`table-${table.id}`}
-      className={`table-wrapper ${isSelected ? 'ring-2 ring-[#C6A75E]' : ''}`}
+      className={`table-wrapper ${isCircle ? 'table-wrapper-circle' : ''} ${isSelected ? 'table-selected' : ''}`}
       style={wrapperStyle}
       {...listeners}
       {...attributes}
@@ -197,17 +192,9 @@ function DraggableTable({
         onSelect();
       }}
     >
-      <div className={`table-shape table-shape-gold pointer-events-none ${table.shape === 'circle' ? 'table-shape-circle' : ''}`} style={shapeStyle}>
+      <div className={`table-shape table-shape-gold pointer-events-none ${isCircle ? 'table-shape-circle' : ''}`} style={shapeStyle}>
         <div className="table-overlay">
-          <div
-            className="table-label"
-            style={palette ? {
-              background: `linear-gradient(145deg, ${palette.base}55, ${palette.base}22)`,
-              border: palette.border,
-              boxShadow: `0 0 12px ${palette.base}40`,
-              color: '#F3E6C0',
-            } : undefined}
-          >
+          <div className="table-label" style={getTableLabelStyle(palette ?? null)}>
             <TableNumber number={table.number ?? 0} />
           </div>
         </div>

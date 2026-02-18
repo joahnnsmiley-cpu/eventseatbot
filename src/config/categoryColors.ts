@@ -73,8 +73,9 @@ export function getCategoryColor(colorKey: string | undefined): CategoryColorCon
   return CATEGORY_COLORS[key] ?? CATEGORY_COLORS.gold;
 }
 
-export function resolveCategoryColorKey(category: { color_key?: string; styleKey?: string } | null | undefined): CategoryColorKey {
+export function resolveCategoryColorKey(category: { color_key?: string; styleKey?: string; custom_color?: string } | null | undefined): CategoryColorKey {
   if (!category) return 'gold';
+  if ((category as { custom_color?: string }).custom_color) return 'gold';
   const key = category.color_key ?? category.styleKey;
   if (key && key in CATEGORY_COLORS) return key as CategoryColorKey;
   const styleMap: Record<string, CategoryColorKey> = {
@@ -85,4 +86,58 @@ export function resolveCategoryColorKey(category: { color_key?: string; styleKey
     standard: 'silver',
   };
   return styleMap[category.styleKey ?? ''] ?? 'gold';
+}
+
+/** Darken hex by amount (0-1). */
+function darkenHex(hex: string, amount: number): string {
+  const m = hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (!m) return hex;
+  let r = parseInt(m[1], 16);
+  let g = parseInt(m[2], 16);
+  let b = parseInt(m[3], 16);
+  r = Math.max(0, Math.floor(r * (1 - amount)));
+  g = Math.max(0, Math.floor(g * (1 - amount)));
+  b = Math.max(0, Math.floor(b * (1 - amount)));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+/** Lighten hex by amount (0-1). */
+function lightenHex(hex: string, amount: number): string {
+  const m = hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (!m) return hex;
+  let r = parseInt(m[1], 16);
+  let g = parseInt(m[2], 16);
+  let b = parseInt(m[3], 16);
+  r = Math.min(255, Math.floor(r + (255 - r) * amount));
+  g = Math.min(255, Math.floor(g + (255 - g) * amount));
+  b = Math.min(255, Math.floor(b + (255 - b) * amount));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+/** Build CategoryColorConfig from custom hex. */
+export function categoryConfigFromHex(hex: string): CategoryColorConfig {
+  const base = hex.startsWith('#') ? hex : `#${hex}`;
+  const light = lightenHex(base, 0.35);
+  const dark = darkenHex(base, 0.25);
+  const match = base.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  const [r, g, b] = match
+    ? [parseInt(match[1], 16), parseInt(match[2], 16), parseInt(match[3], 16)]
+    : [201, 162, 39];
+  return {
+    label: 'Свой',
+    gradient: `linear-gradient(145deg, ${light}, ${dark})`,
+    glow: `0 0 12px rgba(${r},${g},${b},0.5)`,
+    border: `2px solid ${darkenHex(base, 0.4)}`,
+    base,
+  };
+}
+
+/** Get category color config — uses custom_color if set, else preset by color_key. */
+export function getCategoryColorFromCategory(category: { color_key?: string; styleKey?: string; custom_color?: string } | null | undefined): CategoryColorConfig {
+  if (!category) return CATEGORY_COLORS.gold;
+  const custom = (category as { custom_color?: string }).custom_color;
+  if (custom && /^#?[a-fA-F0-9]{6}$/.test(custom.replace('#', ''))) {
+    return categoryConfigFromHex(custom);
+  }
+  return getCategoryColor(resolveCategoryColorKey(category));
 }
