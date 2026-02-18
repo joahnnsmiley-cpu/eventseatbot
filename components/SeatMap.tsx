@@ -329,7 +329,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
           left: `${table.centerX}%`,
           top: `${table.centerY}%`,
           width: widthPct,
-          ...(isCircle ? {} : { height: heightPct }),
+          ...(isCircle ? { aspectRatio: '1 / 1' } : { height: heightPct }),
           transform: `translate(-50%, -50%) rotate(${table.rotationDeg ?? 0}deg)`,
           transformOrigin: 'center',
           cursor: isTableDisabled ? 'not-allowed' : 'pointer',
