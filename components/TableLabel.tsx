@@ -4,6 +4,13 @@ export const TableNumber: React.FC<{ number: number; fontSize?: string }> = ({ n
   <div className="table-number" style={fontSize ? { fontSize } : undefined}>{number}</div>
 );
 
-export const SeatInfo: React.FC<{ available: number; total: number; fontSize?: string }> = ({ available, total, fontSize }) => (
-  <div className="table-seats" style={fontSize ? { fontSize } : undefined}>({available}/{total})</div>
+export const SeatsDots: React.FC<{ total: number; available: number }> = ({ total, available }) => (
+  <div className="seats-dots">
+    {Array.from({ length: total }).map((_, i) => (
+      <span
+        key={i}
+        className={i < available ? 'dot active' : 'dot inactive'}
+      />
+    ))}
+  </div>
 );

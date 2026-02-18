@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/core';
 import type { TableModel } from '../types';
 import { CATEGORY_COLORS, resolveCategoryColorKey } from '../src/config/categoryColors';
-import { TableNumber, SeatInfo } from './TableLabel';
+import { TableNumber, SeatsDots } from './TableLabel';
 import { UI_TEXT } from '../constants/uiText';
 
 const MIN_SIZE_PERCENT = 2;
@@ -210,7 +210,7 @@ function DraggableTable({
       </div>
       <div className="table-label">
         <TableNumber number={table.number ?? 0} />
-        <SeatInfo available={table.seatsCount} total={table.seatsCount} />
+        <SeatsDots total={table.seatsCount} available={table.seatsCount} />
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ import { UI_TEXT } from '../constants/uiText';
 import { CATEGORY_COLORS, resolveCategoryColorKey } from '../src/config/categoryColors';
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
-import { TableNumber, SeatInfo } from './TableLabel';
+import { TableNumber, SeatsDots } from './TableLabel';
 
 type SeatStatus = 'available' | 'reserved' | 'sold';
 
@@ -317,7 +317,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
               </div>
               <div className="table-label">
                 <TableNumber number={table.number ?? 0} />
-                <SeatInfo available={table.seatsAvailable} total={table.seatsTotal} />
+                <SeatsDots total={table.seatsTotal} available={table.seatsAvailable} />
               </div>
             {isEditable && (
               <button

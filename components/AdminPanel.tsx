@@ -19,7 +19,7 @@ import * as StorageService from '../services/storageService';
 import { EventData, TableModel } from '../types';
 import { UI_TEXT } from '../constants/uiText';
 import { computeTableSizes } from '../src/ui/tableSizing';
-import { TableNumber, SeatInfo } from './TableLabel';
+import { TableNumber } from './TableLabel';
 import PrimaryButton from '../src/ui/PrimaryButton';
 import SecondaryButton from '../src/ui/SecondaryButton';
 import DangerButton from '../src/ui/DangerButton';

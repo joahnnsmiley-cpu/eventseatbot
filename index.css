@@ -311,10 +311,24 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   line-height: 1;
   font-weight: 700;
 }
-.table-seats {
-  font-size: clamp(7px, 2vw, 10px);
-  opacity: 0.75;
-  margin-top: 2px;
+.seats-dots {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+  justify-content: center;
+}
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+.dot.active {
+  background: #F3E6C0;
+  box-shadow: 0 0 6px rgba(198, 167, 94, 0.6);
+}
+.dot.inactive {
+  background: rgba(255, 255, 255, 0.25);
 }
 ::-webkit-scrollbar {
   width: 0px;
