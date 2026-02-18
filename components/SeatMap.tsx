@@ -7,6 +7,8 @@ import { useContainerWidth } from '../src/hooks/useContainerWidth';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
 import { TableNumber } from './TableLabel';
 
+const ArrowIcon = () => <span style={{ color: '#C6A75E', fontSize: '1.2em' }}>›</span>;
+
 type SeatStatus = 'available' | 'reserved' | 'sold';
 
 export type SeatModel = {
@@ -313,6 +315,21 @@ const SeatMap: React.FC<SeatMapProps> = ({
               boxShadow,
             };
         const hasSelectedSeats = (selectedSeatsByTable?.[table.id]?.length ?? 0) > 0;
+        const innerButtonStyle: React.CSSProperties = {
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '55%',
+          aspectRatio: '1 / 1',
+          borderRadius: table.shape === 'circle' ? '50%' : 12,
+          background: 'rgba(40,40,40,0.92)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 6px 24px rgba(0,0,0,0.45)',
+          cursor: 'pointer',
+        };
         const wrapperStyle: React.CSSProperties = {
           position: 'absolute',
           left: `${table.centerX}%`,
@@ -350,13 +367,16 @@ const SeatMap: React.FC<SeatMapProps> = ({
                 <TableNumber number={table.number ?? 0} />
               </div>
             {isEditable && (
-              <button
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={(e) => { e.stopPropagation(); onTableDelete && onTableDelete(table.id); }}
-                className="absolute -top-2 -right-2 bg-[#141414] text-[#C6A75E] border border-[#2A2A2A] hover:border-[#C6A75E] hover:bg-[#1A1A1A] rounded-full w-6 h-6 flex items-center justify-center text-xs transition"
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTableDelete?.(table.id); } }}
                 aria-label={`${UI_TEXT.common.delete} ${UI_TEXT.tables.table} ${table.number}`}
+                style={innerButtonStyle}
               >
-                ×
-              </button>
+                <ArrowIcon />
+              </div>
             )}
           </div>
         );
