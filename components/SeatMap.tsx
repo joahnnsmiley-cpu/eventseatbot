@@ -349,6 +349,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
                       selectedIndices={selectedSeatsByTable?.[table.id]}
                       accentColor={palette?.base ?? '#FFC107'}
                       tableShape={isCircle ? 'circle' : 'rect'}
+                      widthPercent={table.widthPercent}
+                      heightPercent={table.heightPercent}
                     />
                   )}
                   <div className="table-label" style={getTableLabelStyle(palette ?? null)}>

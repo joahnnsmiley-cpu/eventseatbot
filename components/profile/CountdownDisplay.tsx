@@ -7,13 +7,13 @@ type CountdownDisplayProps = {
   variant?: 'guest' | 'organizer';
 };
 
-function Block({ value, size }: { value: number; size: string | number }) {
+function Block({ value, size, dark }: { value: number; size: string | number; dark?: boolean }) {
   return (
     <span
       style={{
         fontSize: size,
         fontWeight: 600,
-        color: '#111827',
+        color: dark ? '#EAE6DD' : '#111827',
         fontVariantNumeric: 'tabular-nums',
       }}
     >
@@ -22,9 +22,9 @@ function Block({ value, size }: { value: number; size: string | number }) {
   );
 }
 
-function Sep({ size }: { size: number }) {
+function Sep({ size, dark }: { size: number; dark?: boolean }) {
   return (
-    <span style={{ fontSize: size, fontWeight: 300, color: '#d1d5db', margin: '0 2px' }}>
+    <span style={{ fontSize: size, fontWeight: 300, color: dark ? '#6E6A64' : '#d1d5db', margin: '0 2px' }}>
       :
     </span>
   );
@@ -33,16 +33,17 @@ function Sep({ size }: { size: number }) {
 export default function CountdownDisplay({ countdown, variant = 'guest' }: CountdownDisplayProps) {
   const blockSize = variant === 'guest' ? 'clamp(36px, 7vw, 44px)' : 'clamp(32px, 6vw, 40px)';
   const sepSize = variant === 'guest' ? 28 : 24;
+  const dark = variant === 'organizer';
 
   return (
     <>
-      <Block value={countdown.days} size={blockSize} />
-      <Sep size={sepSize} />
-      <Block value={countdown.hours} size={blockSize} />
-      <Sep size={sepSize} />
-      <Block value={countdown.minutes} size={blockSize} />
-      <Sep size={sepSize} />
-      <Block value={countdown.seconds} size={blockSize} />
+      <Block value={countdown.days} size={blockSize} dark={dark} />
+      <Sep size={sepSize} dark={dark} />
+      <Block value={countdown.hours} size={blockSize} dark={dark} />
+      <Sep size={sepSize} dark={dark} />
+      <Block value={countdown.minutes} size={blockSize} dark={dark} />
+      <Sep size={sepSize} dark={dark} />
+      <Block value={countdown.seconds} size={blockSize} dark={dark} />
     </>
   );
 }

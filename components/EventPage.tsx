@@ -138,8 +138,6 @@ const EventPage: React.FC<EventPageProps> = ({
             className="absolute inset-0"
             style={{
               background: 'linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.7) 100%)',
-              backdropFilter: 'blur(24px)',
-              WebkitBackdropFilter: 'blur(24px)',
             }}
           />
           <div className="relative z-10 flex flex-col justify-end p-6 pb-6 min-h-[220px]">

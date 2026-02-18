@@ -6,15 +6,17 @@ export default function ProfileSectionSkeleton({
   title = true,
   rows = 3,
   columns = 4,
+  dark = false,
 }: {
   title?: boolean;
   rows?: number;
   columns?: number;
+  dark?: boolean;
 }) {
   return (
     <div style={{ marginBottom: spacing[4] }}>
       {title && (
-        <Skeleton height={12} width={100} borderRadius={radius.sm} style={{ marginBottom: spacing[3] }} />
+        <Skeleton height={12} width={100} borderRadius={radius.sm} style={{ marginBottom: spacing[3] }} dark={dark} />
       )}
       <div
         style={{
@@ -28,6 +30,7 @@ export default function ProfileSectionSkeleton({
             key={i}
             height={columns === 1 ? 48 : 56}
             borderRadius={radius.md}
+            dark={dark}
           />
         ))}
       </div>

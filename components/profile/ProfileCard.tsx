@@ -7,7 +7,7 @@ import { cardHover, cardActive, heroBlur } from '../../design/elevation';
 const GLASS_FALLBACK_STYLE = `
 @supports not (backdrop-filter: blur(20px)) {
   .profile-card-glass-fallback {
-    background: ${glassFallback} !important;
+    background: rgba(26,26,26,0.95) !important;
   }
 }
 `;
@@ -27,6 +27,7 @@ type ProfileCardProps = {
   interactive?: boolean;
 };
 
+/** Light glass (for light backgrounds) */
 const glassBase: React.CSSProperties = {
   background: glass.background,
   backdropFilter: glass.backdropFilter,
@@ -35,17 +36,26 @@ const glassBase: React.CSSProperties = {
   boxShadow: shadow.soft,
 };
 
+/** Dark glass for profile (luxury dark theme) */
+const glassDark: React.CSSProperties = {
+  background: 'rgba(26,26,26,0.6)',
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  boxShadow: shadow.soft,
+};
+
 const glassHero: React.CSSProperties = {
-  ...glassBase,
+  ...glassDark,
   backdropFilter: `blur(${heroBlur}px)`,
   WebkitBackdropFilter: `blur(${heroBlur}px)`,
-  background: 'linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.55) 100%)',
+  background: 'linear-gradient(180deg, rgba(30,30,30,0.9) 0%, rgba(20,20,20,0.85) 100%)',
 };
 
 const solidFallback: React.CSSProperties = {
-  backgroundColor: '#ffffff',
+  backgroundColor: '#1A1A1A',
   boxShadow: shadow.soft,
-  border: '1px solid rgba(0,0,0,0.04)',
+  border: '1px solid rgba(255,255,255,0.08)',
 };
 
 export default function ProfileCard({

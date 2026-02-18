@@ -308,7 +308,7 @@ async function getBookedSeatsByTable(eventId: string): Promise<Record<string, nu
     .from('bookings')
     .select('table_id, seat_indices, seats_booked')
     .eq('event_id', eventId)
-    .in('status', ['reserved', 'awaiting_confirmation', 'paid']);
+    .in('status', ['reserved', 'awaiting_confirmation', 'paid', 'payment_submitted']);
   const out: Record<string, number> = {};
   for (const b of data ?? []) {
     const tableId = b.table_id;
@@ -329,7 +329,7 @@ async function getBookedSeatsByEvents(eventIds: string[]): Promise<Record<string
     .from('bookings')
     .select('event_id, table_id, seat_indices, seats_booked')
     .in('event_id', eventIds)
-    .in('status', ['reserved', 'awaiting_confirmation', 'paid']);
+    .in('status', ['reserved', 'awaiting_confirmation', 'paid', 'payment_submitted']);
   const out: Record<string, Record<string, number>> = {};
   for (const b of data ?? []) {
     const eventId = b.event_id;
@@ -526,7 +526,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
       .from('bookings')
       .select('*', { count: 'exact', head: true })
       .eq('table_id', row.id)
-      .in('status', ['reserved', 'awaiting_confirmation', 'paid']);
+      .in('status', ['reserved', 'awaiting_confirmation', 'paid', 'payment_submitted']);
     if (countErr) throw countErr;
     if ((count ?? 0) > 0) {
       throw new Error('Cannot deactivate table with active bookings');

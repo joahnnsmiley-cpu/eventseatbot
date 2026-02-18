@@ -31,13 +31,13 @@ function StatBlock({ label, value }: { label: string; value: number | string }) 
         style={{
           fontSize: 'clamp(28px, 5vw, 36px)',
           fontWeight: 600,
-          color: '#0f172a',
+          color: '#EAE6DD',
           fontVariantNumeric: 'tabular-nums',
         }}
       >
         {value}
       </div>
-      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: 12, color: '#9B948A', marginTop: 4 }}>{label}</div>
     </div>
   );
 }
@@ -49,13 +49,13 @@ function TableStat({ label, value }: { label: string; value: number }) {
         style={{
           fontSize: 24,
           fontWeight: 600,
-          color: '#0f172a',
+          color: '#EAE6DD',
           fontVariantNumeric: 'tabular-nums',
         }}
       >
         {value}
       </div>
-      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: 12, color: '#9B948A', marginTop: 4 }}>{label}</div>
     </div>
   );
 }
@@ -89,11 +89,11 @@ function OrganizerStatsLazyInner({ stats, tables }: OrganizerStatsLazyProps) {
     return (
       <div ref={ref}>
         <ProfileCard padding={24} rounded={24} variant="glass">
-          <ProfileSectionSkeleton title rows={1} columns={3} />
+          <ProfileSectionSkeleton title rows={1} columns={3} dark />
         </ProfileCard>
         <div style={{ height: 32 }} />
         <ProfileCard padding={24} rounded={24} variant="glass">
-          <ProfileSectionSkeleton title rows={1} columns={4} />
+          <ProfileSectionSkeleton title rows={1} columns={4} dark />
         </ProfileCard>
       </div>
     );
@@ -110,7 +110,7 @@ function OrganizerStatsLazyInner({ stats, tables }: OrganizerStatsLazyProps) {
         <p
           style={{
             fontSize: 13,
-            color: '#64748b',
+            color: '#C6A75E',
             marginBottom: 20,
             marginTop: 0,
             textTransform: 'uppercase',
@@ -136,7 +136,7 @@ function OrganizerStatsLazyInner({ stats, tables }: OrganizerStatsLazyProps) {
         <p
           style={{
             fontSize: 13,
-            color: '#64748b',
+            color: '#C6A75E',
             marginBottom: 20,
             marginTop: 0,
             textTransform: 'uppercase',

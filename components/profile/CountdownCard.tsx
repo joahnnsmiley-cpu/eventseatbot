@@ -16,7 +16,7 @@ function CountdownCardInner({ eventDate, label = 'До начала вечера
       <p
         style={{
           fontSize: variant === 'guest' ? 14 : 13,
-          color: '#6b7280',
+          color: variant === 'organizer' ? '#C6A75E' : '#6b7280',
           marginBottom: variant === 'guest' ? 16 : 12,
           marginTop: 0,
           ...(variant === 'organizer' && {

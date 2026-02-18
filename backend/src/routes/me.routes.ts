@@ -226,7 +226,7 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
   const eventId = event.id;
   const tables = Array.isArray(event.tables) ? event.tables : [];
   const eventBookings = allBookings.filter(
-    (b: any) => b.eventId === eventId && (b.status === 'reserved' || b.status === 'paid' || b.status === 'awaiting_confirmation')
+    (b: any) => b.eventId === eventId && ['reserved', 'paid', 'awaiting_confirmation', 'payment_submitted'].includes(String(b.status ?? ''))
   );
 
   const totalGuests = eventBookings.reduce((sum: number, b: any) => {
