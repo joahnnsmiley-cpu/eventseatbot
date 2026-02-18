@@ -302,18 +302,29 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   left: 50%;
   transform: translate(-50%, -50%);
   width: max-content;
-  padding: 4px 6px;
   min-width: 28px;
+  padding: 6px;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(6px);
   border: 1px solid rgba(198, 167, 94, 0.5);
-  border-radius: 999px;
   box-shadow: 0 0 12px rgba(198, 167, 94, 0.35);
   color: #F3E6C0;
   font-weight: 600;
   letter-spacing: 0.3px;
   pointer-events: none;
   text-align: center;
+}
+/* Круглый стол — круглая метка */
+.table-shape-circle .table-label {
+  border-radius: 50%;
+}
+/* Прямоугольный стол — квадратная метка */
+.table-shape:not(.table-shape-circle) .table-label {
+  border-radius: 8px;
 }
 .table-number {
   font-size: clamp(10px, 2.8vw, 14px);
