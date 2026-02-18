@@ -5,7 +5,7 @@ import { UI_TEXT } from '../constants/uiText';
 import { CATEGORY_COLORS, resolveCategoryColorKey } from '../src/config/categoryColors';
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
-import { TableNumber, SeatsDots } from './TableLabel';
+import { TableNumber } from './TableLabel';
 
 type SeatStatus = 'available' | 'reserved' | 'sold';
 
@@ -265,12 +265,9 @@ const SeatMap: React.FC<SeatMapProps> = ({
         const isTableDisabled = !isEditable && (!isAvailableForSale || isSoldOut);
         const isSelected = selectedTableId === table.id;
         const isCircle = table.shape === 'circle';
-        const widthPct = isCircle
-          ? `${table.widthPercent ?? table.sizePercent ?? 6}%`
-          : (table.widthPercent ? `${table.widthPercent}%` : `${table.sizePercent ?? 6}%`);
-        const heightPct = isCircle
-          ? undefined
-          : (table.heightPercent ? `${table.heightPercent}%` : `${table.sizePercent ?? 6}%`);
+        const circleSize = `${table.widthPercent ?? table.sizePercent ?? 6}%`;
+        const widthPct = isCircle ? circleSize : (table.widthPercent ? `${table.widthPercent}%` : `${table.sizePercent ?? 6}%`);
+        const heightPct = isCircle ? circleSize : (table.heightPercent ? `${table.heightPercent}%` : `${table.sizePercent ?? 6}%`);
         const borderRadius = isCircle ? '50%' : 0;
         console.log('TABLE CATEGORY CHECK', {
           tableId: table.id,
@@ -289,7 +286,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
         const shapeStyle: React.CSSProperties = isCircle
           ? {
               width: '100%',
-              aspectRatio: '1 / 1',
+              height: '100%',
               borderRadius: '50%',
               background,
               border,
@@ -304,13 +301,12 @@ const SeatMap: React.FC<SeatMapProps> = ({
               boxShadow,
             };
         const hasSelectedSeats = (selectedSeatsByTable?.[table.id]?.length ?? 0) > 0;
-        const circleSize = `${table.widthPercent ?? table.sizePercent ?? 6}%`;
         const wrapperStyle: React.CSSProperties = {
           position: 'absolute',
           left: `${table.centerX}%`,
           top: `${table.centerY}%`,
-          width: isCircle ? circleSize : widthPct,
-          height: isCircle ? circleSize : heightPct,
+          width: widthPct,
+          height: heightPct,
           ...(isCircle ? { borderRadius: '50%' } : {}),
           transform: `translate(-50%, -50%) rotate(${table.rotationDeg ?? 0}deg)`,
           transformOrigin: 'center',
@@ -324,7 +320,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
             key={table.id}
             data-table-id={table.id}
             id={`table-${table.id}`}
-            className={`table-wrapper seat-map-table ${isTableDisabled ? 'table-disabled' : ''} ${isSelected ? 'table-selected' : ''}`}
+            className={`table-wrapper ${isTableDisabled ? 'table-disabled' : ''} ${isSelected ? 'table-selected' : ''}`}
             style={wrapperStyle}
             onClick={(e) => {
                 if (isTableDisabled) return;
@@ -340,9 +336,6 @@ const SeatMap: React.FC<SeatMapProps> = ({
               </div>
               <div className="table-label">
                 <TableNumber number={table.number ?? 0} />
-              </div>
-              <div className="seats-dots-wrapper">
-                <SeatsDots total={table.seatsTotal} available={table.seatsAvailable} />
               </div>
             {isEditable && (
               <button
