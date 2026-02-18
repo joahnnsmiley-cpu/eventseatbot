@@ -5,6 +5,8 @@ import ProfileCard from '../components/profile/ProfileCard';
 import ProfileAnimatedStack from '../components/profile/ProfileAnimatedStack';
 import CountdownCard from '../components/profile/CountdownCard';
 import OrganizerStatsLazy from '../components/profile/OrganizerStatsLazy';
+import { luxuryLabel } from '../design/theme';
+import { UI_TEXT } from '../constants/uiText';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 export type ProfileOrganizerScreenProps = {
@@ -24,6 +26,8 @@ export type ProfileOrganizerScreenProps = {
   vipGuests: Array<{ name: string; category: string }>;
   onOpenAdmin?: () => void;
   onOpenMap?: () => void;
+  /** Switch to guest profile view (organizer preview) */
+  onViewAsGuest?: () => void;
   /** Optimistic: show subtle loading when refetching */
   isRefreshing?: boolean;
 };
@@ -79,6 +83,7 @@ function ProfileOrganizerScreenInner({
   vipGuests,
   onOpenAdmin,
   onOpenMap,
+  onViewAsGuest,
   isRefreshing = false,
 }: ProfileOrganizerScreenProps) {
   return (
@@ -112,10 +117,11 @@ function ProfileOrganizerScreenInner({
         >
           <h1
             style={{
-              fontSize: 'clamp(22px, 3.5vw, 26px)',
+              fontSize: 'clamp(22px, 3.5vw, 28px)',
               fontWeight: 600,
-              color: '#EAE6DD',
+              color: '#F5F2EB',
               margin: 0,
+              letterSpacing: '-0.02em',
             }}
           >
             Вы управляете этим вечером
@@ -123,9 +129,11 @@ function ProfileOrganizerScreenInner({
           <p
             style={{
               fontSize: 15,
+              fontWeight: 500,
               color: '#C6A75E',
-              marginTop: 8,
+              marginTop: 10,
               marginBottom: 0,
+              textShadow: '0 0 24px rgba(198,167,94,0.2)',
             }}
           >
             {stats.guestsTotal} гостей · {stats.fillPercent}% заполнено
@@ -146,18 +154,7 @@ function ProfileOrganizerScreenInner({
 
         {/* 5️⃣ VIPGuestsCard */}
         <ProfileCard padding={24} rounded={24} variant="glass" interactive>
-          <p
-            style={{
-              fontSize: 13,
-              color: '#C6A75E',
-              marginBottom: 16,
-              marginTop: 0,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}
-          >
-            VIP гости
-          </p>
+          <p style={{ ...luxuryLabel, marginBottom: 16, marginTop: 0 }}>VIP гости</p>
           {vipGuests.length > 0 ? (
             <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
               {vipGuests.map((g, i) => (
@@ -196,21 +193,11 @@ function ProfileOrganizerScreenInner({
 
         {/* 6️⃣ QuickActionsCard */}
         <ProfileCard padding={24} rounded={24} variant="glass">
-          <p
-            style={{
-              fontSize: 13,
-              color: '#C6A75E',
-              marginBottom: 16,
-              marginTop: 0,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}
-          >
-            Действия
-          </p>
+          <p style={{ ...luxuryLabel, marginBottom: 16, marginTop: 0 }}>Действия</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <ActionButton label="Перейти в админ-панель" onClick={onOpenAdmin} />
             <ActionButton label="Открыть карту" onClick={onOpenMap} />
+            <ActionButton label={UI_TEXT.profile.viewAsGuest} onClick={onViewAsGuest} />
           </div>
         </ProfileCard>
       </ProfileAnimatedStack>

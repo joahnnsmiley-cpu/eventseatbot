@@ -36,6 +36,16 @@ export const typography = {
   caption: '14px',
 } as const;
 
+/** Dark luxury — section labels, gold accent */
+export const luxuryLabel = {
+  fontSize: 12,
+  fontWeight: 600,
+  color: '#C6A75E',
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase' as const,
+  textShadow: '0 0 20px rgba(198,167,94,0.15)',
+} as const;
+
 export const glassPreset = {
   background: 'rgba(255,255,255,0.6)',
   backdropFilter: 'blur(20px)',

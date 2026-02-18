@@ -41,6 +41,7 @@ export interface Event {
   date: string; // ISO date
   event_date?: string | null;
   event_time?: string | null;
+  timezoneOffsetMinutes?: number | null;
   venue?: string | null;
   isFeatured?: boolean;
 }
@@ -49,6 +50,11 @@ const router = Router();
 
 // Protect all admin event routes
 router.use(authMiddleware, adminOnly);
+
+/** GET /admin/server-time — current UTC for timezone offset calculation */
+router.get('/server-time', (_req: Request, res: Response) => {
+  res.json({ utc: new Date().toISOString() });
+});
 
 const normalizeId = (raw: string | string[] | undefined) => {
   if (Array.isArray(raw)) {
@@ -71,6 +77,7 @@ const toEvent = (e: EventData): Event => ({
   date: e.date,
   event_date: e.event_date ?? null,
   event_time: e.event_time ?? null,
+  timezoneOffsetMinutes: (e as any).timezoneOffsetMinutes ?? 180,
   venue: e.venue ?? null,
 });
 
@@ -391,6 +398,9 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   if (typeof req.body.date === 'string') existing.date = req.body.date;
   if (req.body.event_date === null || typeof req.body.event_date === 'string') existing.event_date = req.body.event_date ?? null;
   if (req.body.event_time === null || typeof req.body.event_time === 'string') existing.event_time = req.body.event_time ?? null;
+  if (typeof req.body.timezoneOffsetMinutes === 'number' && Number.isFinite(req.body.timezoneOffsetMinutes)) {
+    (existing as any).timezoneOffsetMinutes = Math.round(Math.max(-720, Math.min(720, req.body.timezoneOffsetMinutes)));
+  }
   if (req.body.venue === null || typeof req.body.venue === 'string') existing.venue = req.body.venue ?? null;
   // image_url — poster (banner/cover); layout_image_url — seating only (рассадка)
   if (typeof req.body.imageUrl === 'string') existing.imageUrl = req.body.imageUrl;

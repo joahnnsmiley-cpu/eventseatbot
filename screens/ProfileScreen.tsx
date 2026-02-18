@@ -3,8 +3,10 @@ import ProfileGuestScreen, { ProfileGuestEmpty } from './ProfileGuestScreen';
 import ProfileOrganizerScreen from './ProfileOrganizerScreen';
 import ProfileOrganizerSkeleton from '../components/profile/ProfileOrganizerSkeleton';
 import ProfileGuestSkeleton from '../components/profile/ProfileGuestSkeleton';
+import BackHeader from '../src/ui/BackHeader';
 import * as StorageService from '../services/storageService';
 import type { CategoryColorKey } from '../src/config/categoryColors';
+import { UI_TEXT } from '../constants/uiText';
 
 const ProfileStateMessage = ({
   message,
@@ -27,6 +29,8 @@ export type ProfileScreenProps = {
   selectedEventId?: string | null;
   onOpenAdmin?: () => void;
   onOpenMap?: () => void;
+  /** Navigate to previous screen */
+  onBack?: () => void;
 };
 
 export default function ProfileScreen({
@@ -35,8 +39,10 @@ export default function ProfileScreen({
   selectedEventId,
   onOpenAdmin,
   onOpenMap,
+  onBack,
 }: ProfileScreenProps) {
   const role = userRoleProp ?? 'guest';
+  const [viewAsGuest, setViewAsGuest] = useState(false);
   const [guestData, setGuestData] = useState<StorageService.ProfileGuestData | null>(null);
   const [guestLoading, setGuestLoading] = useState(false);
   const [guestError, setGuestError] = useState<string | null>(null);
@@ -45,14 +51,14 @@ export default function ProfileScreen({
   const [organizerError, setOrganizerError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (role !== 'guest') return;
+    if (role !== 'guest' && !(role === 'organizer' && viewAsGuest)) return;
     setGuestLoading(true);
     setGuestError(null);
     StorageService.getProfileGuestData()
       .then(setGuestData)
       .catch((err) => setGuestError(err?.message ?? 'Ошибка загрузки'))
       .finally(() => setGuestLoading(false));
-  }, [role]);
+  }, [role, viewAsGuest]);
 
   useEffect(() => {
     if (role !== 'organizer') return;
@@ -68,13 +74,51 @@ export default function ProfileScreen({
       .finally(() => setOrganizerLoading(false));
   }, [role, selectedEventId]);
 
-  if (role === 'organizer') {
-    if (organizerLoading && !organizerData?.hasData) return <ProfileOrganizerSkeleton />;
-    if (organizerError) return <ProfileStateMessage message={organizerError} isError />;
-    if (!organizerData || !organizerData.hasData) {
-      return <ProfileStateMessage message="Нет доступных событий для управления" />;
-    }
+  const wrapWithBack = (content: React.ReactNode, backHandler?: () => void, backLabel?: string) => {
+    const handler = backHandler ?? onBack;
+    if (!handler) return <>{content}</>;
     return (
+      <>
+        <BackHeader onBack={handler} variant="dark" backLabel={backLabel} />
+        {content}
+      </>
+    );
+  };
+
+  if (role === 'organizer' && viewAsGuest) {
+    if (guestLoading) return wrapWithBack(<ProfileGuestSkeleton />, () => setViewAsGuest(false), UI_TEXT.profile.backToOrganizer);
+    if (guestError) return wrapWithBack(<ProfileStateMessage message={guestError} isError />, () => setViewAsGuest(false), UI_TEXT.profile.backToOrganizer);
+    if (!guestData || !guestData.hasBooking) {
+      return wrapWithBack(<ProfileGuestEmpty message="У вас пока нет забронированного места" />, () => setViewAsGuest(false), UI_TEXT.profile.backToOrganizer);
+    }
+    const guestName = guestNameOverride ?? guestData.guestName;
+    const guestProps: Parameters<typeof ProfileGuestScreen>[0] = {
+      guestName,
+      event: {
+        title: guestData.event.name ?? guestData.event.title,
+        date: guestData.event.date,
+        dateTime: guestData.event.start_at,
+        venue: guestData.event.venue,
+      },
+      category: (guestData.categoryColorKey || 'gold') as CategoryColorKey,
+      categoryName: guestData.categoryName,
+      tableNumber: guestData.tableNumber,
+      seatNumbers: guestData.seatNumbers ?? [],
+      seatsFree: guestData.seatsFree,
+      neighbors: guestData.neighbors,
+      privileges: guestData.privileges ?? [],
+      privateAccess: guestData.privateAccess ?? '',
+    };
+    return wrapWithBack(<ProfileGuestScreen {...guestProps} />, () => setViewAsGuest(false), UI_TEXT.profile.backToOrganizer);
+  }
+
+  if (role === 'organizer') {
+    if (organizerLoading && !organizerData?.hasData) return wrapWithBack(<ProfileOrganizerSkeleton />);
+    if (organizerError) return wrapWithBack(<ProfileStateMessage message={organizerError} isError />);
+    if (!organizerData || !organizerData.hasData) {
+      return wrapWithBack(<ProfileStateMessage message="Нет доступных событий для управления" />);
+    }
+    return wrapWithBack(
       <ProfileOrganizerScreen
         eventDate={organizerData.eventDate}
         stats={organizerData.stats}
@@ -82,16 +126,17 @@ export default function ProfileScreen({
         vipGuests={organizerData.vipGuests}
         onOpenAdmin={onOpenAdmin}
         onOpenMap={onOpenMap}
+        onViewAsGuest={() => setViewAsGuest(true)}
         isRefreshing={organizerLoading}
       />
     );
   }
 
-  if (guestLoading) return <ProfileGuestSkeleton />;
-  if (guestError) return <ProfileStateMessage message={guestError} isError />;
+  if (guestLoading) return wrapWithBack(<ProfileGuestSkeleton />);
+  if (guestError) return wrapWithBack(<ProfileStateMessage message={guestError} isError />);
 
   if (!guestData || !guestData.hasBooking) {
-    return <ProfileGuestEmpty message="У вас пока нет забронированного места" />;
+    return wrapWithBack(<ProfileGuestEmpty message="У вас пока нет забронированного места" />);
   }
 
   const guestName = guestNameOverride ?? guestData.guestName;
@@ -113,5 +158,5 @@ export default function ProfileScreen({
     privateAccess: guestData.privateAccess ?? '',
   };
 
-  return <ProfileGuestScreen {...guestProps} />;
+  return wrapWithBack(<ProfileGuestScreen {...guestProps} />);
 }

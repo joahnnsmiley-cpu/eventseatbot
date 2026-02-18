@@ -4,7 +4,8 @@ import { db } from '../db';
 import { supabase } from '../supabaseClient';
 import { emitBookingCreated, emitBookingCancelled, calculateBookingExpiration } from '../domain/bookings';
 import { getPriceForTable } from '../utils/getTablePrice';
-import { sendTelegramMessage, notifyAdmins, formatDateForNotification, escapeHtml } from '../services/telegramService';
+import { sendTelegramMessage, notifyAdmins, escapeHtml } from '../services/telegramService';
+import { formatDateForNotification, parseEventToUtc } from '../utils/formatDate';
 
 const router = Router();
 
@@ -49,6 +50,7 @@ function mapEventToPublic(e: any) {
     date: e.date,
     event_date: e.event_date ?? null,
     event_time: e.event_time ?? null,
+    timezoneOffsetMinutes: e.timezoneOffsetMinutes ?? 180,
     venue: e.venue ?? null,
     coverImageUrl: e.imageUrl || e.schemaImageUrl || null,
     schemaImageUrl: e.schemaImageUrl || e.imageUrl || null,
@@ -87,6 +89,7 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     date: ev.date,
     event_date: ev.event_date ?? null,
     event_time: ev.event_time ?? null,
+    timezoneOffsetMinutes: ev.timezoneOffsetMinutes ?? 180,
     venue: ev.venue ?? null,
     coverImageUrl: ev.imageUrl || ev.schemaImageUrl || null,
     schemaImageUrl: ev.schemaImageUrl || ev.imageUrl || null,
@@ -608,7 +611,11 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
 
     // Fire-and-forget Telegram notifications (user + admins)
     const tableNumber = tbl?.number ?? tableId;
-    const formattedDate = formatDateForNotification(ev?.event_date ?? ev?.date);
+    const offset = (ev as any)?.timezoneOffsetMinutes ?? 180;
+    const evTs = parseEventToUtc(ev?.event_date, ev?.event_time, offset);
+    const formattedDate = evTs != null
+      ? formatDateForNotification(new Date(evTs), offset)
+      : formatDateForNotification(ev?.event_date ?? ev?.date, offset);
     const userMsg = `🎟 <b>Бронь создана</b>\n\n<b>${ev.title}</b>\n${formattedDate}\n\nСтол: ${tableNumber}\nМеста: ${indices.length}\nСумма: ${totalAmountVal} ₽\n\n⏳ Бронь действует до ${formatDateForNotification(expiresAt) || '—'}`;
     sendTelegramMessage(tgId, userMsg).catch((err) => console.error('Telegram user:', err));
     const phoneLine = normalizedPhone ? `📞 Телефон: ${escapeHtml(normalizedPhone)}` : '';
@@ -741,6 +748,81 @@ router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
     return res.status(result.status).json(result.body);
   } catch (err) {
     return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /public/contact-organizer — send user message to admins (only admins see it)
+router.post('/contact-organizer', async (req: Request, res: Response) => {
+  try {
+    const {
+      eventId,
+      problemText,
+      bookingId,
+      userTelegramId,
+      userFirstName,
+      userLastName,
+      userUsername,
+    } = req.body ?? {};
+
+    if (!eventId || typeof eventId !== 'string') return res.status(400).json({ error: 'eventId required' });
+    if (!problemText || typeof problemText !== 'string') return res.status(400).json({ error: 'problemText required' });
+    const userId = typeof userTelegramId === 'number' ? userTelegramId : null;
+
+    const ev = (await db.findEventById(eventId)) as any;
+    if (!ev) return res.status(404).json({ error: 'Event not found' });
+
+    const bookings = await db.getBookings();
+    let booking: any = null;
+    if (bookingId && typeof bookingId === 'string') {
+      booking = bookings.find((b: any) => b.id === bookingId && b.eventId === eventId);
+    }
+    if (!booking && userId != null) {
+      const userBookings = bookings.filter(
+        (b: any) => b.eventId === eventId && (b.userTelegramId === userId || b.user_telegram_id === userId)
+      );
+      booking = userBookings[0] ?? null;
+    }
+
+    const fio = [userFirstName, userLastName].filter(Boolean).join(' ').trim() || '—';
+    const eventInfo = [
+      `ID: ${escapeHtml(ev.id)}`,
+      `Название: ${escapeHtml(ev.title ?? '—')}`,
+      `Дата: ${escapeHtml(ev.event_date ?? ev.date ?? '—')}`,
+      `Время: ${escapeHtml(ev.event_time ?? '—')}`,
+      `Площадка: ${escapeHtml(ev.venue ?? '—')}`,
+      `Описание: ${escapeHtml((ev.description ?? '').slice(0, 200))}${(ev.description ?? '').length > 200 ? '…' : ''}`,
+    ].join('\n');
+    const bookingInfo = booking
+      ? [
+          `ID брони: ${escapeHtml(booking.id)}`,
+          `Статус: ${escapeHtml(booking.status ?? '—')}`,
+          `Стол: ${escapeHtml(booking.tableId ?? '—')}`,
+          `Места: ${escapeHtml(String(booking.seatsBooked ?? booking.seats_booked ?? '—'))}`,
+          `Сумма: ${booking.totalAmount ?? booking.total_amount ?? 0} ₽`,
+          `Телефон: ${escapeHtml(booking.userPhone ?? booking.user_phone ?? '—')}`,
+          `Комментарий: ${escapeHtml((booking.userComment ?? booking.user_comment ?? '').slice(0, 100))}`,
+        ].join('\n')
+      : 'Бронь не указана';
+
+    const adminMsg = [
+      '📩 <b>Обращение к организатору</b>',
+      '',
+      `👤 <b>Telegram ID:</b> ${userId ?? '—'}`,
+      `👤 <b>ФИО:</b> ${fio}`,
+      `📝 <b>Сообщение:</b>\n${escapeHtml(problemText.trim().slice(0, 1000))}`,
+      '',
+      '— <b>Событие</b> —',
+      eventInfo,
+      '',
+      '— <b>Бронь</b> —',
+      bookingInfo,
+    ].join('\n');
+
+    notifyAdmins(adminMsg).catch((err) => console.error('Telegram notify admins (contact-organizer):', err));
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[contact-organizer]', err);
+    return res.status(500).json({ error: 'Internal error' });
   }
 });
 

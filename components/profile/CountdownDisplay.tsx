@@ -12,9 +12,10 @@ function Block({ value, size, dark }: { value: number; size: string | number; da
     <span
       style={{
         fontSize: size,
-        fontWeight: 600,
-        color: dark ? '#EAE6DD' : '#111827',
+        fontWeight: 700,
+        color: dark ? '#F5F2EB' : '#111827',
         fontVariantNumeric: 'tabular-nums',
+        letterSpacing: '-0.02em',
       }}
     >
       {String(value).padStart(2, '0')}

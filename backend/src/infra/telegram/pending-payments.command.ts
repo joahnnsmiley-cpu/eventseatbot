@@ -4,6 +4,7 @@
  */
 
 import { getAllPayments, type PaymentIntent } from '../../domain/payments/payment.repository';
+import { formatDateForNotification } from '../../utils/formatDate';
 import { isAuthorizedAdminChat, logUnauthorizedCommand } from './telegram.security';
 
 /**
@@ -102,20 +103,7 @@ export function getPendingPayments(): Array<{
   }
 }
 
-/**
- * Format timestamp to readable date string
- */
+/** Format timestamp to readable date string (app timezone) */
 function formatDate(timestamp: number): string {
-  try {
-    const date = new Date(timestamp);
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-
-    return `${day}.${month}.${year} ${hours}:${minutes}`;
-  } catch {
-    return 'Unknown';
-  }
+  return formatDateForNotification(new Date(timestamp)) || 'Unknown';
 }

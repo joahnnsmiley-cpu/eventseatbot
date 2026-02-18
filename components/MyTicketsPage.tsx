@@ -6,6 +6,7 @@ import TicketModal from '../src/ui/TicketModal';
 import Card from '../src/ui/Card';
 import SectionTitle from '../src/ui/SectionTitle';
 import PrimaryButton from '../src/ui/PrimaryButton';
+import { getEventDisplayParts, getEventDisplayPartsFromIso } from '../src/utils/formatDate';
 import { UI_TEXT } from '../constants/uiText';
 
 type BookingItem = {
@@ -25,6 +26,7 @@ type EventInfo = {
   date: string;
   event_date?: string | null;
   event_time?: string | null;
+  timezoneOffsetMinutes?: number;
   tableNumber?: number;
   imageUrl?: string | null;
   tableIdToNumber?: Record<string, number>;
@@ -145,6 +147,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             date: ev?.date ?? '',
             event_date: (ev as any)?.event_date ?? null,
             event_time: (ev as any)?.event_time ?? null,
+            timezoneOffsetMinutes: (ev as any)?.timezoneOffsetMinutes ?? 180,
             tableIdToNumber,
             categoryByTableId,
             imageUrl: ev?.imageUrl ?? ev?.coverImageUrl ?? null,
@@ -207,26 +210,16 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   /** Format event date and time as "22 марта 2026 г., 17:00" */
   const formatEventDateTime = (info: EventInfo | undefined): { date: string; time: string } => {
     if (!info) return { date: '—', time: '' };
-    const eventDate = info.event_date;
-    const eventTime = info.event_time;
-    let d: Date;
-    if (eventDate) {
-      const combined = eventTime ? `${eventDate}T${eventTime}` : `${eventDate}T00:00`;
-      d = new Date(combined);
-    } else if (info.date) {
-      d = new Date(info.date);
-    } else {
-      return { date: '—', time: '' };
+    const offset = (info as any).timezoneOffsetMinutes ?? 180;
+    if (info.event_date) {
+      const parts = getEventDisplayParts(info.event_date, info.event_time ?? undefined, offset);
+      return parts ? { date: parts.date, time: parts.time } : { date: '—', time: '' };
     }
-    if (isNaN(d.getTime())) return { date: '—', time: '' };
-    try {
-      const dateStr = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-      const hasTime = eventTime || (info.date && info.date.includes('T'));
-      const timeStr = hasTime ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
-      return { date: dateStr, time: timeStr };
-    } catch {
-      return { date: '—', time: '' };
+    if (info.date) {
+      const parts = getEventDisplayPartsFromIso(info.date, offset);
+      return parts ? { date: parts.date, time: parts.time } : { date: '—', time: '' };
     }
+    return { date: '—', time: '' };
   };
 
   const getStatusType = (status: string): 'paid' | 'reserved' | 'cancelled' => {

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authMiddleware, AuthRequest } from '../auth/auth.middleware';
 import { db } from '../db';
 import { getPremiumUserInfo } from '../config/premium';
+import { formatEventDateRu, parseEventToIso } from '../utils/formatDate';
 
 const router = Router();
 
@@ -146,9 +147,8 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
 
   const eventDate = (event as any).event_date ?? null;
   const eventTime = (event as any).event_time ?? null;
-  const startAt = eventDate && eventTime
-    ? `${eventDate}T${String(eventTime).slice(0, 8)}`
-    : (event as any).date ?? null;
+  const offset = (event as any).timezoneOffsetMinutes ?? 180;
+  const startAt = parseEventToIso(eventDate, eventTime, offset) ?? (event as any).date ?? null;
 
   const seatIndices = booking.seatIndices ?? [];
   const seatNumbers = seatIndices.map((i: number) => i + 1);
@@ -163,7 +163,7 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
       name: event.title,
       title: event.title,
       start_at: startAt,
-      date: eventDate ? new Date(`${eventDate}T00:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+      date: formatEventDateRu(eventDate, eventTime || '00:00:00', (event as any).timezoneOffsetMinutes ?? 180),
       venue: (event as any).venue ?? '',
     },
     tableNumber: table.number ?? 0,
@@ -286,9 +286,8 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
 
   const eventDate = (event as any).event_date ?? null;
   const eventTime = (event as any).event_time ?? null;
-  const eventDateIso = eventDate && eventTime
-    ? `${eventDate}T${String(eventTime).slice(0, 8)}`
-    : (event as any).date ?? null;
+  const offset = (event as any).timezoneOffsetMinutes ?? 180;
+  const eventDateIso = parseEventToIso(eventDate, eventTime, offset) ?? (event as any).date ?? null;
 
   res.json({
     hasData: true,

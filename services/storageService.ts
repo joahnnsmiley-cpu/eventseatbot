@@ -149,6 +149,29 @@ export const updateBookingStatus = async (bookingId: string, status: 'awaiting_c
   return res.json();
 };
 
+/** POST /public/contact-organizer — send user message to admins (only admins see it). */
+export const contactOrganizer = async (payload: {
+  eventId: string;
+  problemText: string;
+  bookingId?: string;
+  userTelegramId?: number;
+  userFirstName?: string;
+  userLastName?: string;
+  userUsername?: string;
+}): Promise<{ ok: boolean }> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/public/contact-organizer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'Failed to send message');
+  }
+  return res.json();
+};
+
 /** Create a pending booking (no payment, no seat blocking). Body: eventId, tableId, seats (number[]), phone. */
 export const createPendingBooking = async (payload: {
   eventId: string;
@@ -330,6 +353,17 @@ export const getAdminEvents = async (): Promise<EventData[]> => {
   const data = await res.json();
   const list = Array.isArray(data) ? data : [];
   return list.map((e: EventData) => ({ ...e, tables: Array.isArray(e.tables) ? e.tables : [] }));
+};
+
+/** GET /admin/server-time — current UTC for timezone offset calculation */
+export const getAdminServerTime = async (): Promise<{ utc: string }> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/server-time`, {
+    method: 'GET',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) await handleAuthError(res, 'Failed to get server time');
+  return res.json();
 };
 
 /** GET /admin/events/:id — full EventData with tables (from backend event_tables join). Never use PUT response or list as source of tables. */

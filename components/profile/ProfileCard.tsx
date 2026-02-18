@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { glass, glassFallback, radius, shadow } from '../../design/theme';
+import { radius } from '../../design/theme';
 import { duration, easing } from '../../design/motion';
-import { cardHover, cardActive, heroBlur } from '../../design/elevation';
+import { cardHover, cardActive, heroBlur, darkCard } from '../../design/elevation';
 
 const GLASS_FALLBACK_STYLE = `
 @supports not (backdrop-filter: blur(20px)) {
@@ -21,41 +21,33 @@ type ProfileCardProps = {
   rounded?: number;
   /** Override background, shadow, border */
   style?: React.CSSProperties;
-  /** "glass" = subtle blur, "hero" = stronger blur + gradient, "solid" = no blur (fallback) */
+  /** "glass" = dark glass + depth, "hero" = stronger blur + gradient, "solid" = no blur (fallback) */
   variant?: 'glass' | 'hero' | 'solid';
   /** Enable hover/press effects */
   interactive?: boolean;
 };
 
-/** Light glass (for light backgrounds) */
-const glassBase: React.CSSProperties = {
-  background: glass.background,
-  backdropFilter: glass.backdropFilter,
-  WebkitBackdropFilter: glass.WebkitBackdropFilter,
-  border: glass.border,
-  boxShadow: shadow.soft,
-};
-
-/** Dark glass for profile (luxury dark theme) */
+/** Dark glass for profile (luxury dark theme) — depth, inner glow, gold rim */
 const glassDark: React.CSSProperties = {
-  background: 'rgba(26,26,26,0.6)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  boxShadow: shadow.soft,
+  background: 'rgba(22,22,22,0.75)',
+  backdropFilter: 'blur(24px)',
+  WebkitBackdropFilter: 'blur(24px)',
+  border: '1px solid rgba(255,255,255,0.06)',
+  boxShadow: `${darkCard.shadow}, ${darkCard.innerGlow}`,
 };
 
 const glassHero: React.CSSProperties = {
   ...glassDark,
   backdropFilter: `blur(${heroBlur}px)`,
   WebkitBackdropFilter: `blur(${heroBlur}px)`,
-  background: 'linear-gradient(180deg, rgba(30,30,30,0.9) 0%, rgba(20,20,20,0.85) 100%)',
+  background: 'linear-gradient(180deg, rgba(28,28,28,0.92) 0%, rgba(18,18,18,0.88) 100%)',
+  boxShadow: `${darkCard.shadow}, ${darkCard.innerGlow}, inset 0 1px 0 rgba(198,167,94,0.08)`,
 };
 
 const solidFallback: React.CSSProperties = {
   backgroundColor: '#1A1A1A',
-  boxShadow: shadow.soft,
-  border: '1px solid rgba(255,255,255,0.08)',
+  boxShadow: darkCard.shadow,
+  border: '1px solid rgba(255,255,255,0.06)',
 };
 
 export default function ProfileCard({
@@ -93,7 +85,7 @@ export default function ProfileCard({
     return (
       <motion.div
         initial={false}
-        whileHover={{ y: cardHover.translateY, boxShadow: cardHover.shadow }}
+        whileHover={{ y: cardHover.translateY, boxShadow: darkCard.shadowHover }}
         whileTap={{ scale: cardActive.scale, transition: { duration: duration.fast / 1000 } }}
         transition={{ duration: duration.normal / 1000, ease: easing.primaryArray }}
         style={{ borderRadius: rounded }}

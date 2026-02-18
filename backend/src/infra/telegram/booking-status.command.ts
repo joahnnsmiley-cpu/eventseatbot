@@ -4,6 +4,7 @@
  */
 
 import { getBookingStatus, type BookingStatusResult } from '../../domain/bookings/booking.status';
+import { formatDateForNotification } from '../../utils/formatDate';
 import { isAuthorizedAdminChat, logUnauthorizedCommand } from './telegram.security';
 
 /**
@@ -85,7 +86,7 @@ export async function formatBookingStatusMessage(bookingId: string | undefined):
         message += `⏱ Истекла\n`;
       }
       
-      message += `Точное время: ${expiresDate.toLocaleString('ru-RU')}\n`;
+      message += `Точное время: ${formatDateForNotification(expiresDate)}\n`;
     }
 
     // Add payment info with detailed formatting
@@ -126,8 +127,7 @@ function formatPaymentBlock(payment: {
     }
     
     if (payment.confirmedAt) {
-      const confirmedDate = new Date(payment.confirmedAt);
-      block += `Время: ${confirmedDate.toLocaleString('ru-RU')}\n`;
+      block += `Время: ${formatDateForNotification(payment.confirmedAt)}\n`;
     }
   } else if (payment.status === 'pending') {
     block += `Статус: ⏳ Ожидает оплату\n`;

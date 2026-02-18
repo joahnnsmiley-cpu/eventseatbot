@@ -20,6 +20,7 @@ type EventsRow = {
   date: string | null;
   event_date?: string | null;
   event_time?: string | null;
+  timezone_offset_minutes?: number | null;
   venue?: string | null;
   /** image_url — poster (event banner / cover image); fallback when poster_image_path is null. */
   image_url: string | null;
@@ -100,6 +101,7 @@ function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
     date: row.date ?? new Date().toISOString(),
     event_date: row.event_date ?? null,
     event_time: row.event_time ?? null,
+    timezoneOffsetMinutes: row.timezone_offset_minutes ?? 180,
     venue: row.venue ?? null,
     // poster_image_path → imageUrl when set; else image_url
     imageUrl,
@@ -390,6 +392,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
     date: event.date || null,
     event_date: event.event_date ?? null,
     event_time: event.event_time ?? null,
+    timezone_offset_minutes: (event as any).timezoneOffsetMinutes ?? 180,
     venue: event.venue ?? null,
     image_url: event.imageUrl || null,
     layout_image_url: event.layoutImageUrl ?? null,

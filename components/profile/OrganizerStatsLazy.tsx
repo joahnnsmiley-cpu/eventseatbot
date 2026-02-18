@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, memo } from 'react';
 import { motion } from 'framer-motion';
 import ProfileCard from './ProfileCard';
 import ProfileSectionSkeleton from './ProfileSectionSkeleton';
+import { luxuryLabel } from '../../design/theme';
 
 const APPLE_EASE = [0.22, 1, 0.36, 1];
 
@@ -30,14 +31,15 @@ function StatBlock({ label, value }: { label: string; value: number | string }) 
       <div
         style={{
           fontSize: 'clamp(28px, 5vw, 36px)',
-          fontWeight: 600,
-          color: '#EAE6DD',
+          fontWeight: 700,
+          color: '#F5F2EB',
           fontVariantNumeric: 'tabular-nums',
+          letterSpacing: '-0.03em',
         }}
       >
         {value}
       </div>
-      <div style={{ fontSize: 12, color: '#9B948A', marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: 12, color: '#9B948A', marginTop: 6, fontWeight: 500 }}>{label}</div>
     </div>
   );
 }
@@ -48,14 +50,15 @@ function TableStat({ label, value }: { label: string; value: number }) {
       <div
         style={{
           fontSize: 24,
-          fontWeight: 600,
-          color: '#EAE6DD',
+          fontWeight: 700,
+          color: '#F5F2EB',
           fontVariantNumeric: 'tabular-nums',
+          letterSpacing: '-0.02em',
         }}
       >
         {value}
       </div>
-      <div style={{ fontSize: 12, color: '#9B948A', marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: 12, color: '#9B948A', marginTop: 6, fontWeight: 500 }}>{label}</div>
     </div>
   );
 }
@@ -107,18 +110,7 @@ function OrganizerStatsLazyInner({ stats, tables }: OrganizerStatsLazyProps) {
       transition={{ duration: 0.4, ease: APPLE_EASE }}
     >
       <ProfileCard padding={24} rounded={24} variant="glass" interactive>
-        <p
-          style={{
-            fontSize: 13,
-            color: '#C6A75E',
-            marginBottom: 20,
-            marginTop: 0,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          }}
-        >
-          Статистика
-        </p>
+        <p style={{ ...luxuryLabel, marginBottom: 20, marginTop: 0 }}>Статистика</p>
         <div
           style={{
             display: 'grid',
@@ -133,18 +125,7 @@ function OrganizerStatsLazyInner({ stats, tables }: OrganizerStatsLazyProps) {
       </ProfileCard>
       <div style={{ height: 32 }} />
       <ProfileCard padding={24} rounded={24} variant="glass" interactive>
-        <p
-          style={{
-            fontSize: 13,
-            color: '#C6A75E',
-            marginBottom: 20,
-            marginTop: 0,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          }}
-        >
-          Столы
-        </p>
+        <p style={{ ...luxuryLabel, marginBottom: 20, marginTop: 0 }}>Столы</p>
         <div
           style={{
             display: 'grid',

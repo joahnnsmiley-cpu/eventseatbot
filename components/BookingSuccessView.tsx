@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { EventData, Booking } from '../types';
 import { getPriceForTable } from '../src/utils/getTablePrice';
+import { getEventDisplayParts, getEventDisplayPartsFromIso } from '../src/utils/formatDate';
 import { UI_TEXT } from '../constants/uiText';
 import * as StorageService from '../services/storageService';
 import Card from '../src/ui/Card';
@@ -14,18 +15,17 @@ export interface BookingSuccessViewProps {
   onGoToTickets?: () => void;
 }
 
-const formatEventDate = (dateStr?: string): { date: string; time: string } => {
-  if (!dateStr || typeof dateStr !== 'string') return { date: '—', time: '' };
-  try {
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return { date: dateStr, time: '' };
-    const date = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-    const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0 || d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0;
-    const time = hasTime ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
-    return { date, time };
-  } catch {
-    return { date: dateStr, time: '' };
+const formatEventDate = (event: EventData): { date: string; time: string } => {
+  const offset = (event as any).timezoneOffsetMinutes ?? 180;
+  if (event.event_date) {
+    const parts = getEventDisplayParts(event.event_date, event.event_time ?? undefined, offset);
+    return parts ? { date: parts.date, time: parts.time } : { date: '—', time: '' };
   }
+  if (event.date) {
+    const parts = getEventDisplayPartsFromIso(event.date, offset);
+    return parts ? { date: parts.date, time: parts.time } : { date: '—', time: '' };
+  }
+  return { date: '—', time: '' };
 };
 
 const formatTablesAndSeats = (booking: Booking, event: EventData): string => {
@@ -89,7 +89,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
     }
   };
 
-  const { date, time } = formatEventDate(event.date);
+  const { date, time } = formatEventDate(event);
   const venue = (event as { venue?: string }).venue ?? 'Площадка';
 
   return (

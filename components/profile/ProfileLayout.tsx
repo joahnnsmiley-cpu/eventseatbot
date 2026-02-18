@@ -15,7 +15,8 @@ export default function ProfileLayout({ children }: ProfileLayoutProps) {
       className="w-full max-w-[720px] mx-auto px-6 py-6"
       style={{
         minHeight: '100%',
-        background: 'linear-gradient(180deg, #0F0F0F 0%, #141414 100%)',
+        background: 'linear-gradient(180deg, #0F0F0F 0%, #141414 50%, #0D0D0D 100%)',
+        fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
       }}
     >
       {children}

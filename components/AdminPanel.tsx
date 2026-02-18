@@ -25,6 +25,7 @@ import SecondaryButton from '../src/ui/SecondaryButton';
 import DangerButton from '../src/ui/DangerButton';
 import EventCard, { EventCardSkeleton } from './EventCard';
 import AdminCard from '../src/ui/AdminCard';
+import { formatEventDate, formatEventDateTime, formatDateTimeRu } from '../src/utils/formatDate';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
 import { tableToApiPayload } from '../src/utils/tableToApiPayload';
 import { deepClone } from '../src/utils/deepEqual';
@@ -250,7 +251,7 @@ function validateRectTables(tables: TableModel[]): string | null {
   return null;
 }
 
-const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
+const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: string) => void }> = ({ onBack, onViewAsUser }) => {
   const [mode, setMode] = useState<'bookings' | 'layout'>('bookings');
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState(false);
@@ -272,6 +273,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [eventDescription, setEventDescription] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
+  const [timezoneOffsetMinutes, setTimezoneOffsetMinutes] = useState<number>(180);
+  const [timezoneRefDialog, setTimezoneRefDialog] = useState(false);
+  const [adminLocalNow, setAdminLocalNow] = useState('');
   const [venue, setVenue] = useState('');
   const [eventPhone, setEventPhone] = useState('');
   const [eventPublished, setEventPublished] = useState(false);
@@ -500,6 +504,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setEventDescription(fresh.description || '');
     setEventDate(fresh.event_date ?? '');
     setEventTime(fresh.event_time ? String(fresh.event_time).slice(0, 5) : '');
+    setTimezoneOffsetMinutes((fresh as any).timezoneOffsetMinutes ?? 180);
     setVenue(fresh.venue ?? '');
     setEventPhone(fresh.paymentPhone || '');
     setEventPublished(fresh.published === true);
@@ -595,6 +600,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         description: eventDescription.trim(),
         event_date: eventDate.trim() || null,
         event_time: eventTime.trim() || null,
+        timezoneOffsetMinutes,
         venue: venue.trim() || null,
         paymentPhone: eventPhone.trim(),
         imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
@@ -670,27 +676,18 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return cat?.name ?? '—';
   };
 
-  const formatAdminDate = (s: string | null | undefined): string => {
+  const formatAdminDate = (s: string | null | undefined, offset = 180): string => {
     if (!s) return '—';
-    try {
-      const d = new Date(s);
-      return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return String(s);
-    }
+    return formatDateTimeRu(s, offset) || String(s);
   };
 
   const formatEventDateDisplay = (ev: EventData | undefined): string => {
     if (!ev) return '—';
-    const d = ev.event_date ?? ev.date;
-    if (!d) return '—';
-    try {
-      const dateStr = new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
-      const time = ev.event_time;
-      return time ? `${dateStr}, ${time}` : dateStr;
-    } catch {
-      return String(d);
-    }
+    const offset = (ev as any).timezoneOffsetMinutes ?? 180;
+    if (ev.event_date && ev.event_time) return formatEventDateTime(ev.event_date, ev.event_time, offset);
+    if (ev.event_date) return formatEventDate(ev.event_date, offset);
+    if (ev.date) return formatDateTimeRu(ev.date, offset);
+    return '—';
   };
 
   const tableIdsWithBookings = useMemo(() => {
@@ -1273,6 +1270,68 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     </div>
                   </div>
                   <div>
+                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.timezoneRef}</div>
+                    <p className="text-xs text-muted mb-2">{UI_TEXT.event.timezoneRefHint}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted">
+                        UTC{timezoneOffsetMinutes >= 0 ? '+' : ''}{timezoneOffsetMinutes / 60}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const now = new Date();
+                          const pad = (n: number) => String(n).padStart(2, '0');
+                          setAdminLocalNow(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`);
+                          setTimezoneRefDialog(true);
+                        }}
+                        className="text-xs px-3 py-1.5 rounded border border-white/20 hover:bg-white/5"
+                      >
+                        {UI_TEXT.event.timezoneSetNow}
+                      </button>
+                    </div>
+                  </div>
+                  {timezoneRefDialog && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                      <div className="bg-[#1A1A1A] rounded-xl p-6 max-w-sm w-full border border-white/10">
+                        <p className="text-sm font-medium mb-2">Укажите ваше текущее время</p>
+                        <input
+                          type="datetime-local"
+                          value={adminLocalNow}
+                          onChange={(e) => setAdminLocalNow(e.target.value)}
+                          className="w-full border rounded px-3 py-2 text-sm mb-4"
+                          step="60"
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setTimezoneRefDialog(false)}
+                            className="px-4 py-2 text-sm rounded border border-white/20"
+                          >
+                            Отмена
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const { utc } = await StorageService.getAdminServerTime();
+                                const serverTs = new Date(utc).getTime();
+                                const adminTs = new Date(adminLocalNow).getTime();
+                                const offset = Math.round((adminTs - serverTs) / 60000);
+                                setTimezoneOffsetMinutes(Math.max(-720, Math.min(720, offset)));
+                                setTimezoneRefDialog(false);
+                              } catch (e) {
+                                console.error('Timezone calc failed', e);
+                              }
+                            }}
+                            className="px-4 py-2 text-sm rounded bg-[#C6A75E] text-black font-medium"
+                          >
+                            Применить
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div>
                     <div className="text-sm font-semibold mb-1">{UI_TEXT.event.venue}</div>
                     <input
                       type="text"
@@ -1715,12 +1774,15 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     )}
                     <button
                       type="button"
-                      onClick={() =>
-                        window.open(
-                          `${window.location.origin}/event/${selectedEvent?.id}`,
-                          '_blank'
-                        )
-                      }
+                      onClick={() => {
+                        const id = selectedEvent?.id;
+                        if (!id) return;
+                        if (onViewAsUser) {
+                          onViewAsUser(id);
+                        } else {
+                          window.open(`${window.location.origin}/#/event/${id}`, '_blank');
+                        }
+                      }}
                       className="bg-[#1A1A1A] border border-white/10 text-white px-4 py-2 rounded-xl text-sm hover:border-white/20 transition"
                     >
                       👁 Просмотреть как пользователь

@@ -66,6 +66,8 @@ export interface EventData {
   event_date?: string | null;
   /** event_time — time only (HH:mm or HH:mm:ss). */
   event_time?: string | null;
+  /** timezoneOffsetMinutes — minutes ahead of UTC (e.g. 180 = UTC+3). Set via admin "current time" reference. */
+  timezoneOffsetMinutes?: number | null;
   /** venue — location/place name. */
   venue?: string | null;
   /** imageUrl — афиша события (poster / cover). */

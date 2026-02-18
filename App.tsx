@@ -18,6 +18,7 @@ import PrimaryButton from './src/ui/PrimaryButton';
 import type { Booking, EventData, Table } from './types';
 import { getPriceForTable } from './src/utils/getTablePrice';
 import { getCurrentUser } from './src/utils/getCurrentUser';
+import { getEventDisplayParts, getEventDisplayPartsFromIso } from './src/utils/formatDate';
 import { UI_TEXT } from './constants/uiText';
 import { useToast } from './src/ui/ToastContext';
 
@@ -48,30 +49,11 @@ type TgUser = {
   last_name?: string;
 };
 
-function formatEventDate(dateStr?: string): { day: number; date: string; time: string } | null {
-  if (!dateStr || typeof dateStr !== 'string') return null;
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return null;
-  const day = d.getDate();
-  const date = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-  const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0 || d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0;
-  const time = hasTime ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
-  return { day, date, time };
-}
-
 const getEventDisplayDate = (event: EventData): { day: number; date: string; time: string } | null => {
-  if (event.event_date) {
-    const dateObj = new Date(event.event_date);
-    const day = dateObj.getDate();
-    const date = dateObj.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    const time = event.event_time ? event.event_time.slice(0, 5) : '';
-    return { day, date, time };
-  }
-  return formatEventDate(event.date);
+  const offset = (event as any).timezoneOffsetMinutes ?? 180;
+  if (event.event_date) return getEventDisplayParts(event.event_date, event.event_time ?? undefined, offset) ?? null;
+  if (event.date) return getEventDisplayPartsFromIso(event.date, offset) ?? null;
+  return null;
 };
 
 function App() {
@@ -448,7 +430,16 @@ function App() {
   );
 
   if (isAdmin && view === 'admin') {
-    return wrapWithLayout(<AdminPanel onBack={() => setView('events')} />);
+    return wrapWithLayout(
+      <AdminPanel
+        onBack={() => setView('events')}
+        onViewAsUser={(eventId) => {
+          setSelectedEventId(eventId);
+          loadEvent(eventId);
+          setView('layout');
+        }}
+      />
+    );
   }
 
   if (view === 'my-tickets') {
@@ -464,6 +455,7 @@ function App() {
         selectedEventId={selectedEventId}
         onOpenAdmin={() => setView('admin')}
         onOpenMap={() => setView('events')}
+        onBack={() => setView('events')}
       />
     );
   }
@@ -515,6 +507,7 @@ function App() {
         }}
         eventLoading={eventLoading}
         eventError={eventError}
+        tgUser={tgUser}
       />
     );
   }
@@ -892,9 +885,9 @@ function App() {
                 setBookingSuccessMessage(null);
               }}
               disabled={myBookingsLoading}
-              className="text-xs px-2 py-1 rounded border"
+              className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light"
             >
-              Back
+              {UI_TEXT.app.back}
             </button>
             <div className="text-xs text-muted">{UI_TEXT.app.myBookings}</div>
             <button

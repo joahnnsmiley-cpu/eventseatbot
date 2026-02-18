@@ -4,6 +4,7 @@
  */
 
 import type { PaymentCreatedEvent, PaymentConfirmedEvent, PaymentEventNotifier } from '../../domain/payments/payment.events';
+import { formatDateForNotification } from '../../utils/formatDate';
 import { TelegramClient } from './telegram.client';
 
 export class TelegramPaymentNotifier implements PaymentEventNotifier {
@@ -67,7 +68,7 @@ export class TelegramPaymentNotifier implements PaymentEventNotifier {
     message += `<b>Booking:</b> <code>${bookingId}</code>\n`;
     message += `<b>Amount:</b> <b>${amount} ₽</b>\n`;
     message += `<b>Confirmed by:</b> ${confirmedBy}\n`;
-    message += `<b>Confirmed at:</b> ${new Date(confirmedAt).toLocaleString('ru-RU')}\n`;
+    message += `<b>Confirmed at:</b> ${formatDateForNotification(confirmedAt)}\n`;
 
     return message;
   }

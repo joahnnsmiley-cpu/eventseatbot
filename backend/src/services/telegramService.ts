@@ -66,15 +66,4 @@ export function escapeHtml(s: string): string {
     .replace(/>/g, '&gt;');
 }
 
-/** Format date for display (DD.MM.YYYY HH:mm) */
-export function formatDateForNotification(date: string | number | Date | null | undefined): string {
-  if (date == null) return '';
-  const d = typeof date === 'number' ? new Date(date) : typeof date === 'string' ? new Date(date) : date;
-  if (isNaN(d.getTime())) return '';
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${day}.${month}.${year} ${hours}:${minutes}`;
-}
+export { formatDateForNotification } from '../utils/formatDate';

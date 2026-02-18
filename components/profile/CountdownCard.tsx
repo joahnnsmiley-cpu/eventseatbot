@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { useCountdown } from '../../src/hooks/useCountdown';
 import CountdownDisplay from './CountdownDisplay';
+import { luxuryLabel } from '../../design/theme';
 
 type CountdownCardProps = {
   eventDate: string;
@@ -15,14 +16,11 @@ function CountdownCardInner({ eventDate, label = 'До начала вечера
     <>
       <p
         style={{
-          fontSize: variant === 'guest' ? 14 : 13,
-          color: variant === 'organizer' ? '#C6A75E' : '#6b7280',
+          ...(variant === 'organizer' ? luxuryLabel : {}),
+          fontSize: variant === 'guest' ? 14 : luxuryLabel.fontSize,
+          color: variant === 'organizer' ? luxuryLabel.color : '#6b7280',
           marginBottom: variant === 'guest' ? 16 : 12,
           marginTop: 0,
-          ...(variant === 'organizer' && {
-            textTransform: 'uppercase' as const,
-            letterSpacing: '0.05em',
-          }),
         }}
       >
         {label}

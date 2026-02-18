@@ -8,17 +8,12 @@ import Card from '../src/ui/Card';
 import SectionTitle from '../src/ui/SectionTitle';
 import PrimaryButton from '../src/ui/PrimaryButton';
 import SeatMap from './SeatMap';
+import { formatEventDateTime } from '../src/utils/formatDate';
 import { UI_TEXT } from '../constants/uiText';
+import * as StorageService from '../services/storageService';
+import { useToast } from '../src/ui/ToastContext';
 
-/** Format event_date + event_time as "11 февраля 2026 г. · 01:58" (ru-RU). Returns empty string if either missing. */
-function formatEventDateTime(dateStr?: string | null, timeStr?: string | null): string {
-  if (!dateStr || typeof dateStr !== 'string' || !timeStr || typeof timeStr !== 'string') return '';
-  const d = new Date(`${dateStr}T${timeStr}`);
-  if (Number.isNaN(d.getTime())) return '';
-  const datePart = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-  const timePart = String(timeStr).slice(0, 5); // HH:mm
-  return `${datePart} · ${timePart}`;
-}
+type TgUser = { id?: number; first_name?: string; last_name?: string; username?: string };
 
 export interface EventPageProps {
   event: EventData;
@@ -29,6 +24,8 @@ export interface EventPageProps {
   onClearSelection?: () => void;
   eventLoading?: boolean;
   eventError?: string | null;
+  tgUser?: TgUser | null;
+  bookingId?: string;
 }
 
 const EventPage: React.FC<EventPageProps> = ({
@@ -40,12 +37,16 @@ const EventPage: React.FC<EventPageProps> = ({
   onClearSelection,
   eventLoading = false,
   eventError = null,
+  tgUser = null,
+  bookingId,
 }) => {
+  const { showToast } = useToast();
   const imgUrl = event.imageUrl ?? (event as { image_url?: string }).image_url ?? '';
   const eventDate = event.event_date ?? null;
   const eventTime = event.event_time ?? null;
   const venue = event.venue ?? null;
-  const displayDateTime = formatEventDateTime(eventDate, eventTime);
+  const offset = (event as any).timezoneOffsetMinutes ?? 180;
+  const displayDateTime = formatEventDateTime(eventDate ?? undefined, eventTime ?? undefined, offset);
   const showDateTime = Boolean(eventDate && eventTime);
   const showVenue = Boolean(venue && String(venue).trim());
 
@@ -89,6 +90,10 @@ const EventPage: React.FC<EventPageProps> = ({
 
   const [hasAutoScrolled, setHasAutoScrolled] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [contactProblemText, setContactProblemText] = useState('');
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
   useEffect(() => {
     if (totalSeats === 0) {
       setHasAutoScrolled(false);
@@ -110,6 +115,31 @@ const EventPage: React.FC<EventPageProps> = ({
       : event.tables?.find((t) => t.is_active !== false);
     if (table) onTableSelect(table.id);
   }, [selectedSeatsByTable, event.tables, onTableSelect]);
+
+  const handleContactSubmit = useCallback(async () => {
+    const text = contactProblemText.trim();
+    if (!text) return;
+    setContactSubmitting(true);
+    setContactError(null);
+    try {
+      await StorageService.contactOrganizer({
+        eventId: event.id,
+        problemText: text,
+        bookingId,
+        userTelegramId: typeof tgUser?.id === 'number' ? tgUser.id : undefined,
+        userFirstName: tgUser?.first_name,
+        userLastName: tgUser?.last_name,
+        userUsername: tgUser?.username,
+      });
+      setContactModalOpen(false);
+      setContactProblemText('');
+      showToast(UI_TEXT.event.contactOrganizerSuccess);
+    } catch (e) {
+      setContactError(UI_TEXT.event.contactOrganizerError);
+    } finally {
+      setContactSubmitting(false);
+    }
+  }, [contactProblemText, event.id, bookingId, tgUser, showToast]);
 
   return (
     <div className="max-w-md mx-auto min-h-screen relative">
@@ -240,32 +270,68 @@ const EventPage: React.FC<EventPageProps> = ({
           </PrimaryButton>
         )}
 
-        {(() => {
-          const placeholder = 'eventseatbot_support';
-          const raw = event.adminTelegramId ?? placeholder;
-          const contactTarget = typeof raw === 'string' ? raw.trim() : '';
-          if (!contactTarget) return null;
-          const username = contactTarget.replace(/^@/, '');
-          const href = /^\d+$/.test(username)
-            ? `https://t.me/+${username}`
-            : `https://t.me/${username}`;
-          return (
-            <div className="p-4 rounded-2xl border border-neutral-800 bg-neutral-900/60 space-y-4">
-              <div>
-                <p className="text-base font-medium text-white">Связаться с организатором</p>
-                <p className="text-sm text-muted-light mt-1">{UI_TEXT.event.contactOrganizerPrompt}</p>
-              </div>
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full border border-neutral-700 text-neutral-300 bg-transparent hover:bg-neutral-800 rounded-xl py-3 text-sm font-medium inline-flex items-center justify-center transition"
+        <div className="p-4 rounded-2xl border border-neutral-800 bg-neutral-900/60 space-y-4">
+          <div>
+            <p className="text-base font-medium text-white">{UI_TEXT.event.contactOrganizer}</p>
+            <p className="text-sm text-muted-light mt-1">{UI_TEXT.event.contactOrganizerPrompt}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setContactModalOpen(true)}
+            className="w-full border border-neutral-700 text-neutral-300 bg-transparent hover:bg-neutral-800 rounded-xl py-3 text-sm font-medium inline-flex items-center justify-center transition"
+          >
+            {UI_TEXT.event.contactOrganizer}
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {contactModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+              onClick={() => !contactSubmitting && setContactModalOpen(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-md rounded-2xl border border-neutral-700 bg-neutral-900 p-6 space-y-4"
               >
-                Связаться с организатором
-              </a>
-            </div>
-          );
-        })()}
+                <h3 className="text-lg font-semibold text-white">{UI_TEXT.event.contactOrganizer}</h3>
+                <p className="text-sm text-muted-light">{UI_TEXT.event.contactOrganizerDescribeProblem}</p>
+                <textarea
+                  value={contactProblemText}
+                  onChange={(e) => setContactProblemText(e.target.value)}
+                  placeholder={UI_TEXT.event.contactOrganizerDescribePlaceholder}
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white placeholder:text-neutral-500 resize-none focus:outline-none focus:ring-2 focus:ring-[#FFC107]/50"
+                  disabled={contactSubmitting}
+                />
+                {contactError && <p className="text-sm text-red-400">{contactError}</p>}
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => !contactSubmitting && setContactModalOpen(false)}
+                    className="flex-1 py-3 rounded-xl border border-neutral-600 text-neutral-300 hover:bg-neutral-800 transition"
+                  >
+                    {UI_TEXT.ticket.cancel}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleContactSubmit}
+                    disabled={!contactProblemText.trim() || contactSubmitting}
+                    className="flex-1 py-3 rounded-xl bg-[#FFC107] text-black font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    {contactSubmitting ? '…' : UI_TEXT.event.contactOrganizerSend}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {totalAmount > 0 && (
           <motion.div

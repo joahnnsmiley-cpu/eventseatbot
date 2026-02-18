@@ -1,5 +1,6 @@
 import React from 'react';
 import type { EventData } from '../types';
+import { formatEventDate, formatEventDateTime, formatDateTimeRu } from '../src/utils/formatDate';
 import { UI_TEXT } from '../constants/uiText';
 import Skeleton from '../src/ui/Skeleton';
 
@@ -23,36 +24,18 @@ const statusLabel = (status?: string) => {
   return '';
 };
 
-const formatDate = (dateStr?: string) => {
-  if (!dateStr || typeof dateStr !== 'string') return null;
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return dateStr;
-  const datePart = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-  const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0 || d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0;
-  const timePart = hasTime ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
-  return timePart ? `${datePart}, ${timePart}` : datePart;
-};
-
 const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = false, onDelete }) => {
-  // Cover = poster (imageUrl); layoutImageUrl is only for seating map, not shown on card
   const coverUrl = (event.imageUrl ?? (event as { coverImageUrl?: string | null }).coverImageUrl ?? '').trim();
   const title = event.title?.trim() || UI_TEXT.event.eventFallback;
-  let dateFormatted: string | null = null;
-  if (event.event_date) {
-    const datePart = new Date(event.event_date).toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    if (event.event_time) {
-      const time = event.event_time.slice(0, 5); // HH:mm
-      dateFormatted = `${datePart}, ${time}`;
-    } else {
-      dateFormatted = datePart;
-    }
-  } else {
-    dateFormatted = formatDate(event.date);
-  }
+  const offset = (event as any).timezoneOffsetMinutes ?? 180;
+  const dateFormatted =
+    event.event_date && event.event_time
+      ? formatEventDateTime(event.event_date, event.event_time, offset)
+      : event.event_date
+        ? formatEventDate(event.event_date, offset)
+        : event.date
+          ? formatDateTimeRu(event.date, offset)
+          : null;
   const status = event.status ?? (event.published ? 'published' : 'draft');
   const badgeText = statusLabel(status);
   const isArchived = status === 'archived';
