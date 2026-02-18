@@ -287,6 +287,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const isDirty = useMemo(() => !deepEqual(tables, initialTablesRef.current), [tables]);
 
   useEffect(() => {
+    console.log('SYNC FROM selectedEvent TRIGGERED');
     if (!selectedEvent?.tables) return;
     const tbls = selectedEvent.tables as TableModel[];
     setTables(tbls);
