@@ -213,10 +213,23 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
     }
   }
   if (!event && events.length > 0) {
-    event = events.find((e: any) => {
+    const asOrganizer = events.find((e: any) => {
       const oid = (e as any).organizerId ?? (e as any).organizer_id;
       return oid != null && String(oid) === userId;
-    }) ?? (isAdmin || adminIds.has(userId) ? events[0] : null);
+    });
+    if (asOrganizer) {
+      event = asOrganizer;
+    } else if (isAdmin || adminIds.has(userId)) {
+      const validStatuses = ['reserved', 'paid', 'awaiting_confirmation', 'payment_submitted', 'confirmed'];
+      const withBookings = events
+        .map((e: any) => ({
+          event: e,
+          count: allBookings.filter((b: any) => (b.eventId ?? b.event_id) === e.id && validStatuses.includes(String(b.status ?? ''))).length,
+        }))
+        .filter((x) => x.count > 0)
+        .sort((a, b) => b.count - a.count);
+      event = withBookings.length > 0 ? withBookings[0].event : (events.find((e: any) => (e as any).isFeatured) ?? events[0]);
+    }
   }
 
   if (!event) {
@@ -225,14 +238,24 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
 
   const eventId = event.id;
   const tables = Array.isArray(event.tables) ? event.tables : [];
+  const validStatuses = ['reserved', 'paid', 'awaiting_confirmation', 'payment_submitted', 'confirmed', 'pending'];
   const eventBookings = allBookings.filter(
-    (b: any) => b.eventId === eventId && ['reserved', 'paid', 'awaiting_confirmation', 'payment_submitted'].includes(String(b.status ?? ''))
+    (b: any) => {
+      const eid = b.eventId ?? b.event_id;
+      const st = String(b.status ?? '');
+      return eid === eventId && validStatuses.includes(st);
+    }
   );
 
-  const totalGuests = eventBookings.reduce((sum: number, b: any) => {
-    const n = b.seatsBooked ?? (Array.isArray(b.seatIndices) ? b.seatIndices.length : 0) ?? 1;
-    return sum + Number(n);
-  }, 0);
+  const getSeatCount = (b: any): number => {
+    const n = b.seatsBooked ?? b.seats_booked ?? (Array.isArray(b.seatIndices) ? b.seatIndices.length : 0) ?? (Array.isArray(b.seat_indices) ? b.seat_indices.length : 0);
+    if (n != null && Number(n) > 0) return Number(n);
+    const tb = b.tableBookings ?? b.table_bookings;
+    if (Array.isArray(tb) && tb.length > 0) return tb.reduce((s: number, x: any) => s + (Number(x.seats) || 0), 0);
+    return 1;
+  };
+
+  const totalGuests = eventBookings.reduce((sum: number, b: any) => sum + getSeatCount(b), 0);
 
   const totalSeats = tables.reduce((s: number, t: any) => s + (Number(t.seatsTotal) || 0), 0);
   const seatsFree = Math.max(0, totalSeats - totalGuests);
@@ -240,10 +263,19 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
 
   const bookedByTable: Record<string, number> = {};
   for (const b of eventBookings) {
-    const tid = b.tableId;
-    if (!tid) continue;
-    const n = b.seatsBooked ?? (Array.isArray(b.seatIndices) ? b.seatIndices.length : 0) ?? 1;
-    bookedByTable[tid] = (bookedByTable[tid] ?? 0) + Number(n);
+    const tid = b.tableId ?? b.table_id;
+    if (tid) {
+      const n = getSeatCount(b);
+      bookedByTable[tid] = (bookedByTable[tid] ?? 0) + n;
+    } else {
+      const tb = b.tableBookings ?? b.table_bookings;
+      if (Array.isArray(tb)) {
+        for (const x of tb) {
+          const tbid = x.tableId ?? x.table_id;
+          if (tbid) bookedByTable[tbid] = (bookedByTable[tbid] ?? 0) + (Number(x.seats) || 0);
+        }
+      }
+    }
   }
 
   let fullTables = 0;

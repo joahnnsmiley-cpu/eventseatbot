@@ -784,37 +784,56 @@ router.post('/contact-organizer', async (req: Request, res: Response) => {
     }
 
     const fio = [userFirstName, userLastName].filter(Boolean).join(' ').trim() || '—';
+
+    const tbl = booking?.tableId
+      ? (ev.tables ?? []).find((t: any) => t.id === booking.tableId)
+      : null;
+    const tableNumber = tbl?.number ?? '—';
+    const seatIndices = booking?.seatIndices ?? booking?.seat_indices ?? [];
+    const seatNumbers =
+      Array.isArray(seatIndices) && seatIndices.length > 0
+        ? [...seatIndices].sort((a, b) => a - b).map((i) => i + 1).join(', ')
+        : null;
+    const seatsLabel =
+      seatNumbers != null
+        ? seatIndices.length === 1
+          ? `Место № ${seatNumbers}`
+          : `Места № ${seatNumbers}`
+        : `Мест: ${booking?.seatsBooked ?? booking?.seats_booked ?? '—'}`;
+
     const eventInfo = [
-      `ID: ${escapeHtml(ev.id)}`,
       `Название: ${escapeHtml(ev.title ?? '—')}`,
       `Дата: ${escapeHtml(ev.event_date ?? ev.date ?? '—')}`,
-      `Время: ${escapeHtml(ev.event_time ?? '—')}`,
+      `Время: ${escapeHtml(String(ev.event_time ?? '').slice(0, 5) || '—')}`,
       `Площадка: ${escapeHtml(ev.venue ?? '—')}`,
-      `Описание: ${escapeHtml((ev.description ?? '').slice(0, 200))}${(ev.description ?? '').length > 200 ? '…' : ''}`,
     ].join('\n');
+
     const bookingInfo = booking
       ? [
-          `ID брони: ${escapeHtml(booking.id)}`,
-          `Статус: ${escapeHtml(booking.status ?? '—')}`,
-          `Стол: ${escapeHtml(booking.tableId ?? '—')}`,
-          `Места: ${escapeHtml(String(booking.seatsBooked ?? booking.seats_booked ?? '—'))}`,
+          `Стол № ${tableNumber}`,
+          seatsLabel,
           `Сумма: ${booking.totalAmount ?? booking.total_amount ?? 0} ₽`,
+          `Статус: ${escapeHtml(booking.status ?? '—')}`,
           `Телефон: ${escapeHtml(booking.userPhone ?? booking.user_phone ?? '—')}`,
-          `Комментарий: ${escapeHtml((booking.userComment ?? booking.user_comment ?? '').slice(0, 100))}`,
-        ].join('\n')
+          booking.userComment || booking.user_comment
+            ? `Комментарий: ${escapeHtml((booking.userComment ?? booking.user_comment ?? '').slice(0, 150))}`
+            : '',
+          `ID брони: ${escapeHtml(booking.id)}`,
+        ]
+          .filter(Boolean)
+          .join('\n')
       : 'Бронь не указана';
 
     const adminMsg = [
       '📩 <b>Обращение к организатору</b>',
       '',
-      `👤 <b>Telegram ID:</b> ${userId ?? '—'}`,
-      `👤 <b>ФИО:</b> ${fio}`,
-      `📝 <b>Сообщение:</b>\n${escapeHtml(problemText.trim().slice(0, 1000))}`,
+      `👤 ${fio} (ID: ${userId ?? '—'})`,
+      `📝 ${escapeHtml(problemText.trim().slice(0, 1000))}`,
       '',
-      '— <b>Событие</b> —',
+      '<b>Событие:</b>',
       eventInfo,
       '',
-      '— <b>Бронь</b> —',
+      '<b>Бронь:</b>',
       bookingInfo,
     ].join('\n');
 

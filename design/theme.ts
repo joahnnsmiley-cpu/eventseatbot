@@ -46,6 +46,15 @@ export const luxuryLabel = {
   textShadow: '0 0 20px rgba(198,167,94,0.15)',
 } as const;
 
+/** Dark theme — primary text (high contrast white) */
+export const darkTextPrimary = '#FFFFFF';
+
+/** Dark theme — secondary text (readable light grey) */
+export const darkTextMuted = '#D8D4CC';
+
+/** Dark theme — tertiary (still readable) */
+export const darkTextSubtle = '#B8B2A8';
+
 export const glassPreset = {
   background: 'rgba(255,255,255,0.6)',
   backdropFilter: 'blur(20px)',

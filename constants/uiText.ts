@@ -266,6 +266,9 @@ export const UI_TEXT = {
   profile: {
     viewAsGuest: 'Посмотреть гостевой профиль',
     backToOrganizer: 'Вернуться в организаторский профиль',
+    yourEvening: 'Ваш вечер',
+    yourPrivileges: 'Ваши преимущества',
+    privateAccessLabel: 'Только для гостей категории',
   },
 } as const;
 

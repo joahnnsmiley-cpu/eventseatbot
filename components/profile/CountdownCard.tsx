@@ -7,18 +7,21 @@ type CountdownCardProps = {
   eventDate: string;
   label?: string;
   variant?: 'guest' | 'organizer';
+  /** Dark background — use light text (for guest on dark layout) */
+  dark?: boolean;
 };
 
 /** Isolated countdown — owns useCountdown state to avoid parent re-renders every second. */
-function CountdownCardInner({ eventDate, label = 'До начала вечера', variant = 'guest' }: CountdownCardProps) {
+function CountdownCardInner({ eventDate, label = 'До начала вечера', variant = 'guest', dark = false }: CountdownCardProps) {
   const countdown = useCountdown(eventDate || '');
+  const useLuxury = variant === 'organizer' || dark;
   return (
     <>
       <p
         style={{
-          ...(variant === 'organizer' ? luxuryLabel : {}),
-          fontSize: variant === 'guest' ? 14 : luxuryLabel.fontSize,
-          color: variant === 'organizer' ? luxuryLabel.color : '#6b7280',
+          ...(useLuxury ? luxuryLabel : {}),
+          fontSize: useLuxury ? luxuryLabel.fontSize : 14,
+          color: useLuxury ? luxuryLabel.color : '#B8B2A8',
           marginBottom: variant === 'guest' ? 16 : 12,
           marginTop: 0,
         }}
@@ -34,7 +37,7 @@ function CountdownCardInner({ eventDate, label = 'До начала вечера
           flexWrap: 'wrap',
         }}
       >
-        <CountdownDisplay countdown={countdown} variant={variant} />
+        <CountdownDisplay countdown={countdown} variant={variant} dark={dark || variant === 'organizer'} />
       </div>
     </>
   );

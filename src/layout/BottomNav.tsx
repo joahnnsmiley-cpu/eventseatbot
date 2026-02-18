@@ -35,10 +35,10 @@ export default function BottomNav({
       <div className="relative mx-3 mb-3 rounded-2xl overflow-hidden">
         {/* Glass background with subtle gradient border */}
         <div
-          className="absolute inset-0 rounded-2xl bg-black/75 backdrop-blur-xl"
+          className="absolute inset-0 rounded-2xl bg-[#0a0a0a] backdrop-blur-xl"
           style={{
             border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)',
           }}
         />
         {/* Top accent line */}

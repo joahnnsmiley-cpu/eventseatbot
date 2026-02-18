@@ -5,6 +5,8 @@ import ProfileAnimatedStack from '../components/profile/ProfileAnimatedStack';
 import CountdownCard from '../components/profile/CountdownCard';
 import { CATEGORY_COLORS } from '../src/config/categoryColors';
 import type { CategoryColorKey } from '../src/config/categoryColors';
+import { luxuryLabel, darkTextPrimary, darkTextMuted, darkTextSubtle } from '../design/theme';
+import { UI_TEXT } from '../constants/uiText';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 export type ProfileGuestScreenProps = {
@@ -37,7 +39,7 @@ export function ProfileGuestEmpty({ message = 'У вас пока нет заб�
         <p
           style={{
             fontSize: 18,
-            color: '#6b7280',
+            color: darkTextMuted,
             textAlign: 'center',
             margin: 0,
             lineHeight: 1.6,
@@ -69,23 +71,25 @@ export default function ProfileGuestScreen({
   return (
     <ProfileLayout>
       <ProfileAnimatedStack>
-        {/* 1️⃣ Hero */}
+        {/* 1️⃣ Hero — dark luxury with category accent */}
         <ProfileCard
           padding={32}
           rounded={28}
-          variant="solid"
+          variant="hero"
           style={{
-            background: categoryConfig.gradient,
-            border: 'none',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+            background: `linear-gradient(145deg, rgba(28,26,24,0.98) 0%, rgba(18,16,14,0.98) 50%, rgba(12,10,8,0.98) 100%)`,
+            border: `1px solid ${categoryConfig.base}55`,
+            boxShadow: `0 4px 24px rgba(0,0,0,0.5), 0 0 48px ${categoryConfig.base}15, inset 0 1px 0 rgba(198,167,94,0.08)`,
           }}
         >
           <h1
             style={{
               fontSize: 'clamp(24px, 4vw, 28px)',
-              fontWeight: 600,
-              color: '#1f2937',
+              fontWeight: 700,
+              color: darkTextPrimary,
               margin: 0,
+              letterSpacing: '-0.02em',
+              textShadow: '0 1px 3px rgba(0,0,0,0.4)',
             }}
           >
             Рады видеть вас, {guestName}
@@ -93,9 +97,11 @@ export default function ProfileGuestScreen({
           <p
             style={{
               fontSize: 16,
-              color: '#6b7280',
-              marginTop: 8,
+              fontWeight: 500,
+              color: '#C6A75E',
+              marginTop: 10,
               marginBottom: 0,
+              textShadow: '0 0 24px rgba(198,167,94,0.2)',
             }}
           >
             {event.title} · {event.date}
@@ -104,20 +110,13 @@ export default function ProfileGuestScreen({
 
         {/* 2️⃣ CountdownCard — isolated to avoid parent re-renders */}
         <ProfileCard padding={24} rounded={24} variant="glass">
-          <CountdownCard eventDate={event.dateTime || ''} label="До начала вечера" variant="guest" />
+          <CountdownCard eventDate={event.dateTime || ''} label="До начала вечера" variant="guest" dark />
         </ProfileCard>
 
         {/* 3️⃣ MyEveningCard */}
         <ProfileCard padding={24} rounded={24} variant="glass" interactive>
-          <p
-            style={{
-              fontSize: 14,
-              color: '#6b7280',
-              marginBottom: 16,
-              marginTop: 0,
-            }}
-          >
-            Ваш вечер
+          <p style={{ ...luxuryLabel, marginBottom: 16, marginTop: 0 }}>
+            {UI_TEXT.profile.yourEvening}
           </p>
           <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
             <div
@@ -127,20 +126,21 @@ export default function ProfileGuestScreen({
                 borderRadius: '50%',
                 background: categoryConfig.gradient,
                 flexShrink: 0,
-                border: `2px solid ${categoryConfig.base}88`,
+                border: `2px solid ${categoryConfig.base}99`,
+                boxShadow: `0 0 20px ${categoryConfig.base}33`,
               }}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#111827' }}>
+              <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: darkTextPrimary, letterSpacing: '-0.02em' }}>
                 Стол № {tableNumber}
               </p>
               {seatNumbers.length > 0 && (
-                <p style={{ margin: '4px 0 0', fontSize: 15, color: '#6b7280' }}>
+                <p style={{ margin: '6px 0 0', fontSize: 18, fontWeight: 600, color: darkTextPrimary }}>
                   Место{seatNumbers.length > 1 ? 'а' : ''} № {seatNumbers.join(', ')}
                 </p>
               )}
-              <p style={{ margin: '4px 0 0', fontSize: 15, color: '#6b7280' }}>{categoryLabel}</p>
-              <p style={{ margin: '4px 0 0', fontSize: 14, color: '#9ca3af' }}>{event.venue}</p>
+              <p style={{ margin: '6px 0 0', fontSize: 16, color: '#E8D48A', fontWeight: 600 }}>{categoryLabel}</p>
+              <p style={{ margin: '4px 0 0', fontSize: 15, color: darkTextMuted }}>{event.venue}</p>
             </div>
           </div>
         </ProfileCard>
@@ -157,14 +157,14 @@ export default function ProfileGuestScreen({
                     height: 40,
                     borderRadius: '50%',
                     marginLeft: i > 0 ? -12 : 0,
-                    background: '#e5e7eb',
-                    border: '2px solid #fff',
+                    background: 'rgba(255,255,255,0.1)',
+                    border: '2px solid rgba(255,255,255,0.15)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: 14,
                     fontWeight: 600,
-                    color: '#6b7280',
+                    color: darkTextPrimary,
                     zIndex: neighbors.length - i,
                   }}
                 >
@@ -180,7 +180,7 @@ export default function ProfileGuestScreen({
                 </div>
               ))}
             </div>
-            <p style={{ margin: 0, fontSize: 15, color: '#374151' }}>
+            <p style={{ margin: 0, fontSize: 15, color: darkTextMuted }}>
               {seatsFree > 0
                 ? `${seatsFree} ${seatsFree === 1 ? 'место' : 'места'} свободно`
                 : 'Стол полностью занят'}
@@ -191,15 +191,8 @@ export default function ProfileGuestScreen({
         {/* 5️⃣ PrivilegesCard */}
         {privileges.length > 0 && (
           <ProfileCard padding={24} rounded={24} variant="glass" interactive>
-            <p
-              style={{
-                fontSize: 14,
-                color: '#6b7280',
-                marginBottom: 16,
-                marginTop: 0,
-              }}
-            >
-              Ваши преимущества
+            <p style={{ ...luxuryLabel, marginBottom: 16, marginTop: 0 }}>
+              {UI_TEXT.profile.yourPrivileges}
             </p>
             <ul style={{ margin: 0, paddingLeft: 20 }}>
               {privileges.map((p, i) => (
@@ -208,7 +201,7 @@ export default function ProfileGuestScreen({
                   style={{
                     marginBottom: 12,
                     fontSize: 15,
-                    color: '#374151',
+                    color: darkTextPrimary,
                     lineHeight: 1.5,
                   }}
                 >
@@ -236,17 +229,17 @@ export default function ProfileGuestScreen({
               style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: '#374151',
+                color: darkTextPrimary,
                 marginBottom: 12,
                 marginTop: 0,
               }}
             >
-              Только для гостей категории {categoryLabel}
+              {UI_TEXT.profile.privateAccessLabel} {categoryLabel}
             </p>
             <p
               style={{
                 fontSize: 14,
-                color: '#6b7280',
+                color: darkTextMuted,
                 lineHeight: 1.6,
                 margin: 0,
               }}

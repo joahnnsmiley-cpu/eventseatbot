@@ -1067,7 +1067,8 @@ function App() {
                         <div
                           className="absolute inset-0"
                           style={{
-                            backdropFilter: 'blur(4px)',
+                            backdropFilter: 'blur(1px)',
+                            WebkitBackdropFilter: 'blur(1px)',
                             background: 'radial-gradient(circle at center, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.65) 100%)',
                           }}
                         />
