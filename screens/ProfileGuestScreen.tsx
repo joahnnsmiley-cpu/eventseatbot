@@ -57,7 +57,10 @@ export function ProfileGuestEmpty({ message = 'У вас пока нет заб�
 }
 
 // ─── ProfileGuestScreen ────────────────────────────────────────────────────
-const DEFAULT_AVATAR =
+/** Premium default avatar (silhouette in golden frame) — public/avatar-default.png */
+const DEFAULT_AVATAR = '/avatar-default.png';
+
+const FALLBACK_AVATAR =
   'data:image/svg+xml,' +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="19" fill="%231a1a1a" stroke="%23C6A75E" stroke-width="1" opacity="0.9"/><circle cx="20" cy="14" r="6" fill="%23C6A75E" opacity="0.6"/></svg>'
@@ -120,7 +123,7 @@ export default function ProfileGuestScreen({
                 alt=""
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = DEFAULT_AVATAR;
+                  (e.target as HTMLImageElement).src = FALLBACK_AVATAR;
                 }}
               />
             </div>

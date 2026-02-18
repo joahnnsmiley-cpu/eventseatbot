@@ -17,12 +17,8 @@ function parseCommentNames(comment: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
-/** Premium default avatar: dark circle with gold accent (data URI). */
-const DEFAULT_AVATAR_DATA =
-  'data:image/svg+xml,' +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="19" fill="%231a1a1a" stroke="%23C6A75E" stroke-width="1" opacity="0.9"/><circle cx="20" cy="14" r="6" fill="%23C6A75E" opacity="0.6"/></svg>'
-  );
+/** Premium default avatar path — served by frontend from public/avatar-default.png */
+const DEFAULT_AVATAR_PATH = '/avatar-default.png';
 
 /**
  * GET /me/avatar/:tgId — proxy Telegram user profile photo.
@@ -199,7 +195,7 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
     const buyerAvatarUrl = bot && tgId != null ? `${API_BASE}/me/avatar/${tgId}` : null;
 
     displayNames.forEach((name, idx) => {
-      const avatar = idx === 0 && buyerAvatarUrl ? buyerAvatarUrl : DEFAULT_AVATAR_DATA;
+      const avatar = idx === 0 && buyerAvatarUrl ? buyerAvatarUrl : DEFAULT_AVATAR_PATH;
       neighbors.push({ name, avatar });
     });
   }
@@ -215,7 +211,7 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
   const privileges = (category as any)?.privileges;
   const privilegesList = Array.isArray(privileges) ? privileges : [];
 
-  const avatarUrl = bot ? `${API_BASE}/me/avatar/${userId}` : DEFAULT_AVATAR_DATA;
+  const avatarUrl = bot ? `${API_BASE}/me/avatar/${userId}` : DEFAULT_AVATAR_PATH;
 
   res.json({
     hasBooking: true,
