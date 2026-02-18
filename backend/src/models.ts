@@ -86,6 +86,8 @@ export interface EventData {
   ticketCategories?: unknown[] | null;
   /** Only one event can be featured; shown prominently on main screen. */
   isFeatured?: boolean;
+  /** Telegram user ID of event organizer. */
+  organizerId?: number | string | null;
 }
 
 export type BookingStatus = 'reserved' | 'paid' | 'expired' | 'pending' | 'awaiting_confirmation' | 'cancelled';

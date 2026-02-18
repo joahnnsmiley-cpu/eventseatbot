@@ -120,6 +120,7 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
   }
 
   const booking = userBookings[0];
+  if (!booking) return res.json({ hasBooking: false });
   const eventId = booking.eventId;
   const tableId = booking.tableId;
   if (!eventId || !tableId) {
@@ -307,3 +308,5 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
     vipGuests,
   });
 });
+
+export default router;

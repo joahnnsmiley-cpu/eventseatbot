@@ -114,7 +114,7 @@ function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
     published: row.published ?? false,
     isFeatured: row.is_featured ?? false,
     ticketCategories: row.ticket_categories ?? undefined,
-    organizerId: row.organizer_id ?? undefined,
+    organizerId: row.organizer_id ?? null,
   };
 }
 
