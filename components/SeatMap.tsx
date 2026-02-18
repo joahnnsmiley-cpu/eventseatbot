@@ -264,9 +264,14 @@ const SeatMap: React.FC<SeatMapProps> = ({
         const isSoldOut = !isEditable && table.seatsAvailable === 0;
         const isTableDisabled = !isEditable && (!isAvailableForSale || isSoldOut);
         const isSelected = selectedTableId === table.id;
-        const widthPct = table.widthPercent ? `${table.widthPercent}%` : `${table.sizePercent ?? 6}%`;
-        const heightPct = table.heightPercent ? `${table.heightPercent}%` : `${table.sizePercent ?? 6}%`;
-        const borderRadius = table.widthPercent && table.heightPercent ? 12 : '50%';
+        const isCircle = table.shape === 'circle';
+        const widthPct = isCircle
+          ? `${table.widthPercent ?? table.sizePercent ?? 6}%`
+          : (table.widthPercent ? `${table.widthPercent}%` : `${table.sizePercent ?? 6}%`);
+        const heightPct = isCircle
+          ? undefined
+          : (table.heightPercent ? `${table.heightPercent}%` : `${table.sizePercent ?? 6}%`);
+        const borderRadius = isCircle ? '50%' : 0;
         const category = event?.ticketCategories?.find((c) => c.id === table.ticketCategoryId);
         const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
         const shapeStyle = {
@@ -278,25 +283,26 @@ const SeatMap: React.FC<SeatMapProps> = ({
           boxShadow: palette?.glow ?? 'none',
         };
         const hasSelectedSeats = (selectedSeatsByTable?.[table.id]?.length ?? 0) > 0;
+        const wrapperStyle: React.CSSProperties = {
+          position: 'absolute',
+          left: `${table.centerX}%`,
+          top: `${table.centerY}%`,
+          width: widthPct,
+          ...(isCircle ? { aspectRatio: '1 / 1', borderRadius: '50%' } : { height: heightPct }),
+          transform: `translate(-50%, -50%) rotate(${table.rotationDeg ?? 0}deg)`,
+          transformOrigin: 'center',
+          cursor: isTableDisabled ? 'not-allowed' : 'pointer',
+          opacity: totalSeats > 0 ? (hasSelectedSeats ? 1 : 0.7) : 1,
+          transition: 'opacity 0.2s',
+          pointerEvents: 'auto',
+        };
         return (
           <div
             key={table.id}
             data-table-id={table.id}
             id={`table-${table.id}`}
             className={`table-wrapper ${isTableDisabled ? 'table-disabled' : ''} ${isSelected ? 'table-selected' : ''}`}
-            style={{
-              position: 'absolute',
-              left: `${table.centerX}%`,
-              top: `${table.centerY}%`,
-              width: widthPct,
-              height: heightPct,
-              transform: `translate(-50%, -50%) rotate(${table.rotationDeg ?? 0}deg)`,
-              transformOrigin: 'center',
-              cursor: isTableDisabled ? 'not-allowed' : 'pointer',
-              opacity: totalSeats > 0 ? (hasSelectedSeats ? 1 : 0.7) : 1,
-              transition: 'opacity 0.2s',
-              pointerEvents: 'auto',
-            }}
+            style={wrapperStyle}
             onClick={(e) => {
                 if (isTableDisabled) return;
                 e.stopPropagation();

@@ -73,11 +73,11 @@ function DraggableTable({
   const wrapperSizeStyle: React.CSSProperties =
     table.shape === 'circle'
       ? { width: `${table.widthPercent}%`, aspectRatio: '1 / 1', borderRadius: '50%' }
-      : { width: `${table.widthPercent}%`, height: `${table.heightPercent}%`, borderRadius: 12 };
+      : { width: `${table.widthPercent}%`, height: `${table.heightPercent}%`, borderRadius: 0 };
   const shapeStyle: React.CSSProperties = {
     width: '100%',
     height: '100%',
-    borderRadius: table.shape === 'circle' ? '50%' : 12,
+    borderRadius: table.shape === 'circle' ? '50%' : 0,
     background: palette?.gradient ?? '#2a2a2a',
     border: palette?.border ?? '1.5px solid #3a3a3a',
     boxShadow: palette?.glow ?? 'none',
