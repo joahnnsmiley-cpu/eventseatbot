@@ -10,13 +10,13 @@ import {
 } from '@dnd-kit/core';
 import type { Table } from '../types';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
-import { computeTableSizes } from '../src/ui/tableSizing';
 import { CATEGORY_COLORS, resolveCategoryColorKey } from '../src/config/categoryColors';
 import { TableNumber, SeatInfo } from './TableLabel';
 import { UI_TEXT } from '../constants/uiText';
 
 const MIN_SIZE_PERCENT = 2;
 const MAX_SIZE_PERCENT = 25;
+const DEFAULT_SIZE_PERCENT = 6;
 
 type TableWithCoords = Table & { centerX: number; centerY: number; widthPercent?: number; heightPercent?: number; sizePercent?: number };
 
@@ -24,8 +24,8 @@ type HandlePos = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
 
 type Props = {
   tables: Table[];
-  layoutWidth: number;
-  layoutHeight: number;
+  layoutWidth?: number;
+  layoutHeight?: number;
   ticketCategories: { id: string; name?: string; price?: number }[];
   selectedTableId: string | null;
   onTableSelect: (id: string) => void;
@@ -62,8 +62,6 @@ function ResizeHandle({
 
 function DraggableTable({
   table,
-  layoutWidth,
-  layoutHeight,
   ticketCategories,
   isSelected,
   onSelect,
@@ -72,8 +70,6 @@ function DraggableTable({
   containerRef,
 }: {
   table: TableWithCoords;
-  layoutWidth: number;
-  layoutHeight: number;
   ticketCategories: { id: string; name?: string; price?: number }[];
   isSelected: boolean;
   onSelect: () => void;
@@ -83,15 +79,15 @@ function DraggableTable({
 }) {
   const category = ticketCategories.find((c) => c.id === table.ticketCategoryId);
   const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
-  const sizes = computeTableSizes(layoutWidth, {
-    sizePercent: table.sizePercent,
-    widthPercent: table.widthPercent,
-    heightPercent: table.heightPercent,
-  });
-  const borderRadius = sizes.borderRadius === '50%' ? '50%' : 12;
-  const shapeStyle = {
-    width: sizes.width,
-    height: sizes.height,
+  const widthPercent = table.widthPercent;
+  const heightPercent = table.heightPercent;
+  const sizePercent = table.sizePercent ?? DEFAULT_SIZE_PERCENT;
+  const widthPct = widthPercent ? `${widthPercent}%` : `${sizePercent}%`;
+  const heightPct = heightPercent ? `${heightPercent}%` : `${sizePercent}%`;
+  const borderRadius = widthPercent && heightPercent ? 12 : '50%';
+  const shapeStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
     borderRadius,
     background: palette?.gradient ?? '#2a2a2a',
     border: palette?.border ?? '1.5px solid #3a3a3a',
@@ -139,6 +135,7 @@ function DraggableTable({
         const state = resizeStateRef.current;
         if (!state || !containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
         const deltaXPercent = ((ev.clientX - state.startX) / rect.width) * 100;
         const deltaYPercent = ((ev.clientY - state.startY) / rect.height) * 100;
         const dw = { 'bottom-right': 1, 'bottom-left': -1, 'top-right': 1, 'top-left': -1 }[state.handle] * deltaXPercent;
@@ -183,10 +180,12 @@ function DraggableTable({
     [table, onTablesChange]
   );
 
-  const style: React.CSSProperties = {
+  const wrapperStyle: React.CSSProperties = {
     position: 'absolute',
     left: `${table.centerX}%`,
     top: `${table.centerY}%`,
+    width: widthPct,
+    height: heightPct,
     transform: transform
       ? `translate(calc(-50% + ${transform.x}px), calc(-50% + ${transform.y}px)) rotate(${table.rotationDeg ?? 0}deg)`
       : `translate(-50%, -50%) rotate(${table.rotationDeg ?? 0}deg)`,
@@ -201,7 +200,7 @@ function DraggableTable({
       ref={setNodeRef}
       id={`table-${table.id}`}
       className={`table-wrapper ${isSelected ? 'ring-2 ring-[#C6A75E]' : ''}`}
-      style={style}
+      style={wrapperStyle}
       {...listeners}
       {...attributes}
       onClick={(e) => {
@@ -209,7 +208,7 @@ function DraggableTable({
         onSelect();
       }}
     >
-      <div className="relative" style={{ width: sizes.width, height: sizes.height }}>
+      <div className="relative w-full h-full">
         <div className="table-shape table-shape-gold pointer-events-none" style={shapeStyle} />
         {isSelected && (
           <>
@@ -220,9 +219,9 @@ function DraggableTable({
           </>
         )}
       </div>
-      <div className="table-label pointer-events-none">
-        <TableNumber number={table.number ?? 0} fontSize={`${sizes.fontNumber}px`} />
-        <SeatInfo available={table.seatsAvailable ?? table.seatsTotal} total={table.seatsTotal ?? 4} fontSize={`${sizes.fontSub}px`} />
+      <div className="table-label pointer-events-none" style={{ fontSize: 'clamp(8px, 2.5vw, 12px)' }}>
+        <TableNumber number={table.number ?? 0} />
+        <SeatInfo available={table.seatsAvailable ?? table.seatsTotal} total={table.seatsTotal ?? 4} />
       </div>
       {onDelete && (
         <button
@@ -239,8 +238,6 @@ function DraggableTable({
 
 export default function AdminTablesLayer({
   tables,
-  layoutWidth,
-  layoutHeight,
   ticketCategories,
   selectedTableId,
   onTableSelect,
@@ -265,6 +262,7 @@ export default function AdminTablesLayer({
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
     const deltaXPercent = (delta.x / rect.width) * 100;
     const deltaYPercent = (delta.y / rect.height) * 100;
 
@@ -295,8 +293,6 @@ export default function AdminTablesLayer({
           <DraggableTable
             key={table.id}
             table={table}
-            layoutWidth={layoutWidth}
-            layoutHeight={layoutHeight}
             ticketCategories={ticketCategories}
             isSelected={selectedTableId === table.id}
             onSelect={() => onTableSelect(table.id)}

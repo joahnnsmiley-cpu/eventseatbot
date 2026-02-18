@@ -301,6 +301,16 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const saveLayoutRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
 
   const isDirty = useMemo(() => !deepEqual(tables, initialTablesRef.current), [tables]);
+
+  // Sync tables from selectedEvent when tables is empty (e.g. after event switch)
+  useEffect(() => {
+    if (selectedEvent?.tables && tables.length === 0) {
+      const mapped = (selectedEvent.tables ?? []).map(mapTableFromDb);
+      setTables(mapped);
+      initialTablesRef.current = deepClone(mapped);
+    }
+  }, [selectedEvent, tables.length]);
+
   const [layoutPreviewRef, layoutPreviewWidth] = useContainerWidth<HTMLDivElement>();
   const eventTabsScrollRef = useRef<HTMLDivElement>(null);
   const eventTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -1830,18 +1840,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         {UI_TEXT.tables.noLayoutImage}
                       </div>
                     )}
-                    {layoutPreviewWidth > 0 && (
-                      <AdminTablesLayer
+                    <AdminTablesLayer
                         tables={tables}
-                        layoutWidth={layoutPreviewWidth}
-                        layoutHeight={layoutPreviewWidth / (layoutAspectRatio ?? 16 / 9)}
                         ticketCategories={selectedEvent?.ticketCategories ?? []}
                         selectedTableId={selectedTableId}
                         onTableSelect={(id) => setSelectedTableId(id)}
                         onTablesChange={(updater) => setTables(updater)}
                         onTableDelete={deleteTable}
                       />
-                    )}
                   </div>
                 </div>
                 <div className="text-xs text-muted mt-2">
