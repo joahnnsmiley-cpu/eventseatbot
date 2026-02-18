@@ -63,7 +63,7 @@ export default function ProfileCard({
     padding,
     borderRadius: rounded,
     transition: `transform ${duration.normal}ms ${easing.primary}, box-shadow ${duration.normal}ms ${easing.primary}`,
-    ...(variant === 'glass' ? glassBase : variant === 'hero' ? glassHero : solidFallback),
+    ...(variant === 'glass' ? glassDark : variant === 'hero' ? glassHero : solidFallback),
   };
 
   const finalStyle = styleOverride ? { ...baseStyle, ...styleOverride } : baseStyle;

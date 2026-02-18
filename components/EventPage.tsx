@@ -317,7 +317,7 @@ const EventPage: React.FC<EventPageProps> = ({
                     onClick={() => !contactSubmitting && setContactModalOpen(false)}
                     className="flex-1 py-3 rounded-xl border border-neutral-600 text-neutral-300 hover:bg-neutral-800 transition"
                   >
-                    {UI_TEXT.ticket.cancel}
+                    {UI_TEXT.common.cancel}
                   </button>
                   <button
                     type="button"
