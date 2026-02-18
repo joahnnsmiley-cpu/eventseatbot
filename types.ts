@@ -78,6 +78,8 @@ export interface EventData {
   maxSeatsPerBooking: number;
   published?: boolean;
   status?: 'draft' | 'published' | 'archived';
+  /** Only one event can be featured; shown prominently on main screen. */
+  isFeatured?: boolean;
   /** Задел: позже backend будет отдавать adminTelegramId; UI уже готов к нему. */
   adminTelegramId?: string;
 }

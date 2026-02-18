@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS events (
   layout_image_url TEXT,    -- seating map only (рассадка); not for poster/cover
   organizer_phone TEXT,
   published BOOLEAN DEFAULT false,
+  is_featured BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );

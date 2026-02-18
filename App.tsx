@@ -82,6 +82,7 @@ function App() {
   const [view, setView] = useState<'events' | 'layout' | 'seats' | 'my-bookings' | 'my-tickets' | 'booking-success' | 'admin'>('events');
 
   const [events, setEvents] = useState<EventData[]>([]);
+  const [featuredEvent, setFeaturedEvent] = useState<EventData | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -235,9 +236,9 @@ function App() {
     setLoading(true);
     setError(null);
     try {
-      const data = await StorageService.getEvents();
-      const list = Array.isArray(data) ? data : [];
-      setEvents(list);
+      const { featured, events: evts } = await StorageService.getEvents();
+      setFeaturedEvent(featured ?? null);
+      setEvents(evts ?? []);
       setHasLoaded(true);
     } catch (e) {
       setError(UI_TEXT.common.errors.loadEventsFailed);
@@ -326,11 +327,7 @@ function App() {
     return visibleTables.find((t) => t.id === selectedTableId) ?? null;
   }, [selectedEvent, selectedTableId]);
 
-  const publishedEvents = useMemo(() => {
-    return events.filter(
-      (e) => e.status !== 'archived' && (e.published === true || e.status === 'published' || !e.status)
-    );
-  }, [events]);
+  const hasAnyEvents = featuredEvent != null || events.length > 0;
 
   useEffect(() => {
     if (!selectedTable || !selectedTableId) return;
@@ -993,85 +990,87 @@ function App() {
               <div className="rounded-xl overflow-hidden border border-white/10 bg-[#111] h-20 animate-pulse" />
             </div>
           )}
-          {!loading && hasLoaded && publishedEvents.length === 0 && !error && (
+          {!loading && hasLoaded && !hasAnyEvents && !error && (
             <div className="py-8 text-center">
               <p className="text-base text-muted-light mb-2">{UI_TEXT.admin.emptyEventsList}</p>
               <p className="text-sm text-muted">{UI_TEXT.app.noPublishedEvents}</p>
             </div>
           )}
-          {!loading && publishedEvents.length > 0 && (() => {
-            const featured = events?.[0];
-            const thisMonthEvents = publishedEvents.slice(1);
+          {!loading && hasAnyEvents && (() => {
+            const featured = featuredEvent;
             const fmt = featured ? getEventDisplayDate(featured) : null;
             return (
               <>
-                <div>
-                  <p className="text-muted text-xs tracking-widest uppercase mb-2">
-                    Главное событие
-                  </p>
-                  <div className="relative">
-                    <motion.div
-                      className="relative rounded-3xl overflow-hidden border border-white/10"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => featured && handleEventSelect(featured.id)}
-                      onKeyDown={(e) => e.key === 'Enter' && featured && handleEventSelect(featured.id)}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <div
-                        className="absolute inset-0 bg-center bg-cover"
-                        style={{
-                          backgroundImage: (featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()
-                            ? `url(${(featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()})`
-                            : undefined,
-                          filter: 'brightness(1.25) contrast(1.12) saturate(1.1)',
-                          transform: 'scale(1.05)',
-                        }}
-                      />
-                      <div
-                        className="absolute inset-0"
-                        style={{
-                          backdropFilter: 'blur(4px)',
-                          background: 'radial-gradient(circle at center, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.65) 100%)',
-                        }}
-                      />
-                      <div
-                        className="absolute z-[5] pointer-events-none"
-                        style={{
-                          width: '260px',
-                          height: '260px',
-                          background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)',
-                          top: '50%',
-                          left: '50%',
-                          transform: 'translate(-50%, -50%)',
-                        }}
-                      />
-                      <div className="relative z-10 flex flex-col items-center justify-center text-center py-16 px-6 space-y-4">
-                        <h2 className="text-3xl md:text-4xl font-extrabold uppercase tracking-wide text-white">
-                          {featured?.title ?? UI_TEXT.event.eventFallback}
-                        </h2>
-                        <p className="text-[#FFC107] text-2xl font-bold tracking-wide">
-                          {fmt?.date ?? featured?.date}
-                        </p>
-                        <p className="text-white text-lg">
-                          {fmt?.time ?? ''}
-                        </p>
-                        <p className="text-muted-light text-sm uppercase tracking-widest">
-                          {(featured as { venue?: string })?.venue ?? ''}
-                        </p>
-                      </div>
-                    </motion.div>
+                {featured && (
+                  <div>
+                    <p className="text-[#C6A75E] text-xs font-bold tracking-widest uppercase mb-2">
+                      ГЛАВНОЕ СОБЫТИЕ
+                    </p>
+                    <div className="relative min-h-[320px]">
+                      <motion.div
+                        className="relative rounded-3xl overflow-hidden border-2 border-[#C6A75E]/40 shadow-[0_0_40px_rgba(198,167,94,0.25)]"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleEventSelect(featured.id)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleEventSelect(featured.id)}
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <div
+                          className="absolute inset-0 bg-center bg-cover"
+                          style={{
+                            backgroundImage: (featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()
+                              ? `url(${(featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()})`
+                              : undefined,
+                            filter: 'brightness(1.25) contrast(1.12) saturate(1.1)',
+                            transform: 'scale(1.05)',
+                          }}
+                        />
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            backdropFilter: 'blur(4px)',
+                            background: 'radial-gradient(circle at center, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.65) 100%)',
+                          }}
+                        />
+                        <div
+                          className="absolute z-[5] pointer-events-none"
+                          style={{
+                            width: '260px',
+                            height: '260px',
+                            background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                          }}
+                        />
+                        <div className="relative z-10 flex flex-col items-center justify-center text-center py-16 px-6 space-y-4">
+                          <h2 className="text-3xl md:text-4xl font-extrabold uppercase tracking-wide text-white">
+                            {featured?.title ?? UI_TEXT.event.eventFallback}
+                          </h2>
+                          <p className="text-[#FFC107] text-2xl font-bold tracking-wide">
+                            {fmt?.date ?? featured?.date}
+                          </p>
+                          <p className="text-white text-lg">
+                            {fmt?.time ?? ''}
+                          </p>
+                          <p className="text-muted-light text-sm uppercase tracking-widest">
+                            {(featured as { venue?: string })?.venue ?? ''}
+                          </p>
+                        </div>
+                      </motion.div>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {thisMonthEvents.length > 0 && (
+                {events.length > 0 && (
                   <div>
                     <p className="text-muted text-xs tracking-widest uppercase mb-2">
-                      В этом месяце
+                      ВСЕ СОБЫТИЯ
                     </p>
                     <div className="space-y-3">
-                      {thisMonthEvents.map((evt) => {
+                      {events.map((evt) => {
                         const evtFmt = getEventDisplayDate(evt);
                         return (
                           <motion.div

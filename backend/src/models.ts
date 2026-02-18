@@ -84,6 +84,8 @@ export interface EventData {
   schemaImageUrl?: string | null;
   /** ticketCategories — stored in ticket_categories (jsonb). */
   ticketCategories?: unknown[] | null;
+  /** Only one event can be featured; shown prominently on main screen. */
+  isFeatured?: boolean;
 }
 
 export type BookingStatus = 'reserved' | 'paid' | 'expired' | 'pending' | 'awaiting_confirmation' | 'cancelled';

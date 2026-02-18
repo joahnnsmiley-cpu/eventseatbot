@@ -77,6 +77,7 @@ function buildSnapshotFromEvent(ev: EventData): string {
     imageUrl: ev.imageUrl?.trim() || null,
     layoutImageUrl: ev.layoutImageUrl?.trim() || null,
     published: ev.published === true,
+    isFeatured: (ev as { isFeatured?: boolean }).isFeatured === true,
     ticketCategories: ev.ticketCategories ?? [],
     tables: sorted,
   });
@@ -288,6 +289,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [venue, setVenue] = useState('');
   const [eventPhone, setEventPhone] = useState('');
   const [eventPublished, setEventPublished] = useState(false);
+  const [eventFeatured, setEventFeatured] = useState(false);
   const [savingLayout, setSavingLayout] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [creatingEvent, setCreatingEvent] = useState(false);
@@ -330,10 +332,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
       layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
       published: eventPublished,
+      isFeatured: eventFeatured,
       ticketCategories: selectedEvent?.ticketCategories ?? [],
       tables: sorted,
     });
-  }, [selectedEvent, eventTitle, eventDescription, eventDate, eventTime, venue, eventPhone, eventPosterUrl, layoutUrl, eventPublished]);
+  }, [selectedEvent, eventTitle, eventDescription, eventDate, eventTime, venue, eventPhone, eventPosterUrl, layoutUrl, eventPublished, eventFeatured]);
 
   const isDirty = useMemo(() => {
     const current = buildPayloadSnapshotFromState();
@@ -526,6 +529,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setVenue(fresh.venue ?? '');
     setEventPhone(fresh.paymentPhone || '');
     setEventPublished(fresh.published === true);
+    setEventFeatured((fresh as { isFeatured?: boolean }).isFeatured === true);
     setEvents((prev) => prev.map((e) => (e.id === fresh.id ? { ...e, title: fresh.title } : e)));
     initialPayloadRef.current = buildSnapshotFromEvent(mapped);
   };
@@ -631,6 +635,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
+        isFeatured: eventFeatured,
         ticketCategories: selectedEvent?.ticketCategories ?? [],
         tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
       };
@@ -777,6 +782,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
+        isFeatured: eventFeatured,
         ticketCategories: selectedEvent?.ticketCategories ?? [],
         tables: newTables.map((t, idx) => tableForBackend(t, idx)),
       };
@@ -813,6 +819,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
+        isFeatured: eventFeatured,
         ticketCategories: selectedEvent?.ticketCategories ?? [],
         tables: newTables.map((t, idx) => tableForBackend(t, idx)),
       };
@@ -1749,14 +1756,24 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     </PrimaryButton>
                   )}
                 </div>
-                <label className="flex items-center gap-2 text-sm mt-3">
-                  <input
-                    type="checkbox"
-                    checked={eventPublished}
-                    onChange={(e) => { setEventPublished(e.target.checked); }}
-                  />
-                  {UI_TEXT.admin.publishedCheckbox}
-                </label>
+                <div className="flex flex-wrap gap-4 mt-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={eventPublished}
+                      onChange={(e) => { setEventPublished(e.target.checked); }}
+                    />
+                    {UI_TEXT.admin.publishedCheckbox}
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={eventFeatured}
+                      onChange={(e) => { setEventFeatured(e.target.checked); }}
+                    />
+                    {UI_TEXT.admin.featuredCheckbox}
+                  </label>
+                </div>
                 {selectedEvent?.id && (
                   <div className="mt-4 space-y-2">
                     {selectedEvent?.status !== 'published' && (

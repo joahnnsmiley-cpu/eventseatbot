@@ -22,19 +22,26 @@ async function handleAuthError(res: Response, defaultMessage: string): Promise<n
   throw new Error(msg || defaultMessage);
 }
 
-export const getEvents = async (): Promise<EventData[]> => {
+export type GetEventsResult = {
+  featured: EventData | null;
+  events: EventData[];
+};
+
+const normalizeEvent = (e: EventData & { coverImageUrl?: string | null }) => ({
+  ...e,
+  imageUrl: e.imageUrl ?? e.coverImageUrl ?? null,
+  tables: Array.isArray(e.tables) ? e.tables : [],
+});
+
+export const getEvents = async (): Promise<GetEventsResult> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/public/events`, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to load events');
-  if (res.status === 204) return [];
+  if (res.status === 204) return { featured: null, events: [] };
   const data = await res.json();
-  const list = Array.isArray(data) ? data : [];
-  // Public API returns coverImageUrl; normalize to imageUrl (poster) for cards
-  return list.map((e: EventData & { coverImageUrl?: string | null }) => ({
-    ...e,
-    imageUrl: e.imageUrl ?? e.coverImageUrl ?? null,
-    tables: Array.isArray(e.tables) ? e.tables : [],
-  }));
+  const featured = data.featured ? normalizeEvent(data.featured) : null;
+  const events = Array.isArray(data.events) ? data.events.map(normalizeEvent) : [];
+  return { featured, events };
 };
 
 export const getEvent = async (eventId: string): Promise<EventData> => {

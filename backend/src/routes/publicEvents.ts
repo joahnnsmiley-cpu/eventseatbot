@@ -41,25 +41,32 @@ router.get('/ticket/:id', async (req: Request, res: Response) => {
   }
 });
 
-// Return published events only
+function mapEventToPublic(e: any) {
+  return {
+    id: e.id,
+    title: e.title,
+    description: e.description,
+    date: e.date,
+    event_date: e.event_date ?? null,
+    event_time: e.event_time ?? null,
+    venue: e.venue ?? null,
+    coverImageUrl: e.imageUrl || e.schemaImageUrl || null,
+    schemaImageUrl: e.schemaImageUrl || e.imageUrl || null,
+    layoutImageUrl: typeof e.layoutImageUrl === 'undefined' ? null : e.layoutImageUrl,
+    tables: filterTablesByVisibility(Array.isArray(e.tables) ? e.tables : []),
+    isFeatured: (e as { isFeatured?: boolean }).isFeatured ?? false,
+  };
+}
+
+// Return published events: { featured: Event | null, events: Event[] }
 router.get('/events', async (_req: Request, res: Response) => {
   try {
-    const events = (await db.getEvents()).filter((e: any) => (e as any).published === true || (e as any).status === 'published');
-    // map to safe public shape; image_url → cover (poster); layout_image_url → seating only (рассадка)
-    const mapped = events.map((e: any) => ({
-      id: e.id,
-      title: e.title,
-      description: e.description,
-      date: e.date,
-      event_date: e.event_date ?? null,
-      event_time: e.event_time ?? null,
-      venue: e.venue ?? null,
-      coverImageUrl: e.imageUrl || e.schemaImageUrl || null,
-      schemaImageUrl: e.schemaImageUrl || e.imageUrl || null,
-      layoutImageUrl: typeof e.layoutImageUrl === 'undefined' ? null : e.layoutImageUrl,
-      tables: filterTablesByVisibility(Array.isArray(e.tables) ? e.tables : []),
-    }));
-    return res.json(mapped ?? []);
+    await db.reassignFeaturedIfNeeded();
+    const all = (await db.getEvents()).filter((e: any) => (e as any).published === true || (e as any).status === 'published');
+    const mapped = all.map((e: any) => mapEventToPublic(e));
+    const featured = mapped.find((e: any) => e.isFeatured === true) ?? null;
+    const events = mapped.filter((e: any) => e.id !== featured?.id);
+    return res.json({ featured, events });
   } catch (err) {
     console.error('[PublicEvents] Failed to load events:', err);
     return res.status(500).json({ error: 'Internal error' });
@@ -183,7 +190,8 @@ router.get('/view', (_req: Request, res: Response) => {
         const res = await fetch('/public/events');
         const data = await res.json();
         const container = document.getElementById('list');
-        data.forEach(ev=>{
+        const list = data.featured ? [data.featured, ...(data.events || [])] : (data.events || []);
+        list.forEach(ev=>{
           const a = document.createElement('a');
           a.href = '/public/view/'+ev.id;
           a.className='link';

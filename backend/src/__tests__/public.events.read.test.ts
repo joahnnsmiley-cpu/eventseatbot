@@ -93,13 +93,14 @@ test.describe('public events read (API only)', () => {
 
       const res = await request.get(`${apiBase}/public/events`);
       expect(res.status()).toBe(200);
-      const events = await res.json();
+      const data = await res.json();
 
-      expect(Array.isArray(events)).toBe(true);
-      expect(events.length).toBe(1);
-      expect(events[0].id).toBe(publishedEventId);
-
-      const event = events[0];
+      expect(data).toHaveProperty('featured');
+      expect(data).toHaveProperty('events');
+      expect(Array.isArray(data.events)).toBe(true);
+      const list = data.featured ? [data.featured, ...data.events] : data.events;
+      expect(list.length).toBe(1);
+      const event = list[0];
       expect(event.coverImageUrl).toBe(coverImageUrl);
       expect(event.schemaImageUrl).toBe(schemaImageUrl);
       expect(Array.isArray(event.tables)).toBe(true);

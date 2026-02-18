@@ -42,6 +42,7 @@ export interface Event {
   event_date?: string | null;
   event_time?: string | null;
   venue?: string | null;
+  isFeatured?: boolean;
 }
 
 const router = Router();
@@ -408,6 +409,7 @@ router.put('/events/:id', async (req: Request, res: Response) => {
     existing.published = requestedStatusPut === 'published';
   }
   if (typeof req.body.paymentPhone === 'string') existing.paymentPhone = req.body.paymentPhone;
+  if (typeof req.body.isFeatured === 'boolean') (existing as { isFeatured?: boolean }).isFeatured = req.body.isFeatured;
   if (typeof req.body.maxSeatsPerBooking !== 'undefined') existing.maxSeatsPerBooking = Number(req.body.maxSeatsPerBooking) || 0;
   if (Array.isArray(req.body.tables)) {
     console.log('normalizeTables input', req.body.tables);

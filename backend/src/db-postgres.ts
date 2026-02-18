@@ -32,6 +32,7 @@ type EventsRow = {
   ticket_template_url?: string | null;
   organizer_phone: string | null;
   published: boolean | null;
+  is_featured?: boolean | null;
   ticket_categories?: any | null;
   created_at?: string;
   updated_at?: string;
@@ -110,6 +111,7 @@ function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
     tables,
     status: row.published ? 'published' : 'draft',
     published: row.published ?? false,
+    isFeatured: row.is_featured ?? false,
     ticketCategories: row.ticket_categories ?? undefined,
   };
 }
@@ -174,6 +176,56 @@ function bookingsRowToBooking(row: BookingsRow): Booking {
 
 function adminRowToAdmin(row: AdminsRow): Admin {
   return { id: row.id };
+}
+
+/** Reassign featured event: only published future events are eligible. */
+export async function reassignFeaturedIfNeeded(): Promise<void> {
+  if (!supabase) return;
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+  const { data: featuredRow, error: featErr } = await supabase
+    .from('events')
+    .select('id, event_date, published')
+    .eq('is_featured', true)
+    .limit(1)
+    .maybeSingle();
+
+  const { data: nearestFuture, error: nextErr } = await supabase
+    .from('events')
+    .select('id')
+    .eq('published', true)
+    .gte('event_date', today)
+    .order('event_date', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (nextErr) return;
+
+  // Case A — No featured exists
+  if (featErr || !featuredRow) {
+    if (nearestFuture) {
+      const { data: allIds } = await supabase.from('events').select('id');
+      if (allIds?.length) {
+        await supabase.from('events').update({ is_featured: false }).in('id', allIds.map((r) => r.id));
+        await supabase.from('events').update({ is_featured: true }).eq('id', nearestFuture.id);
+      }
+    }
+    return;
+  }
+
+  // Case B — Featured exists but expired or unpublished
+  const eventDate = featuredRow.event_date as string | null;
+  const published = featuredRow.published === true;
+  const isExpired = eventDate != null && eventDate < today;
+  const isInvalid = !published || isExpired;
+
+  if (isInvalid) {
+    await supabase.from('events').update({ is_featured: false }).eq('id', featuredRow.id);
+    if (nearestFuture) {
+      await supabase.from('events').update({ is_featured: true }).eq('id', nearestFuture.id);
+    }
+  }
+  // Case C — Featured valid: do nothing
 }
 
 // ---- Events ----
@@ -319,6 +371,16 @@ function logLayoutChange(
 export async function upsertEvent(event: EventData, adminId?: number): Promise<void> {
   if (!supabase) return;
   // image_url — poster (event banner / cover image); layout_image_url — seating only (рассадка)
+  const isFeatured = (event as { isFeatured?: boolean }).isFeatured === true;
+  if (isFeatured) {
+    // Ensure only one featured event: unset all others first
+    const { error: unsetErr } = await supabase
+      .from('events')
+      .update({ is_featured: false })
+      .neq('id', event.id);
+    if (unsetErr) throw unsetErr;
+  }
+
   const row: Omit<EventsRow, 'created_at' | 'updated_at'> = {
     id: event.id,
     title: event.title,
@@ -331,6 +393,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
     layout_image_url: event.layoutImageUrl ?? null,
     organizer_phone: event.paymentPhone || null,
     published: event.published ?? false,
+    is_featured: isFeatured,
     ticket_categories: event.ticketCategories ?? null,
   };
   const { error: upsertErr } = await supabase.from('events').upsert(row, { onConflict: 'id' });

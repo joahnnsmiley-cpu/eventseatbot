@@ -33,6 +33,7 @@ export const UI_TEXT = {
     draft: 'Черновик',
     statusLabel: 'Статус:',
     publishedCheckbox: 'Опубликовано',
+    featuredCheckbox: 'Главное событие',
     loadingBookings: 'Загрузка бронирований…',
     loadingEvents: 'Загрузка событий…',
     noBookings: 'Бронирований пока нет.',
