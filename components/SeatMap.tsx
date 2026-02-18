@@ -160,7 +160,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
         boxShadow: 'inset 0 0 40px rgba(0,0,0,0.6)',
       }}
     >
-      <div className="absolute inset-0 min-w-0 min-h-0">
+      <div className="layout-wrapper absolute inset-0 min-w-0 min-h-0">
         <TransformWrapper
           minScale={0.8}
           maxScale={3}
@@ -189,8 +189,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
                 contentStyle={{ width: '100%', height: '100%', position: 'relative' }}
               >
                 <div
-                  className="relative w-full h-full"
-                  style={{ touchAction: 'none' }}
+                  className="layout-image-layer"
+                  style={{ width: '100%', height: '100%', position: 'relative', touchAction: 'none' }}
                 >
                   {layoutImageUrl && (
                     <img
@@ -207,28 +207,11 @@ const SeatMap: React.FC<SeatMapProps> = ({
                       }}
                     />
                   )}
-                  {totalSeats > 0 && (
-                    <div
-                      className="absolute inset-0 pointer-events-none"
-                      style={{
-                        zIndex: 4,
-                        background: 'rgba(0,0,0,0.35)',
-                        transition: 'opacity 0.2s',
-                      }}
-                    />
-                  )}
-                  {/* Cinematic stage gradient overlay */}
-                  <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      zIndex: 5,
-                      background:
-                        'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 20%, rgba(0,0,0,0) 40%)',
-                    }}
-                  />
-                  {/* Pure coordinate container: same aspect ratio as admin so coordinates match 1:1. */}
-                  <div
-                className="relative z-10"
+                </div>
+              </TransformComponent>
+
+              <div
+                className="tables-layer"
                 style={{
                   position: 'absolute',
                   zIndex: 10,
@@ -240,14 +223,43 @@ const SeatMap: React.FC<SeatMapProps> = ({
                   height: '100%',
                   padding: 0,
                   margin: 0,
-                  border: 'none',
-                  boxSizing: 'content-box',
-                  display: 'block',
-                  cursor: isEditable ? 'crosshair' : 'default',
-                  pointerEvents: 'auto',
                 }}
-                onPointerDown={handleMapPointerDown}
               >
+                {totalSeats > 0 && (
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      zIndex: 4,
+                      background: 'rgba(0,0,0,0.35)',
+                      transition: 'opacity 0.2s',
+                    }}
+                  />
+                )}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    zIndex: 5,
+                    background:
+                      'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 20%, rgba(0,0,0,0) 40%)',
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    zIndex: 10,
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    width: '100%',
+                    height: '100%',
+                    padding: 0,
+                    margin: 0,
+                    cursor: isEditable ? 'crosshair' : 'default',
+                    pointerEvents: 'auto',
+                  }}
+                  onPointerDown={handleMapPointerDown}
+                >
       {!layoutImageUrl && (
         <div className="absolute inset-0 flex items-center justify-center text-xs text-muted pointer-events-none">
           {UI_TEXT.seatMap.noLayoutImage}
@@ -389,9 +401,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
           </div>
         </div>
       )}
-                  </div>
                 </div>
-              </TransformComponent>
+              </div>
 
               {/* Reset Zoom Button */}
               <button
