@@ -301,9 +301,10 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: max-content;
-  min-width: 28px;
-  padding: 6px;
+  width: 45%;
+  min-width: 20px;
+  max-width: 56px;
+  padding: 0;
   aspect-ratio: 1 / 1;
   display: flex;
   align-items: center;
@@ -318,6 +319,36 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   pointer-events: none;
   text-align: center;
 }
+.table-number {
+  font-size: clamp(10px, 2.2vw, 16px);
+  line-height: 1;
+  font-weight: 700;
+}
+/* Apple-style seat dots */
+.table-seat-dots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.table-seat-dot {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: background-color 0.2s, opacity 0.2s;
+}
+.table-seat-dot--available {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+}
+.table-seat-dot--sold {
+  background: rgba(156, 163, 175, 0.8);
+  opacity: 0.7;
+}
+.table-seat-dot--selected {
+  box-shadow: 0 0 6px currentColor;
+}
 /* Круглый стол — круглая метка */
 .table-shape-circle .table-label {
   border-radius: 50%;
@@ -325,11 +356,6 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
 /* Прямоугольный стол — квадратная метка */
 .table-shape:not(.table-shape-circle) .table-label {
   border-radius: 8px;
-}
-.table-number {
-  font-size: clamp(10px, 2.8vw, 14px);
-  line-height: 1;
-  font-weight: 700;
 }
 ::-webkit-scrollbar {
   width: 0px;

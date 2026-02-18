@@ -199,7 +199,15 @@ function DraggableTable({
     >
       <div className={`table-shape table-shape-gold pointer-events-none ${table.shape === 'circle' ? 'table-shape-circle' : ''}`} style={shapeStyle}>
         <div className="table-overlay">
-          <div className="table-label">
+          <div
+            className="table-label"
+            style={palette ? {
+              background: `linear-gradient(145deg, ${palette.base}55, ${palette.base}22)`,
+              border: palette.border,
+              boxShadow: `0 0 12px ${palette.base}40`,
+              color: '#F3E6C0',
+            } : undefined}
+          >
             <TableNumber number={table.number ?? 0} />
           </div>
         </div>

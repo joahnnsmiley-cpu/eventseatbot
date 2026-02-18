@@ -6,6 +6,7 @@ import { CATEGORY_COLORS, resolveCategoryColorKey } from '../src/config/category
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
 import { TableNumber } from './TableLabel';
+import { TableSeatDots } from './TableSeatDots';
 
 const ArrowIcon = () => <span style={{ color: '#C6A75E', fontSize: '1.2em' }}>›</span>;
 
@@ -355,7 +356,23 @@ const SeatMap: React.FC<SeatMapProps> = ({
           >
               <div className={`table-shape table-shape-gold ${isCircle ? 'table-shape-circle' : ''}`} style={shapeStyle}>
                 <div className="table-overlay">
-                  <div className="table-label">
+                  {!isEditable && table.seatsTotal > 0 && (
+                    <TableSeatDots
+                      seatsTotal={table.seatsTotal}
+                      seatsAvailable={table.seatsAvailable ?? table.seatsTotal}
+                      selectedIndices={selectedSeatsByTable?.[table.id]}
+                      accentColor={palette?.base ?? '#FFC107'}
+                    />
+                  )}
+                  <div
+                    className="table-label"
+                    style={palette ? {
+                      background: `linear-gradient(145deg, ${palette.base}55, ${palette.base}22)`,
+                      border: palette.border,
+                      boxShadow: `0 0 12px ${palette.base}40`,
+                      color: '#F3E6C0',
+                    } : undefined}
+                  >
                     <TableNumber number={table.number ?? 0} />
                   </div>
                   {isEditable && (

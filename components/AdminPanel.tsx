@@ -106,133 +106,133 @@ function validateTableNumbers(tables: TableModel[]): string | null {
 
 /** Accordion section — defined outside AdminPanel to avoid remount on parent re-render (fixes scroll jump). */
 const AccordionSection = React.memo(function AccordionSection({
-  title,
-  sectionKey,
-  children,
-  dirtyIndicator,
-  dragHandle,
+    title,
+    sectionKey,
+    children,
+    dirtyIndicator,
+    dragHandle,
   openSections,
   toggleSection,
   sectionRefs,
   isDirty,
-}: {
-  title: string;
-  sectionKey: string;
-  children: React.ReactNode;
-  dirtyIndicator?: boolean;
-  dragHandle?: React.ReactNode;
+  }: {
+    title: string;
+    sectionKey: string;
+    children: React.ReactNode;
+    dirtyIndicator?: boolean;
+    dragHandle?: React.ReactNode;
   openSections: string[];
   toggleSection: (key: string) => void;
   sectionRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
   isDirty: boolean;
 }) {
-  const isOpen = openSections.includes(sectionKey);
-  return (
-    <div
-      ref={(el) => { sectionRefs.current[sectionKey] = el; }}
-      className="relative border border-white/10 rounded-2xl mb-4 bg-[#121212] overflow-hidden"
-    >
-      <div className="sticky top-0 z-20 bg-[#121212] border-b border-white/5">
-        <button
-          type="button"
-          onClick={() => toggleSection(sectionKey)}
-          className="w-full flex items-center justify-between px-4 py-4 text-left hover:bg-white/5 transition"
-        >
-          <span className="font-semibold text-white flex items-center gap-2">
-            {dragHandle}
-            {title}
-            {dirtyIndicator && isDirty && (
-              <span className="ml-2 text-xs text-[#FFC107]">●</span>
-            )}
-          </span>
-          <motion.span
-            animate={{ rotate: isOpen ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-            className="text-[#C6A75E]"
+    const isOpen = openSections.includes(sectionKey);
+    return (
+      <div
+        ref={(el) => { sectionRefs.current[sectionKey] = el; }}
+        className="relative border border-white/10 rounded-2xl mb-4 bg-[#121212] overflow-hidden"
+      >
+        <div className="sticky top-0 z-20 bg-[#121212] border-b border-white/5">
+          <button
+            type="button"
+            onClick={() => toggleSection(sectionKey)}
+            className="w-full flex items-center justify-between px-4 py-4 text-left hover:bg-white/5 transition"
           >
-            ▼
-          </motion.span>
-        </button>
+            <span className="font-semibold text-white flex items-center gap-2">
+              {dragHandle}
+              {title}
+              {dirtyIndicator && isDirty && (
+                <span className="ml-2 text-xs text-[#FFC107]">●</span>
+              )}
+            </span>
+            <motion.span
+              animate={{ rotate: isOpen ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+              className="text-[#C6A75E]"
+            >
+              ▼
+            </motion.span>
+          </button>
+        </div>
+        <AnimatePresence initial={false}>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="px-4 pb-4">{children}</div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-4">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+    );
 });
 
 /** Sortable section wrapper — defined outside AdminPanel to avoid remount on parent re-render. */
 function SortableSectionInner({
-  id,
-  title,
-  sectionKey,
-  dirtyIndicator,
-  children,
+    id,
+    title,
+    sectionKey,
+    dirtyIndicator,
+    children,
   openSections,
   toggleSection,
   sectionRefs,
   isDirty,
-}: {
-  id: string;
-  title: string;
-  sectionKey: string;
-  dirtyIndicator?: boolean;
-  children: React.ReactNode;
+  }: {
+    id: string;
+    title: string;
+    sectionKey: string;
+    dirtyIndicator?: boolean;
+    children: React.ReactNode;
   openSections: string[];
   toggleSection: (key: string) => void;
   sectionRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
   isDirty: boolean;
 }) {
-  const {
-    setNodeRef,
-    setActivatorNodeRef,
-    listeners,
-    attributes,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-  return (
-    <div ref={setNodeRef} style={style} className={isDragging ? 'opacity-50' : ''}>
-      <AccordionSection
-        title={title}
-        sectionKey={sectionKey}
-        dirtyIndicator={dirtyIndicator}
-        dragHandle={
-          <span
-            ref={setActivatorNodeRef}
-            {...listeners}
-            {...attributes}
-            className="cursor-grab active:cursor-grabbing text-[#6E6A64] text-lg px-1 select-none"
-            title="Перетащить"
-            onClick={(e) => e.stopPropagation()}
-          >
-            ☰
-          </span>
-        }
+    const {
+      setNodeRef,
+      setActivatorNodeRef,
+      listeners,
+      attributes,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id });
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
+    return (
+      <div ref={setNodeRef} style={style} className={isDragging ? 'opacity-50' : ''}>
+        <AccordionSection
+          title={title}
+          sectionKey={sectionKey}
+          dirtyIndicator={dirtyIndicator}
+          dragHandle={
+            <span
+              ref={setActivatorNodeRef}
+              {...listeners}
+              {...attributes}
+              className="cursor-grab active:cursor-grabbing text-[#6E6A64] text-lg px-1 select-none"
+              title="Перетащить"
+              onClick={(e) => e.stopPropagation()}
+            >
+              ☰
+            </span>
+          }
         openSections={openSections}
         toggleSection={toggleSection}
         sectionRefs={sectionRefs}
         isDirty={isDirty}
-      >
-        {children}
-      </AccordionSection>
-    </div>
-  );
+        >
+          {children}
+        </AccordionSection>
+      </div>
+    );
 }
 
 /** Validate rect tables: width_percent > 0, height_percent > 0, rotation in [-180, 180]. Returns error or null. */
@@ -1219,11 +1219,11 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       if (isDirty && selectedEventId && ev.id !== selectedEventId) {
                         setExitConfirmPending({ type: 'switchEvent', eventId: ev.id });
                       } else {
-                        setSelectedEventId(ev.id);
-                        setSelectedEvent(null);
-                        setError(null);
-                        setSuccessMessage(null);
-                        loadEvent(ev.id);
+                      setSelectedEventId(ev.id);
+                      setSelectedEvent(null);
+                      setError(null);
+                      setSuccessMessage(null);
+                      loadEvent(ev.id);
                       }
                     }}
                     onDelete={() => setDeleteConfirmEvent(ev)}
@@ -1338,7 +1338,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       <div className="space-y-2">
                         <div className="rounded border overflow-hidden bg-surface max-h-32">
                           <img src={eventPosterUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => {}} />
-                        </div>
+                </div>
                         <label className="inline-block">
                           <span className="px-4 py-2 text-sm rounded-xl border border-white/20 hover:bg-white/5 cursor-pointer transition">
                             Заменить
@@ -1538,16 +1538,16 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                                     key={key}
                                     type="button"
                                     onClick={() => {
-                                      setSelectedEvent((prev) =>
-                                        prev
-                                          ? {
-                                              ...prev,
-                                              ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                setSelectedEvent((prev) =>
+                                  prev
+                                    ? {
+                                        ...prev,
+                                        ticketCategories: (prev.ticketCategories ?? []).map((c) =>
                                                 c.id === cat.id ? { ...c, color_key: key } : c
-                                              ),
-                                            }
-                                          : null
-                                      );
+                                        ),
+                                      }
+                                    : null
+                                );
                                     }}
                                     className={`h-10 w-10 rounded-full transition-all hover:scale-105 ${
                                       isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-[#141414]' : ''
@@ -1721,13 +1721,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 </div>
                 <div className="flex flex-wrap gap-4 mt-3">
                   <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={eventPublished}
+                  <input
+                    type="checkbox"
+                    checked={eventPublished}
                       onChange={(e) => { setEventPublished(e.target.checked); }}
-                    />
-                    {UI_TEXT.admin.publishedCheckbox}
-                  </label>
+                  />
+                  {UI_TEXT.admin.publishedCheckbox}
+                </label>
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
@@ -1770,7 +1770,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 {tables.map((t, idx) => (
                   <button
                     key={t.id}
-                    type="button"
+                          type="button"
                     onClick={() => setSelectedTableId(t.id)}
                     className={`w-full text-left px-3 py-2 rounded-lg border transition ${
                       selectedTableId === t.id
@@ -1791,7 +1791,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     );
                     if (key === 'layout') return (
                       <SortableSectionInner key="layout" id="layout" title="План зала" sectionKey="layout" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
-                <div>
+              <div>
                 <div className="text-sm font-semibold mb-1">{UI_TEXT.tables.layoutImageUrl}</div>
                 <input
                   type="file"
@@ -1847,7 +1847,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 </div>
               </div>
 
-                <div>
+              <div>
                 <div className="text-sm font-semibold mb-2 flex items-center justify-between gap-2">
                   <span>{UI_TEXT.tables.layoutPreview}</span>
                   {layoutScale !== 1 && (
@@ -1920,12 +1920,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       transformOrigin: 'center center',
                     }}
                   >
-                    <div
-                      ref={layoutPreviewRef}
+                <div
+                  ref={layoutPreviewRef}
                       className="border border-[#242424] rounded-xl bg-[#111111] cursor-crosshair"
-                      style={{
-                        position: 'relative',
-                        width: '100%',
+                  style={{
+                    position: 'relative',
+                    width: '100%',
                         maxWidth: 600,
                         margin: '0 auto',
                         containerType: 'inline-size',
@@ -1943,9 +1943,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         />
                       ) : (
                         <div className="flex items-center justify-center py-12 text-xs text-muted">
-                          {UI_TEXT.tables.noLayoutImage}
-                        </div>
-                      )}
+                      {UI_TEXT.tables.noLayoutImage}
+                    </div>
+                  )}
                       <AdminTablesLayer
                         tables={tables}
                         ticketCategories={selectedEvent?.ticketCategories ?? []}
@@ -1953,8 +1953,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         onTableSelect={(id) => setSelectedTableId(id)}
                         onTablesChange={(updater) => setTables(updater)}
                       />
-                    </div>
-                  </div>
+                        </div>
+                      </div>
                 </div>
                 <div className="text-xs text-muted mt-2">
                   {UI_TEXT.tables.layoutHint}
@@ -1963,7 +1963,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   <PrimaryButton onClick={() => addTable()}>
                     {UI_TEXT.tables.addTable}
                   </PrimaryButton>
-                </div>
+              </div>
               </div>
                       </SortableSectionInner>
                     );
