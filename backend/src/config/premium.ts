@@ -13,7 +13,7 @@ const PREMIUM_IDS = new Set(
 const PREMIUM_MESSAGES: Record<string, string> = {
   // Keys must match Telegram IDs from PREMIUM_IDS (e.g. "123456789").
   // Replace the key below with the actual ID from your PREMIUM_IDS env.
-  TELEGRAM_ID_1: `
+  1818535519: `
 Дорогая Ирина!
 
 Мы, Иван и Даша, очень рады разделить с Вами очень радостный шаг на пути к структурному проектному решению, которое было бы невозможным, если бы не соединились наши энергии, не взаимодополнились наши энтузиазмы.
