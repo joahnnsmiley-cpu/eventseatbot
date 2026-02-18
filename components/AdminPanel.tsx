@@ -689,6 +689,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   }, [bookings, selectedEventId]);
 
   const addTable = (percentX = 50, percentY = 50) => {
+    console.log('ADD TABLE CALLED');
     if (!selectedEvent?.id) return;
     const defaultCategoryId = (selectedEvent?.ticketCategories ?? []).find((c) => c.isActive)?.id ?? '';
     const newTable = {
@@ -1799,13 +1800,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     pointerStartRef.current = { x: e.clientX, y: e.clientY };
                   }}
                   onPointerUp={(e) => {
+                    console.log('POINTER UP TRIGGERED');
                     if (!pointerStartRef.current) return;
                     const dx = Math.abs(e.clientX - pointerStartRef.current.x);
                     const dy = Math.abs(e.clientY - pointerStartRef.current.y);
                     pointerStartRef.current = null;
                     if (dx > 5 || dy > 5) return;
-                    const target = e.target as HTMLElement;
-                    if (target.closest('[data-table-id]')) return;
                     const rect = layoutPreviewRef.current?.getBoundingClientRect();
                     if (!rect) return;
                     const percentX = ((e.clientX - rect.left) / rect.width) * 100;
