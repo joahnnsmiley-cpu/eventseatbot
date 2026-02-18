@@ -1,13 +1,12 @@
 import React from 'react';
-import type { Table } from '../types';
-import type { TicketCategory } from '../types';
+import type { TableModel, TicketCategory } from '../types';
 import { UI_TEXT } from '../constants/uiText';
 import DangerButton from '../src/ui/DangerButton';
 
 type Props = {
-  table: Table | null;
+  table: TableModel | null;
   ticketCategories: TicketCategory[];
-  onUpdate: (updates: Partial<Table>) => void;
+  onUpdate: (updates: Partial<TableModel>) => void;
   onDelete: () => void;
   onClose: () => void;
 };
@@ -15,7 +14,7 @@ type Props = {
 export default function TableEditPanel({ table, ticketCategories, onUpdate, onDelete, onClose }: Props) {
   if (!table) return null;
 
-  const category = ticketCategories.find((c) => c.id === table.ticketCategoryId);
+  const category = ticketCategories.find((c) => c.id === table.categoryId);
   const price = category?.price ?? 0;
 
   return (
@@ -53,10 +52,10 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
           <input
             type="number"
             min={0}
-            value={table.seatsTotal ?? 4}
+            value={table.seatsCount}
             onChange={(e) => {
               const val = Math.max(0, parseInt(e.target.value, 10) || 0);
-              onUpdate({ seatsTotal: val, seatsAvailable: val });
+              onUpdate({ seatsCount: val });
             }}
             className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
           />
@@ -92,15 +91,11 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
         <div>
           <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.shape}</label>
           <select
-            value={table.shape ?? 'circle'}
+            value={table.shape}
             onChange={(e) => {
               const newShape = e.target.value as 'circle' | 'rect';
-              const size = table.sizePercent ?? table.widthPercent ?? table.heightPercent ?? 6;
-              if (newShape === 'rect') {
-                onUpdate({ shape: newShape, widthPercent: size, heightPercent: size });
-              } else {
-                onUpdate({ shape: newShape, sizePercent: size, widthPercent: undefined, heightPercent: undefined });
-              }
+              const size = table.shape === 'circle' ? table.widthPercent : Math.min(table.widthPercent, table.heightPercent);
+              onUpdate({ shape: newShape, widthPercent: size, heightPercent: size });
             }}
             className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
           >
@@ -114,7 +109,7 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
             type="number"
             min={-180}
             max={180}
-            value={table.rotationDeg ?? 0}
+            value={table.rotationDeg}
             onChange={(e) => {
               const val = Math.max(-180, Math.min(180, parseInt(e.target.value, 10) || 0));
               onUpdate({ rotationDeg: val });
@@ -122,32 +117,62 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
             className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
           />
         </div>
-        <div>
-          <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.sizePercent}</label>
-          <input
-            type="number"
-            min={2}
-            max={25}
-            step={0.5}
-            value={table.sizePercent ?? table.widthPercent ?? table.heightPercent ?? 6}
-            onChange={(e) => {
-              const val = Math.max(2, Math.min(25, parseFloat(e.target.value) || 6));
-              const shape = table.shape ?? 'circle';
-              if (shape === 'rect') {
+        {table.shape === 'circle' ? (
+          <div>
+            <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.sizePercent}</label>
+            <input
+              type="number"
+              min={2}
+              max={25}
+              step={0.5}
+              value={table.widthPercent}
+              onChange={(e) => {
+                const val = Math.max(2, Math.min(25, parseFloat(e.target.value) || 6));
                 onUpdate({ widthPercent: val, heightPercent: val });
-              } else {
-                onUpdate({ sizePercent: val });
-              }
-            }}
-            className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-          />
-        </div>
+              }}
+              className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+            />
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.widthPercent}</label>
+              <input
+                type="number"
+                min={2}
+                max={25}
+                step={0.5}
+                value={table.widthPercent}
+                onChange={(e) => {
+                  const val = Math.max(2, Math.min(25, parseFloat(e.target.value) || 6));
+                  onUpdate({ widthPercent: val });
+                }}
+                className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.heightPercent}</label>
+              <input
+                type="number"
+                min={2}
+                max={25}
+                step={0.5}
+                value={table.heightPercent}
+                onChange={(e) => {
+                  const val = Math.max(2, Math.min(25, parseFloat(e.target.value) || 6));
+                  onUpdate({ heightPercent: val });
+                }}
+                className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+              />
+            </div>
+          </>
+        )}
         <div>
           <label className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
             <input
               type="checkbox"
-              checked={table.isAvailable === true}
-              onChange={(e) => onUpdate({ isAvailable: e.target.checked })}
+              checked={table.isActive}
+              onChange={(e) => onUpdate({ isActive: e.target.checked })}
               className="rounded border-white/30"
             />
             {UI_TEXT.tables.available}

@@ -16,7 +16,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import * as StorageService from '../services/storageService';
-import { EventData, Table } from '../types';
+import { EventData, TableModel } from '../types';
 import { UI_TEXT } from '../constants/uiText';
 import { computeTableSizes } from '../src/ui/tableSizing';
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
@@ -27,6 +27,7 @@ import DangerButton from '../src/ui/DangerButton';
 import EventCard, { EventCardSkeleton } from './EventCard';
 import AdminCard from '../src/ui/AdminCard';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
+import { tableToApiPayload } from '../src/utils/tableToApiPayload';
 import { deepEqual, deepClone } from '../src/utils/deepEqual';
 import { DEFAULT_TICKET_CATEGORIES } from '../constants/ticketStyles';
 import AdminTablesLayer from './AdminTablesLayer';
@@ -65,27 +66,13 @@ function toDatetimeLocal(iso: string | null | undefined): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-/** Ensure required table fields for backend; defaults so nothing is undefined. */
-function tableForBackend(t: Table, index: number): Table {
-  const x = typeof t.x === 'number' ? t.x : (typeof t.centerX === 'number' ? t.centerX : 50);
-  const y = typeof t.y === 'number' ? t.y : (typeof t.centerY === 'number' ? t.centerY : 50);
-  return {
-    ...t,
-    id: t.id || `tbl-${Date.now()}-${index}`,
-    number: typeof t.number === 'number' ? t.number : index + 1,
-    seatsTotal: typeof t.seatsTotal === 'number' ? t.seatsTotal : 4,
-    seatsAvailable: typeof t.seatsAvailable === 'number' ? t.seatsAvailable : (typeof t.seatsTotal === 'number' ? t.seatsTotal : 4),
-    x,
-    y,
-    centerX: typeof t.centerX === 'number' ? t.centerX : x,
-    centerY: typeof t.centerY === 'number' ? t.centerY : y,
-    visibleFrom: t.visibleFrom ?? undefined,
-    visibleUntil: t.visibleUntil ?? undefined,
-  };
+/** Convert TableModel to API payload format. */
+function tableForBackend(t: TableModel, index: number): Record<string, unknown> {
+  return tableToApiPayload(t, index);
 }
 
 /** Validate table numbers: positive integer, unique within event. Returns error message or null. */
-function validateTableNumbers(tables: Table[]): string | null {
+function validateTableNumbers(tables: TableModel[]): string | null {
   const seen = new Map<number, string>();
   for (const t of tables) {
     const n = t.number;
@@ -232,13 +219,12 @@ function SortableSectionInner({
 }
 
 /** Validate rect tables: width_percent > 0, height_percent > 0, rotation in [-180, 180]. Returns error or null. */
-function validateRectTables(tables: Table[]): string | null {
+function validateRectTables(tables: TableModel[]): string | null {
   for (const t of tables) {
-    const shape = t.shape ?? 'circle';
-    if (shape === 'circle') continue;
-    const w = (t as { widthPercent?: number }).widthPercent;
-    const h = (t as { heightPercent?: number }).heightPercent;
-    const rot = (t as { rotationDeg?: number }).rotationDeg ?? 0;
+    if (t.shape === 'circle') continue;
+    const w = t.widthPercent;
+    const h = t.heightPercent;
+    const rot = t.rotationDeg;
     if (typeof w !== 'number' || w <= 0) return UI_TEXT.tables.widthPercentInvalid;
     if (typeof h !== 'number' || h <= 0) return UI_TEXT.tables.heightPercentInvalid;
     if (typeof rot !== 'number' || rot < -180 || rot > 180) return UI_TEXT.tables.rotationInvalid;
@@ -287,15 +273,15 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [layoutUploadLoading, setLayoutUploadLoading] = useState(false);
   const [layoutUploadError, setLayoutUploadError] = useState<string | null>(null);
   const [layoutUploadVersion, setLayoutUploadVersion] = useState<number | null>(null);
-  const [eventTablesMap, setEventTablesMap] = useState<Record<string, Table[]>>({});
+  const [eventTablesMap, setEventTablesMap] = useState<Record<string, TableModel[]>>({});
   const [eventDetailsMap, setEventDetailsMap] = useState<Record<string, EventData>>({});
   const [activeTabLeft, setActiveTabLeft] = useState(0);
   const [activeTabWidth, setActiveTabWidth] = useState(0);
   const [deleteConfirmEvent, setDeleteConfirmEvent] = useState<EventData | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [tables, setTables] = useState<Table[]>([]);
+  const [tables, setTables] = useState<TableModel[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
-  const initialTablesRef = useRef<Table[]>([]);
+  const initialTablesRef = useRef<TableModel[]>([]);
 
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const saveLayoutRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
@@ -304,9 +290,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   useEffect(() => {
     if (!selectedEvent?.tables) return;
-    const mapped = (selectedEvent.tables ?? []).map(mapTableFromDb);
-    setTables(mapped);
-    initialTablesRef.current = deepClone(mapped);
+    const tbls = selectedEvent.tables as TableModel[];
+    setTables(tbls);
+    initialTablesRef.current = deepClone(tbls);
   }, [selectedEvent?.id]);
 
   const [layoutPreviewRef] = useContainerWidth<HTMLDivElement>();
@@ -425,12 +411,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setBookings(Array.isArray(data) ? data : []);
 
       const eventIds = [...new Set((data as AdminBooking[]).map((b) => b.event_id ?? b.event?.id).filter(Boolean))] as string[];
-      const map: Record<string, Table[]> = {};
+      const map: Record<string, TableModel[]> = {};
       const detailsMap: Record<string, EventData> = {};
       for (const eventId of eventIds) {
         try {
           const ev = await StorageService.getAdminEvent(eventId);
-          map[eventId] = Array.isArray(ev?.tables) ? ev.tables : [];
+          map[eventId] = Array.isArray(ev?.tables) ? ev.tables.map(mapTableFromDb) : [];
           if (ev) detailsMap[eventId] = ev;
         } catch {
           map[eventId] = [];
@@ -671,9 +657,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     const ev = eventDetailsMap[eventId];
     const tableId = b.table_id ?? b.tableBookings?.[0]?.tableId;
     if (!tableId || !ev?.ticketCategories) return '—';
-    const tablesForEvent = eventId === selectedEventId ? tables : (ev?.tables ?? []);
+    const tablesForEvent = eventId === selectedEventId ? tables : (eventTablesMap[eventId] ?? []);
     const table = tablesForEvent.find((t) => t.id === tableId);
-    const catId = table?.ticketCategoryId;
+    const catId = table?.categoryId;
     if (!catId) return '—';
     const cat = ev.ticketCategories.find((c) => c.id === catId);
     return cat?.name ?? '—';
@@ -719,21 +705,19 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const addTable = (x = 50, y = 50) => {
     if (!selectedEvent?.id) return;
     const currentTables = tables;
-    const firstActiveCatId = (selectedEvent?.ticketCategories ?? []).find((c) => c.isActive)?.id;
-    const newTable: Table = {
+    const firstActiveCatId = (selectedEvent?.ticketCategories ?? []).find((c) => c.isActive)?.id ?? '';
+    const newTable: TableModel = {
       id: crypto.randomUUID(),
       number: currentTables.length + 1,
-      seatsTotal: 4,
-      seatsAvailable: 4,
-      x,
-      y,
-      centerX: x,
-      centerY: y,
-      sizePercent: 8,
+      centerXPercent: x,
+      centerYPercent: y,
       shape: 'circle',
+      widthPercent: 8,
+      heightPercent: 8,
       rotationDeg: 0,
-      ticketCategoryId: firstActiveCatId ?? undefined,
-      isAvailable: true,
+      seatsCount: 4,
+      categoryId: firstActiveCatId,
+      isActive: true,
     };
     const newTables = [...currentTables, newTable];
     const numErr = validateTableNumbers(newTables);

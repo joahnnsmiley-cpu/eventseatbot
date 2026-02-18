@@ -21,33 +21,41 @@ export interface Seat {
   ticketImagePath?: string; // Path or URL to ticket image
 }
 
+/** Unified admin table model. Single source of truth for layout editing. */
+export interface TableModel {
+  id: string;
+  number: number;
+  centerXPercent: number;
+  centerYPercent: number;
+  shape: 'circle' | 'rect';
+  widthPercent: number;
+  heightPercent: number;
+  rotationDeg: number;
+  seatsCount: number;
+  categoryId: string;
+  isActive: boolean;
+}
+
+/** Legacy Table type for API/EventData compatibility. Use TableModel in admin. */
 export interface Table {
   id: string;
-  number: number; // human-friendly table number
-  seatsTotal: number;
-  seatsAvailable: number;
-  /** When absent, treat as false. */
+  number?: number;
+  seatsTotal?: number;
+  seatsAvailable?: number;
   isAvailable?: boolean;
-  /** When false, table is hidden from layout (soft-deleted). When absent, treat as true. */
   is_active?: boolean;
-  /** ISO string; when to start showing table to public. NULL = no start limit. */
   visibleFrom?: string | null;
-  /** ISO string; when to stop showing table to public. NULL = no end limit. */
   visibleUntil?: string | null;
-  x?: number; // Deprecated: use centerX
-  y?: number; // Deprecated: use centerY
-  centerX: number; // Percentage 0-100
-  centerY: number; // Percentage 0-100
-  /** Rotation in degrees. */
+  x?: number;
+  y?: number;
+  centerX?: number;
+  centerY?: number;
   rotationDeg?: number;
-  /** When set with heightPercent: explicit rect dimensions (container %). */
   widthPercent?: number;
-  /** When set with widthPercent: explicit rect dimensions (container %). */
   heightPercent?: number;
   sizePercent?: number;
-  shape?: 'circle' | 'rect' | string; // e.g. 'circle' | 'rect'
+  shape?: 'circle' | 'rect' | string;
   color?: string;
-  /** Reference to TicketCategory for styling and pricing. */
   ticketCategoryId?: string;
 }
 
