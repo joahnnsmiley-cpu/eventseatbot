@@ -302,15 +302,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   const isDirty = useMemo(() => !deepEqual(tables, initialTablesRef.current), [tables]);
 
-  // Sync tables from selectedEvent when tables is empty (e.g. after event switch)
-  useEffect(() => {
-    if (selectedEvent?.tables && tables.length === 0) {
-      const mapped = (selectedEvent.tables ?? []).map(mapTableFromDb);
-      setTables(mapped);
-      initialTablesRef.current = deepClone(mapped);
-    }
-  }, [selectedEvent, tables.length]);
-
   const [layoutPreviewRef] = useContainerWidth<HTMLDivElement>();
   const eventTabsScrollRef = useRef<HTMLDivElement>(null);
   const eventTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -659,12 +650,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   const getAdminTableLabel = (b: AdminBooking): string => {
     const eventId = b.event_id ?? b.event?.id ?? '';
-    const tables = eventTablesMap[eventId] ?? [];
+    const tablesForEvent = eventId === selectedEventId ? tables : (eventTablesMap[eventId] ?? []);
     const tableId = b.table_id ?? b.tableBookings?.[0]?.tableId;
     if (!tableId) return '—';
-    const exists = tables.some((t) => t.id === tableId);
+    const exists = tablesForEvent.some((t) => t.id === tableId);
     if (!exists) return 'Стол удалён';
-    const table = tables.find((t) => t.id === tableId);
+    const table = tablesForEvent.find((t) => t.id === tableId);
     return table ? `Стол ${table.number}` : '—';
   };
 
@@ -673,7 +664,8 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     const ev = eventDetailsMap[eventId];
     const tableId = b.table_id ?? b.tableBookings?.[0]?.tableId;
     if (!tableId || !ev?.ticketCategories) return '—';
-    const table = (ev.tables ?? []).find((t) => t.id === tableId);
+    const tablesForEvent = eventId === selectedEventId ? tables : (ev?.tables ?? []);
+    const table = tablesForEvent.find((t) => t.id === tableId);
     const catId = table?.ticketCategoryId;
     if (!catId) return '—';
     const cat = ev.ticketCategories.find((c) => c.id === catId);
@@ -720,10 +712,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const addTable = (x = 50, y = 50) => {
     if (!selectedEvent?.id) return;
     const currentTables = tables;
-    const nextId = `tbl-${Date.now()}`;
     const firstActiveCatId = (selectedEvent?.ticketCategories ?? []).find((c) => c.isActive)?.id;
     const newTable: Table = {
-      id: nextId,
+      id: crypto.randomUUID(),
       number: currentTables.length + 1,
       seatsTotal: 4,
       seatsAvailable: 4,
@@ -731,8 +722,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       y,
       centerX: x,
       centerY: y,
-      sizePercent: 6,
+      sizePercent: 8,
       shape: 'circle',
+      rotationDeg: 0,
       ticketCategoryId: firstActiveCatId ?? undefined,
       isAvailable: true,
     };

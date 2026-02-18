@@ -90,6 +90,59 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
           </select>
         </div>
         <div>
+          <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.shape}</label>
+          <select
+            value={table.shape ?? 'circle'}
+            onChange={(e) => {
+              const newShape = e.target.value as 'circle' | 'rect';
+              const size = table.sizePercent ?? table.widthPercent ?? table.heightPercent ?? 6;
+              if (newShape === 'rect') {
+                onUpdate({ shape: newShape, widthPercent: size, heightPercent: size });
+              } else {
+                onUpdate({ shape: newShape, sizePercent: size, widthPercent: undefined, heightPercent: undefined });
+              }
+            }}
+            className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+          >
+            <option value="circle">{UI_TEXT.tables.shapeCircle}</option>
+            <option value="rect">{UI_TEXT.tables.shapeRect}</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.rotationDeg}</label>
+          <input
+            type="number"
+            min={-180}
+            max={180}
+            value={table.rotationDeg ?? 0}
+            onChange={(e) => {
+              const val = Math.max(-180, Math.min(180, parseInt(e.target.value, 10) || 0));
+              onUpdate({ rotationDeg: val });
+            }}
+            className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.sizePercent}</label>
+          <input
+            type="number"
+            min={2}
+            max={25}
+            step={0.5}
+            value={table.sizePercent ?? table.widthPercent ?? table.heightPercent ?? 6}
+            onChange={(e) => {
+              const val = Math.max(2, Math.min(25, parseFloat(e.target.value) || 6));
+              const shape = table.shape ?? 'circle';
+              if (shape === 'rect') {
+                onUpdate({ widthPercent: val, heightPercent: val });
+              } else {
+                onUpdate({ sizePercent: val });
+              }
+            }}
+            className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+          />
+        </div>
+        <div>
           <label className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
             <input
               type="checkbox"
