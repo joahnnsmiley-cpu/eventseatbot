@@ -202,6 +202,21 @@ export const createPendingBooking = async (payload: {
   return { id: data.id ?? 'temp', ...data } as { id: string };
 };
 
+export type UserInfo = {
+  isPremium: boolean;
+  premiumMessage?: string | null;
+};
+
+export const getUserInfo = async (): Promise<UserInfo> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/me/user`, { headers: AuthService.getAuthHeader() });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Unauthorized');
+    throw new Error('Failed to load user info');
+  }
+  return res.json();
+};
+
 export const getMyBookings = async (): Promise<Booking[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/me/bookings`, { headers: AuthService.getAuthHeader() });

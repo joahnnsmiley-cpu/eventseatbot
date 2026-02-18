@@ -1,8 +1,22 @@
 import { Router } from 'express';
 import { authMiddleware, AuthRequest } from '../auth/auth.middleware';
 import { db } from '../db';
+import { getPremiumUserInfo } from '../config/premium';
 
 const router = Router();
+
+/**
+ * GET /me/user — current user info (isPremium, premiumMessage for premium users).
+ */
+router.get('/user', authMiddleware, async (req: AuthRequest, res) => {
+  const user = req.user;
+  if (!user || typeof user.id === 'undefined') return res.status(401).json({ error: 'Unauthorized' });
+  const info = getPremiumUserInfo(user.id);
+  if (info.isPremium) {
+    return res.json({ isPremium: true, premiumMessage: info.premiumMessage ?? null });
+  }
+  return res.json({ isPremium: false });
+});
 
 const mapBooking = (b: any, events: any[]) => {
   const event = events.find((e) => e.id === b.eventId);

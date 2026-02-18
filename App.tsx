@@ -12,6 +12,7 @@ import AppLayout from './src/layout/AppLayout';
 import BottomNav, { type BottomNavTab } from './src/layout/BottomNav';
 import Card from './src/ui/Card';
 import SectionTitle from './src/ui/SectionTitle';
+import PremiumGreetingModal, { PREMIUM_HIDE_KEY } from './src/ui/PremiumGreetingModal';
 import PrimaryButton from './src/ui/PrimaryButton';
 import type { Booking, EventData, Table } from './types';
 import { getPriceForTable } from './src/utils/getTablePrice';
@@ -110,6 +111,8 @@ function App() {
   const [lastCreatedEvent, setLastCreatedEvent] = useState<EventData | null>(null);
   /** Occupied seat indices per table — from GET /public/events/:eventId/occupied-seats */
   const [occupiedMap, setOccupiedMap] = useState<Record<string, Set<number>>>({});
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [premiumMessage, setPremiumMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
@@ -231,6 +234,22 @@ function App() {
     };
     void run();
   }, [tgUser?.id, tgInitData]);
+
+  useEffect(() => {
+    const fetchPremium = async () => {
+      if (!AuthService.getToken()) return;
+      try {
+        const info = await StorageService.getUserInfo();
+        if (info.isPremium && info.premiumMessage && typeof localStorage !== 'undefined' && localStorage.getItem(PREMIUM_HIDE_KEY) !== 'true') {
+          setPremiumMessage(info.premiumMessage);
+          setShowPremiumModal(true);
+        }
+      } catch {
+        // User not authenticated or network error — ignore
+      }
+    };
+    void fetchPremium();
+  }, [authRole, tokenRole]);
 
   const loadEvents = async () => {
     setLoading(true);
@@ -417,6 +436,12 @@ function App() {
         onMyTicketsClick={() => { setView('my-tickets'); window.location.hash = ''; }}
         onProfileClick={() => setView('my-bookings')}
       />
+      {showPremiumModal && premiumMessage && (
+        <PremiumGreetingModal
+          message={premiumMessage}
+          onClose={() => setShowPremiumModal(false)}
+        />
+      )}
     </AppLayout>
   );
 
