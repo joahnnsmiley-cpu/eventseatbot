@@ -62,11 +62,15 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
         .toBuffer();
     }
 
-    // Relative coordinates for text (scale with image)
-    const lineCenterX = width * 0.78;
-    const tableY = height * 0.63;
-    const seatsY = height * 0.7;
+    // Relative coordinates for text (scale with image, match template dotted lines)
+    const lineCenterX = width * 0.8;
+    const tableY = height * 0.72;
+    const seatsY = height * 0.78;
     const fontSize = Math.round(width * 0.04);
+
+    // QR position (avoid overlap with design)
+    const qrLeft = width * 0.05;
+    const qrTop = height * 0.7;
 
     const textSvg = `
 <svg width="${width}" height="${height}">
@@ -112,7 +116,7 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
     const finalBuffer = await sharp(baseBuffer)
       .composite([
         { input: Buffer.from(textSvg), top: 0, left: 0 },
-        { input: qrBuffer, top: height - 240, left: 60 },
+        { input: qrBuffer, top: Math.round(qrTop), left: Math.round(qrLeft) },
       ])
       .png()
       .toBuffer();
