@@ -208,7 +208,7 @@ function DraggableTable({
           </>
         )}
       </div>
-      <div className="table-label pointer-events-none" style={{ fontSize: 'clamp(8px, 2.5vw, 12px)' }}>
+      <div className="table-label">
         <TableNumber number={table.number ?? 0} />
         <SeatInfo available={table.seatsCount} total={table.seatsCount} />
       </div>

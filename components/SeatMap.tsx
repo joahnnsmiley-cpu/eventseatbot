@@ -315,7 +315,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
               <div className="relative w-full h-full">
                 <div className="table-shape table-shape-gold" style={shapeStyle} />
               </div>
-              <div className="table-label" style={{ fontSize: 'clamp(8px, 2.5vw, 12px)' }}>
+              <div className="table-label">
                 <TableNumber number={table.number ?? 0} />
                 <SeatInfo available={table.seatsAvailable} total={table.seatsTotal} />
               </div>
