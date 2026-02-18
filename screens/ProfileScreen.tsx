@@ -94,6 +94,7 @@ export default function ProfileScreen({
     const guestName = guestNameOverride ?? guestData.guestName;
     const guestProps: Parameters<typeof ProfileGuestScreen>[0] = {
       guestName,
+      avatarUrl: guestData.avatarUrl ?? '',
       event: {
         title: guestData.event.name ?? guestData.event.title,
         date: guestData.event.date,
@@ -142,6 +143,7 @@ export default function ProfileScreen({
   const guestName = guestNameOverride ?? guestData.guestName;
   const guestProps: Parameters<typeof ProfileGuestScreen>[0] = {
     guestName,
+    avatarUrl: guestData.avatarUrl ?? '',
     event: {
       title: guestData.event.name ?? guestData.event.title,
       date: guestData.event.date,

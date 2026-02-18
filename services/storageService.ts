@@ -246,13 +246,14 @@ export type ProfileGuestData =
   | {
       hasBooking: true;
       guestName: string;
+      avatarUrl: string;
       event: { name: string; title: string; start_at: string; date: string; venue: string };
       tableNumber: number;
       categoryName: string;
       categoryColorKey: string;
       seatNumbers: number[];
       seatsFree: number;
-      neighbors: Array<{ name: string; avatar: string | null }>;
+      neighbors: Array<{ name: string; avatar: string }>;
       privileges: string[];
       privateAccess: string;
     };

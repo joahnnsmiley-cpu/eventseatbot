@@ -1,10 +1,56 @@
 import { Router } from 'express';
 import { authMiddleware, AuthRequest } from '../auth/auth.middleware';
 import { db } from '../db';
+import { bot } from '../bot';
 import { getPremiumUserInfo } from '../config/premium';
 import { formatEventDateRu, parseEventToIso } from '../utils/formatDate';
 
 const router = Router();
+const API_BASE = process.env.API_BASE_URL || 'http://localhost:4000';
+
+/** Parse comment into guest names (comma-separated). */
+function parseCommentNames(comment: string | null | undefined): string[] {
+  if (!comment || typeof comment !== 'string') return [];
+  return comment
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/** Premium default avatar: dark circle with gold accent (data URI). */
+const DEFAULT_AVATAR_DATA =
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="19" fill="%231a1a1a" stroke="%23C6A75E" stroke-width="1" opacity="0.9"/><circle cx="20" cy="14" r="6" fill="%23C6A75E" opacity="0.6"/></svg>'
+  );
+
+/**
+ * GET /me/avatar/:tgId — proxy Telegram user profile photo.
+ * Public (no auth) — img src cannot send Authorization; tgId is not secret.
+ */
+router.get('/avatar/:tgId', async (req, res) => {
+  const tgId = req.params.tgId;
+  if (!tgId || !/^\d+$/.test(tgId)) return res.status(400).send('Invalid tgId');
+
+  if (!bot) return res.status(404).send('Avatar not available');
+
+  try {
+    const photos = await bot.telegram.getUserProfilePhotos(Number(tgId), 0, 1);
+    const photo = photos?.photos?.[0]?.[0];
+    if (!photo?.file_id) return res.status(404).send('No photo');
+
+    const fileLink = await bot.telegram.getFileLink(photo.file_id);
+    const imgRes = await fetch(fileLink.href);
+    if (!imgRes.ok) return res.status(502).send('Failed to fetch avatar');
+
+    const buf = Buffer.from(await imgRes.arrayBuffer());
+    res.setHeader('Content-Type', imgRes.headers.get('content-type') || 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(buf);
+  } catch {
+    res.status(404).send('Avatar not found');
+  }
+});
 
 /**
  * GET /me/user — current user info (isPremium, premiumMessage for premium users).
@@ -141,9 +187,22 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
   const tableBookings = allBookings.filter(
     (b: any) => b.eventId === eventId && b.tableId === tableId && (b.status === 'reserved' || b.status === 'paid')
   );
-  const neighbors = tableBookings
-    .filter((b: any) => String(b.userTelegramId ?? '') !== userId)
-    .map((b: any) => ({ name: b.username || 'Гость', avatar: null }));
+  const neighborBookings = tableBookings.filter((b: any) => String(b.userTelegramId ?? '') !== userId);
+
+  const neighbors: Array<{ name: string; avatar: string }> = [];
+  for (const b of neighborBookings) {
+    const raw = b as any;
+    const comment = raw.userComment ?? raw.user_comment ?? '';
+    const names = parseCommentNames(comment);
+    const displayNames = names.length > 0 ? names : [raw.username?.trim() || 'Гость'];
+    const tgId = raw.userTelegramId ?? raw.user_telegram_id;
+    const buyerAvatarUrl = bot && tgId != null ? `${API_BASE}/me/avatar/${tgId}` : null;
+
+    displayNames.forEach((name, idx) => {
+      const avatar = idx === 0 && buyerAvatarUrl ? buyerAvatarUrl : DEFAULT_AVATAR_DATA;
+      neighbors.push({ name, avatar });
+    });
+  }
 
   const eventDate = (event as any).event_date ?? null;
   const eventTime = (event as any).event_time ?? null;
@@ -156,9 +215,12 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
   const privileges = (category as any)?.privileges;
   const privilegesList = Array.isArray(privileges) ? privileges : [];
 
+  const avatarUrl = bot ? `${API_BASE}/me/avatar/${userId}` : DEFAULT_AVATAR_DATA;
+
   res.json({
     hasBooking: true,
     guestName: 'Гость',
+    avatarUrl,
     event: {
       name: event.title,
       title: event.title,
@@ -228,7 +290,7 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
         }))
         .filter((x) => x.count > 0)
         .sort((a, b) => b.count - a.count);
-      event = withBookings.length > 0 ? withBookings[0].event : (events.find((e: any) => (e as any).isFeatured) ?? events[0]);
+      event = withBookings.length > 0 ? withBookings[0]!.event : (events.find((e: any) => (e as any).isFeatured) ?? events[0]!);
     }
   }
 
@@ -248,9 +310,9 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
   );
 
   const getSeatCount = (b: any): number => {
-    const n = b.seatsBooked ?? b.seats_booked ?? (Array.isArray(b.seatIndices) ? b.seatIndices.length : 0) ?? (Array.isArray(b.seat_indices) ? b.seat_indices.length : 0);
+    const n = b.seatsBooked ?? (b as any).seats_booked ?? (Array.isArray(b.seatIndices) ? b.seatIndices.length : 0) ?? (Array.isArray((b as any).seat_indices) ? (b as any).seat_indices.length : 0);
     if (n != null && Number(n) > 0) return Number(n);
-    const tb = b.tableBookings ?? b.table_bookings;
+    const tb = b.tableBookings ?? (b as any).table_bookings;
     if (Array.isArray(tb) && tb.length > 0) return tb.reduce((s: number, x: any) => s + (Number(x.seats) || 0), 0);
     return 1;
   };
@@ -263,12 +325,12 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
 
   const bookedByTable: Record<string, number> = {};
   for (const b of eventBookings) {
-    const tid = b.tableId ?? b.table_id;
+    const tid = b.tableId ?? (b as any).table_id;
     if (tid) {
       const n = getSeatCount(b);
       bookedByTable[tid] = (bookedByTable[tid] ?? 0) + n;
     } else {
-      const tb = b.tableBookings ?? b.table_bookings;
+      const tb = b.tableBookings ?? (b as any).table_bookings;
       if (Array.isArray(tb)) {
         for (const x of tb) {
           const tbid = x.tableId ?? x.table_id;

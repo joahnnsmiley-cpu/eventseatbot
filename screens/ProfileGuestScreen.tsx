@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import ProfileLayout from '../components/profile/ProfileLayout';
 import ProfileCard from '../components/profile/ProfileCard';
 import ProfileAnimatedStack from '../components/profile/ProfileAnimatedStack';
@@ -7,10 +8,13 @@ import { CATEGORY_COLORS } from '../src/config/categoryColors';
 import type { CategoryColorKey } from '../src/config/categoryColors';
 import { luxuryLabel, darkTextPrimary, darkTextMuted, darkTextSubtle } from '../design/theme';
 import { UI_TEXT } from '../constants/uiText';
+import { duration, easing } from '../design/motion';
+import CategoryBadge from '../components/profile/CategoryBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 export type ProfileGuestScreenProps = {
   guestName: string;
+  avatarUrl?: string;
   event: {
     title: string;
     date: string;
@@ -22,7 +26,7 @@ export type ProfileGuestScreenProps = {
   tableNumber: number;
   seatNumbers?: number[];
   seatsFree: number;
-  neighbors: Array<{ name: string; avatar: string | null }>;
+  neighbors: Array<{ name: string; avatar: string }>;
   privileges: string[];
   privateAccess: string;
 };
@@ -53,8 +57,15 @@ export function ProfileGuestEmpty({ message = 'У вас пока нет заб�
 }
 
 // ─── ProfileGuestScreen ────────────────────────────────────────────────────
+const DEFAULT_AVATAR =
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="19" fill="%231a1a1a" stroke="%23C6A75E" stroke-width="1" opacity="0.9"/><circle cx="20" cy="14" r="6" fill="%23C6A75E" opacity="0.6"/></svg>'
+  );
+
 export default function ProfileGuestScreen({
   guestName,
+  avatarUrl = DEFAULT_AVATAR,
   event,
   category,
   categoryName,
@@ -71,41 +82,89 @@ export default function ProfileGuestScreen({
   return (
     <ProfileLayout>
       <ProfileAnimatedStack>
-        {/* 1️⃣ Hero — dark luxury with category accent */}
+        {/* 1️⃣ Hero — avatar + greeting, Apple-style */}
         <ProfileCard
-          padding={32}
+          padding={48}
           rounded={28}
           variant="hero"
           style={{
-            background: `linear-gradient(145deg, rgba(28,26,24,0.98) 0%, rgba(18,16,14,0.98) 50%, rgba(12,10,8,0.98) 100%)`,
-            border: `1px solid ${categoryConfig.base}55`,
-            boxShadow: `0 4px 24px rgba(0,0,0,0.5), 0 0 48px ${categoryConfig.base}15, inset 0 1px 0 rgba(198,167,94,0.08)`,
+            background: `linear-gradient(165deg, rgba(22,21,19,0.98) 0%, rgba(14,13,12,0.98) 100%)`,
+            border: `1px solid rgba(255,255,255,0.06)`,
+            boxShadow: '0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 200,
+            gap: 24,
           }}
         >
-          <h1
-            style={{
-              fontSize: 'clamp(24px, 4vw, 28px)',
-              fontWeight: 700,
-              color: darkTextPrimary,
-              margin: 0,
-              letterSpacing: '-0.02em',
-              textShadow: '0 1px 3px rgba(0,0,0,0.4)',
-            }}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease: easing.primaryArray }}
+            style={{ position: 'relative' }}
           >
-            Рады видеть вас, {guestName}
-          </h1>
-          <p
-            style={{
-              fontSize: 16,
-              fontWeight: 500,
-              color: '#C6A75E',
-              marginTop: 10,
-              marginBottom: 0,
-              textShadow: '0 0 24px rgba(198,167,94,0.2)',
-            }}
+            <div
+              style={{
+                width: 88,
+                height: 88,
+                borderRadius: '50%',
+                overflow: 'hidden',
+                border: '2px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+              }}
+            >
+              <img
+                src={avatarUrl}
+                alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = DEFAULT_AVATAR;
+                }}
+              />
+            </div>
+            <CategoryBadge category={category} size={88} />
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: duration.entrance / 1000, delay: 0.1, ease: easing.primaryArray }}
+            style={{ textAlign: 'center' }}
           >
-            {event.title} · {event.date}
-          </p>
+            <motion.h1
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.08, ease: easing.primaryArray }}
+              style={{
+                fontFamily: "'Cormorant Garamond', 'Times New Roman', serif",
+                fontSize: 'clamp(32px, 6vw, 42px)',
+                fontWeight: 400,
+                color: darkTextPrimary,
+                margin: 0,
+                letterSpacing: '0.02em',
+                lineHeight: 1.25,
+              }}
+            >
+              Рады видеть вас,
+            </motion.h1>
+            <motion.span
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.18, ease: easing.primaryArray }}
+              style={{
+                fontFamily: "'Cormorant Garamond', 'Times New Roman', serif",
+                fontSize: 'clamp(36px, 7vw, 48px)',
+                fontWeight: 500,
+                color: darkTextPrimary,
+                display: 'block',
+                marginTop: 4,
+                letterSpacing: '0.03em',
+              }}
+            >
+              {guestName}
+            </motion.span>
+          </motion.div>
         </ProfileCard>
 
         {/* 2️⃣ CountdownCard — isolated to avoid parent re-renders */}
@@ -147,44 +206,45 @@ export default function ProfileGuestScreen({
 
         {/* 4️⃣ TableNeighborsCard */}
         <ProfileCard padding={24} rounded={24} variant="glass" interactive>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', marginRight: 8 }}>
-              {neighbors.map((n, i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    marginLeft: i > 0 ? -12 : 0,
-                    background: 'rgba(255,255,255,0.1)',
-                    border: '2px solid rgba(255,255,255,0.15)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: darkTextPrimary,
-                    zIndex: neighbors.length - i,
-                  }}
-                >
-                  {n.avatar ? (
-                    <img
-                      src={n.avatar}
-                      alt=""
-                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    (n.name && n.name[0]) || '?'
-                  )}
-                </div>
-              ))}
-            </div>
-            <p style={{ margin: 0, fontSize: 15, color: darkTextMuted }}>
-              {seatsFree > 0
-                ? `${seatsFree} ${seatsFree === 1 ? 'место' : 'места'} свободно`
-                : 'Стол полностью занят'}
-            </p>
+          <p style={{ margin: '0 0 16px', fontSize: 15, color: darkTextMuted }}>
+            {UI_TEXT.profile.neighborsCaption}
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {neighbors.length === 0 ? (
+              <p style={{ margin: 0, fontSize: 15, color: darkTextMuted }}>
+                {UI_TEXT.profile.neighborsEmpty}
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'center' }}>
+                {neighbors.map((n, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px solid rgba(255,255,255,0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <img
+                        src={n.avatar}
+                        alt=""
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+                    <span style={{ fontSize: 15, fontWeight: 500, color: darkTextPrimary }}>
+                      {n.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </ProfileCard>
 
