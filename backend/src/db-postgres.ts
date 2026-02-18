@@ -31,6 +31,7 @@ type EventsRow = {
   /** ticket_template_url — public URL of ticket template image in storage. */
   ticket_template_url?: string | null;
   organizer_phone: string | null;
+  organizer_id?: number | null;
   published: boolean | null;
   is_featured?: boolean | null;
   ticket_categories?: any | null;
@@ -113,6 +114,7 @@ function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
     published: row.published ?? false,
     isFeatured: row.is_featured ?? false,
     ticketCategories: row.ticket_categories ?? undefined,
+    organizerId: row.organizer_id ?? undefined,
   };
 }
 
@@ -289,7 +291,6 @@ export async function findEventById(id: string): Promise<EventData | undefined> 
   });
 
   event.tables = tablesFromEventTables;
-  console.log('TABLE FROM DB', tablesFromEventTables);
   return event;
 }
 
@@ -381,6 +382,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
     if (unsetErr) throw unsetErr;
   }
 
+  const organizerId = (event as { organizerId?: number | null }).organizerId ?? adminId ?? null;
   const row: Omit<EventsRow, 'created_at' | 'updated_at'> = {
     id: event.id,
     title: event.title,
@@ -392,6 +394,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
     image_url: event.imageUrl || null,
     layout_image_url: event.layoutImageUrl ?? null,
     organizer_phone: event.paymentPhone || null,
+    organizer_id: organizerId,
     published: event.published ?? false,
     is_featured: isFeatured,
     ticket_categories: event.ticketCategories ?? null,

@@ -55,6 +55,7 @@ function mapEventToPublic(e: any) {
     layoutImageUrl: typeof e.layoutImageUrl === 'undefined' ? null : e.layoutImageUrl,
     tables: filterTablesByVisibility(Array.isArray(e.tables) ? e.tables : []),
     isFeatured: (e as { isFeatured?: boolean }).isFeatured ?? false,
+    organizerId: (e as { organizerId?: number | null }).organizerId ?? null,
   };
 }
 
@@ -93,6 +94,7 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     tables: filterTablesByVisibility(Array.isArray(ev.tables) ? ev.tables : []),
     ticketCategories: ev.ticketCategories ?? [],
     paymentPhone: ev.paymentPhone ?? ev.organizer_phone ?? '',
+    organizerId: (ev as { organizerId?: number | null }).organizerId ?? null,
   };
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');

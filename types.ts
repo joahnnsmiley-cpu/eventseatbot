@@ -11,6 +11,8 @@ export interface TicketCategory {
   /** Custom hex color (e.g. #C9A227). When set, overrides color_key. */
   custom_color?: string;
   isActive: boolean;
+  /** Privileges for this category (e.g. "Приоритетная посадка"). Empty or absent = no privileges block. */
+  privileges?: string[];
 }
 
 export interface Seat {
@@ -92,17 +94,22 @@ export interface EventData {
   isFeatured?: boolean;
   /** Задел: позже backend будет отдавать adminTelegramId; UI уже готов к нему. */
   adminTelegramId?: string;
+  /** Telegram user ID of event organizer. Used for role: user.id === organizerId → organizer. */
+  organizerId?: number | null;
 }
 
 export interface Booking {
   id: string;
   eventId: string;
+  tableId?: string;
   username?: string;
   userTelegramId?: number;
   userPhone?: string;
   userComment?: string | null;
-  event?: { id: string; title?: string; date?: string };
-  table?: { id: string; number?: number; seatsTotal?: number };
+  seatIndices?: number[];
+  seatsBooked?: number;
+  event?: { id: string; title?: string; date?: string; event_date?: string | null; event_time?: string | null; venue?: string | null };
+  table?: { id: string; number?: number; seatsTotal?: number; seatsAvailable?: number; ticketCategoryId?: string };
   tableBookings?: Array<{ tableId: string; seats: number; table?: { id: string; number?: number; seatsTotal?: number } | null }>;
   seatIds: string[]; // "tableId-seatId"
   seatsCount?: number;

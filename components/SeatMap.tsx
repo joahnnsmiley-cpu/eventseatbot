@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, memo } from 'react';
 import { TransformWrapper, TransformComponent, MiniMap } from 'react-zoom-pan-pinch';
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
@@ -80,10 +80,11 @@ const SeatMap: React.FC<SeatMapProps> = ({
       : Array.isArray(event?.tables)
         ? event.tables
         : [];
-  const tables = rawTables
-    .filter((t: { is_active?: boolean }) => t.is_active !== false)
-    .sort((a: { number?: number }, b: { number?: number }) => (a.number ?? Infinity) - (b.number ?? Infinity));
-  const mappedTables = tables.map(mapTableFromDb);
+  const mappedTables = useMemo(() => {
+    const filtered = rawTables.filter((t: { is_active?: boolean }) => t.is_active !== false);
+    const sorted = [...filtered].sort((a: { number?: number }, b: { number?: number }) => (a.number ?? Infinity) - (b.number ?? Infinity));
+    return sorted.map(mapTableFromDb);
+  }, [tablesProp, seatState?.tables, event?.tables]);
   const seats = seatState?.seats ?? [];
   const selectedSet = new Set(selectedSeats);
   const layoutImageUrl = (event?.layout_image_url ?? event?.layoutImageUrl ?? '').trim();
@@ -164,7 +165,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
         boxShadow: 'inset 0 0 60px rgba(0,0,0,0.8), 0 4px 24px rgba(0,0,0,0.4)',
       }}
     >
-      <div className="layout-wrapper absolute inset-0 min-w-0 min-h-0">
+      <div
+        className="layout-wrapper absolute inset-0 min-w-0 min-h-0"
+        style={{ transform: 'translateZ(0)', willChange: 'transform' }}
+      >
         <TransformWrapper
           minScale={0.8}
           maxScale={3}
@@ -234,7 +238,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
                     style={{
                       zIndex: 4,
                       background: 'rgba(0,0,0,0.35)',
-                      transition: 'opacity 0.2s',
+                      backdropFilter: 'blur(8px)',
+                      WebkitBackdropFilter: 'blur(8px)',
+                      transition: 'opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
+                      animation: 'seatmap-overlay-fade-in 0.2s ease-out',
                     }}
                   />
                 )}

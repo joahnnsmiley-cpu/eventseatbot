@@ -550,10 +550,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setLayoutUploadVersion(null);
       setSaveStatus('idle');
     } catch (e) {
-      console.error('[AdminPanel] Failed to load event', e);
-      if (e instanceof Error && e.message) {
-        console.error('[AdminPanel] Backend message:', e.message);
-      }
       setError(toFriendlyError(e));
     } finally {
       setEventsLoading(false);
@@ -574,10 +570,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setError(null);
       setSuccessMessage(UI_TEXT.admin.eventCreated);
     } catch (e) {
-      console.error('[AdminPanel] Failed to create event', e);
-      if (e instanceof Error && e.message) {
-        console.error('[AdminPanel] Backend message:', e.message);
-      }
       setError(toFriendlyError(e));
     } finally {
       setCreatingEvent(false);
@@ -585,7 +577,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   };
 
   const saveLayout = async (silent = false) => {
-    console.log("SAVE STARTED");
     if (!selectedEvent?.id) return;
     const rawTables = tables;
     const numErr = validateTableNumbers(rawTables);
@@ -613,9 +604,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         ticketCategories: selectedEvent?.ticketCategories ?? [],
         tables: (rawTables ?? []).map((t, idx) => tableForBackend(t, idx)),
       };
-      console.log("FULL SAVE PAYLOAD JSON:", JSON.stringify(payload, null, 2));
       const response = await StorageService.updateAdminEvent(selectedEvent.id, payload);
-      console.log("SAVE RESPONSE:", response);
       const fresh = await StorageService.getAdminEvent(selectedEvent.id);
       initialTablesRef.current = structuredClone(tables);
       setEventFromFresh(fresh, { skipInitialTablesRef: true });
@@ -626,11 +615,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         setSuccessMessage(UI_TEXT.admin.eventUpdated);
       }
     } catch (e) {
-      console.error("SAVE ERROR:", e);
-      console.error('[AdminPanel] Failed to save event', e);
-      if (e instanceof Error && e.message) {
-        console.error('[AdminPanel] Backend message:', e.message);
-      }
       const msg = e instanceof Error ? e.message : String(e);
       const isForbidden =
         msg === 'Forbidden' ||
@@ -750,16 +734,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       const nextNumber = maxNumber + 1;
       const withNumber = { ...newTable, number: nextNumber };
       const next = [...prev, withNumber];
-      console.log('NEXT TABLES COUNT:', next.length);
       const numErr = validateTableNumbers(next);
       if (numErr) {
-        console.log('VALIDATION ERROR:', numErr);
         setError(numErr);
         return prev;
       }
       const rectErr = validateRectTables(next);
       if (rectErr) {
-        console.log('VALIDATION ERROR:', rectErr);
         setError(rectErr);
         return prev;
       }
@@ -788,10 +769,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setSuccessMessage(UI_TEXT.booking.paymentConfirmed);
       await load();
     } catch (e) {
-      console.error('[AdminPanel] Failed to confirm payment', e);
-      if (e instanceof Error && e.message) {
-        console.error('[AdminPanel] Backend message:', e.message);
-      }
       setError(toFriendlyError(e));
     } finally {
       setConfirmingId(null);
@@ -808,7 +785,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setSuccessMessage('Бронирование отменено');
       await load();
     } catch (e) {
-      console.error('[AdminPanel] Failed to cancel booking', e);
       setError(toFriendlyError(e));
     } finally {
       setCancellingId(null);
@@ -900,7 +876,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       }
       await loadEvents();
     } catch (e) {
-      console.error('[AdminPanel] Failed to delete event', e);
       setError(toFriendlyError(e));
     } finally {
       setDeleteLoading(false);
@@ -1645,7 +1620,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           setSuccessMessage(UI_TEXT.admin.eventPublished);
                           await loadEvent(selectedEventId);
                         } catch (e) {
-                          console.error('[AdminPanel] Publish failed', e);
                           setError(toFriendlyError(e));
                         } finally {
                           setStatusActionLoading(false);
@@ -1670,7 +1644,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           setSuccessMessage(UI_TEXT.admin.eventArchived);
                           await loadEvent(selectedEventId);
                         } catch (e) {
-                          console.error('[AdminPanel] Archive failed', e);
                           setError(toFriendlyError(e));
                         } finally {
                           setStatusActionLoading(false);
@@ -1705,7 +1678,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           setSuccessMessage(UI_TEXT.admin.eventPublishedAgain);
                           await loadEvent(selectedEventId);
                         } catch (e) {
-                          console.error('[AdminPanel] Publish again failed', e);
                           setError(toFriendlyError(e));
                         } finally {
                           setStatusActionLoading(false);
@@ -1961,6 +1933,18 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         </div>
       )}
 
+      {selectedEvent && mode === 'layout' && layoutUrl && (
+        <button
+          type="button"
+          onClick={() => setIsAddTableMode((prev) => !prev)}
+          className="fixed bottom-28 right-4 z-40 w-14 h-14 rounded-full bg-[#C6A75E] text-black font-bold shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          aria-label={UI_TEXT.tables.addTable}
+          title={UI_TEXT.tables.addTable}
+        >
+          +
+        </button>
+      )}
       {selectedEvent && (
         <div
           className="fixed bottom-0 left-0 right-0 z-50 max-w-[420px] mx-auto bg-black/95 border-t border-white/10 p-4"

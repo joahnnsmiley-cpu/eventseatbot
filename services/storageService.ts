@@ -79,9 +79,7 @@ export const getMyBookingsPublic = async (telegramId: number): Promise<{
 export const getOccupiedSeats = async (eventId: string): Promise<{ table_id: string; seat_indices: number[] }[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const url = `${apiBaseUrl}/public/events/${eventId}/occupied-seats`;
-  console.log('[SEATS URL]', url);
   const res = await fetch(url);
-  console.log('[SEATS RESPONSE STATUS]', res.status);
   if (!res.ok) throw new Error('Failed to load occupied seats');
   const data = await res.json();
   return Array.isArray(data) ? data : [];
@@ -96,7 +94,6 @@ export const createTableBooking = async (payload: {
 }): Promise<any> => {
   const apiBaseUrl = getApiBaseUrl();
   const url = `${apiBaseUrl}/public/bookings/table`;
-  console.log('[BOOKING →]', url, payload);
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -123,7 +120,6 @@ export const createSeatsBooking = async (payload: {
 }): Promise<any> => {
   const apiBaseUrl = getApiBaseUrl();
   const url = `${apiBaseUrl}/public/bookings/seats`;
-  console.log('[BOOKING →]', url, payload);
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -160,8 +156,6 @@ export const createPendingBooking = async (payload: {
   seats: number[];
   phone: string;
 }): Promise<{ id: string }> => {
-  console.log('BOOKING START');
-  console.log(payload);
   const apiBaseUrl = getApiBaseUrl();
   const url = `${apiBaseUrl}/public/bookings`;
   let res: Response;
@@ -183,15 +177,14 @@ export const createPendingBooking = async (payload: {
   const text = await res.text();
   const contentType = res.headers.get('content-type') || '';
   if (!contentType.toLowerCase().includes('application/json')) {
-    console.log('response body (not JSON):', text);
+    /* response not JSON */
   }
   let data: { id?: string; ok?: boolean; error?: string } = {};
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
-    console.warn('[createPendingBooking] response not JSON', { status: res.status, text: text.slice(0, 200) });
+    /* response not JSON */
   }
-  console.log('[createPendingBooking] response', { status: res.status, ok: res.ok, data });
   if (!res.ok) {
     const error: Error & { status?: number } = new Error(
       (data && typeof data.error === 'string' ? data.error : null) || res.statusText || 'Failed to create booking'
@@ -221,6 +214,52 @@ export const getMyBookings = async (): Promise<Booking[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/me/bookings`, { headers: AuthService.getAuthHeader() });
   if (!res.ok) await handleAuthError(res, 'Failed to load bookings');
+  return res.json();
+};
+
+/** Response from GET /me/profile-guest — data for ProfileGuestScreen. */
+export type ProfileGuestData =
+  | { hasBooking: false }
+  | {
+      hasBooking: true;
+      guestName: string;
+      event: { name: string; title: string; start_at: string; date: string; venue: string };
+      tableNumber: number;
+      categoryName: string;
+      categoryColorKey: string;
+      seatNumbers: number[];
+      seatsFree: number;
+      neighbors: Array<{ name: string; avatar: string | null }>;
+      privileges: string[];
+      privateAccess: string;
+    };
+
+/** GET /me/profile-guest — data for ProfileGuestScreen. */
+export const getProfileGuestData = async (): Promise<ProfileGuestData> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/me/profile-guest`, { headers: AuthService.getAuthHeader() });
+  if (!res.ok) await handleAuthError(res, 'Failed to load profile');
+  return res.json();
+};
+
+/** Response from GET /me/profile-organizer — data for ProfileOrganizerScreen. */
+export type ProfileOrganizerData =
+  | { hasData: false }
+  | {
+      hasData: true;
+      eventDate: string;
+      stats: { guestsTotal: number; fillPercent: number; ticketsSold: number; seatsFree: number };
+      tables: { total: number; full: number; partial: number; empty: number };
+      vipGuests: Array<{ name: string; category: string }>;
+    };
+
+/** GET /me/profile-organizer — data for ProfileOrganizerScreen. eventId optional. */
+export const getProfileOrganizerData = async (eventId?: string | null): Promise<ProfileOrganizerData> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const url = new URL(`${apiBaseUrl}/me/profile-organizer`);
+  if (eventId) url.searchParams.set('eventId', eventId);
+  const res = await fetch(url.toString(), { headers: AuthService.getAuthHeader() });
+  if (!res.ok) await handleAuthError(res, 'Failed to load organizer profile');
   return res.json();
 };
 

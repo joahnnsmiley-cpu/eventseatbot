@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 const BOTTOM_NAV_HEIGHT = 72;
 
@@ -7,10 +7,31 @@ type AppLayoutProps = {
 };
 
 export default function AppLayout({ children }: AppLayoutProps) {
+  const [showScrollShadow, setShowScrollShadow] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const check = () => setShowScrollShadow(el.scrollTop > 8);
+    check();
+    el.addEventListener('scroll', check, { passive: true });
+    return () => el.removeEventListener('scroll', check);
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen max-w-[420px] mx-auto relative bg-black text-white overflow-x-hidden">
+      {showScrollShadow && (
+        <div
+          className="absolute top-0 left-0 right-0 h-8 z-10 pointer-events-none"
+          style={{
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, transparent 100%)',
+          }}
+        />
+      )}
       <div
-        className="flex-1 overflow-y-auto px-4 w-full"
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 w-full scroll-smooth"
         style={{
           paddingBottom: `calc(${BOTTOM_NAV_HEIGHT}px + env(safe-area-inset-bottom))`,
         }}

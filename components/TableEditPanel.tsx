@@ -115,6 +115,42 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
             <option value="rect">{UI_TEXT.tables.shapeRect}</option>
           </select>
         </div>
+        <div className="pt-1 border-t border-white/10">
+          <p className="text-xs font-medium text-white/80 mb-2">{UI_TEXT.tables.positionSection}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.positionX}</label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                value={table.centerXPercent ?? table.centerX ?? 50}
+                onChange={(e) => {
+                  const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 50));
+                  onUpdate({ centerXPercent: val, centerX: val });
+                }}
+                className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.positionY}</label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                value={table.centerYPercent ?? table.centerY ?? 50}
+                onChange={(e) => {
+                  const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 50));
+                  onUpdate({ centerYPercent: val, centerY: val });
+                }}
+                className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+              />
+            </div>
+          </div>
+          <p className="text-[10px] text-white/40 mt-1">{UI_TEXT.tables.positionHint}</p>
+        </div>
         <div>
           <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.rotationDeg}</label>
           <input

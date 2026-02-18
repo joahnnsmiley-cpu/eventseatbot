@@ -43,6 +43,7 @@ export const TableSeatDots: React.FC<TableSeatDotsProps> = ({
             style={{
               left: `${x}%`,
               top: `${y}%`,
+              animationDelay: `${i * 25}ms`,
               ...(status === 'selected' ? { backgroundColor: accentColor } : {}),
             }}
           />

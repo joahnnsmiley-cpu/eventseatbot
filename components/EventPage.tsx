@@ -111,8 +111,6 @@ const EventPage: React.FC<EventPageProps> = ({
     if (table) onTableSelect(table.id);
   }, [selectedSeatsByTable, event.tables, onTableSelect]);
 
-  console.log('EVENT DATA:', event);
-
   return (
     <div className="max-w-md mx-auto min-h-screen relative">
       <div className="px-4 pt-6 space-y-8">
@@ -136,7 +134,14 @@ const EventPage: React.FC<EventPageProps> = ({
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: imgUrl?.trim() ? `url(${imgUrl.trim()})` : undefined }}
           />
-          <div className="absolute inset-0 bg-black/60" />
+          <div
+            className="absolute inset-0"
+            style={{
+              background: 'linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.7) 100%)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
+            }}
+          />
           <div className="relative z-10 flex flex-col justify-end p-6 pb-6 min-h-[220px]">
             <h1 className="text-2xl font-bold text-white">
               {event.title?.trim() || UI_TEXT.event.eventFallback}

@@ -8,6 +8,7 @@ import SeatPicker from './components/SeatPicker';
 import BookingSuccessView from './components/BookingSuccessView';
 import EventPage from './components/EventPage';
 import MyTicketsPage from './components/MyTicketsPage';
+import ProfileScreen from './screens/ProfileScreen';
 import AppLayout from './src/layout/AppLayout';
 import BottomNav, { type BottomNavTab } from './src/layout/BottomNav';
 import Card from './src/ui/Card';
@@ -16,7 +17,9 @@ import PremiumGreetingModal, { PREMIUM_HIDE_KEY } from './src/ui/PremiumGreeting
 import PrimaryButton from './src/ui/PrimaryButton';
 import type { Booking, EventData, Table } from './types';
 import { getPriceForTable } from './src/utils/getTablePrice';
+import { getCurrentUser } from './src/utils/getCurrentUser';
 import { UI_TEXT } from './constants/uiText';
+import { useToast } from './src/ui/ToastContext';
 
 declare global {
   interface Window {
@@ -72,6 +75,7 @@ const getEventDisplayDate = (event: EventData): { day: number; date: string; tim
 };
 
 function App() {
+  const { showToast } = useToast();
   const [tgAvailable, setTgAvailable] = useState(false);
   const [tgInitData, setTgInitData] = useState('');
   const [tgUser, setTgUser] = useState<TgUser | null>(null);
@@ -80,7 +84,7 @@ function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authRole, setAuthRole] = useState<string | null>(null);
   const [tokenRole, setTokenRole] = useState<string | null>(null);
-  const [view, setView] = useState<'events' | 'layout' | 'seats' | 'my-bookings' | 'my-tickets' | 'booking-success' | 'admin'>('events');
+  const [view, setView] = useState<'events' | 'layout' | 'seats' | 'my-bookings' | 'my-tickets' | 'profile' | 'booking-success' | 'admin'>('events');
 
   const [events, setEvents] = useState<EventData[]>([]);
   const [featuredEvent, setFeaturedEvent] = useState<EventData | null>(null);
@@ -305,8 +309,6 @@ function App() {
     }
     try {
       const ev = await StorageService.getEvent(eventId);
-      console.log('[USER EVENT FETCH TABLES]', ev.tables);
-      console.log('[USER EVENT FETCH RAW]', ev);
       if (reqId !== eventRequestRef.current) return;
       setSelectedEvent(ev);
 
@@ -425,7 +427,7 @@ function App() {
 
   const bottomNavActiveTab: BottomNavTab =
     view === 'my-tickets' ? 'my-tickets' :
-    view === 'my-bookings' ? 'profile' : 'events';
+    view === 'profile' || view === 'my-bookings' ? 'profile' : 'events';
 
   const wrapWithLayout = (children: React.ReactNode) => (
     <AppLayout>
@@ -434,7 +436,7 @@ function App() {
         activeTab={bottomNavActiveTab}
         onEventsClick={() => { setView('events'); setSelectedEventId(null); setSelectedEvent(null); setSelectedTableId(null); }}
         onMyTicketsClick={() => { setView('my-tickets'); window.location.hash = ''; }}
-        onProfileClick={() => setView('my-bookings')}
+        onProfileClick={() => setView('profile')}
       />
       {showPremiumModal && premiumMessage && (
         <PremiumGreetingModal
@@ -451,6 +453,19 @@ function App() {
 
   if (view === 'my-tickets') {
     return wrapWithLayout(<MyTicketsPage onBack={() => { setView('events'); window.location.hash = ''; }} />);
+  }
+
+  if (view === 'profile') {
+    const currentUser = getCurrentUser(tgUser, isAdmin, selectedEvent);
+    return wrapWithLayout(
+      <ProfileScreen
+        userRole={currentUser.role}
+        guestNameOverride={tgUser?.first_name}
+        selectedEventId={selectedEventId}
+        onOpenAdmin={() => setView('admin')}
+        onOpenMap={() => setView('events')}
+      />
+    );
   }
 
   if (view === 'layout' && selectedEventId) {
@@ -720,16 +735,8 @@ function App() {
                   (selectedSeatsByTable[selectedTableId] ?? []).length === 0
                 }
                 onClick={async () => {
-                  console.log('[CONFIRM CLICKED]');
                   setBookingError(null);
                   const seats = selectedSeatsByTable[selectedTableId] ?? [];
-                  console.log('[BOOKING CHECK]', {
-                    selectedEventId,
-                    selectedTableId,
-                    selectedTable: !!selectedTable,
-                    eventId: selectedEvent?.id,
-                    seatsLength: seats.length,
-                  });
                   if (!selectedEventId || !selectedTableId || !selectedEvent) return;
                   if (selectedTable.isAvailable !== true) return;
                   const normalizedPhone = userPhone.trim();
@@ -746,7 +753,9 @@ function App() {
                     setBookingError('Telegram ID not found');
                     return;
                   }
-                  console.log('[BOOKING FUNCTION START]');
+                  const prevSeats = selectedSeatsByTable;
+                  const prevTableId = selectedTableId;
+                  const prevEvent = selectedEvent;
                   setBookingLoading(true);
                   try {
                     const seatPriceFallback = selectedEvent?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
@@ -795,13 +804,23 @@ function App() {
                       setOccupiedMap(map);
                     } catch {}
                     setView('booking-success');
+                    showToast(UI_TEXT.booking.successTitle, 'success');
                   } catch (e) {
                     const err = e as Error & { status?: number };
                     if (err.status === 409) {
-                      alert('Некоторые места уже заняты. Обновите страницу.');
-                      setBookingError('Некоторые места уже заняты. Обновите страницу.');
+                      const msg = 'Некоторые места уже заняты. Обновите страницу.';
+                      setBookingError(msg);
+                      showToast(msg, 'error');
+                      setSelectedSeatsByTable(prevSeats);
+                      setSelectedTableId(prevTableId);
+                      setSelectedEvent(prevEvent);
                     } else {
-                      setBookingError(e instanceof Error ? e.message : UI_TEXT.common.errors.default);
+                      const msg = e instanceof Error ? e.message : UI_TEXT.common.errors.default;
+                      setBookingError(msg);
+                      showToast(msg, 'error');
+                      setSelectedSeatsByTable(prevSeats);
+                      setSelectedTableId(prevTableId);
+                      setSelectedEvent(prevEvent);
                     }
                   } finally {
                     setBookingLoading(false);

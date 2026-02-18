@@ -176,6 +176,7 @@ function DraggableTable({
     transformOrigin: 'center',
     cursor: isDragging ? 'grabbing' : 'grab',
     zIndex: isSelected ? 20 : 10,
+    transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
   };
 
   return (

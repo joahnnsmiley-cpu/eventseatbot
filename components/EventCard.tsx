@@ -1,6 +1,7 @@
 import React from 'react';
 import type { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
+import Skeleton from '../src/ui/Skeleton';
 
 export type EventCardMode = 'user' | 'admin';
 
@@ -57,7 +58,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = 
   const isArchived = status === 'archived';
   const isClickable = mode === 'admin' || !isArchived;
 
-  const cardClassName = `relative w-full text-left rounded-lg overflow-hidden border transition-all ${selected ? 'border-blue-500 ring-2 ring-blue-500 ring-offset-2' : 'border-gray-200'} ${isClickable ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-[0.98] cursor-pointer hover:shadow-md' : 'cursor-default opacity-90'} ${coverUrl ? 'bg-surface' : 'bg-gradient-to-br from-slate-400 to-slate-600'}`;
+  const cardClassName = `relative w-full text-left overflow-hidden rounded-2xl border transition-all duration-200 ${selected ? 'border-[#C6A75E] ring-2 ring-[#C6A75E]/40 ring-offset-2' : 'border-white/10'} ${isClickable ? 'focus:outline-none focus:ring-2 focus:ring-[#C6A75E]/50 focus:ring-offset-2 active:scale-[0.98] cursor-pointer hover:shadow-lg hover:-translate-y-0.5' : 'cursor-default opacity-90'} ${coverUrl ? 'bg-surface' : 'bg-gradient-to-br from-slate-400 to-slate-600'}`;
 
   const content = (
     <>
@@ -134,13 +135,13 @@ const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = 
 
 /** Skeleton placeholder for event list loading (same proportions as EventCard). */
 export const EventCardSkeleton: React.FC = () => (
-  <div
-    className="w-full rounded-lg overflow-hidden border border-gray-200 bg-surface min-h-[120px] animate-pulse flex flex-col justify-end p-4"
-    aria-hidden
-  >
-    <div className="h-5 bg-gray-300 rounded w-3/4 max-w-[200px] mb-2" />
-    <div className="h-4 bg-gray-300 rounded w-1/2 max-w-[140px]" />
-  </div>
-);
+    <div
+      className="w-full rounded-2xl overflow-hidden border border-white/10 min-h-[120px] flex flex-col justify-end p-4"
+      aria-hidden
+    >
+      <Skeleton height={20} width="75%" style={{ maxWidth: 200, marginBottom: 8 }} />
+      <Skeleton height={16} width="50%" style={{ maxWidth: 140 }} />
+    </div>
+  );
 
 export default EventCard;
