@@ -78,9 +78,9 @@ function DraggableTable({
     width: '100%',
     ...(table.shape === 'rect' ? { height: '100%' } : {}),
     borderRadius: table.shape === 'circle' ? '50%' : 0,
-    background: palette?.gradient ?? '#2a2a2a',
-    border: palette?.border ?? '1.5px solid #3a3a3a',
-    boxShadow: palette?.glow ?? 'none',
+    background: palette?.gradient ?? 'linear-gradient(160deg, #1a1a1a, #0d0d0d)',
+    border: palette?.border ?? '1.5px solid #2a2520',
+    boxShadow: palette?.glow ?? '0 0 8px rgba(0,0,0,0.5)',
   };
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({

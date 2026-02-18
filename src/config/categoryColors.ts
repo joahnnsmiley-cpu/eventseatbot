@@ -24,10 +24,10 @@ export const CATEGORY_COLORS: Record<CategoryColorKey, CategoryColorConfig> = {
   },
   gold: {
     label: 'Gold',
-    gradient: 'linear-gradient(145deg, #F8E7A1, #D4AF37)',
-    glow: '0 0 12px rgba(212, 175, 55, 0.5)',
-    border: '1.5px solid #A67C00',
-    base: '#D4AF37',
+    gradient: 'linear-gradient(145deg, #E8D48A, #B8942E)',
+    glow: '0 0 14px rgba(184, 148, 46, 0.55)',
+    border: '1.5px solid #8B6914',
+    base: '#C9A227',
   },
   silver: {
     label: 'Silver',

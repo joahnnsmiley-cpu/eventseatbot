@@ -160,7 +160,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
         minHeight: layoutAspectRatio == null ? '18rem' : undefined,
         margin: '0 auto',
         overflow: 'hidden',
-        boxShadow: 'inset 0 0 40px rgba(0,0,0,0.6)',
+        boxShadow: 'inset 0 0 60px rgba(0,0,0,0.8), 0 4px 24px rgba(0,0,0,0.4)',
       }}
     >
       <div className="layout-wrapper absolute inset-0 min-w-0 min-h-0">
@@ -188,12 +188,12 @@ const SeatMap: React.FC<SeatMapProps> = ({
             return (
             <>
               <TransformComponent
-                wrapperStyle={{ width: '100%', height: '100%' }}
-                contentStyle={{ width: '100%', height: '100%', position: 'relative' }}
+                wrapperStyle={{ width: '100%', height: '100%', touchAction: 'none' }}
+                contentStyle={{ width: '100%', height: '100%', position: 'relative', touchAction: 'none' }}
               >
                 <div
                   className="layout-image-layer"
-                  style={{ width: '100%', height: '100%', position: 'relative', touchAction: 'none' }}
+                  style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, touchAction: 'none' }}
                 >
                   {layoutImageUrl && (
                     <img
@@ -211,23 +211,22 @@ const SeatMap: React.FC<SeatMapProps> = ({
                     />
                   )}
                 </div>
-              </TransformComponent>
-
-              <div
-                className="tables-layer"
-                style={{
-                  position: 'absolute',
-                  zIndex: 10,
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  width: '100%',
-                  height: '100%',
-                  padding: 0,
-                  margin: 0,
-                }}
-              >
+                <div
+                  className="tables-layer"
+                  style={{
+                    position: 'absolute',
+                    zIndex: 10,
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    width: '100%',
+                    height: '100%',
+                    padding: 0,
+                    margin: 0,
+                    touchAction: 'none',
+                  }}
+                >
                 {totalSeats > 0 && (
                   <div
                     className="absolute inset-0 pointer-events-none"
@@ -260,6 +259,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
                     margin: 0,
                     cursor: isEditable ? 'crosshair' : 'default',
                     pointerEvents: 'auto',
+                    touchAction: 'none',
                   }}
                   onPointerDown={handleMapPointerDown}
                 >
@@ -287,12 +287,12 @@ const SeatMap: React.FC<SeatMapProps> = ({
         const category = event?.ticketCategories?.find((c) => c.id === table.ticketCategoryId);
         const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
         const background = palette
-          ? `radial-gradient(circle at 35% 30%, ${(palette as { soft?: string }).soft ?? palette.base}55, transparent 70%), linear-gradient(145deg, #1b1b1b, #0f0f0f)`
-          : 'linear-gradient(145deg, #1b1b1b, #0f0f0f)';
-        const border = palette ? palette.border.replace('1.5px', '2px') : '1.5px solid #3a3a3a';
+          ? `radial-gradient(circle at 35% 30%, ${(palette as { soft?: string }).soft ?? palette.base}44, transparent 65%), linear-gradient(160deg, #0d0d0d, #050505)`
+          : 'linear-gradient(160deg, #0d0d0d, #050505)';
+        const border = palette ? palette.border.replace('1.5px', '2px') : '2px solid #2a2520';
         const boxShadow = palette
-          ? `0 0 18px ${(palette as { glowColor?: string }).glowColor ?? 'rgba(198,167,94,0.5)'}, inset 0 0 8px rgba(255,255,255,0.05)`
-          : '0 0 8px rgba(0,0,0,0.6)';
+          ? `0 0 20px ${(palette as { glowColor?: string }).glowColor ?? 'rgba(198,167,94,0.4)'}, inset 0 1px 0 rgba(255,255,255,0.03)`
+          : '0 0 12px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.03)';
         const shapeStyle: React.CSSProperties = isCircle
           ? {
               width: '100%',
@@ -434,6 +434,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
       )}
                 </div>
               </div>
+              </TransformComponent>
 
               {/* Reset Zoom Button */}
               <button

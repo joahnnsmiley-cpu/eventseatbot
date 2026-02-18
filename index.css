@@ -238,15 +238,15 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
 /* Gold table: base applied via inline style; hover/selected via CSS (inline would block override) */
 .table-shape-gold {
   transition: transform 0.15s ease, box-shadow 0.15s ease, border 0.15s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.4), 0 0 6px rgba(212,175,55,0.25);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5), 0 0 8px rgba(180,150,80,0.2);
 }
 .table-wrapper:not(.table-disabled):hover .table-shape-gold {
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.5), 0 0 10px rgba(212,175,55,0.35);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 14px rgba(198,167,94,0.35);
 }
 .table-wrapper.table-selected .table-shape-gold {
-  border: 2px solid #FFD700 !important;
-  box-shadow: 0 0 0 2px rgba(255,215,0,0.4), 0 4px 10px rgba(0,0,0,0.6);
+  border: 2px solid #C9A227 !important;
+  box-shadow: 0 0 0 2px rgba(201,162,39,0.5), 0 4px 16px rgba(0,0,0,0.7);
 }
 .table-wrapper.table-disabled {
   opacity: 0.35;
@@ -309,11 +309,11 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(198, 167, 94, 0.5);
-  box-shadow: 0 0 12px rgba(198, 167, 94, 0.35);
-  color: #F3E6C0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(180, 150, 80, 0.6);
+  box-shadow: 0 0 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+  color: #E8E0C8;
   font-weight: 600;
   letter-spacing: 0.3px;
   pointer-events: none;
