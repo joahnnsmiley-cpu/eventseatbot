@@ -135,11 +135,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
     onSeatToggle?.(seat);
   };
 
-  const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleMapPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isEditable || !onTableAdd) return;
-    // Don't trigger if clicking on a table
-    if ((e.target as HTMLElement).closest('.table-wrapper')) return;
-
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-table-id]')) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
@@ -247,7 +246,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
                   cursor: isEditable ? 'crosshair' : 'default',
                   pointerEvents: 'auto',
                 }}
-                onClick={handleMapClick}
+                onPointerDown={handleMapPointerDown}
               >
       {!layoutImageUrl && (
         <div className="absolute inset-0 flex items-center justify-center text-xs text-muted pointer-events-none">
@@ -282,6 +281,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
         return (
           <div
             key={table.id}
+            data-table-id={table.id}
             id={`table-${table.id}`}
             className={`table-wrapper ${isTableDisabled ? 'table-disabled' : ''} ${isSelected ? 'table-selected' : ''}`}
             style={{

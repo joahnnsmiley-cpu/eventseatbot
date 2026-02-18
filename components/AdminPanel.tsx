@@ -302,6 +302,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   const isDirty = useMemo(() => !deepEqual(tables, initialTablesRef.current), [tables]);
 
+  useEffect(() => {
+    if (!selectedEvent?.tables) return;
+    const mapped = (selectedEvent.tables ?? []).map(mapTableFromDb);
+    setTables(mapped);
+    initialTablesRef.current = deepClone(mapped);
+  }, [selectedEvent?.id]);
+
   const [layoutPreviewRef] = useContainerWidth<HTMLDivElement>();
   const eventTabsScrollRef = useRef<HTMLDivElement>(null);
   const eventTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -734,7 +741,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     const rectErr = validateRectTables(newTables);
     if (rectErr) { setError(rectErr); return; }
     setTables(newTables);
-    setSelectedTableId(nextId);
+    setSelectedTableId(newTable.id);
   };
 
   const deleteTable = (tableId: string) => {
@@ -1816,9 +1823,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     margin: '0 auto',
                     padding: 0,
                   }}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('.table-wrapper')) return;
-                    const rect = e.currentTarget.getBoundingClientRect();
+                  onPointerDown={(e) => {
+                    const target = e.target as HTMLElement;
+                    if (target.closest('[data-table-id]')) return;
+                    const container = layoutPreviewRef.current;
+                    if (!container) return;
+                    const rect = container.getBoundingClientRect();
                     const percentX = ((e.clientX - rect.left) / rect.width) * 100;
                     const percentY = ((e.clientY - rect.top) / rect.height) * 100;
                     addTable(percentX, percentY);

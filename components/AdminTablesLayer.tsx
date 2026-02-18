@@ -198,6 +198,7 @@ function DraggableTable({
   return (
     <div
       ref={setNodeRef}
+      data-table-id={table.id}
       id={`table-${table.id}`}
       className={`table-wrapper ${isSelected ? 'ring-2 ring-[#C6A75E]' : ''}`}
       style={wrapperStyle}
