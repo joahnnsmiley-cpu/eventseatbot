@@ -294,6 +294,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   }, [selectedEvent?.id]);
 
   const layoutPreviewRef = useRef<HTMLDivElement>(null);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const eventTabsScrollRef = useRef<HTMLDivElement>(null);
   const eventTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -688,7 +689,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   }, [bookings, selectedEventId]);
 
   const addTable = (percentX = 50, percentY = 50) => {
-    console.log('ADD TABLE CALLED');
+    if (!selectedEvent?.id) return;
     const defaultCategoryId = (selectedEvent?.ticketCategories ?? []).find((c) => c.isActive)?.id ?? '';
     const newTable = {
       id: crypto.randomUUID(),
@@ -710,8 +711,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       isActive: true,
       isAvailable: true,
     };
-    console.log('ADDING RAW TABLE:', newTable);
-    setTables((prev) => [...prev, newTable]);
+    const newTables = [...tables, newTable];
+    const numErr = validateTableNumbers(newTables);
+    if (numErr) { setError(numErr); return; }
+    const rectErr = validateRectTables(newTables);
+    if (rectErr) { setError(rectErr); return; }
+    setTables(newTables);
     setSelectedTableId(newTable.id);
   };
 
@@ -1791,6 +1796,16 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     margin: '0 auto',
                   }}
                   onPointerDown={(e) => {
+                    pointerStartRef.current = { x: e.clientX, y: e.clientY };
+                  }}
+                  onPointerUp={(e) => {
+                    if (!pointerStartRef.current) return;
+                    const dx = Math.abs(e.clientX - pointerStartRef.current.x);
+                    const dy = Math.abs(e.clientY - pointerStartRef.current.y);
+                    pointerStartRef.current = null;
+                    if (dx > 5 || dy > 5) return;
+                    const target = e.target as HTMLElement;
+                    if (target.closest('[data-table-id]')) return;
                     const rect = layoutPreviewRef.current?.getBoundingClientRect();
                     if (!rect) return;
                     const percentX = ((e.clientX - rect.left) / rect.width) * 100;
