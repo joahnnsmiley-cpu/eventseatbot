@@ -600,6 +600,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   };
 
   const saveLayout = async (silent = false) => {
+    console.log("SAVE STARTED");
     if (!selectedEvent?.id) return;
     const rawTables = tables;
     const numErr = validateTableNumbers(rawTables);
@@ -627,7 +628,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         ticketCategories: selectedEvent?.ticketCategories ?? [],
         tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
       };
+      console.log("SAVE PAYLOAD:", payload);
       const response = await StorageService.updateAdminEvent(selectedEvent.id, payload);
+      console.log("SAVE RESPONSE:", response);
       const fresh = await StorageService.getAdminEvent(selectedEvent.id);
       initialTablesRef.current = structuredClone(tables);
       setEventFromFresh(fresh, { skipInitialTablesRef: true });
@@ -638,6 +641,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         setSuccessMessage(UI_TEXT.admin.eventUpdated);
       }
     } catch (e) {
+      console.error("SAVE ERROR:", e);
       console.error('[AdminPanel] Failed to save event', e);
       if (e instanceof Error && e.message) {
         console.error('[AdminPanel] Backend message:', e.message);
