@@ -49,13 +49,13 @@ function ResizeHandle({
 
   return (
     <div
-      className={`absolute w-3 h-3 rounded-full bg-[#C6A75E] border border-[#2A2A2A] opacity-90 hover:opacity-100 z-40 ${posClass}`}
+      className={`absolute w-3 h-3 rounded-full bg-[#C6A75E] border border-[#2A2A2A] z-40 ${posClass}`}
       onPointerDown={(e) => {
         e.stopPropagation();
         e.preventDefault();
         onResizeStart(e);
       }}
-      style={{ touchAction: 'none' }}
+      style={{ touchAction: 'none', pointerEvents: 'auto' }}
     />
   );
 }
@@ -186,12 +186,12 @@ function DraggableTable({
     top: `${table.centerY}%`,
     width: widthPct,
     height: heightPct,
+    pointerEvents: 'auto',
     transform: transform
       ? `translate(calc(-50% + ${transform.x}px), calc(-50% + ${transform.y}px)) rotate(${table.rotationDeg ?? 0}deg)`
       : `translate(-50%, -50%) rotate(${table.rotationDeg ?? 0}deg)`,
     transformOrigin: 'center',
     cursor: isDragging ? 'grabbing' : 'grab',
-    opacity: isDragging ? 0.9 : 1,
     zIndex: isSelected ? 20 : 10,
   };
 
@@ -287,7 +287,15 @@ export default function AdminTablesLayer({
   const sorted = [...mapped].sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity));
 
   return (
-    <div ref={containerRef} className="absolute inset-0" style={{ pointerEvents: 'auto' }}>
+    <div
+      ref={containerRef}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none',
+        zIndex: 10,
+      }}
+    >
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         {sorted.map((table) => (
           <DraggableTable
