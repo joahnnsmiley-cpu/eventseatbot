@@ -626,9 +626,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         published: eventPublished,
         isFeatured: eventFeatured,
         ticketCategories: selectedEvent?.ticketCategories ?? [],
-        tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
+        tables: (rawTables ?? []).map((t, idx) => tableForBackend(t, idx)),
       };
-      console.log("SAVE PAYLOAD:", payload);
+      console.log("FULL SAVE PAYLOAD JSON:", JSON.stringify(payload, null, 2));
       const response = await StorageService.updateAdminEvent(selectedEvent.id, payload);
       console.log("SAVE RESPONSE:", response);
       const fresh = await StorageService.getAdminEvent(selectedEvent.id);
