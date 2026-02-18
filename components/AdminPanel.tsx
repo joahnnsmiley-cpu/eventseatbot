@@ -325,6 +325,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   const layoutPreviewRef = useRef<HTMLDivElement>(null);
   const layoutZoomResetRef = useRef<(() => void) | null>(null);
+  const [isAddTableMode, setIsAddTableMode] = useState(false);
   const eventTabsScrollRef = useRef<HTMLDivElement>(null);
   const eventTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -1852,7 +1853,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     wheel={{ step: 0.08 }}
                     pinch={{ step: 5 }}
                     doubleClick={{ disabled: true }}
-                    panning={{ velocityDisabled: false }}
+                    panning={{ velocityDisabled: false, excluded: ['table-wrapper'] }}
                   >
                     {({ resetTransform }) => {
                       layoutZoomResetRef.current = () => resetTransform(300, 'easeOut');
@@ -1865,21 +1866,33 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           <div
                             ref={layoutPreviewRef}
                             className="border border-[#242424] rounded-xl bg-[#111111] cursor-crosshair"
-                            style={{
-                              position: 'relative',
-                              width: '100%',
-                              maxWidth: 600,
-                              margin: '0 auto',
-                              containerType: 'inline-size',
-                            }}
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      maxWidth: 600,
+                      margin: '0 auto',
+                      containerType: 'inline-size',
+                      cursor: isAddTableMode ? 'crosshair' : 'default',
+                    }}
                             onClick={(e) => {
+                              if (!isAddTableMode) return;
                               const target = e.target as HTMLElement;
                               if (target.closest('[data-table-id]')) return;
-                              const rect = layoutPreviewRef.current?.getBoundingClientRect();
-                              if (!rect) return;
-                              const percentX = ((e.clientX - rect.left) / rect.width) * 100;
-                              const percentY = ((e.clientY - rect.top) / rect.height) * 100;
-                              addTable(percentX, percentY);
+                              const layout = layoutPreviewRef.current;
+                              const img = layout?.querySelector('img');
+                              if (img && (e.target === img || img.contains(target))) {
+                                const me = e.nativeEvent as MouseEvent;
+                                const percentX = (me.offsetX / img.clientWidth) * 100;
+                                const percentY = (me.offsetY / img.clientHeight) * 100;
+                                addTable(percentX, percentY);
+                                setIsAddTableMode(false);
+                              } else if (layout && layoutUrl) {
+                                const rect = layout.getBoundingClientRect();
+                                const percentX = ((e.clientX - rect.left) / rect.width) * 100;
+                                const percentY = ((e.clientY - rect.top) / rect.height) * 100;
+                                addTable(percentX, percentY);
+                                setIsAddTableMode(false);
+                              }
                             }}
                           >
                             {layoutUrl ? (
@@ -1912,11 +1925,14 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   </TransformWrapper>
                 </div>
                 <div className="text-xs text-muted mt-2">
-                  {UI_TEXT.tables.layoutHint}
+                  {isAddTableMode ? UI_TEXT.tables.addTableHint : UI_TEXT.tables.layoutHint}
                 </div>
                 <div className="mt-2">
-                  <PrimaryButton onClick={() => addTable()}>
-                    {UI_TEXT.tables.addTable}
+                  <PrimaryButton
+                    onClick={() => setIsAddTableMode((prev) => !prev)}
+                    className={isAddTableMode ? 'ring-2 ring-[#C6A75E]' : ''}
+                  >
+                    {isAddTableMode ? UI_TEXT.common.cancel : UI_TEXT.tables.addTable}
                   </PrimaryButton>
               </div>
               </div>
