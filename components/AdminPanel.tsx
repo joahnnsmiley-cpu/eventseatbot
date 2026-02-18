@@ -19,7 +19,6 @@ import * as StorageService from '../services/storageService';
 import { EventData, TableModel } from '../types';
 import { UI_TEXT } from '../constants/uiText';
 import { computeTableSizes } from '../src/ui/tableSizing';
-import { useContainerWidth } from '../src/hooks/useContainerWidth';
 import { TableNumber, SeatInfo } from './TableLabel';
 import PrimaryButton from '../src/ui/PrimaryButton';
 import SecondaryButton from '../src/ui/SecondaryButton';
@@ -261,7 +260,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [savingLayout, setSavingLayout] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [creatingEvent, setCreatingEvent] = useState(false);
-  const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
   const [statusActionLoading, setStatusActionLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [eventStatusFilter, setEventStatusFilter] = useState<'published' | 'draft' | 'archived' | 'deleted'>('published');
@@ -295,7 +293,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     initialTablesRef.current = deepClone(tbls);
   }, [selectedEvent?.id]);
 
-  const [layoutPreviewRef] = useContainerWidth<HTMLDivElement>();
+  const layoutPreviewRef = useRef<HTMLDivElement>(null);
   const eventTabsScrollRef = useRef<HTMLDivElement>(null);
   const eventTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -369,21 +367,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       });
     }
   }, [eventStatusFilter, eventTabsVisible, eventTabKeys]);
-
-  useEffect(() => {
-    if (!layoutUrl?.trim()) {
-      setLayoutAspectRatio(null);
-      return;
-    }
-    const img = new Image();
-    img.onload = () => {
-      const w = img.naturalWidth || 1;
-      const h = img.naturalHeight || 1;
-      setLayoutAspectRatio(w / h);
-    };
-    img.onerror = () => setLayoutAspectRatio(null);
-    img.src = layoutUrl.trim();
-  }, [layoutUrl]);
 
   const toFriendlyError = (e: unknown) => {
     const raw = e instanceof Error ? e.message : String(e);
@@ -596,7 +579,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         ticketCategories: selectedEvent?.ticketCategories ?? [],
         tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
       };
-      await StorageService.updateAdminEvent(selectedEvent.id, payload);
+      console.log('TABLES SENT TO BACKEND:', payload.tables);
+      const response = await StorageService.updateAdminEvent(selectedEvent.id, payload);
+      console.log('BACKEND RESPONSE TABLES:', (response as { data?: { tables?: unknown } })?.data?.tables ?? (response as { tables?: unknown })?.tables);
       const fresh = await StorageService.getAdminEvent(selectedEvent.id);
       setEventFromFresh(fresh);
       setSaveStatus('saved');
@@ -705,19 +690,28 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const addTable = (x = 50, y = 50) => {
     if (!selectedEvent?.id) return;
     const currentTables = tables;
-    const firstActiveCatId = (selectedEvent?.ticketCategories ?? []).find((c) => c.isActive)?.id ?? '';
-    const newTable: TableModel = {
+    const defaultCategoryId = (selectedEvent?.ticketCategories ?? []).find((c) => c.isActive)?.id ?? '';
+    const newTable = {
       id: crypto.randomUUID(),
       number: currentTables.length + 1,
+      // основной формат
       centerXPercent: x,
       centerYPercent: y,
-      shape: 'circle',
       widthPercent: 8,
       heightPercent: 8,
       rotationDeg: 0,
+      shape: 'circle' as const,
       seatsCount: 4,
-      categoryId: firstActiveCatId,
+      categoryId: defaultCategoryId,
       isActive: true,
+      // legacy формат для публичного SeatMap
+      centerX: x,
+      centerY: y,
+      ticketCategoryId: defaultCategoryId,
+      seatsTotal: 4,
+      seatsAvailable: 4,
+      isAvailable: true,
+      sizePercent: 8,
     };
     const newTables = [...currentTables, newTable];
     const numErr = validateTableNumbers(newTables);
@@ -1794,25 +1788,20 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
                 <div>
                 <div className="text-sm font-semibold mb-2">{UI_TEXT.tables.layoutPreview}</div>
-                {/* Layout container: max-w-[420px], direct manipulation */}
                 <div
                   ref={layoutPreviewRef}
-                  className="border border-[#242424] rounded-xl bg-[#111111] overflow-hidden cursor-crosshair"
+                  className="border border-[#242424] rounded-xl bg-[#111111] cursor-crosshair"
                   style={{
                     position: 'relative',
                     width: '100%',
-                    maxWidth: 420,
-                    aspectRatio: layoutAspectRatio ?? 16 / 9,
-                    minHeight: layoutAspectRatio == null ? '18rem' : undefined,
+                    maxWidth: 600,
                     margin: '0 auto',
-                    padding: 0,
                   }}
                   onPointerDown={(e) => {
                     const target = e.target as HTMLElement;
                     if (target.closest('[data-table-id]')) return;
-                    const container = layoutPreviewRef.current;
-                    if (!container) return;
-                    const rect = container.getBoundingClientRect();
+                    const rect = layoutPreviewRef.current?.getBoundingClientRect();
+                    if (!rect) return;
                     const percentX = ((e.clientX - rect.left) / rect.width) * 100;
                     const percentY = ((e.clientY - rect.top) / rect.height) * 100;
                     addTable(percentX, percentY);
@@ -1823,16 +1812,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       src={layoutUrl}
                       alt=""
                       style={{
-                        position: 'absolute',
-                        inset: 0,
                         width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        pointerEvents: 'none',
+                        height: 'auto',
+                        display: 'block',
                       }}
                     />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-xs text-muted pointer-events-none">
+                    <div className="flex items-center justify-center py-12 text-xs text-muted">
                       {UI_TEXT.tables.noLayoutImage}
                     </div>
                   )}

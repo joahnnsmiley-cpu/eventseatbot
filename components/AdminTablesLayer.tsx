@@ -20,8 +20,6 @@ type HandlePos = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
 
 type Props = {
   tables: TableModel[];
-  layoutWidth?: number;
-  layoutHeight?: number;
   ticketCategories: { id: string; name?: string; price?: number }[];
   selectedTableId: string | null;
   onTableSelect: (id: string) => void;
@@ -75,13 +73,14 @@ function DraggableTable({
 }) {
   const category = ticketCategories.find((c) => c.id === table.categoryId);
   const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
-  const widthPct = `${table.widthPercent}%`;
-  const heightPct = `${table.heightPercent}%`;
-  const borderRadius = table.shape === 'circle' ? '50%' : 12;
+  const wrapperSizeStyle: React.CSSProperties =
+    table.shape === 'circle'
+      ? { width: `${table.widthPercent}%`, aspectRatio: '1 / 1', borderRadius: '50%' }
+      : { width: `${table.widthPercent}%`, height: `${table.heightPercent}%`, borderRadius: 12 };
   const shapeStyle: React.CSSProperties = {
     width: '100%',
     height: '100%',
-    borderRadius,
+    borderRadius: table.shape === 'circle' ? '50%' : 12,
     background: palette?.gradient ?? '#2a2a2a',
     border: palette?.border ?? '1.5px solid #3a3a3a',
     boxShadow: palette?.glow ?? 'none',
@@ -136,16 +135,24 @@ function DraggableTable({
           onTablesChange((prev) =>
             prev.map((t) => {
               if (t.id !== table.id) return t;
-              return { ...t, widthPercent: newW, heightPercent: newH, centerXPercent: newCx, centerYPercent: newCy };
+              return {
+                ...t,
+                widthPercent: newW,
+                heightPercent: newH,
+                centerXPercent: newCx,
+                centerYPercent: newCy,
+                centerX: newCx,
+                centerY: newCy,
+              };
             })
           );
         } else {
           const deltaSize = (dw + dh) / 2;
-          const newSize = Math.max(MIN_SIZE_PERCENT, Math.min(MAX_SIZE_PERCENT, (state.startWidth + state.startHeight) / 2 + deltaSize));
+          const newWidth = Math.max(MIN_SIZE_PERCENT, Math.min(MAX_SIZE_PERCENT, state.startWidth + deltaSize));
           onTablesChange((prev) =>
             prev.map((t) => {
               if (t.id !== table.id) return t;
-              return { ...t, widthPercent: newSize, heightPercent: newSize };
+              return { ...t, widthPercent: newWidth, sizePercent: newWidth };
             })
           );
         }
@@ -169,8 +176,7 @@ function DraggableTable({
     position: 'absolute',
     left: `${table.centerXPercent}%`,
     top: `${table.centerYPercent}%`,
-    width: widthPct,
-    height: heightPct,
+    ...wrapperSizeStyle,
     pointerEvents: 'auto',
     transform: transform
       ? `translate(calc(-50% + ${transform.x}px), calc(-50% + ${transform.y}px)) rotate(${table.rotationDeg}deg)`
@@ -257,7 +263,7 @@ export default function AdminTablesLayer({
         if (t.id !== active.id) return t;
         const cx = Math.max(0, Math.min(100, t.centerXPercent + deltaXPercent));
         const cy = Math.max(0, Math.min(100, t.centerYPercent + deltaYPercent));
-        return { ...t, centerXPercent: cx, centerYPercent: cy };
+        return { ...t, centerXPercent: cx, centerYPercent: cy, centerX: cx, centerY: cy };
       })
     );
   };
