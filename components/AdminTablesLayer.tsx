@@ -72,11 +72,11 @@ function DraggableTable({
   const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
   const wrapperSizeStyle: React.CSSProperties =
     table.shape === 'circle'
-      ? { width: `${table.widthPercent}%`, aspectRatio: '1 / 1', borderRadius: '50%' }
+      ? { width: `${table.widthPercent}%` }
       : { width: `${table.widthPercent}%`, height: `${table.heightPercent}%`, borderRadius: 0 };
   const shapeStyle: React.CSSProperties = {
     width: '100%',
-    height: '100%',
+    ...(table.shape === 'rect' ? { height: '100%' } : {}),
     borderRadius: table.shape === 'circle' ? '50%' : 0,
     background: palette?.gradient ?? '#2a2a2a',
     border: palette?.border ?? '1.5px solid #3a3a3a',
@@ -197,8 +197,12 @@ function DraggableTable({
         onSelect();
       }}
     >
-      <div className="relative w-full h-full">
-        <div className="table-shape table-shape-gold pointer-events-none" style={shapeStyle} />
+      <div className={`table-shape table-shape-gold pointer-events-none ${table.shape === 'circle' ? 'table-shape-circle' : ''}`} style={shapeStyle}>
+        <div className="table-overlay">
+          <div className="table-label">
+            <TableNumber number={table.number ?? 0} />
+          </div>
+        </div>
         {isSelected && (
           <>
             <ResizeHandle position="bottom-right" onResizeStart={(e) => handleResizeStart(e, 'bottom-right')} />
@@ -207,9 +211,6 @@ function DraggableTable({
             <ResizeHandle position="top-left" onResizeStart={(e) => handleResizeStart(e, 'top-left')} />
           </>
         )}
-      </div>
-      <div className="table-label">
-        <TableNumber number={table.number ?? 0} />
       </div>
     </div>
   );

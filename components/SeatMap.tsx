@@ -283,11 +283,6 @@ const SeatMap: React.FC<SeatMapProps> = ({
         const widthPct = isCircle ? circleSize : (table.widthPercent ? `${table.widthPercent}%` : `${table.sizePercent ?? 6}%`);
         const heightPct = isCircle ? circleSize : (table.heightPercent ? `${table.heightPercent}%` : `${table.sizePercent ?? 6}%`);
         const borderRadius = isCircle ? '50%' : 0;
-        console.log('TABLE CATEGORY CHECK', {
-          tableId: table.id,
-          tableCategoryId: table.ticketCategoryId,
-          availableCategories: event?.ticketCategories?.map(c => c.id)
-        });
         const category = event?.ticketCategories?.find((c) => c.id === table.ticketCategoryId);
         const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
         const background = palette
@@ -300,8 +295,6 @@ const SeatMap: React.FC<SeatMapProps> = ({
         const shapeStyle: React.CSSProperties = isCircle
           ? {
               width: '100%',
-              height: '100%',
-              borderRadius: '50%',
               background,
               border,
               boxShadow,
@@ -329,14 +322,14 @@ const SeatMap: React.FC<SeatMapProps> = ({
           justifyContent: 'center',
           boxShadow: '0 6px 24px rgba(0,0,0,0.45)',
           cursor: 'pointer',
+          pointerEvents: 'auto',
         };
         const wrapperStyle: React.CSSProperties = {
           position: 'absolute',
           left: `${table.centerX}%`,
           top: `${table.centerY}%`,
           width: widthPct,
-          height: heightPct,
-          ...(isCircle ? { borderRadius: '50%' } : {}),
+          ...(isCircle ? {} : { height: heightPct }),
           transform: `translate(-50%, -50%) rotate(${table.rotationDeg ?? 0}deg)`,
           transformOrigin: 'center',
           cursor: isTableDisabled ? 'not-allowed' : 'pointer',
@@ -360,24 +353,25 @@ const SeatMap: React.FC<SeatMapProps> = ({
                 if (onTableSelect) onTableSelect(table.id);
               }}
           >
-              <div className="relative w-full h-full">
-                <div className="table-shape table-shape-gold" style={shapeStyle} />
+              <div className={`table-shape table-shape-gold ${isCircle ? 'table-shape-circle' : ''}`} style={shapeStyle}>
+                <div className="table-overlay">
+                  <div className="table-label">
+                    <TableNumber number={table.number ?? 0} />
+                  </div>
+                  {isEditable && (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); onTableDelete && onTableDelete(table.id); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTableDelete?.(table.id); } }}
+                      aria-label={`${UI_TEXT.common.delete} ${UI_TEXT.tables.table} ${table.number}`}
+                      style={innerButtonStyle}
+                    >
+                      <ArrowIcon />
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="table-label">
-                <TableNumber number={table.number ?? 0} />
-              </div>
-            {isEditable && (
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={(e) => { e.stopPropagation(); onTableDelete && onTableDelete(table.id); }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTableDelete?.(table.id); } }}
-                aria-label={`${UI_TEXT.common.delete} ${UI_TEXT.tables.table} ${table.number}`}
-                style={innerButtonStyle}
-              >
-                <ArrowIcon />
-              </div>
-            )}
           </div>
         );
       })}
