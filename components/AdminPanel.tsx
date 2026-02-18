@@ -27,7 +27,10 @@ import DangerButton from '../src/ui/DangerButton';
 import EventCard, { EventCardSkeleton } from './EventCard';
 import AdminCard from '../src/ui/AdminCard';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
+import { deepEqual, deepClone } from '../src/utils/deepEqual';
 import { DEFAULT_TICKET_CATEGORIES } from '../constants/ticketStyles';
+import AdminTablesLayer from './AdminTablesLayer';
+import TableEditPanel from './TableEditPanel';
 import { CATEGORY_COLORS, CATEGORY_COLOR_KEYS, getCategoryColor, resolveCategoryColorKey } from '../src/config/categoryColors';
 import type { TicketCategory } from '../types';
 
@@ -60,27 +63,6 @@ function toDatetimeLocal(iso: string | null | undefined): string {
   if (Number.isNaN(d.getTime())) return '';
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-/** Build comparable payload snapshot from EventData (for initial load). */
-function buildSnapshotFromEvent(ev: EventData): string {
-  const rawTables = ev.tables ?? [];
-  const tables = rawTables.map((t, idx) => tableForBackend(t, idx));
-  const sorted = [...tables].sort((a, b) => (a.id || '').localeCompare(b.id || ''));
-  return JSON.stringify({
-    title: (ev.title || '').trim(),
-    description: (ev.description || '').trim(),
-    event_date: ev.event_date?.trim() || null,
-    event_time: ev.event_time?.trim() || null,
-    venue: ev.venue?.trim() || null,
-    paymentPhone: ev.paymentPhone || '',
-    imageUrl: ev.imageUrl?.trim() || null,
-    layoutImageUrl: ev.layoutImageUrl?.trim() || null,
-    published: ev.published === true,
-    isFeatured: (ev as { isFeatured?: boolean }).isFeatured === true,
-    ticketCategories: ev.ticketCategories ?? [],
-    tables: sorted,
-  });
 }
 
 /** Ensure required table fields for backend; defaults so nothing is undefined. */
@@ -301,48 +283,24 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [sectionOrder, setSectionOrder] = useState(['basic', 'layout', 'tables', 'categories', 'publish']);
   const [exitConfirmPending, setExitConfirmPending] = useState<{ type: 'back' } | { type: 'switchMode'; mode: 'bookings' | 'layout' } | { type: 'switchEvent'; eventId: string } | null>(null);
-  const initialPayloadRef = useRef<string | null>(null);
   const [resyncLoading, setResyncLoading] = useState(false);
   const [layoutUploadLoading, setLayoutUploadLoading] = useState(false);
   const [layoutUploadError, setLayoutUploadError] = useState<string | null>(null);
   const [layoutUploadVersion, setLayoutUploadVersion] = useState<number | null>(null);
-  const [addingTable, setAddingTable] = useState(false);
   const [eventTablesMap, setEventTablesMap] = useState<Record<string, Table[]>>({});
   const [eventDetailsMap, setEventDetailsMap] = useState<Record<string, EventData>>({});
   const [activeTabLeft, setActiveTabLeft] = useState(0);
   const [activeTabWidth, setActiveTabWidth] = useState(0);
   const [deleteConfirmEvent, setDeleteConfirmEvent] = useState<EventData | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [tables, setTables] = useState<Table[]>([]);
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+  const initialTablesRef = useRef<Table[]>([]);
 
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const saveLayoutRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
 
-  const buildPayloadSnapshotFromState = useCallback(() => {
-    if (!selectedEvent?.id) return null;
-    const rawTables = selectedEvent?.tables ?? [];
-    const tables = rawTables.map((t, idx) => tableForBackend(t, idx));
-    const sorted = [...tables].sort((a, b) => (a.id || '').localeCompare(b.id || ''));
-    return JSON.stringify({
-      title: eventTitle.trim(),
-      description: eventDescription.trim(),
-      event_date: eventDate.trim() || null,
-      event_time: eventTime.trim() || null,
-      venue: venue.trim() || null,
-      paymentPhone: eventPhone.trim(),
-      imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
-      layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
-      published: eventPublished,
-      isFeatured: eventFeatured,
-      ticketCategories: selectedEvent?.ticketCategories ?? [],
-      tables: sorted,
-    });
-  }, [selectedEvent, eventTitle, eventDescription, eventDate, eventTime, venue, eventPhone, eventPosterUrl, layoutUrl, eventPublished, eventFeatured]);
-
-  const isDirty = useMemo(() => {
-    const current = buildPayloadSnapshotFromState();
-    if (!current || !initialPayloadRef.current) return false;
-    return current !== initialPayloadRef.current;
-  }, [buildPayloadSnapshotFromState]);
+  const isDirty = useMemo(() => !deepEqual(tables, initialTablesRef.current), [tables]);
   const [layoutPreviewRef, layoutPreviewWidth] = useContainerWidth<HTMLDivElement>();
   const eventTabsScrollRef = useRef<HTMLDivElement>(null);
   const eventTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -513,12 +471,18 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const setEventFromFresh = (fresh: EventData | null) => {
     if (!fresh) {
       setSelectedEvent(null);
-      initialPayloadRef.current = null;
+      setTables([]);
+      initialTablesRef.current = [];
+      setSelectedTableId(null);
       return;
     }
     const ticketCategories = fresh.ticketCategories?.length ? fresh.ticketCategories : DEFAULT_TICKET_CATEGORIES;
-    const mapped = { ...fresh, ticketCategories, tables: (fresh.tables ?? []).map(mapTableFromDb) };
+    const mappedTables = (fresh.tables ?? []).map(mapTableFromDb);
+    const mapped = { ...fresh, ticketCategories, tables: mappedTables };
     setSelectedEvent(mapped);
+    setTables(mappedTables);
+    initialTablesRef.current = deepClone(mappedTables);
+    setSelectedTableId(null);
     setLayoutUrl(fresh.layoutImageUrl || '');
     setEventPosterUrl(fresh.imageUrl ?? '');
     setEventTicketTemplateUrl(fresh.ticketTemplateUrl ?? '');
@@ -531,7 +495,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     setEventPublished(fresh.published === true);
     setEventFeatured((fresh as { isFeatured?: boolean }).isFeatured === true);
     setEvents((prev) => prev.map((e) => (e.id === fresh.id ? { ...e, title: fresh.title } : e)));
-    initialPayloadRef.current = buildSnapshotFromEvent(mapped);
   };
 
   const handlePosterUpload = useCallback(async (file: File) => {
@@ -613,7 +576,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
   const saveLayout = async (silent = false) => {
     if (!selectedEvent?.id) return;
-    const rawTables = selectedEvent?.tables ?? [];
+    const rawTables = tables;
     const numErr = validateTableNumbers(rawTables);
     if (numErr) { setError(numErr); return; }
     const rectErr = validateRectTables(rawTables);
@@ -744,9 +707,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return set;
   }, [bookings, selectedEventId]);
 
-  const addTable = async () => {
+  const addTable = (x = 50, y = 50) => {
     if (!selectedEvent?.id) return;
-    const currentTables = selectedEvent?.tables ?? [];
+    const currentTables = tables;
     const nextId = `tbl-${Date.now()}`;
     const firstActiveCatId = (selectedEvent?.ticketCategories ?? []).find((c) => c.isActive)?.id;
     const newTable: Table = {
@@ -754,13 +717,13 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       number: currentTables.length + 1,
       seatsTotal: 4,
       seatsAvailable: 4,
-      x: 50,
-      y: 50,
-      centerX: 50,
-      centerY: 50,
+      x,
+      y,
+      centerX: x,
+      centerY: y,
       sizePercent: 6,
       shape: 'circle',
-      ticketCategoryId: firstActiveCatId,
+      ticketCategoryId: firstActiveCatId ?? undefined,
       isAvailable: true,
     };
     const newTables = [...currentTables, newTable];
@@ -768,79 +731,18 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     if (numErr) { setError(numErr); return; }
     const rectErr = validateRectTables(newTables);
     if (rectErr) { setError(rectErr); return; }
-    setAddingTable(true);
-    setError(null);
-    setSuccessMessage(null);
-    try {
-      const payload: Partial<EventData> = {
-        title: eventTitle.trim(),
-        description: eventDescription.trim(),
-        event_date: eventDate.trim() || null,
-        event_time: eventTime.trim() || null,
-        venue: venue.trim() || null,
-        paymentPhone: eventPhone.trim(),
-        imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
-        layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
-        published: eventPublished,
-        isFeatured: eventFeatured,
-        ticketCategories: selectedEvent?.ticketCategories ?? [],
-        tables: newTables.map((t, idx) => tableForBackend(t, idx)),
-      };
-      await StorageService.updateAdminEvent(selectedEvent.id, payload);
-      const fresh = await StorageService.getAdminEvent(selectedEvent.id);
-      setEventFromFresh(fresh);
-      setSuccessMessage(UI_TEXT.tables.tableAdded);
-    } catch (e) {
-      console.error('[AdminPanel] Failed to add table', e);
-      setError(toFriendlyError(e));
-    } finally {
-      setAddingTable(false);
-    }
+    setTables(newTables);
+    setSelectedTableId(nextId);
   };
 
-  const deleteTable = async (tableId: string) => {
-    if (!selectedEvent?.id) return;
-    const newTables = (selectedEvent.tables ?? []).filter((it) => it.id !== tableId);
+  const deleteTable = (tableId: string) => {
+    const newTables = tables.filter((it) => it.id !== tableId);
     const numErr = validateTableNumbers(newTables);
     if (numErr) { setError(numErr); return; }
     const rectErr = validateRectTables(newTables);
     if (rectErr) { setError(rectErr); return; }
-    setSavingLayout(true);
-    setError(null);
-    setSuccessMessage(null);
-    try {
-      const payload: Partial<EventData> = {
-        title: eventTitle.trim(),
-        description: eventDescription.trim(),
-        event_date: eventDate.trim() || null,
-        event_time: eventTime.trim() || null,
-        venue: venue.trim() || null,
-        paymentPhone: eventPhone.trim(),
-        imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
-        layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
-        published: eventPublished,
-        isFeatured: eventFeatured,
-        ticketCategories: selectedEvent?.ticketCategories ?? [],
-        tables: newTables.map((t, idx) => tableForBackend(t, idx)),
-      };
-      await StorageService.updateAdminEvent(selectedEvent.id, payload);
-      const fresh = await StorageService.getAdminEvent(selectedEvent.id);
-      setEventFromFresh(fresh);
-      setSuccessMessage(UI_TEXT.tables.tableDeleted);
-    } catch (e) {
-      console.error('[AdminPanel] Failed to delete table', e);
-      setError(toFriendlyError(e));
-      if (selectedEventId) {
-        try {
-          const fresh = await StorageService.getAdminEvent(selectedEventId);
-          setEventFromFresh(fresh);
-        } catch {
-          /* ignore reload failure */
-        }
-      }
-    } finally {
-      setSavingLayout(false);
-    }
+    setTables(newTables);
+    if (selectedTableId === tableId) setSelectedTableId(null);
   };
 
   const confirmBooking = async (bookingId: string) => {
@@ -1003,7 +905,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 if (isDirty) setExitConfirmPending({ type: 'back' });
                 else onBack();
               }}
-              disabled={loading || eventsLoading || savingLayout || addingTable || confirmingId !== null || cancellingId !== null}
+              disabled={loading || eventsLoading || savingLayout || confirmingId !== null || cancellingId !== null}
               className="h-10 px-4 py-2.5 rounded-xl text-sm text-[#6E6A64] whitespace-nowrap min-w-fit"
             >
               {UI_TEXT.admin.exit}
@@ -1285,6 +1187,19 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
           {selectedEvent && (
             <>
+              {selectedTableId && (
+                <TableEditPanel
+                  table={tables.find((t) => t.id === selectedTableId) ?? null}
+                  ticketCategories={(selectedEvent?.ticketCategories ?? []) as import('../types').TicketCategory[]}
+                  onUpdate={(updates) => {
+                    setTables((prev) =>
+                      prev.map((t) => (t.id === selectedTableId ? { ...t, ...updates } : t))
+                    );
+                  }}
+                  onDelete={() => deleteTable(selectedTableId)}
+                  onClose={() => setSelectedTableId(null)}
+                />
+              )}
               <div className="flex justify-end gap-2 mb-3">
                 <button
                   type="button"
@@ -1518,7 +1433,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           <DangerButton
                             type="button"
                             onClick={() => {
-                              const isUsed = (selectedEvent?.tables ?? []).some((t) => t.ticketCategoryId === cat.id);
+                              const isUsed = tables.some((t) => t.ticketCategoryId === cat.id);
                               if (isUsed) {
                                 alert('Нельзя отключить категорию, к которой привязаны столы.');
                                 return;
@@ -1665,7 +1580,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       type="button"
                       onClick={async () => {
                         if (!selectedEventId || !selectedEvent) return;
-                        const rawTables = selectedEvent?.tables ?? [];
+                        const rawTables = tables;
                         const numErr = validateTableNumbers(rawTables);
                         if (numErr) { setError(numErr); return; }
                         const rectErr = validateRectTables(rawTables);
@@ -1725,7 +1640,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       type="button"
                       onClick={async () => {
                         if (!selectedEventId || !selectedEvent) return;
-                        const rawTables = selectedEvent?.tables ?? [];
+                        const rawTables = tables;
                         const numErr = validateTableNumbers(rawTables);
                         if (numErr) { setError(numErr); return; }
                         const rectErr = validateRectTables(rawTables);
@@ -1796,240 +1711,32 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       </SortableSectionInner>
                     );
                     if (key === 'tables') return (
-                      <SortableSectionInner key="tables" id="tables" title={`Столы (${selectedEvent?.tables?.length ?? 0})`} sectionKey="tables" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
+                      <SortableSectionInner key="tables" id="tables" title={`Столы (${tables.length})`} sectionKey="tables" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
                 <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold">{UI_TEXT.tables.tables}</div>
-                  <PrimaryButton
-                    onClick={addTable}
-                    disabled={addingTable || savingLayout}
-                  >
-                    {addingTable ? UI_TEXT.common.loading : UI_TEXT.tables.addTable}
-                  </PrimaryButton>
-                </div>
-                {(selectedEvent?.tables ?? []).length === 0 && (
+                <p className="text-xs text-muted">
+                  Кликните на плане зала для добавления. Выберите стол для редактирования.
+                </p>
+                {tables.length === 0 && (
                   <div className="text-xs text-muted">{UI_TEXT.tables.noTablesYet}</div>
                 )}
-                {(selectedEvent?.tables ?? []).map((t, idx) => (
-                  <div key={t.id} className="flex flex-wrap gap-2 items-center">
-                    <div className="text-xs text-muted">#{idx + 1}</div>
-                    <label className="text-xs text-[#6E6A64]">
-                      {UI_TEXT.tables.tableNumber}
-                      <input
-                        type="number"
-                        min={1}
-                        step={1}
-                        value={t.number ?? ''}
-                        onChange={(e) => {
-                          const raw = e.target.value;
-                          if (raw === '') {
-                            setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, number: 1 } : it) } : null);
-                            return;
-                          }
-                          const parsed = parseInt(raw, 10);
-                          const val = Number.isInteger(parsed) && parsed >= 1 ? parsed : 1;
-                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, number: val } : it) } : null);
-                        }}
-                        className="ml-1 w-16 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                      />
-                    </label>
-                    <label className="flex items-center gap-1 text-xs text-[#6E6A64]">
-                      <input
-                        type="checkbox"
-                        checked={t.isAvailable === true}
-                        onChange={() => {
-                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, isAvailable: !it.isAvailable } : it) } : null);
-                        }}
-                        className="rounded"
-                      />
-                      {UI_TEXT.tables.available}
-                    </label>
-                    <label className="text-xs text-[#6E6A64]">
-                      X
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={t.x ?? t.centerX ?? 0}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, x: val, centerX: val } : it) } : null);
-                        }}
-                        className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                      />
-                    </label>
-                    <label className="text-xs text-[#6E6A64]">
-                      Y
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={t.y ?? t.centerY ?? 0}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, y: val, centerY: val } : it) } : null);
-                        }}
-                        className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                      />
-                    </label>
-                    <label className="text-xs text-[#6E6A64]">
-                      {UI_TEXT.tables.sizePercent}
-                      <input
-                        type="number"
-                        min={1}
-                        max={20}
-                        step={1}
-                        value={t.sizePercent ?? 6}
-                        onChange={(e) => {
-                          const val = Math.max(1, Math.min(20, Number(e.target.value) || 6));
-                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, sizePercent: val } : it) } : null);
-                        }}
-                        className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                      />
-                    </label>
-                    <label className="text-xs text-[#6E6A64]">
-                      {UI_TEXT.tables.seats}
-                      <input
-                        type="number"
-                        min={0}
-                        value={t.seatsTotal}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, seatsTotal: val, seatsAvailable: val } : it) } : null);
-                        }}
-                        className="ml-1 w-20 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                      />
-                    </label>
-                    <label className="text-xs text-[#6E6A64]">
-                      {UI_TEXT.tables.shape}
-                      <select
-                        value={t.shape ?? 'circle'}
-                        onChange={(e) => {
-                          const val = e.target.value === 'rect' ? 'rect' : 'circle';
-                          const defaults = val === 'rect'
-                            ? { widthPercent: (t as { widthPercent?: number }).widthPercent ?? 8, heightPercent: (t as { heightPercent?: number }).heightPercent ?? 6, rotationDeg: (t as { rotationDeg?: number }).rotationDeg ?? 0 }
-                            : {};
-                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, shape: val, ...defaults } : it) } : null);
-                        }}
-                        className="ml-1 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        <option value="circle">{UI_TEXT.tables.shapeCircle}</option>
-                        <option value="rect">{UI_TEXT.tables.shapeRect}</option>
-                      </select>
-                    </label>
-                    {(t.shape ?? 'circle') !== 'circle' && (
-                      <>
-                        <label className="text-xs text-[#6E6A64]">
-                          {UI_TEXT.tables.widthPercent}
-                          <input
-                            type="number"
-                            min={0.1}
-                            step={0.5}
-                            value={(t as { widthPercent?: number }).widthPercent ?? ''}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              const val = raw === '' ? undefined : Math.max(0.1, Number(raw));
-                              setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, widthPercent: val } : it) } : null);
-                            }}
-                            className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                          />
-                        </label>
-                        <label className="text-xs text-[#6E6A64]">
-                          {UI_TEXT.tables.heightPercent}
-                          <input
-                            type="number"
-                            min={0.1}
-                            step={0.5}
-                            value={(t as { heightPercent?: number }).heightPercent ?? ''}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              const val = raw === '' ? undefined : Math.max(0.1, Number(raw));
-                              setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, heightPercent: val } : it) } : null);
-                            }}
-                            className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                          />
-                        </label>
-                        <label className="text-xs text-[#6E6A64]">
-                          {UI_TEXT.tables.rotationDeg}
-                          <input
-                            type="number"
-                            min={-180}
-                            max={180}
-                            step={1}
-                            value={(t as { rotationDeg?: number }).rotationDeg ?? 0}
-                            onChange={(e) => {
-                              const val = Math.max(-180, Math.min(180, Number(e.target.value) || 0));
-                              setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, rotationDeg: val } : it) } : null);
-                            }}
-                            className="ml-1 w-14 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                          />
-                        </label>
-                      </>
-                    )}
-                    <label className="text-xs text-[#6E6A64]">
-                      {UI_TEXT.tables.tableCategory}
-                      <select
-                        value={t.ticketCategoryId ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value || undefined;
-                          setSelectedEvent((prev) =>
-                            prev ? { ...prev, tables: (prev.tables ?? []).map((it) => (it.id === t.id ? { ...it, ticketCategoryId: val } : it)) } : null
-                          );
-                        }}
-                        className="ml-1 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        <option value="">—</option>
-                        {(selectedEvent?.ticketCategories ?? [])
-                          .filter((c) => c.isActive)
-                          .map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                    <label className="text-xs text-[#6E6A64]" title={UI_TEXT.tables.visibleFromPlaceholder}>
-                      {UI_TEXT.tables.visibleFrom}
-                      <input
-                        type="datetime-local"
-                        value={toDatetimeLocal(t.visibleFrom ?? undefined)}
-                        onChange={(e) => {
-                          const val = e.target.value ? new Date(e.target.value).toISOString() : '';
-                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, visibleFrom: val || null } : it) } : null);
-                        }}
-                        className="ml-1 w-36 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                      />
-                    </label>
-                    <label className="text-xs text-[#6E6A64]" title={UI_TEXT.tables.visibleUntilPlaceholder}>
-                      {UI_TEXT.tables.visibleUntil}
-                      <input
-                        type="datetime-local"
-                        value={toDatetimeLocal(t.visibleUntil ?? undefined)}
-                        onChange={(e) => {
-                          const val = e.target.value ? new Date(e.target.value).toISOString() : '';
-                          setSelectedEvent((prev) => prev ? { ...prev, tables: (prev.tables ?? []).map((it) => it.id === t.id ? { ...it, visibleUntil: val || null } : it) } : null);
-                        }}
-                        className="ml-1 w-36 border rounded px-2 py-1 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                      />
-                    </label>
-                    {(() => {
-                      const hasBookings = tableIdsWithBookings.has(t.id);
-                      return (
-                        <DangerButton
-                          type="button"
-                          onClick={async () => {
-                            if (!window.confirm(UI_TEXT.tables.deleteConfirm)) return;
-                            await deleteTable(t.id);
-                          }}
-                          disabled={savingLayout}
-                          title={hasBookings ? UI_TEXT.tables.deleteWithBookingsTooltip : undefined}
-                          className="px-2 py-1 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          🗑 {UI_TEXT.tables.delete}
-                        </DangerButton>
-                      );
-                    })()}
-                  </div>
+                {tables.map((t, idx) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setSelectedTableId(t.id)}
+                    className={`w-full text-left px-3 py-2 rounded-lg border transition ${
+                      selectedTableId === t.id
+                        ? 'border-[#C6A75E] bg-[#C6A75E]/10'
+                        : 'border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    <span className="text-sm font-medium text-white">
+                      {UI_TEXT.tables.table} {t.number ?? idx + 1}
+                    </span>
+                    <span className="text-xs text-muted ml-2">
+                      {t.seatsTotal ?? 0} мест
+                    </span>
+                  </button>
                 ))}
                 </div>
                       </SortableSectionInner>
@@ -2092,78 +1799,58 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 </div>
               </div>
 
-              <div>
+                <div>
                 <div className="text-sm font-semibold mb-2">{UI_TEXT.tables.layoutPreview}</div>
-                {/* Layout container: same aspect ratio as image so admin and user coordinates match 1:1. */}
-                <div
-                  ref={layoutPreviewRef}
-                  className="relative w-full border border-[#242424] rounded-xl bg-[#111111] overflow-hidden"
-                  style={{
-                    position: 'relative',
-                    width: '100%',
-                    aspectRatio: layoutAspectRatio ?? 16 / 9,
-                    minHeight: layoutAspectRatio == null ? '18rem' : undefined,
-                    padding: 0,
-                    backgroundImage: layoutUrl ? `url(${layoutUrl})` : 'none',
-                    backgroundSize: '100% 100%',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'top left',
-                  }}
-                >
-                  {!layoutUrl && (
-                    <div className="absolute inset-0 flex items-center justify-center text-xs text-muted pointer-events-none">
-                      {UI_TEXT.tables.noLayoutImage}
-                    </div>
-                  )}
-                  {[...(selectedEvent?.tables ?? [])].sort((a, b) => (a.number ?? Infinity) - (b.number ?? Infinity)).map((raw) => {
-                    const table = mapTableFromDb(raw);
-                    const available = typeof table.seatsAvailable === 'number' ? table.seatsAvailable : table.seatsTotal ?? 0;
-                    const total = typeof table.seatsTotal === 'number' ? table.seatsTotal : 4;
-                    const category = table.ticketCategoryId
-                      ? (selectedEvent?.ticketCategories ?? []).find((c) => c.id === table.ticketCategoryId)
-                      : null;
-                    const palette = category ? CATEGORY_COLORS[resolveCategoryColorKey(category)] : null;
-                    const effectiveWidth =
-                      layoutPreviewWidth && layoutPreviewWidth > 0
-                        ? layoutPreviewWidth
-                        : 320;
-                    const sizes = computeTableSizes(effectiveWidth, {
-                      sizePercent: table.sizePercent,
-                      widthPercent: table.widthPercent,
-                      heightPercent: table.heightPercent,
-                    });
-                    const borderRadius = sizes.borderRadius === '50%' ? '50%' : 12;
-                    const shapeStyle = {
-                      width: sizes.width,
-                      height: sizes.height,
-                      borderRadius,
-                      background: palette?.gradient ?? '#2a2a2a',
-                      border: palette?.border ?? '1.5px solid #3a3a3a',
-                      boxShadow: palette?.glow ?? 'none',
-                    };
-                    return (
-                      <div
-                        key={table.id}
-                        className="table-wrapper"
-                        style={{
-                          position: 'absolute',
-                          left: `${table.centerX}%`,
-                          top: `${table.centerY}%`,
-                          transform: `translate(-50%, -50%) rotate(${table.rotationDeg}deg)`,
-                          transformOrigin: 'center',
-                        }}
-                      >
-                        <div className="table-shape table-shape-gold" style={shapeStyle} />
-                        <div className="table-label">
-                          <TableNumber number={table.number ?? 0} fontSize={`${sizes.fontNumber}px`} />
-                          <SeatInfo available={available} total={total} fontSize={`${sizes.fontSub}px`} />
-                        </div>
+                {/* Layout container: max-w-[420px], direct manipulation */}
+                <div className="max-w-[420px] mx-auto relative">
+                  <div
+                    ref={layoutPreviewRef}
+                    className="relative w-full border border-[#242424] rounded-xl bg-[#111111] overflow-hidden cursor-crosshair"
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      aspectRatio: layoutAspectRatio ?? 16 / 9,
+                      minHeight: layoutAspectRatio == null ? '18rem' : undefined,
+                      padding: 0,
+                      backgroundImage: layoutUrl ? `url(${layoutUrl})` : 'none',
+                      backgroundSize: '100% 100%',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'top left',
+                    }}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('.table-wrapper')) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = ((e.clientX - rect.left) / rect.width) * 100;
+                      const y = ((e.clientY - rect.top) / rect.height) * 100;
+                      addTable(x, y);
+                    }}
+                  >
+                    {!layoutUrl && (
+                      <div className="absolute inset-0 flex items-center justify-center text-xs text-muted pointer-events-none">
+                        {UI_TEXT.tables.noLayoutImage}
                       </div>
-                    );
-                  })}
+                    )}
+                    {layoutPreviewWidth > 0 && (
+                      <AdminTablesLayer
+                        tables={tables}
+                        layoutWidth={layoutPreviewWidth}
+                        layoutHeight={layoutPreviewWidth / (layoutAspectRatio ?? 16 / 9)}
+                        ticketCategories={selectedEvent?.ticketCategories ?? []}
+                        selectedTableId={selectedTableId}
+                        onTableSelect={(id) => setSelectedTableId(id)}
+                        onTablesChange={(updater) => setTables(updater)}
+                        onTableDelete={deleteTable}
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="text-xs text-muted mt-2">
                   {UI_TEXT.tables.layoutHint}
+                </div>
+                <div className="mt-2">
+                  <PrimaryButton onClick={() => addTable()}>
+                    {UI_TEXT.tables.addTable}
+                  </PrimaryButton>
                 </div>
               </div>
                       </SortableSectionInner>
