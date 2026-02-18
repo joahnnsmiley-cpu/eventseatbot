@@ -1,7 +1,6 @@
 import React from 'react';
 import type { TableModel, TicketCategory } from '../types';
 import { UI_TEXT } from '../constants/uiText';
-import DangerButton from '../src/ui/DangerButton';
 
 /** Legacy fields for SeatMap compatibility. */
 type TableWithLegacy = TableModel & {
@@ -196,9 +195,20 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
         </div>
       </div>
       <div className="p-4 border-t border-white/10">
-        <DangerButton onClick={onDelete} className="w-full">
-          {UI_TEXT.common.delete}
-        </DangerButton>
+        <button
+          type="button"
+          style={{
+            background: '#ff3b30',
+            color: 'white',
+            padding: '12px',
+            borderRadius: '12px',
+            marginTop: '16px',
+            width: '100%',
+          }}
+          onClick={() => onDelete()}
+        >
+          Удалить стол
+        </button>
       </div>
     </div>
   );

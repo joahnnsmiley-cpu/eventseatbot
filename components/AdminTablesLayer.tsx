@@ -24,7 +24,6 @@ type Props = {
   selectedTableId: string | null;
   onTableSelect: (id: string) => void;
   onTablesChange: (updater: (prev: TableModel[]) => TableModel[]) => void;
-  onTableDelete?: (id: string) => void;
 };
 
 function ResizeHandle({
@@ -59,7 +58,6 @@ function DraggableTable({
   ticketCategories,
   isSelected,
   onSelect,
-  onDelete,
   onTablesChange,
   containerRef,
 }: {
@@ -67,7 +65,6 @@ function DraggableTable({
   ticketCategories: { id: string; name?: string; price?: number }[];
   isSelected: boolean;
   onSelect: () => void;
-  onDelete?: () => void;
   onTablesChange: (updater: (prev: TableModel[]) => TableModel[]) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
@@ -215,15 +212,6 @@ function DraggableTable({
         <TableNumber number={table.number ?? 0} />
         <SeatInfo available={table.seatsCount} total={table.seatsCount} />
       </div>
-      {onDelete && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="absolute -top-2 -right-2 bg-[#141414] text-[#C6A75E] border border-[#2A2A2A] hover:border-[#C6A75E] rounded-full w-6 h-6 flex items-center justify-center text-xs z-30"
-          aria-label={`${UI_TEXT.common.delete} ${UI_TEXT.tables.table} ${table.number}`}
-        >
-          ×
-        </button>
-      )}
     </div>
   );
 }
@@ -234,7 +222,6 @@ export default function AdminTablesLayer({
   selectedTableId,
   onTableSelect,
   onTablesChange,
-  onTableDelete,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -294,7 +281,6 @@ export default function AdminTablesLayer({
             ticketCategories={ticketCategories}
             isSelected={selectedTableId === table.id}
             onSelect={() => onTableSelect(table.id)}
-            onDelete={onTableDelete ? () => onTableDelete(table.id) : undefined}
             onTablesChange={onTablesChange}
             containerRef={containerRef}
           />

@@ -27,7 +27,7 @@ import EventCard, { EventCardSkeleton } from './EventCard';
 import AdminCard from '../src/ui/AdminCard';
 import { mapTableFromDb } from '../src/utils/mapTableFromDb';
 import { tableToApiPayload } from '../src/utils/tableToApiPayload';
-import { deepEqual, deepClone } from '../src/utils/deepEqual';
+import { deepClone } from '../src/utils/deepEqual';
 import { DEFAULT_TICKET_CATEGORIES } from '../constants/ticketStyles';
 import AdminTablesLayer from './AdminTablesLayer';
 import TableEditPanel from './TableEditPanel';
@@ -68,6 +68,24 @@ function toDatetimeLocal(iso: string | null | undefined): string {
 /** Convert TableModel to API payload format. */
 function tableForBackend(t: TableModel, index: number): Record<string, unknown> {
   return tableToApiPayload(t, index);
+}
+
+/** Normalize tables for dirty comparison (stable order, only relevant fields). */
+function normalizeTables(tables: TableModel[]): Array<Record<string, unknown>> {
+  return tables
+    .map((t) => ({
+      id: t.id,
+      number: t.number,
+      centerXPercent: t.centerXPercent,
+      centerYPercent: t.centerYPercent,
+      widthPercent: t.widthPercent,
+      heightPercent: t.heightPercent,
+      rotationDeg: t.rotationDeg,
+      seatsCount: t.seatsCount,
+      categoryId: t.categoryId,
+      isActive: t.isActive,
+    }))
+    .sort((a, b) => String(a.id).localeCompare(String(b.id)));
 }
 
 /** Validate table numbers: positive integer, unique within event. Returns error message or null. */
@@ -285,7 +303,12 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const saveLayoutRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
 
-  const isDirty = useMemo(() => !deepEqual(tables, initialTablesRef.current), [tables]);
+  const isDirty = useMemo(
+    () =>
+      JSON.stringify(normalizeTables(tables)) !==
+      JSON.stringify(normalizeTables(initialTablesRef.current)),
+    [tables]
+  );
 
   useEffect(() => {
     hasInitializedRef.current = false;
@@ -296,7 +319,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     if (hasInitializedRef.current) return;
     const mapped = (selectedEvent.tables ?? []).map(mapTableFromDb);
     setTables(mapped);
-    initialTablesRef.current = structuredClone(mapped);
     hasInitializedRef.current = true;
   }, [selectedEvent?.id]);
 
@@ -469,7 +491,7 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   };
 
   /** After getAdminEvent: only set event. No duplicate tables or form arrays. */
-  const setEventFromFresh = (fresh: EventData | null) => {
+  const setEventFromFresh = (fresh: EventData | null, opts?: { skipInitialTablesRef?: boolean }) => {
     if (!fresh) {
       setSelectedEvent(null);
       setTables([]);
@@ -482,7 +504,9 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     const mapped = { ...fresh, ticketCategories, tables: mappedTables };
     setSelectedEvent(mapped);
     setTables(mappedTables);
-    initialTablesRef.current = deepClone(mappedTables);
+    if (!opts?.skipInitialTablesRef) {
+      initialTablesRef.current = deepClone(mappedTables);
+    }
     setSelectedTableId(null);
     setLayoutUrl(fresh.layoutImageUrl || '');
     setEventPosterUrl(fresh.imageUrl ?? '');
@@ -603,11 +627,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         ticketCategories: selectedEvent?.ticketCategories ?? [],
         tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
       };
-      console.log('TABLES SENT TO BACKEND:', payload.tables);
       const response = await StorageService.updateAdminEvent(selectedEvent.id, payload);
-      console.log('BACKEND RESPONSE TABLES:', (response as { data?: { tables?: unknown } })?.data?.tables ?? (response as { tables?: unknown })?.tables);
       const fresh = await StorageService.getAdminEvent(selectedEvent.id);
-      setEventFromFresh(fresh);
+      initialTablesRef.current = structuredClone(tables);
+      setEventFromFresh(fresh, { skipInitialTablesRef: true });
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
       if (!silent) {
@@ -1924,7 +1947,6 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                         selectedTableId={selectedTableId}
                         onTableSelect={(id) => setSelectedTableId(id)}
                         onTablesChange={(updater) => setTables(updater)}
-                        onTableDelete={deleteTable}
                       />
                     </div>
                   </div>
