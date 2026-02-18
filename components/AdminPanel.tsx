@@ -696,12 +696,10 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   }, [bookings, selectedEventId]);
 
   const addTable = (percentX = 50, percentY = 50) => {
-    console.log('ADD TABLE CALLED');
     if (!selectedEvent?.id) return;
     const defaultCategoryId = (selectedEvent?.ticketCategories ?? []).find((c) => c.isActive)?.id ?? '';
     const newTable = {
       id: crypto.randomUUID(),
-      number: tables.length + 1,
       centerXPercent: percentX,
       centerYPercent: percentY,
       centerX: percentX,
@@ -719,13 +717,25 @@ const AdminPanel: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       isActive: true,
       isAvailable: true,
     };
-    const newTables = [...tables, newTable];
-    const numErr = validateTableNumbers(newTables);
-    if (numErr) { setError(numErr); return; }
-    const rectErr = validateRectTables(newTables);
-    if (rectErr) { setError(rectErr); return; }
-    setTables(newTables);
-    setSelectedTableId(newTable.id);
+    setTables((prev) => {
+      const withNumber = { ...newTable, number: prev.length + 1 };
+      const next = [...prev, withNumber];
+      console.log('NEXT TABLES COUNT:', next.length);
+      const numErr = validateTableNumbers(next);
+      if (numErr) {
+        console.log('VALIDATION ERROR:', numErr);
+        setError(numErr);
+        return prev;
+      }
+      const rectErr = validateRectTables(next);
+      if (rectErr) {
+        console.log('VALIDATION ERROR:', rectErr);
+        setError(rectErr);
+        return prev;
+      }
+      setSelectedTableId(withNumber.id);
+      return next;
+    });
   };
 
   const deleteTable = (tableId: string) => {
