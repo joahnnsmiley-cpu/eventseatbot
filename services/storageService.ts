@@ -132,10 +132,14 @@ export const createSeatsBooking = async (payload: {
     throw error;
   }
   const text = await res.text();
+  if (!text || !text.trim()) return {};
   try {
-    return text ? JSON.parse(text) : {};
+    return JSON.parse(text);
   } catch {
-    throw new Error('Invalid response from server');
+    // Бронь создана (201), но тело ответа невалидно — возвращаем пустой объект,
+    // фронтенд построит booking из payload
+    console.warn('[createSeatsBooking] 201 but invalid JSON, using fallbacks');
+    return {};
   }
 };
 

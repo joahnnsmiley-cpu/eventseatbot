@@ -14,6 +14,8 @@ type ErrorBoundaryState = {
 
 type ErrorBoundaryProps = {
   children: React.ReactNode;
+  /** Кастомный fallback вместо стандартного «Что-то пошло не так» */
+  fallback?: React.ReactNode;
 };
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -25,6 +27,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
   render() {
     if (this.state.error) {
+      if (this.props.fallback) return this.props.fallback;
       return (
         <>
           <style>{GLASS_FALLBACK_STYLE}</style>

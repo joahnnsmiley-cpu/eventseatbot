@@ -6,6 +6,7 @@ import AuthService from './services/authService';
 import SeatMap from './components/SeatMap';
 import SeatPicker from './components/SeatPicker';
 import BookingSuccessView from './components/BookingSuccessView';
+import ErrorBoundary from './components/ErrorBoundary';
 import EventPage from './components/EventPage';
 import MyTicketsPage from './components/MyTicketsPage';
 import ProfileScreen from './screens/ProfileScreen';
@@ -815,16 +816,16 @@ function App() {
                     const raw = res as Record<string, unknown>;
                     const booking: Booking = {
                       id: String(raw.id ?? ''),
-                      eventId: String(raw.event_id ?? raw.eventId ?? ''),
+                      eventId: String(raw.event_id ?? raw.eventId ?? selectedEventId ?? ''),
                       userPhone: String(raw.user_phone ?? raw.userPhone ?? normalizedPhone),
                       seatIds: seats.map((idx) => `${selectedTableId}-${idx}`),
                       status: (raw.status as Booking['status']) ?? 'reserved',
-                      totalAmount: Number(raw.totalAmount) || total,
+                      totalAmount: Number(raw.total_amount ?? raw.totalAmount) || total,
                       createdAt: typeof raw.created_at === 'string' ? new Date(raw.created_at).getTime() : Number(raw.createdAt) || Date.now(),
                       expiresAt: (raw.expires_at ?? raw.expiresAt) as string | number | undefined,
                       tableId: String(raw.table_id ?? raw.tableId ?? selectedTableId),
                       tableBookings: [{ tableId: selectedTableId, seats: seats.length }],
-                      event: { id: selectedEvent.id, title: selectedEvent.title, date: selectedEvent.date },
+                      event: { id: selectedEvent.id, title: selectedEvent.title, date: selectedEvent.date ?? (selectedEvent as any).event_date },
                     };
                     setLastCreatedBooking(booking);
                     setLastCreatedEvent(selectedEvent);
@@ -899,27 +900,55 @@ function App() {
         </div>
       );
     }
+    const onBackToEvents = () => {
+      setView('events');
+      setSelectedEventId(null);
+      setSelectedEvent(null);
+      setLastCreatedBooking(null);
+      setLastCreatedEvent(null);
+    };
+    const onGoToTickets = () => {
+      setView('my-tickets');
+      setSelectedEventId(null);
+      setSelectedEvent(null);
+      setLastCreatedBooking(null);
+      setLastCreatedEvent(null);
+    };
     return wrapWithLayout(
       <div className="max-w-md mx-auto h-full">
-        <BookingSuccessView
-          event={lastCreatedEvent}
-          booking={lastCreatedBooking}
-          onStatusUpdate={(updated) => setLastCreatedBooking((prev) => (prev ? { ...prev, ...updated } : prev))}
-          onBackToEvents={() => {
-            setView('events');
-            setSelectedEventId(null);
-            setSelectedEvent(null);
-            setLastCreatedBooking(null);
-            setLastCreatedEvent(null);
-          }}
-          onGoToTickets={() => {
-            setView('my-tickets');
-            setSelectedEventId(null);
-            setSelectedEvent(null);
-            setLastCreatedBooking(null);
-            setLastCreatedEvent(null);
-          }}
-        />
+        <ErrorBoundary
+          fallback={
+            <div className="max-w-md mx-auto px-4 pt-6 pb-4 space-y-5 text-center">
+              <div className="mx-auto w-16 h-16 rounded-full border border-[#FFC107] flex items-center justify-center">
+                <div className="w-6 h-6 rounded-full bg-[#FFC107]" />
+              </div>
+              <h1 className="text-xl font-bold text-white">{UI_TEXT.booking.bookingCreated}</h1>
+              <p className="text-muted-light text-sm">
+                Бронь создана. Перейдите в «Мои билеты», чтобы увидеть детали и оплатить.
+              </p>
+              <div className="flex flex-col gap-3 mt-4">
+                <PrimaryButton onClick={onGoToTickets} className="w-full">
+                  Перейти к билетам
+                </PrimaryButton>
+                <button
+                  type="button"
+                  onClick={onBackToEvents}
+                  className="w-full px-4 py-2 text-sm font-medium text-muted-light border border-white/20 rounded-xl hover:bg-white/5 transition"
+                >
+                  {UI_TEXT.booking.backToEvents}
+                </button>
+              </div>
+            </div>
+          }
+        >
+          <BookingSuccessView
+            event={lastCreatedEvent}
+            booking={lastCreatedBooking}
+            onStatusUpdate={(updated) => setLastCreatedBooking((prev) => (prev ? { ...prev, ...updated } : prev))}
+            onBackToEvents={onBackToEvents}
+            onGoToTickets={onGoToTickets}
+          />
+        </ErrorBoundary>
       </div>
     );
   }

@@ -71,6 +71,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
   const [nowTick, setNowTick] = useState(Date.now());
+  const isAwaitingPayment = booking.status === 'reserved' || booking.status === 'pending';
   const tablesAndSeats = formatTablesAndSeats(booking, event);
 
   useEffect(() => {
@@ -78,7 +79,6 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
     const id = window.setInterval(() => setNowTick(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [isAwaitingPayment]);
-  const isAwaitingPayment = booking.status === 'reserved' || booking.status === 'pending';
   const isAwaitingConfirmation = booking.status === 'awaiting_confirmation';
   const showPaidButton = isAwaitingPayment && !isAwaitingConfirmation;
   const statusLabel = UI_TEXT.booking.statusLabels[booking.status] ?? booking.status ?? '—';

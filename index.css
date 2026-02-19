@@ -98,6 +98,14 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   color: #EAE6DD;
 }
 
+/* Premium event title — Apple-like typography */
+.font-premium-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Display', 'Segoe UI', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  -webkit-font-smoothing: antialiased;
+}
+
 .admin-root .admin-card {
   background: #1A1A1A;
   border: 1px solid #2A2A2A;

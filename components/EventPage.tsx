@@ -130,33 +130,33 @@ const EventPage: React.FC<EventPageProps> = ({
 
   const categories = event?.ticketCategories?.filter((c) => c.isActive) ?? [];
 
-  // ─── PREVIEW MODE (Yandex Afisha / Apple style) ───────────────────────────
+  // ─── PREVIEW MODE (Apple premium style) ───────────────────────────────────
   if (mode === 'preview') {
     return (
       <div className="max-w-md mx-auto h-full relative">
-        <div className="px-4 pt-4 pb-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="px-5 pt-3 pb-8">
+          <div className="flex items-center justify-between h-10 mb-2">
             <button
               onClick={onBack}
-              className="text-sm text-muted-light hover:text-white transition -ml-1"
+              className="text-[15px] text-white/60 hover:text-white transition"
             >
               {UI_TEXT.app.back}
             </button>
             <button
               onClick={onRefresh}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-[#C6A75E]/70 hover:text-[#C6A75E] hover:bg-white/5 transition"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/5 transition"
               aria-label={UI_TEXT.app.refresh}
             >
-              <RefreshCw size={16} strokeWidth={2} />
+              <RefreshCw size={18} strokeWidth={2} />
             </button>
           </div>
 
-          {eventLoading && <div className="text-xs text-muted">{UI_TEXT.app.loadingLayout}</div>}
-          {eventError && <div className="text-sm text-red-400">{eventError}</div>}
+          {eventLoading && <div className="text-xs text-muted py-4">{UI_TEXT.app.loadingLayout}</div>}
+          {eventError && <div className="text-sm text-red-400 py-4">{eventError}</div>}
 
           {!eventLoading && !eventError && (
             <>
-              <div className="relative rounded-2xl overflow-hidden aspect-[3/4] max-h-[420px] mb-6">
+              <div className="relative rounded-xl overflow-hidden aspect-[16/10] max-h-[200px] mb-5">
                 <div
                   className="absolute inset-0 bg-cover bg-center"
                   style={{ backgroundImage: imgUrl?.trim() ? `url(${imgUrl.trim()})` : undefined }}
@@ -164,49 +164,48 @@ const EventPage: React.FC<EventPageProps> = ({
                 <div
                   className="absolute inset-0"
                   style={{
-                    background: 'linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.5) 70%, rgba(0,0,0,0.9) 100%)',
+                    background: 'linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.6) 100%)',
                   }}
                 />
-                <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
-                  <h1 className="text-2xl font-bold text-white leading-tight">
-                    {event.title?.trim() || UI_TEXT.event.eventFallback}
-                  </h1>
-                </div>
               </div>
 
+              <h1 className="font-premium-title text-[22px] leading-tight text-white mb-4">
+                {event.title?.trim() || UI_TEXT.event.eventFallback}
+              </h1>
+
               {event.description != null && event.description.trim() !== '' && (
-                <p className="text-[15px] text-white/90 leading-relaxed mb-6">
+                <p className="text-[15px] text-white/80 leading-relaxed mb-5">
                   {event.description.trim()}
                 </p>
               )}
 
               <PrimaryButton
                 onClick={() => setMode('seatmap')}
-                className="w-full py-4 text-base font-semibold mb-6"
+                className="w-full py-3.5 text-[15px] font-medium mb-5"
               >
                 Купить билеты
               </PrimaryButton>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {showDateTime && (
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-                      <Calendar size={20} className="text-[#C6A75E]" strokeWidth={2} />
+                  <div className="flex items-center gap-3 py-1">
+                    <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+                      <Calendar size={18} className="text-[#C6A75E]" strokeWidth={2} />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-light">Дата и время</p>
-                      <p className="text-white font-medium">{dateShort}</p>
+                      <p className="text-[13px] text-white/50">Дата и время</p>
+                      <p className="text-[15px] text-white font-medium">{dateShort}</p>
                     </div>
                   </div>
                 )}
                 {showVenue && (
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-                      <MapPin size={20} className="text-[#C6A75E]" strokeWidth={2} />
+                  <div className="flex items-center gap-3 py-1">
+                    <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+                      <MapPin size={18} className="text-[#C6A75E]" strokeWidth={2} />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-light">Место проведения</p>
-                      <p className="text-white font-medium">{venue?.trim()}</p>
+                      <p className="text-[13px] text-white/50">Место проведения</p>
+                      <p className="text-[15px] text-white font-medium">{venue?.trim()}</p>
                     </div>
                   </div>
                 )}
