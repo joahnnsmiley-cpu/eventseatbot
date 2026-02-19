@@ -165,12 +165,41 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   0%, 100% { opacity: 0.15; }
   50% { opacity: 0.25; }
 }
+@keyframes event-cta-sweep {
+  0% { transform: translateX(-100%) rotate(25deg); }
+  100% { transform: translateX(100%) rotate(25deg); }
+}
 .event-details-cta {
+  position: relative;
+  overflow: hidden;
   background: linear-gradient(135deg, #D4AF37 0%, #F5D76E 50%, #E8C547 100%);
   box-shadow: 0 0 24px rgba(212, 175, 55, 0.35), 0 4px 12px rgba(0, 0, 0, 0.2);
 }
+.event-details-cta::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(255, 255, 255, 0.12) 48%,
+    transparent 65%,
+    transparent 100%
+  );
+  filter: blur(8px);
+  transform: translateX(-100%);
+  animation: event-cta-sweep 3s infinite linear;
+  pointer-events: none;
+}
 .event-details-cta:hover {
   box-shadow: 0 0 32px rgba(212, 175, 55, 0.45), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+.event-details-cta:hover::before {
+  animation-duration: 2.5s;
 }
 
 .admin-root .admin-card {

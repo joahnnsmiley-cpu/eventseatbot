@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, RefreshCw, Calendar, MapPin } from 'lucide-react';
 import type { EventData } from '../types';
@@ -97,6 +97,29 @@ const EventPage: React.FC<EventPageProps> = ({
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const heroImgRef = useRef<HTMLImageElement>(null);
+
+  // Subtle hero parallax: translate img only, scroll-based, disabled on small screens
+  useEffect(() => {
+    const scrollEl = document.querySelector('[data-app-scroll]');
+    if (!scrollEl || typeof window === 'undefined') return;
+    let rafId: number;
+    const onScroll = () => {
+      rafId = requestAnimationFrame(() => {
+        if (window.innerWidth < 768 || !heroImgRef.current) return;
+        const scrollY = (scrollEl as HTMLElement).scrollTop;
+        const move = Math.min(scrollY * 0.15, 40);
+        heroImgRef.current.style.transform = `translateY(${move}px)`;
+      });
+    };
+    scrollEl.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => {
+      scrollEl.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(rafId);
+      if (heroImgRef.current) heroImgRef.current.style.transform = '';
+    };
+  }, []);
 
   const handleBooking = useCallback(() => {
     const tableId = Object.keys(selectedSeatsByTable)[0];
@@ -184,9 +207,10 @@ const EventPage: React.FC<EventPageProps> = ({
                 <div className="relative aspect-[4/5] max-h-[55vh] w-full overflow-hidden shadow-2xl shadow-black/70">
                   {imgUrl?.trim() ? (
                     <img
+                      ref={heroImgRef}
                       src={imgUrl.trim()}
                       alt=""
-                      className="w-full h-full object-cover object-top block"
+                      className="w-full h-full object-cover object-top block will-change-transform"
                     />
                   ) : (
                     <div className="w-full h-full bg-white/5 block" />
@@ -209,9 +233,13 @@ const EventPage: React.FC<EventPageProps> = ({
               {/* Main content — starts after hero, has padding */}
               <div className="px-4 pt-6 -mt-8 relative z-10 space-y-3">
                 <motion.h1
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{
+                    duration: 0.7,
+                    delay: 0.15,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
                   className="font-luxury-event-title text-2xl sm:text-3xl font-bold uppercase leading-tight text-center tracking-tight"
                 >
                   {event.title?.trim() || UI_TEXT.event.eventFallback}

@@ -19,6 +19,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
     return () => el.removeEventListener('scroll', check);
   }, []);
 
+  const grainDataUrl =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E";
+
   return (
     <div
       className="flex flex-col w-full max-w-[420px] mx-auto relative bg-black text-white overflow-x-hidden"
@@ -29,6 +32,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
         marginRight: 'auto',
       }}
     >
+      {/* Subtle grain overlay — luxury film look */}
+      <div
+        aria-hidden
+        className="fixed inset-0 pointer-events-none z-0"
+        style={{
+          backgroundImage: `url(${grainDataUrl})`,
+          opacity: 0.04,
+          mixBlendMode: 'overlay',
+        }}
+      />
       {showScrollShadow && (
         <div
           className="absolute top-0 left-0 right-0 h-8 z-10 pointer-events-none"
@@ -39,6 +52,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       )}
       <div
         ref={scrollRef}
+        data-app-scroll
         className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden w-full scroll-smooth overscroll-contain"
         style={{
           paddingLeft: '1rem',
