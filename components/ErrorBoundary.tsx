@@ -35,16 +35,16 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
               alignItems: 'center',
               justifyContent: 'center',
               padding: spacing[5],
-              background: 'linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%)',
+              background: '#0F0F0F',
             }}
           >
             <div
               className="error-boundary-glass"
               style={{
-                background: glass.background,
-                backdropFilter: glass.backdropFilter,
-                WebkitBackdropFilter: glass.WebkitBackdropFilter,
-                border: glass.border,
+                background: 'rgba(26,26,26,0.95)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.08)',
                 boxShadow: shadow.elevated,
                 borderRadius: radius.xl,
                 padding: spacing[5],
@@ -56,7 +56,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                 style={{
                   fontSize: typography.title,
                   fontWeight: 600,
-                  color: '#111827',
+                  color: '#F5F2EB',
                   margin: `0 0 ${spacing[2]}px`,
                 }}
               >
@@ -65,7 +65,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
               <p
                 style={{
                   fontSize: typography.body,
-                  color: '#6b7280',
+                  color: '#9B948A',
                   margin: `0 0 ${spacing[5]}px`,
                   lineHeight: 1.5,
                 }}
@@ -76,11 +76,11 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                 type="button"
                 onClick={() => window.location.reload()}
                 style={{
-                  padding: `${spacing[2]}px ${spacing[5]}px`,
-                  fontSize: 15,
+                  padding: `${spacing[3]}px ${spacing[6]}px`,
+                  fontSize: 14,
                   fontWeight: 500,
-                  color: '#fff',
-                  background: '#111827',
+                  color: '#0F0F0F',
+                  background: 'linear-gradient(135deg, #C6A75E, #E8D48A)',
                   border: 'none',
                   borderRadius: radius.md,
                   cursor: 'pointer',

@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, RefreshCw } from 'lucide-react';
 import type { EventData } from '../types';
 import { getPriceForTable } from '../src/utils/getTablePrice';
 import { getCategoryColorFromCategory } from '../src/config/categoryColors';
@@ -89,7 +89,6 @@ const EventPage: React.FC<EventPageProps> = ({
   }, [selectedSeatsByTable, event]);
 
   const [legendOpen, setLegendOpen] = useState(false);
-  const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [contactProblemText, setContactProblemText] = useState('');
   const [contactSubmitting, setContactSubmitting] = useState(false);
@@ -134,12 +133,16 @@ const EventPage: React.FC<EventPageProps> = ({
         <div className="flex items-center justify-between">
           <button
             onClick={onBack}
-            className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light"
+            className="text-xs px-2 py-1.5 rounded-lg text-muted-light hover:text-white transition"
           >
             {UI_TEXT.app.back}
           </button>
-          <button onClick={onRefresh} className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light">
-            {UI_TEXT.app.refresh}
+          <button
+            onClick={onRefresh}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[#C6A75E]/70 hover:text-[#C6A75E] hover:bg-white/5 transition"
+            aria-label={UI_TEXT.app.refresh}
+          >
+            <RefreshCw size={16} strokeWidth={2} />
           </button>
         </div>
 
@@ -164,54 +167,41 @@ const EventPage: React.FC<EventPageProps> = ({
           </div>
         </div>
 
-        {event.description != null && event.description.trim() !== '' && (
+        {(showDateTime || showVenue || (event.description != null && event.description.trim() !== '')) && (
           <Card className="p-3">
-            <button
-              type="button"
-              onClick={() => setDescriptionOpen((o) => !o)}
-              className="w-full flex items-center justify-between text-left"
-            >
-              <p className="text-sm font-medium text-white">{UI_TEXT.event.description}</p>
-              <motion.span
-                animate={{ rotate: descriptionOpen ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-                className="text-muted shrink-0"
-              >
-                <ChevronDown size={18} strokeWidth={2} />
-              </motion.span>
-            </button>
-            <AnimatePresence>
-              {descriptionOpen && (
-                <motion.p
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="text-sm text-muted-light whitespace-pre-wrap leading-relaxed overflow-hidden mt-2"
-                >
-                  {event.description.trim()}
-                </motion.p>
-              )}
-            </AnimatePresence>
-          </Card>
-        )}
-
-        {(showDateTime || showVenue) && (
-          <Card className="p-3">
-            <div className="space-y-1 text-sm">
+            <div className="space-y-2 text-sm">
               {showDateTime && (
                 <p className="text-[#FFC107] font-semibold">
-                  {displayDateTime}
+                  {displayDateTime.replace(' · ', ' в ').replace(/ \d{4} г\./, '')}
                 </p>
               )}
               {showVenue && (
-                <p className="text-muted-light">
+                <p className="text-white font-medium">
                   {venue?.trim()}
+                </p>
+              )}
+              {event.description != null && event.description.trim() !== '' && (
+                <p className="text-muted-light whitespace-pre-wrap leading-relaxed pt-1 border-t border-white/10 mt-2">
+                  {event.description.trim()}
                 </p>
               )}
             </div>
           </Card>
         )}
+
+        <div className="p-3 rounded-xl border border-white/10 bg-white/5 space-y-3">
+          <div>
+            <p className="text-base font-medium text-white">{UI_TEXT.event.contactOrganizer}</p>
+            <p className="text-sm text-muted-light mt-1">{UI_TEXT.event.contactOrganizerPrompt}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setContactModalOpen(true)}
+            className="w-full border border-[#C6A75E]/40 text-[#C6A75E] bg-transparent hover:bg-[#C6A75E]/10 rounded-xl py-3 text-sm font-medium inline-flex items-center justify-center transition"
+          >
+            {UI_TEXT.event.contactOrganizer}
+          </button>
+        </div>
 
         <div className="relative w-full -mx-4">
           <SectionTitle title="Выбор столов" className="px-4" />
@@ -283,20 +273,6 @@ const EventPage: React.FC<EventPageProps> = ({
             Перейти к бронированию
           </PrimaryButton>
         )}
-
-        <div className="p-3 rounded-xl border border-neutral-800 bg-neutral-900/60 space-y-3">
-          <div>
-            <p className="text-base font-medium text-white">{UI_TEXT.event.contactOrganizer}</p>
-            <p className="text-sm text-muted-light mt-1">{UI_TEXT.event.contactOrganizerPrompt}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setContactModalOpen(true)}
-            className="w-full border border-neutral-700 text-neutral-300 bg-transparent hover:bg-neutral-800 rounded-xl py-3 text-sm font-medium inline-flex items-center justify-center transition"
-          >
-            {UI_TEXT.event.contactOrganizer}
-          </button>
-        </div>
 
         <AnimatePresence>
           {contactModalOpen && (

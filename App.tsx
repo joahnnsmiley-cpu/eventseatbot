@@ -807,6 +807,10 @@ function App() {
                       setSelectedSeatsByTable(prevSeats);
                       setSelectedTableId(prevTableId);
                       setSelectedEvent(prevEvent);
+                    } else if (e instanceof TypeError) {
+                      const msg = 'Проверьте интернет. Бронирование могло создаться — зайдите в «Мои билеты».';
+                      setBookingError(msg);
+                      showToast(msg, 'error');
                     } else {
                       const msg = e instanceof Error ? e.message : UI_TEXT.common.errors.default;
                       setBookingError(msg);

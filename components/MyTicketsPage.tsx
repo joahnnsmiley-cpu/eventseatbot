@@ -7,6 +7,7 @@ import Card from '../src/ui/Card';
 import SectionTitle from '../src/ui/SectionTitle';
 import PrimaryButton from '../src/ui/PrimaryButton';
 import { getEventDisplayParts, getEventDisplayPartsFromIso } from '../src/utils/formatDate';
+import { RefreshCw } from 'lucide-react';
 import { UI_TEXT } from '../constants/uiText';
 import { useToast } from '../src/ui/ToastContext';
 
@@ -273,17 +274,17 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   return (
     <div className="max-w-[420px] mx-auto h-full relative overflow-x-hidden">
       <div className="px-4 pt-4 pb-2 space-y-4">
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-between">
+          <SectionTitle title="Мои билеты" />
           <button
             onClick={() => load()}
             disabled={loading}
-            className="text-xs px-3 py-2 rounded-lg border border-white/20 text-muted-light hover:bg-white/5 transition flex items-center gap-2"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[#C6A75E]/70 hover:text-[#C6A75E] hover:bg-white/5 transition shrink-0"
+            aria-label={UI_TEXT.common.refresh}
           >
-            {UI_TEXT.common.refresh}
+            <RefreshCw size={18} strokeWidth={2} />
           </button>
         </div>
-
-        <SectionTitle title="Мои билеты" />
 
         {loading && <div className="text-xs text-muted">Загрузка…</div>}
         {error && <div className="text-sm text-red-400">{error}</div>}

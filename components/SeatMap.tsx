@@ -441,7 +441,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
                     </button>
                     {layoutImageUrl && (
                       <div className="overflow-hidden rounded-xl border border-white/10 bg-black/80 backdrop-blur-md">
-                        <MiniMap width={80} height={54} borderColor="rgba(198,167,94,0.5)">
+                        <MiniMap width={48} height={32} borderColor="rgba(198,167,94,0.5)">
                           <img src={layoutImageUrl} alt="" className="w-full h-full object-contain" />
                         </MiniMap>
                       </div>

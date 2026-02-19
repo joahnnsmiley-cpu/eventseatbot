@@ -567,7 +567,7 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     const normalizedUserComment = typeof userComment === 'string' ? userComment.trim() || null : null;
 
-    const { data, error: insertErr } = await supabase.from('bookings').insert({
+    const { error: insertErr } = await supabase.from('bookings').insert({
       id,
       event_id: eventId,
       table_id: tableId,
@@ -582,7 +582,11 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
       expires_at: expiresAt,
     });
 
-    console.log('[BOOKING INSERT RESULT]', { data, error: insertErr });
+    if (insertErr) {
+      console.error('[BOOKING INSERT ERROR]', insertErr);
+    } else {
+      console.log('[BOOKING INSERT OK]', id);
+    }
 
     if (insertErr) {
       console.error('[BOOKING ERROR DETAILS]', insertErr);

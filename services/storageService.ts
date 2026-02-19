@@ -127,11 +127,16 @@ export const createSeatsBooking = async (payload: {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    const error: Error & { status?: number } = new Error(err.error || 'Failed to create booking');
+    const error: Error & { status?: number } = new Error((err as { error?: string }).error || 'Failed to create booking');
     error.status = res.status;
     throw error;
   }
-  return res.json();
+  const text = await res.text();
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error('Invalid response from server');
+  }
 };
 
 /** PATCH /public/bookings/:id/status — set booking status to awaiting_confirmation (e.g. after "Я оплатил"). */
