@@ -136,7 +136,7 @@ const EventPage: React.FC<EventPageProps> = ({
   // ─── PREVIEW MODE (Premium black luxury) ──────────────────────────────────
   if (mode === 'preview') {
     return (
-      <div className="event-details-premium min-h-full relative overflow-hidden">
+      <div className="event-details-premium min-h-full relative overflow-hidden -mx-4 w-[calc(100%+2rem)]">
         {/* Animated purple gradient background */}
         <div
           className="absolute inset-0 pointer-events-none"
@@ -147,31 +147,32 @@ const EventPage: React.FC<EventPageProps> = ({
         />
         <div className="absolute inset-0 bg-[#0a0a0a]" style={{ zIndex: -1 }} />
 
-        <div className="relative pt-16">
-          <div className="flex items-center justify-between h-12 px-4 pt-2 absolute top-0 left-0 right-0 z-20">
-            <button
-              onClick={onBack}
-              className="text-[15px] text-white/60 hover:text-white transition"
-            >
-              {UI_TEXT.app.back}
-            </button>
-            <button
-              onClick={onRefresh}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/5 transition"
-              aria-label={UI_TEXT.app.refresh}
-            >
-              <RefreshCw size={18} strokeWidth={2} />
-            </button>
-          </div>
+        {/* Top nav — safe area so hero doesn't overlap Telegram header */}
+        <div className="flex items-center justify-between h-12 px-4 pt-2 absolute top-0 left-0 right-0 z-20">
+          <button
+            onClick={onBack}
+            className="text-[15px] text-white/60 hover:text-white transition"
+          >
+            {UI_TEXT.app.back}
+          </button>
+          <button
+            onClick={onRefresh}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/5 transition"
+            aria-label={UI_TEXT.app.refresh}
+          >
+            <RefreshCw size={18} strokeWidth={2} />
+          </button>
+        </div>
 
+        <div className="relative pt-16">
           {eventLoading && <div className="text-xs text-muted py-4 px-4">{UI_TEXT.app.loadingLayout}</div>}
           {eventError && <div className="text-sm text-red-400 py-4 px-4">{eventError}</div>}
 
           {!eventLoading && !eventError && (
             <>
-              {/* Hero poster — full width, safe top spacing, cinematic overlays */}
-              <div className="relative -mx-4 w-[calc(100%+2rem)]">
-                {/* Purple radial glow behind hero — 20% opacity, large blur, 10s fade */}
+              {/* Hero — outside content container, true edge-to-edge */}
+              <div className="w-full relative">
+                {/* Purple radial glow behind hero */}
                 <div
                   className="absolute inset-0 pointer-events-none"
                   style={{
@@ -180,7 +181,7 @@ const EventPage: React.FC<EventPageProps> = ({
                     animation: 'event-hero-glow 10s ease-in-out infinite',
                   }}
                 />
-                <div className="relative aspect-[4/5] max-h-[55vh] overflow-hidden shadow-2xl shadow-black/70">
+                <div className="relative aspect-[4/5] max-h-[55vh] w-full overflow-hidden shadow-2xl shadow-black/70">
                   {imgUrl?.trim() ? (
                     <img
                       src={imgUrl.trim()}
@@ -188,16 +189,14 @@ const EventPage: React.FC<EventPageProps> = ({
                       className="w-full h-full object-cover object-top block"
                     />
                   ) : (
-                    <div className="w-full h-full bg-white/5" />
+                    <div className="w-full h-full bg-white/5 block" />
                   )}
-                  {/* Top gradient — clear space under Telegram header */}
                   <div
                     className="absolute top-0 left-0 right-0 h-[120px] pointer-events-none"
                     style={{
                       background: 'linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0))',
                     }}
                   />
-                  {/* Bottom gradient */}
                   <div
                     className="absolute bottom-0 left-0 right-0 h-[120px] pointer-events-none"
                     style={{
@@ -207,7 +206,8 @@ const EventPage: React.FC<EventPageProps> = ({
                 </div>
               </div>
 
-              <div className="px-4 -mt-8 relative z-10 space-y-3">
+              {/* Main content — starts after hero, has padding */}
+              <div className="px-4 pt-6 -mt-8 relative z-10 space-y-3">
                 <motion.h1
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
