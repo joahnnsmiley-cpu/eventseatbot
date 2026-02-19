@@ -96,6 +96,7 @@ const EventPage: React.FC<EventPageProps> = ({
   const [contactProblemText, setContactProblemText] = useState('');
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   const handleBooking = useCallback(() => {
     const tableId = Object.keys(selectedSeatsByTable)[0];
@@ -168,87 +169,96 @@ const EventPage: React.FC<EventPageProps> = ({
 
           {!eventLoading && !eventError && (
             <>
-              {/* Hero — full width, edge-to-edge, no radius */}
+              {/* Постер — аккуратный, фиксированная высота, не тянет экран */}
               <div className="relative -mx-4 w-[calc(100%+2rem)]">
-                {/* Ambient light behind hero */}
                 <div
-                  className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-[120%] h-32 pointer-events-none"
+                  className="absolute -bottom-12 left-1/2 -translate-x-1/2 w-[100%] h-16 pointer-events-none"
                   style={{
-                    background: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(88,28,135,0.25) 0%, transparent 70%)',
-                    filter: 'blur(24px)',
+                    background: 'radial-gradient(ellipse 70% 100% at 50% 0%, rgba(88,28,135,0.2) 0%, transparent 70%)',
+                    filter: 'blur(16px)',
                   }}
                 />
-                <div className="relative aspect-[4/5] max-h-[55vh] overflow-hidden">
+                <div className="relative h-[200px] max-h-[32vh] overflow-hidden rounded-xl mx-2">
                   {imgUrl?.trim() ? (
                     <img
                       src={imgUrl.trim()}
                       alt=""
-                      className="w-full h-full object-cover object-top block"
+                      className="w-full h-full object-cover object-center block"
                     />
                   ) : (
                     <div className="w-full h-full bg-white/5" />
                   )}
-                  {/* Bottom dark gradient overlay */}
                   <div
-                    className="absolute inset-0 pointer-events-none"
+                    className="absolute inset-0 pointer-events-none rounded-xl"
                     style={{
-                      background: 'linear-gradient(180deg, transparent 0%, transparent 40%, rgba(0,0,0,0.5) 70%, rgba(0,0,0,0.7) 100%)',
+                      background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.3) 100%)',
                     }}
                   />
                 </div>
               </div>
 
-              <div className="px-4 -mt-8 relative z-10 space-y-4">
+              <div className="px-4 -mt-2 relative z-10 space-y-3">
                 <motion.h1
-                  initial={{ opacity: 0, y: 16 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                  className="font-luxury-event-title text-5xl sm:text-6xl font-bold uppercase leading-tight text-center tracking-tight"
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  className="font-luxury-event-title text-2xl sm:text-3xl font-bold uppercase leading-tight text-center tracking-tight"
                 >
                   {event.title?.trim() || UI_TEXT.event.eventFallback}
                 </motion.h1>
 
-                {showDateTime && (
-                  <p className="text-center text-white/60 text-sm sm:text-base">
-                    {dateShort}
-                  </p>
-                )}
+                {/* Дата, время и локация — всегда на экране без скролла */}
+                <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1 text-sm text-white/70">
+                  {showDateTime && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Calendar size={14} strokeWidth={2} />
+                      {dateShort}
+                    </span>
+                  )}
+                  {showVenue && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <MapPin size={14} strokeWidth={2} />
+                      {venue?.trim()}
+                    </span>
+                  )}
+                </div>
 
-                {event.description != null && event.description.trim() !== '' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-                    className="backdrop-blur-md bg-white/5 border border-white/10 rounded-xl px-4 py-3"
-                  >
-                    <p className="text-[14px] text-white/85 leading-snug line-clamp-2">
-                      {event.description.trim()}
-                    </p>
-                  </motion.div>
-                )}
+                {event.description != null && event.description.trim() !== '' && (() => {
+                  const desc = event.description.trim();
+                  const isLong = desc.length > 180 || desc.split(/\n/).length > 3;
+                  const showExpand = isLong && !descriptionExpanded;
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+                      className="backdrop-blur-md bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 min-h-0"
+                    >
+                      <p className={`text-[13px] text-white/85 leading-relaxed whitespace-pre-wrap break-words ${showExpand ? 'line-clamp-3' : ''}`}>
+                        {desc}
+                      </p>
+                      {isLong && (
+                        <button
+                          type="button"
+                          onClick={() => setDescriptionExpanded(true)}
+                          className={`text-xs font-medium text-yellow-500/90 hover:text-yellow-400 mt-1.5 ${showExpand ? '' : 'hidden'}`}
+                        >
+                          Читать далее
+                        </button>
+                      )}
+                    </motion.div>
+                  );
+                })()}
 
                 <button
                   type="button"
                   onClick={() => setMode('seatmap')}
-                  className="event-details-cta w-full py-4 text-base font-semibold text-black rounded-xl transition-all hover:opacity-95 active:scale-[0.98]"
+                  className="event-details-cta w-full py-3.5 text-base font-semibold text-black rounded-xl transition-all hover:opacity-95 active:scale-[0.98]"
                 >
                   Купить билеты
                 </button>
 
-                <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 py-4 pb-24 text-sm">
-                  {showDateTime && (
-                    <div className="flex items-center gap-2 text-white/70">
-                      <Calendar size={16} strokeWidth={2} />
-                      <span>{dateShort}</span>
-                    </div>
-                  )}
-                  {showVenue && (
-                    <div className="flex items-center gap-2 text-white/70">
-                      <MapPin size={16} strokeWidth={2} />
-                      <span>{venue?.trim()}</span>
-                    </div>
-                  )}
-                </div>
+                <div className="h-20 shrink-0" aria-hidden />
               </div>
             </>
           )}
