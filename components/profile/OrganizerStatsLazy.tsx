@@ -46,29 +46,16 @@ function formatMoney(n: number): string {
 }
 
 function OrganizerStatsLazyInner({ stats, tables, categoryStats = [] }: OrganizerStatsLazyProps) {
-  const [hasBeenVisible, setHasBeenVisible] = useState(false);
   const [minDelayPassed, setMinDelayPassed] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(
     categoryStats[0]?.id ?? null
   );
   const ref = useRef<HTMLDivElement>(null);
 
+  // Show stats after short delay so they're always visible without requiring scroll
   useEffect(() => {
-    const t = setTimeout(() => setMinDelayPassed(true), 400);
+    const t = setTimeout(() => setMinDelayPassed(true), 350);
     return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setHasBeenVisible(true);
-      },
-      { rootMargin: '80px', threshold: 0 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -77,7 +64,7 @@ function OrganizerStatsLazyInner({ stats, tables, categoryStats = [] }: Organize
     }
   }, [categoryStats, activeCategoryId]);
 
-  const showContent = hasBeenVisible && minDelayPassed;
+  const showContent = minDelayPassed;
 
   if (!showContent) {
     return (
