@@ -40,6 +40,11 @@ body.tg-dark {
 html {
   scroll-behavior: smooth;
 }
+html, body, #root {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
 body {
   background: #F6F3EE;
   color: #1C1C1C;
@@ -104,6 +109,30 @@ body.tg-dark .shadow-lg { box-shadow: none !important; }
   font-weight: 600;
   letter-spacing: -0.025em;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Profile organizer — premium typography */
+.profile-organizer-premium {
+  font-family: 'Cormorant Garamond', 'Georgia', serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.profile-organizer-premium .font-sans-fallback {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Luxury event title — premium, rich, high-end */
+.font-luxury-event-title {
+  font-family: 'Cormorant Garamond', 'Georgia', serif;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: linear-gradient(135deg, #F5E6C8 0%, #E8D48A 30%, #C6A75E 60%, #A68B47 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)) drop-shadow(0 0 24px rgba(198,167,94,0.15));
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 .admin-root .admin-card {

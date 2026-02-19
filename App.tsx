@@ -100,6 +100,8 @@ function App() {
   const [lastCreatedEvent, setLastCreatedEvent] = useState<EventData | null>(null);
   /** Occupied seat indices per table — from GET /public/events/:eventId/occupied-seats */
   const [occupiedMap, setOccupiedMap] = useState<Record<string, Set<number>>>({});
+  /** При возврате с экрана выбора мест — показывать карту столов, а не карточку события */
+  const [layoutInitialMode, setLayoutInitialMode] = useState<'preview' | 'seatmap'>('preview');
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [premiumMessage, setPremiumMessage] = useState<string | null>(null);
 
@@ -495,8 +497,10 @@ function App() {
       <EventPage
         event={selectedEvent}
         selectedSeatsByTable={selectedSeatsByTable}
+        initialMode={layoutInitialMode}
         onClearSelection={() => setSelectedSeatsByTable({})}
         onBack={() => {
+          setLayoutInitialMode('preview');
           setView('events');
           setSelectedTableId(null);
           setSelectedEventId(null);
@@ -532,6 +536,7 @@ function App() {
           <div className="flex items-center justify-between">
             <button
               onClick={() => {
+                setLayoutInitialMode('seatmap');
                 setView('layout');
                 setSelectedTableId(null);
                 if (selectedEventId) loadEvent(selectedEventId, true);

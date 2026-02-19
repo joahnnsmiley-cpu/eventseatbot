@@ -21,8 +21,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div
-      className="flex flex-col max-w-[420px] mx-auto relative bg-black text-white overflow-hidden"
-      style={{ height: '100dvh', minHeight: '100vh' }}
+      className="flex flex-col w-full max-w-[420px] mx-auto relative bg-black text-white overflow-x-hidden"
+      style={{
+        height: '100dvh',
+        minHeight: '100vh',
+        marginLeft: 'auto',
+        marginRight: 'auto',
+      }}
     >
       {showScrollShadow && (
         <div
@@ -34,8 +39,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
       )}
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 w-full scroll-smooth overscroll-contain"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden w-full scroll-smooth overscroll-contain"
         style={{
+          paddingLeft: '1rem',
+          paddingRight: '1rem',
           paddingBottom: `calc(${BOTTOM_NAV_HEIGHT}px + env(safe-area-inset-bottom))`,
         }}
       >

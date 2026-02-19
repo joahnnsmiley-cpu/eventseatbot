@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
 import type { EventData, Booking } from '../types';
 import { getPriceForTable } from '../src/utils/getTablePrice';
 import { getEventDisplayParts, getEventDisplayPartsFromIso } from '../src/utils/formatDate';
@@ -71,8 +73,26 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
   const [nowTick, setNowTick] = useState(Date.now());
+  const [showScrollHint, setShowScrollHint] = useState(true);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const isAwaitingPayment = booking.status === 'reserved' || booking.status === 'pending';
   const tablesAndSeats = formatTablesAndSeats(booking, event);
+
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    let scrollParent: Element | null = el.parentElement;
+    while (scrollParent) {
+      const style = getComputedStyle(scrollParent);
+      if (/(auto|scroll|overlay)/.test(style.overflowY)) break;
+      scrollParent = scrollParent.parentElement;
+    }
+    if (!scrollParent) return;
+    const check = () => setShowScrollHint(scrollParent!.scrollTop < 80);
+    check();
+    scrollParent.addEventListener('scroll', check, { passive: true });
+    return () => scrollParent!.removeEventListener('scroll', check);
+  }, []);
 
   useEffect(() => {
     if (!isAwaitingPayment) return;
@@ -100,7 +120,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
   const venue = (event as { venue?: string }).venue ?? 'Площадка';
 
   return (
-    <div className="max-w-md mx-auto px-4 pt-6 pb-4 space-y-5 text-center">
+    <div ref={scrollContainerRef} className="max-w-md mx-auto px-4 pt-6 pb-24 space-y-5 text-center">
       <div className="mx-auto w-16 h-16 rounded-full border border-[#FFC107] flex items-center justify-center">
         <div className="w-6 h-6 rounded-full bg-[#FFC107]" />
       </div>
@@ -112,6 +132,28 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
       <p className="text-muted-light text-xs">
         {UI_TEXT.booking.bookingValidMinutes}
       </p>
+
+      <AnimatePresence>
+        {showScrollHint && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="flex flex-col items-center gap-1 py-2"
+          >
+          <span className="text-[10px] text-muted-light uppercase tracking-wider">Листайте вниз</span>
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+            className="flex flex-col items-center"
+          >
+            <ChevronDown size={20} className="text-[#FFC107]/80" strokeWidth={2.5} />
+            <ChevronDown size={16} className="text-[#FFC107]/60 -mt-2" strokeWidth={2.5} />
+            <ChevronDown size={12} className="text-[#FFC107]/40 -mt-2" strokeWidth={2.5} />
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="w-12 h-[2px] bg-[#FFC107] mx-auto" />
 

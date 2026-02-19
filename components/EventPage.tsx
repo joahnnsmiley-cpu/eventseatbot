@@ -18,6 +18,7 @@ type TgUser = { id?: number; first_name?: string; last_name?: string; username?:
 export interface EventPageProps {
   event: EventData;
   selectedSeatsByTable: Record<string, number[]>;
+  initialMode?: 'preview' | 'seatmap';
   onBack: () => void;
   onRefresh: () => void;
   onTableSelect: (tableId: string) => void;
@@ -31,6 +32,7 @@ export interface EventPageProps {
 const EventPage: React.FC<EventPageProps> = ({
   event,
   selectedSeatsByTable,
+  initialMode = 'preview',
   onBack,
   onRefresh,
   onTableSelect,
@@ -41,7 +43,7 @@ const EventPage: React.FC<EventPageProps> = ({
   bookingId,
 }) => {
   const { showToast } = useToast();
-  const [mode, setMode] = useState<'preview' | 'seatmap'>('preview');
+  const [mode, setMode] = useState<'preview' | 'seatmap'>(initialMode);
   const imgUrl = event.imageUrl ?? (event as { image_url?: string }).image_url ?? '';
   const eventDate = event.event_date ?? null;
   const eventTime = event.event_time ?? null;
@@ -156,20 +158,22 @@ const EventPage: React.FC<EventPageProps> = ({
 
           {!eventLoading && !eventError && (
             <>
-              <div className="relative rounded-xl overflow-hidden aspect-[16/10] max-h-[200px] mb-5">
-                <div
-                  className="absolute inset-0 bg-cover bg-center"
-                  style={{ backgroundImage: imgUrl?.trim() ? `url(${imgUrl.trim()})` : undefined }}
-                />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: 'linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.6) 100%)',
-                  }}
-                />
+              <div className="-mx-5 mb-5 overflow-hidden">
+                <div className="relative left-1/2 -translate-x-1/2 w-screen max-w-none aspect-[16/10] max-h-[240px] bg-black/20">
+                  <div
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: imgUrl?.trim() ? `url(${imgUrl.trim()})` : undefined }}
+                  />
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background: 'linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.6) 100%)',
+                    }}
+                  />
+                </div>
               </div>
 
-              <h1 className="font-premium-title text-[22px] leading-tight text-white mb-4">
+              <h1 className="font-luxury-event-title text-[26px] leading-tight mb-4">
                 {event.title?.trim() || UI_TEXT.event.eventFallback}
               </h1>
 

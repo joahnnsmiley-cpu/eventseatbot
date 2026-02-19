@@ -102,20 +102,7 @@ function ProfileOrganizerScreenInner({
   isRefreshing = false,
 }: ProfileOrganizerScreenProps) {
   return (
-    <ProfileLayout>
-      {onOpenAdmin && (
-        <div className="flex justify-end mb-4">
-          <button
-            type="button"
-            onClick={onOpenAdmin}
-            className="w-12 h-12 rounded-full flex items-center justify-center bg-white/5 border border-white/10 hover:bg-[#C6A75E]/20 hover:border-[#C6A75E]/40 transition-all"
-            title="Перейти в админ-панель"
-            aria-label="Перейти в админ-панель"
-          >
-            <Settings size={24} className="text-[#C6A75E]" strokeWidth={2} />
-          </button>
-        </div>
-      )}
+    <ProfileLayout className="profile-organizer-premium">
       {isRefreshing && (
         <div
           style={{
@@ -143,29 +130,44 @@ function ProfileOrganizerScreenInner({
           rounded={28}
           variant="hero"
         >
-          <h1
-            style={{
-              fontSize: 'clamp(22px, 3.5vw, 28px)',
-              fontWeight: 600,
-              color: '#F5F2EB',
-              margin: 0,
-              letterSpacing: '-0.02em',
-            }}
-          >
-            Вы управляете этим вечером
-          </h1>
-          <p
-            style={{
-              fontSize: 15,
-              fontWeight: 500,
-              color: '#C6A75E',
-              marginTop: 10,
-              marginBottom: 0,
-              textShadow: '0 0 24px rgba(198,167,94,0.2)',
-            }}
-          >
-            {stats.guestsTotal} гостей · {stats.fillPercent}% заполнено
-          </p>
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h1
+                style={{
+                  fontSize: 'clamp(22px, 3.5vw, 28px)',
+                  fontWeight: 600,
+                  color: '#F5F2EB',
+                  margin: 0,
+                  letterSpacing: '0.02em',
+                }}
+              >
+                Вы управляете этим вечером
+              </h1>
+              <p
+                style={{
+                  fontSize: 15,
+                  fontWeight: 500,
+                  color: '#C6A75E',
+                  marginTop: 10,
+                  marginBottom: 0,
+                  textShadow: '0 0 24px rgba(198,167,94,0.2)',
+                }}
+              >
+                {stats.guestsTotal} гостей · {stats.fillPercent}% заполнено
+              </p>
+            </div>
+            {onOpenAdmin && (
+              <button
+                type="button"
+                onClick={onOpenAdmin}
+                className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center bg-white/5 border border-white/10 hover:bg-[#C6A75E]/20 hover:border-[#C6A75E]/40 transition-all"
+                title="Перейти в админ-панель"
+                aria-label="Перейти в админ-панель"
+              >
+                <Settings size={24} className="text-[#C6A75E]" strokeWidth={2} />
+              </button>
+            )}
+          </div>
         </ProfileCard>
 
         {/* 2️⃣ CountdownCard — isolated to avoid parent re-renders */}
