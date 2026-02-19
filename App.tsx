@@ -17,8 +17,10 @@ import PremiumGreetingModal, { PREMIUM_HIDE_KEY } from './src/ui/PremiumGreeting
 import PrimaryButton from './src/ui/PrimaryButton';
 import type { Booking, EventData, Table } from './types';
 import { getPriceForTable } from './src/utils/getTablePrice';
+import { getCategoryColorFromCategory } from './src/config/categoryColors';
 import { getCurrentUser } from './src/utils/getCurrentUser';
 import { getEventDisplayParts, getEventDisplayPartsFromIso } from './src/utils/formatDate';
+import { RefreshCw } from 'lucide-react';
 import { UI_TEXT } from './constants/uiText';
 import { useToast } from './src/ui/ToastContext';
 
@@ -534,17 +536,20 @@ function App() {
                 if (selectedEventId) loadEvent(selectedEventId, true);
               }}
               disabled={bookingLoading}
-              className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light"
+              className="text-sm text-muted-light hover:text-white transition -ml-1"
             >
               {UI_TEXT.app.back}
             </button>
-            <div className="text-xs text-muted-light">{selectedEvent.title || UI_TEXT.app.event}</div>
+            <div className="text-sm font-medium text-white truncate max-w-[180px]">
+              {selectedEvent.title || UI_TEXT.app.event}
+            </div>
             <button
               onClick={() => selectedEventId && loadEvent(selectedEventId)}
               disabled={bookingLoading}
-              className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[#C6A75E]/70 hover:text-[#C6A75E] hover:bg-white/5 transition shrink-0"
+              aria-label={UI_TEXT.app.refresh}
             >
-              {UI_TEXT.app.refresh}
+              <RefreshCw size={16} strokeWidth={2} />
             </button>
           </div>
 
@@ -553,17 +558,61 @@ function App() {
 
           {selectedTable ? (
             <div className="space-y-6">
-              <Card>
-                <div className="text-sm font-semibold text-white">{UI_TEXT.tables.table} {selectedTable.number}</div>
-                <div className="text-xs text-muted-light mt-1">
-                  {UI_TEXT.app.freeSeats} {selectedTable.seatsAvailable} / {selectedTable.seatsTotal}
-                </div>
-                {selectedTable.isAvailable !== true && (
-                  <div className="text-xs text-amber-400 mt-2">
-                    {UI_TEXT.app.tableNotAvailableForSale}
+              {(() => {
+                const category = selectedEvent?.ticketCategories?.find((c) => c.id === selectedTable.ticketCategoryId);
+                const palette = getCategoryColorFromCategory(category);
+                const seatPriceFallback = selectedEvent?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
+                const pricePerSeat = getPriceForTable(selectedEvent, selectedTable, seatPriceFallback);
+                const categoryName = category?.name ?? palette.label;
+                return (
+                  <div
+                    className="rounded-2xl overflow-hidden border-2"
+                    style={{
+                      borderColor: `${palette.base}66`,
+                      background: `linear-gradient(135deg, ${palette.base}18 0%, transparent 50%)`,
+                      boxShadow: `0 0 24px ${palette.base}15`,
+                    }}
+                  >
+                    <div
+                      className="px-4 py-4"
+                      style={{
+                        background: `linear-gradient(90deg, ${palette.base}30, ${palette.base}10)`,
+                        borderBottom: `1px solid ${palette.base}40`,
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded"
+                              style={{ background: palette.base, color: '#0F0F0F' }}
+                            >
+                              {categoryName}
+                            </span>
+                            <span className="text-2xl font-bold text-white">
+                              {UI_TEXT.tables.table} {selectedTable.number}
+                            </span>
+                          </div>
+                          <div className="text-sm text-white/80 mt-1">
+                            {UI_TEXT.app.freeSeats} {selectedTable.seatsAvailable} / {selectedTable.seatsTotal}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-light">за место</p>
+                          <p className="text-lg font-bold" style={{ color: palette.base }}>
+                            {pricePerSeat.toLocaleString('ru-RU')} ₽
+                          </p>
+                        </div>
+                      </div>
+                      {selectedTable.isAvailable !== true && (
+                        <div className="text-xs text-amber-400 mt-2">
+                          {UI_TEXT.app.tableNotAvailableForSale}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </Card>
+                );
+              })()}
 
               <Card>
                 <div className="text-sm font-semibold text-white mb-2">{UI_TEXT.app.selectSeats}</div>
