@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { EventData, Booking } from '../types';
 import { getPriceForTable } from '../src/utils/getTablePrice';
 import { getEventDisplayParts, getEventDisplayPartsFromIso } from '../src/utils/formatDate';
@@ -70,7 +70,14 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
 }) => {
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
+  const [nowTick, setNowTick] = useState(Date.now());
   const tablesAndSeats = formatTablesAndSeats(booking, event);
+
+  useEffect(() => {
+    if (!isAwaitingPayment) return;
+    const id = window.setInterval(() => setNowTick(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [isAwaitingPayment]);
   const isAwaitingPayment = booking.status === 'reserved' || booking.status === 'pending';
   const isAwaitingConfirmation = booking.status === 'awaiting_confirmation';
   const showPaidButton = isAwaitingPayment && !isAwaitingConfirmation;
@@ -93,18 +100,17 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
   const venue = (event as { venue?: string }).venue ?? 'Площадка';
 
   return (
-    <div className="max-w-md mx-auto px-4 pt-16 space-y-10 text-center">
+    <div className="max-w-md mx-auto px-4 pt-6 pb-4 space-y-5 text-center">
       <div className="mx-auto w-16 h-16 rounded-full border border-[#FFC107] flex items-center justify-center">
         <div className="w-6 h-6 rounded-full bg-[#FFC107]" />
       </div>
 
-      <h1 className="text-2xl font-bold text-white">
-        Бронирование подтверждено
+      <h1 className="text-xl font-bold text-white">
+        {UI_TEXT.booking.bookingCreated}
       </h1>
 
-      <p className="text-muted-light text-sm">
-        Ваш стол успешно зарезервирован.
-        Детали доступны в разделе «Мои билеты».
+      <p className="text-muted-light text-xs">
+        {UI_TEXT.booking.bookingValidMinutes}
       </p>
 
       <div className="w-12 h-[2px] bg-[#FFC107] mx-auto" />
@@ -122,6 +128,25 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
           </p>
         </div>
       </Card>
+
+      {isAwaitingPayment && (() => {
+        const expiresAt = (booking as { expiresAt?: string | number }).expiresAt;
+        const target = expiresAt ? (typeof expiresAt === 'string' ? new Date(expiresAt).getTime() : Number(expiresAt)) : 0;
+        const diffMs = Number.isFinite(target) ? Math.max(0, target - nowTick) : 0;
+        const mins = Math.floor(diffMs / 60000);
+        const secs = Math.floor((diffMs % 60000) / 1000);
+        const expired = diffMs <= 0;
+        return (
+          <Card className={expired ? 'border-amber-500/50' : ''}>
+            <div className="text-center">
+              <p className="text-xs text-muted-light mb-1">{UI_TEXT.booking.bookingValidMinutes}</p>
+              <p className={`text-2xl font-mono font-bold ${expired ? 'text-amber-400' : 'text-[#FFC107]'}`}>
+                {expired ? '0:00' : `${mins}:${secs.toString().padStart(2, '0')}`}
+              </p>
+            </div>
+          </Card>
+        );
+      })()}
 
       <Card>
         <div className="space-y-2 text-sm text-left">
@@ -174,7 +199,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
               ) : null;
             })()}
             <p className="text-muted-light">
-              {UI_TEXT.booking.paymentTransferTo} <span className="text-white font-medium">{event.paymentPhone.trim()}</span>
+              {UI_TEXT.booking.paymentTransferTo} <span className="text-white font-medium">{event.paymentPhone.trim()} {UI_TEXT.booking.paymentPhoneSberbank}</span>
             </p>
             <p className="text-muted-light">
               {UI_TEXT.booking.paymentPurpose} {booking.id}
@@ -184,6 +209,8 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
       )}
 
       <p className="text-muted-light text-sm whitespace-pre-wrap text-left">{UI_TEXT.booking.paymentPrompt}</p>
+      <p className="text-amber-300 text-sm font-semibold uppercase tracking-wide whitespace-pre-wrap text-left mt-2">{UI_TEXT.booking.paymentPromptCaps}</p>
+      <p className="text-muted-light text-xs whitespace-pre-wrap text-left mt-1">{UI_TEXT.booking.paymentPromptOrder}</p>
 
       {isAwaitingConfirmation && (
         <p className="text-sm text-[#6E6A64] bg-[#E7E3DB] rounded-lg p-3 text-left">{UI_TEXT.booking.awaitingConfirmationMessage}</p>
@@ -199,9 +226,9 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
             type="button"
             onClick={handlePaidClick}
             disabled={statusUpdateLoading}
-            className="w-full px-4 py-3 text-sm font-medium text-white bg-[#0088cc] rounded-xl hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white bg-[#0088cc] rounded-xl hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {statusUpdateLoading ? UI_TEXT.common.loading : UI_TEXT.booking.paidButton}
+            {statusUpdateLoading ? UI_TEXT.common.loading : UI_TEXT.booking.paidButtonCaps}
           </button>
         )}
         <PrimaryButton onClick={onGoToTickets ?? onBackToEvents} className="w-full">

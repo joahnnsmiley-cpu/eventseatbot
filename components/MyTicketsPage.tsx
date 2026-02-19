@@ -8,6 +8,7 @@ import SectionTitle from '../src/ui/SectionTitle';
 import PrimaryButton from '../src/ui/PrimaryButton';
 import { getEventDisplayParts, getEventDisplayPartsFromIso } from '../src/utils/formatDate';
 import { UI_TEXT } from '../constants/uiText';
+import { useToast } from '../src/ui/ToastContext';
 
 type BookingItem = {
   id: string;
@@ -46,6 +47,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
+  const { showToast } = useToast();
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +58,9 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [eventInfoMap, setEventInfoMap] = useState<Record<string, EventInfo>>({});
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [contactModal, setContactModal] = useState<{ eventId: string; bookingId: string } | null>(null);
+  const [contactText, setContactText] = useState('');
+  const [contactSubmitting, setContactSubmitting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -176,6 +181,16 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     load();
   }, [load]);
 
+  // Auto-refresh for non-paid tickets (poll every 30s when there are awaiting/pending)
+  const hasPendingPayments = bookings.some(
+    (b) => ['reserved', 'pending', 'awaiting_confirmation'].includes(b.status)
+  );
+  useEffect(() => {
+    if (!hasPendingPayments) return;
+    const id = window.setInterval(load, 30000);
+    return () => window.clearInterval(id);
+  }, [hasPendingPayments, load]);
+
   const handleIPaid = async (b: BookingItem) => {
     if (!PAYABLE_STATUSES.includes(b.status)) return;
     const expiresAt = b.expires_at ? new Date(b.expires_at).getTime() : Infinity;
@@ -256,14 +271,15 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const hasActiveFilters = statusFilter !== 'all';
 
   return (
-    <div className="max-w-[420px] mx-auto min-h-screen relative overflow-x-hidden">
-      <div className="px-4 pt-6 space-y-8">
-        <div className="flex items-center justify-between">
+    <div className="max-w-[420px] mx-auto h-full relative overflow-x-hidden">
+      <div className="px-4 pt-4 pb-2 space-y-4">
+        <div className="flex items-center justify-end">
           <button
-            onClick={onBack}
-            className="text-xs px-2 py-1 rounded border border-white/20 text-muted-light"
+            onClick={() => load()}
+            disabled={loading}
+            className="text-xs px-3 py-2 rounded-lg border border-white/20 text-muted-light hover:bg-white/5 transition flex items-center gap-2"
           >
-            {UI_TEXT.app.back}
+            {UI_TEXT.common.refresh}
           </button>
         </div>
 
@@ -271,6 +287,13 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
         {loading && <div className="text-xs text-muted">Загрузка…</div>}
         {error && <div className="text-sm text-red-400">{error}</div>}
+
+        {!loading && !error && bookings.length > 0 && bookings.some((b) => PAYABLE_STATUSES.includes(b.status) && !isExpired(b.expires_at)) && (
+          <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 mb-4">
+            <p className="text-amber-300 text-xs font-semibold uppercase tracking-wide">{UI_TEXT.booking.paymentPromptCaps}</p>
+            <p className="text-muted-light text-xs mt-1">{UI_TEXT.booking.paymentPromptOrder}</p>
+          </div>
+        )}
 
         {!loading && !error && bookings.length > 0 && (
           <div className="flex items-center gap-2">
@@ -331,7 +354,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
         {!loading && !error && bookings.length > 0 && filteredBookings.length > 0 && (
           <motion.div
-            className="space-y-6"
+            className="space-y-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4 }}
@@ -341,8 +364,23 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               const { date, time } = formatEventDateTime(info);
               const seatLabel = formatSeatLabel(b.seat_indices, b.seats_booked);
               const canPay = PAYABLE_STATUSES.includes(b.status) && !isExpired(b.expires_at);
+              const isNotPaid = b.status !== 'paid';
               return (
-                <div key={b.id} className="space-y-4">
+                <div key={b.id} className="space-y-3 relative">
+                  {isNotPaid && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setContactModal({ eventId: b.event_id, bookingId: b.id });
+                        }}
+                        className="text-xs px-2 py-1 rounded bg-white/10 border border-white/20 text-amber-300 hover:bg-white/20 transition"
+                      >
+                        {UI_TEXT.booking.contactAdminButton}
+                      </button>
+                    </div>
+                  )}
                   <NeonTicketCard
                     eventTitle={info?.title ?? 'Событие'}
                     date={date}
@@ -366,7 +404,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       disabled={submittingId !== null}
                       className="w-full"
                     >
-                      {submittingId === b.id ? 'Отправка…' : UI_TEXT.booking.paidButton}
+                      {submittingId === b.id ? 'Отправка…' : UI_TEXT.booking.paidButtonCaps}
                     </PrimaryButton>
                   )}
                 </div>
@@ -382,6 +420,69 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           isOpen={!!selectedTicket}
           onClose={() => setSelectedTicket(null)}
         />
+      )}
+
+      {contactModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+          onClick={() => !contactSubmitting && setContactModal(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-white/10 bg-[#1a1a1a] p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white">{UI_TEXT.booking.contactAdminButton}</h3>
+            <p className="text-sm text-muted-light">{UI_TEXT.event.contactOrganizerDescribeProblem}</p>
+            <textarea
+              value={contactText}
+              onChange={(e) => setContactText(e.target.value)}
+              placeholder={UI_TEXT.event.contactOrganizerDescribePlaceholder}
+              rows={4}
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-muted resize-none focus:outline-none focus:ring-2 focus:ring-[#C6A75E]/50"
+              disabled={contactSubmitting}
+            />
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => !contactSubmitting && setContactModal(null)}
+                className="flex-1 py-3 rounded-xl border border-white/20 text-muted-light hover:bg-white/5 transition"
+              >
+                {UI_TEXT.common.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const text = contactText.trim();
+                  if (!text || !contactModal) return;
+                  setContactSubmitting(true);
+                  try {
+                    const tg = window.Telegram?.WebApp?.initDataUnsafe?.user;
+                    await StorageService.contactOrganizer({
+                      eventId: contactModal.eventId,
+                      problemText: text,
+                      bookingId: contactModal.bookingId,
+                      userTelegramId: tg?.id,
+                      userFirstName: tg?.first_name,
+                      userLastName: tg?.last_name,
+                      userUsername: tg?.username,
+                    });
+                    setContactModal(null);
+                    setContactText('');
+                    showToast(UI_TEXT.event.contactOrganizerSuccess);
+                  } catch {
+                    showToast(UI_TEXT.event.contactOrganizerError, 'error');
+                  } finally {
+                    setContactSubmitting(false);
+                  }
+                }}
+                disabled={!contactText.trim() || contactSubmitting}
+                className="flex-1 py-3 rounded-xl bg-[#C6A75E] text-black font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {contactSubmitting ? '…' : UI_TEXT.event.contactOrganizerSend}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

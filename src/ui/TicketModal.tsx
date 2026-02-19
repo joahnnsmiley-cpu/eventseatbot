@@ -34,14 +34,23 @@ export default function TicketModal({ ticketImageUrl, isOpen = true, onClose }: 
       tabIndex={-1}
     >
       <div className="relative flex flex-col items-center max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute -top-12 right-0 text-white text-3xl hover:opacity-80"
-          aria-label="Close"
-        >
-          ✕
-        </button>
+        <div className="flex items-center justify-between w-full mb-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sm px-3 py-2 rounded-lg border border-white/30 text-white hover:bg-white/10 transition"
+          >
+            Назад
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-white text-2xl hover:opacity-80 w-10 h-10 flex items-center justify-center"
+            aria-label="Закрыть"
+          >
+            ✕
+          </button>
+        </div>
         {ticketImageUrl ? (
           <img
             src={ticketImageUrl}

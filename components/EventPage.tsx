@@ -88,25 +88,12 @@ const EventPage: React.FC<EventPageProps> = ({
       .filter((x): x is NonNullable<typeof x> => x != null);
   }, [selectedSeatsByTable, event]);
 
-  const [hasAutoScrolled, setHasAutoScrolled] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [contactProblemText, setContactProblemText] = useState('');
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
-  useEffect(() => {
-    if (totalSeats === 0) {
-      setHasAutoScrolled(false);
-      return;
-    }
-    if (totalSeats > 0 && !hasAutoScrolled) {
-      window.scrollTo({
-        top: document.body.scrollHeight,
-        behavior: 'smooth',
-      });
-      setHasAutoScrolled(true);
-    }
-  }, [totalSeats, hasAutoScrolled]);
 
   const handleBooking = useCallback(() => {
     const tableId = Object.keys(selectedSeatsByTable)[0];
@@ -142,8 +129,8 @@ const EventPage: React.FC<EventPageProps> = ({
   }, [contactProblemText, event.id, bookingId, tgUser, showToast]);
 
   return (
-    <div className="max-w-md mx-auto min-h-screen relative">
-      <div className="px-4 pt-6 space-y-8">
+    <div className="max-w-md mx-auto h-full relative">
+      <div className="px-4 pt-4 pb-2 space-y-4">
         <div className="flex items-center justify-between">
           <button
             onClick={onBack}
@@ -159,7 +146,7 @@ const EventPage: React.FC<EventPageProps> = ({
         {eventLoading && <div className="text-xs text-muted">{UI_TEXT.app.loadingLayout}</div>}
         {eventError && <div className="text-sm text-red-400">{eventError}</div>}
 
-        <div className="relative rounded-3xl overflow-hidden min-h-[220px]">
+        <div className="relative rounded-2xl overflow-hidden min-h-[160px] max-h-[180px]">
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: imgUrl?.trim() ? `url(${imgUrl.trim()})` : undefined }}
@@ -170,21 +157,48 @@ const EventPage: React.FC<EventPageProps> = ({
               background: 'linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.7) 100%)',
             }}
           />
-          <div className="relative z-10 flex flex-col justify-end p-6 pb-6 min-h-[220px]">
-            <h1 className="text-2xl font-bold text-white">
+          <div className="relative z-10 flex flex-col justify-end p-4 pb-4 min-h-[160px]">
+            <h1 className="text-xl font-bold text-white">
               {event.title?.trim() || UI_TEXT.event.eventFallback}
             </h1>
-            {event.description != null && event.description.trim() !== '' && (
-              <p className="text-sm text-gray-300 mt-2 whitespace-pre-wrap">
-                {event.description.trim()}
-              </p>
-            )}
           </div>
         </div>
 
+        {event.description != null && event.description.trim() !== '' && (
+          <Card className="p-3">
+            <button
+              type="button"
+              onClick={() => setDescriptionOpen((o) => !o)}
+              className="w-full flex items-center justify-between text-left"
+            >
+              <p className="text-sm font-medium text-white">{UI_TEXT.event.description}</p>
+              <motion.span
+                animate={{ rotate: descriptionOpen ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+                className="text-muted shrink-0"
+              >
+                <ChevronDown size={18} strokeWidth={2} />
+              </motion.span>
+            </button>
+            <AnimatePresence>
+              {descriptionOpen && (
+                <motion.p
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-sm text-muted-light whitespace-pre-wrap leading-relaxed overflow-hidden mt-2"
+                >
+                  {event.description.trim()}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </Card>
+        )}
+
         {(showDateTime || showVenue) && (
-          <Card>
-            <div className="space-y-2 text-sm">
+          <Card className="p-3">
+            <div className="space-y-1 text-sm">
               {showDateTime && (
                 <p className="text-[#FFC107] font-semibold">
                   {displayDateTime}
@@ -211,12 +225,12 @@ const EventPage: React.FC<EventPageProps> = ({
         </div>
 
         {event?.ticketCategories?.filter((c) => c.isActive).length ? (
-          <div className="mt-4">
+          <div className="mt-2">
             <button
               type="button"
               onClick={() => setLegendOpen(!legendOpen)}
               aria-expanded={legendOpen}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/10 transition-all duration-300 text-left"
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 active:bg-white/10 transition-all duration-300 text-left"
             >
               <span className="text-sm font-medium text-white">Категории билетов</span>
               <motion.span
@@ -270,7 +284,7 @@ const EventPage: React.FC<EventPageProps> = ({
           </PrimaryButton>
         )}
 
-        <div className="p-4 rounded-2xl border border-neutral-800 bg-neutral-900/60 space-y-4">
+        <div className="p-3 rounded-xl border border-neutral-800 bg-neutral-900/60 space-y-3">
           <div>
             <p className="text-base font-medium text-white">{UI_TEXT.event.contactOrganizer}</p>
             <p className="text-sm text-muted-light mt-1">{UI_TEXT.event.contactOrganizerPrompt}</p>
@@ -338,7 +352,7 @@ const EventPage: React.FC<EventPageProps> = ({
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.25 }}
-            className="mt-8 flex items-center justify-between rounded-2xl px-5 py-4"
+            className="mt-4 flex items-center justify-between rounded-xl px-4 py-3"
             style={{
               background: 'rgba(20,20,20,0.95)',
               border: '1px solid rgba(255,255,255,0.06)',

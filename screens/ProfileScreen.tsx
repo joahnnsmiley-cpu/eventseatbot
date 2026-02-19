@@ -85,6 +85,7 @@ export default function ProfileScreen({
     );
   };
 
+
   if (role === 'organizer' && viewAsGuest) {
     if (guestLoading) return wrapWithBack(<ProfileGuestSkeleton />, () => setViewAsGuest(false), UI_TEXT.profile.backToOrganizer);
     if (guestError) return wrapWithBack(<ProfileStateMessage message={guestError} isError />, () => setViewAsGuest(false), UI_TEXT.profile.backToOrganizer);
@@ -114,12 +115,12 @@ export default function ProfileScreen({
   }
 
   if (role === 'organizer') {
-    if (organizerLoading && !organizerData?.hasData) return wrapWithBack(<ProfileOrganizerSkeleton />);
-    if (organizerError) return wrapWithBack(<ProfileStateMessage message={organizerError} isError />);
+    if (organizerLoading && !organizerData?.hasData) return <ProfileOrganizerSkeleton />;
+    if (organizerError) return <ProfileStateMessage message={organizerError} isError />;
     if (!organizerData || !organizerData.hasData) {
-      return wrapWithBack(<ProfileStateMessage message="Нет доступных событий для управления" />);
+      return <ProfileStateMessage message="Нет доступных событий для управления" />;
     }
-    return wrapWithBack(
+    return (
       <ProfileOrganizerScreen
         eventDate={organizerData.eventDate}
         stats={organizerData.stats}
@@ -134,11 +135,11 @@ export default function ProfileScreen({
     );
   }
 
-  if (guestLoading) return wrapWithBack(<ProfileGuestSkeleton />);
-  if (guestError) return wrapWithBack(<ProfileStateMessage message={guestError} isError />);
+  if (guestLoading) return <ProfileGuestSkeleton />;
+  if (guestError) return <ProfileStateMessage message={guestError} isError />;
 
   if (!guestData || !guestData.hasBooking) {
-    return wrapWithBack(<ProfileGuestEmpty message="У вас пока нет забронированного места" />);
+    return <ProfileGuestEmpty message="У вас пока нет забронированного места" />;
   }
 
   const guestName = guestNameOverride ?? guestData.guestName;
@@ -161,5 +162,5 @@ export default function ProfileScreen({
     privateAccess: guestData.privateAccess ?? '',
   };
 
-  return wrapWithBack(<ProfileGuestScreen {...guestProps} />);
+  return <ProfileGuestScreen {...guestProps} />;
 }

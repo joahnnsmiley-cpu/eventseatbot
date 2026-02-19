@@ -71,6 +71,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
   onTableSelect,
   selectedSeatsByTable,
 }) => {
+  const [controlsExpanded, setControlsExpanded] = useState(false);
   const selectedSeats = seatState?.selectedSeats ?? [];
   // When tables prop provided, use it (ensures fresh event.tables). Else: seatState.tables or event.tables
   const rawTables = Array.isArray(tablesProp)
@@ -159,7 +160,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
         width: '100%',
         maxWidth: 420,
         aspectRatio: layoutAspectRatio ?? 16 / 9,
-        minHeight: layoutAspectRatio == null ? '18rem' : undefined,
+        minHeight: layoutAspectRatio == null ? '12rem' : undefined,
         margin: '0 auto',
         overflow: 'hidden',
         boxShadow: 'inset 0 0 60px rgba(0,0,0,0.8), 0 4px 24px rgba(0,0,0,0.4)',
@@ -417,30 +418,51 @@ const SeatMap: React.FC<SeatMapProps> = ({
               </div>
               </TransformComponent>
 
-              {/* Reset Zoom Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  resetTransform(300, 'easeOut');
-                  centerView?.(1, 300, 'easeOut');
+              {/* Collapsible map controls — premium, не перекрывают столы */}
+              <div
+                className="absolute bottom-3 left-3 z-20 flex flex-col gap-2"
+                style={{
+                  transition: 'opacity 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
                 }}
-                className="absolute top-3 right-3 z-20 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/10 active:scale-95 transition"
               >
-                Сбросить масштаб
-              </button>
-
-              {/* Mini-map preview - layout image only, lightweight */}
-              {layoutImageUrl && (
-                <div className="absolute bottom-3 right-3 z-30 overflow-hidden rounded-lg border border-white/10 bg-black/70 backdrop-blur-sm pointer-events-none">
-                  <MiniMap width={96} height={64} borderColor="rgba(198,167,94,0.6)">
-                    <img
-                      src={layoutImageUrl}
-                      alt=""
-                      className="w-full h-full object-contain"
-                    />
-                  </MiniMap>
-                </div>
-              )}
+                {controlsExpanded ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetTransform(300, 'easeOut');
+                        centerView?.(1, 300, 'easeOut');
+                        window?.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/80 text-white text-xs backdrop-blur-md border border-white/10 hover:border-[#C6A75E]/40 active:scale-[0.98] transition-all"
+                    >
+                      <span style={{ opacity: 0.9 }}>⊞</span>
+                      Сбросить масштаб
+                    </button>
+                    {layoutImageUrl && (
+                      <div className="overflow-hidden rounded-xl border border-white/10 bg-black/80 backdrop-blur-md">
+                        <MiniMap width={80} height={54} borderColor="rgba(198,167,94,0.5)">
+                          <img src={layoutImageUrl} alt="" className="w-full h-full object-contain" />
+                        </MiniMap>
+                      </div>
+                    )}
+                  </>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setControlsExpanded((v) => !v);
+                    window?.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');
+                  }}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center bg-black/80 backdrop-blur-md border border-white/10 hover:border-[#C6A75E]/40 active:scale-95 transition-all"
+                  aria-label={controlsExpanded ? 'Скрыть управление' : 'Показать управление картой'}
+                  title={controlsExpanded ? 'Скрыть' : 'Карта и масштаб'}
+                >
+                  <span style={{ fontSize: 18, color: '#C6A75E', fontWeight: 300 }}>
+                    {controlsExpanded ? '×' : '⋯'}
+                  </span>
+                </button>
+              </div>
             </>
             );
           }}

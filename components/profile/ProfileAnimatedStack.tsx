@@ -23,7 +23,7 @@ type ProfileAnimatedStackProps = {
 };
 
 /** Wraps each child in motion.div with staggered Apple-style animation. */
-export default function ProfileAnimatedStack({ children, gap = 32 }: ProfileAnimatedStackProps) {
+export default function ProfileAnimatedStack({ children, gap = 20 }: ProfileAnimatedStackProps) {
   const items = React.Children.toArray(children);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap }}>

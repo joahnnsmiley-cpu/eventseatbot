@@ -250,9 +250,21 @@ export default function ProfileGuestScreen({
                       }}
                     >
                       <img
-                        src={n.avatar}
+                        src={
+                          n.avatar?.startsWith('http')
+                            ? n.avatar
+                            : n.avatar
+                              ? `${window.location.origin}${n.avatar.startsWith('/') ? '' : '/'}${n.avatar}`
+                              : getDefaultAvatarUrl()
+                        }
                         alt=""
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement;
+                          if (img.dataset.fallback === 'done') return;
+                          img.dataset.fallback = 'done';
+                          img.src = getDefaultAvatarUrl();
+                        }}
                       />
                     </div>
                     <span style={{ fontSize: 15, fontWeight: 500, color: darkTextPrimary }}>

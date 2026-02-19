@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { motion } from 'framer-motion';
+import { Settings } from 'lucide-react';
 import ProfileLayout from '../components/profile/ProfileLayout';
 import ProfileCard from '../components/profile/ProfileCard';
 import ProfileAnimatedStack from '../components/profile/ProfileAnimatedStack';
@@ -102,6 +103,19 @@ function ProfileOrganizerScreenInner({
 }: ProfileOrganizerScreenProps) {
   return (
     <ProfileLayout>
+      {onOpenAdmin && (
+        <div className="flex justify-end mb-4">
+          <button
+            type="button"
+            onClick={onOpenAdmin}
+            className="w-12 h-12 rounded-full flex items-center justify-center bg-white/5 border border-white/10 hover:bg-[#C6A75E]/20 hover:border-[#C6A75E]/40 transition-all"
+            title="Перейти в админ-панель"
+            aria-label="Перейти в админ-панель"
+          >
+            <Settings size={24} className="text-[#C6A75E]" strokeWidth={2} />
+          </button>
+        </div>
+      )}
       {isRefreshing && (
         <div
           style={{
@@ -214,7 +228,6 @@ function ProfileOrganizerScreenInner({
         <ProfileCard padding={24} rounded={24} variant="glass">
           <p style={{ ...luxuryLabel, marginBottom: 16, marginTop: 0 }}>Действия</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <ActionButton label="Перейти в админ-панель" onClick={onOpenAdmin} />
             <ActionButton label="Открыть карту" onClick={onOpenMap} />
             <ActionButton label={UI_TEXT.profile.viewAsGuest} onClick={onViewAsGuest} />
           </div>

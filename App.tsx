@@ -463,8 +463,8 @@ function App() {
   if (view === 'layout' && selectedEventId) {
     if (!selectedEvent) {
       return wrapWithLayout(
-        <div className="max-w-md mx-auto min-h-screen relative">
-          <div className="px-4 pt-6 space-y-8">
+        <div className="max-w-md mx-auto h-full relative">
+          <div className="px-4 pt-4 space-y-4">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => {
@@ -514,7 +514,7 @@ function App() {
 
   if (view === 'seats' && (!selectedEvent || !selectedTableId || !selectedTable)) {
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-screen bg-surface shadow-2xl relative">
+      <div className="max-w-md mx-auto h-full bg-surface shadow-2xl relative">
         <div className="p-4">
           <div className="text-xs text-muted">{UI_TEXT.app.returningToLayout}</div>
         </div>
@@ -524,8 +524,8 @@ function App() {
 
   if (view === 'seats' && selectedEvent) {
     return wrapWithLayout(
-      <div className="max-w-[420px] mx-auto overflow-x-hidden bg-black min-h-screen">
-        <div className="px-4 pt-6 space-y-6">
+      <div className="max-w-[420px] mx-auto overflow-x-hidden bg-black h-full">
+        <div className="px-4 pt-4 space-y-4">
           <div className="flex items-center justify-between">
             <button
               onClick={() => {
@@ -839,7 +839,7 @@ function App() {
   if (view === 'booking-success') {
     if (!lastCreatedEvent || !lastCreatedBooking) {
       return wrapWithLayout(
-        <div className="max-w-md mx-auto min-h-screen p-4">
+        <div className="max-w-md mx-auto h-full p-4">
           <button onClick={() => setView('events')} className="text-sm border border-white/20 rounded px-3 py-2 text-muted-light">
             {UI_TEXT.app.backToEvents}
           </button>
@@ -847,7 +847,7 @@ function App() {
       );
     }
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-screen">
+      <div className="max-w-md mx-auto h-full">
         <BookingSuccessView
           event={lastCreatedEvent}
           booking={lastCreatedBooking}
@@ -873,7 +873,7 @@ function App() {
 
   if (view === 'my-bookings') {
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-screen bg-surface shadow-2xl relative">
+      <div className="max-w-md mx-auto h-full bg-surface shadow-2xl relative">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
             <button
@@ -982,21 +982,21 @@ function App() {
   }
 
   return wrapWithLayout(
-    <div className="max-w-md mx-auto min-h-screen relative">
+    <div className="max-w-md mx-auto h-full relative">
       <motion.div
-        className="px-4 pt-8 space-y-6"
+        className="px-4 pt-4 pb-2 space-y-4"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
-        <div className="relative w-full text-center pt-10 pb-6 space-y-4 overflow-hidden">
+        <div className="relative w-full text-center pt-4 pb-4 space-y-3 overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
             <span className="text-[90px] sm:text-[140px] font-extrabold text-white opacity-[0.03] tracking-tight">
               #НИКТО
             </span>
           </div>
           <div className="relative z-10 space-y-4">
-            <h1 className="text-[34px] sm:text-[48px] font-extrabold tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
               #НИКТОНЕКРУЧЕ
             </h1>
             <div className="w-16 h-[2px] bg-[#FFC107] mx-auto" />
@@ -1043,7 +1043,7 @@ function App() {
                     <p className="text-[#C6A75E] text-xs font-bold tracking-widest uppercase mb-2">
                       ГЛАВНОЕ СОБЫТИЕ
                     </p>
-                    <div className="relative min-h-[320px]">
+                    <div className="relative min-h-[200px] max-h-[220px]">
                       <motion.div
                         className="relative rounded-3xl overflow-hidden border-2 border-[#C6A75E]/40 shadow-[0_0_40px_rgba(198,167,94,0.25)]"
                         role="button"
@@ -1083,17 +1083,17 @@ function App() {
                             transform: 'translate(-50%, -50%)',
                           }}
                         />
-                        <div className="relative z-10 flex flex-col items-center justify-center text-center py-16 px-6 space-y-4">
-                          <h2 className="text-3xl md:text-4xl font-extrabold uppercase tracking-wide text-white">
+                        <div className="relative z-10 flex flex-col items-center justify-center text-center py-8 px-4 space-y-2">
+                          <h2 className="text-xl md:text-2xl font-extrabold uppercase tracking-wide text-white">
                             {featured?.title ?? UI_TEXT.event.eventFallback}
                           </h2>
-                          <p className="text-[#FFC107] text-2xl font-bold tracking-wide">
+                          <p className="text-[#FFC107] text-lg font-bold tracking-wide">
                             {fmt?.date ?? featured?.date}
                           </p>
-                          <p className="text-white text-lg">
+                          <p className="text-white text-sm">
                             {fmt?.time ?? ''}
                           </p>
-                          <p className="text-muted-light text-sm uppercase tracking-widest">
+                          <p className="text-muted-light text-xs uppercase tracking-widest truncate max-w-[200px] mx-auto">
                             {(featured as { venue?: string })?.venue ?? ''}
                           </p>
                         </div>
@@ -1107,7 +1107,7 @@ function App() {
                     <p className="text-muted text-xs tracking-widest uppercase mb-2">
                       ВСЕ СОБЫТИЯ
                     </p>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {events.map((evt) => {
                         const evtFmt = getEventDisplayDate(evt);
                         return (
@@ -1125,14 +1125,12 @@ function App() {
                             <div className="w-[70px] shrink-0 bg-[#FFC107] text-black flex flex-col items-center justify-center font-bold">
                               {evtFmt ? evtFmt.day : '—'}
                             </div>
-                            <div className="flex-1 p-4 flex items-center justify-between">
-                              <div>
-                                <p className="font-bold text-white">{evt.title?.trim() || UI_TEXT.event.eventFallback}</p>
-                                <p className="text-muted-light text-sm">Площадка</p>
+                            <div className="flex-1 p-4 flex items-center justify-between min-w-0">
+                              <div className="min-w-0">
+                                <p className="font-bold text-white truncate">{evt.title?.trim() || UI_TEXT.event.eventFallback}</p>
+                                <p className="text-muted-light text-sm truncate">{(evt as { venue?: string })?.venue || UI_TEXT.event.venue}</p>
                               </div>
-                              <svg className="w-5 h-5 text-muted shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
+                              <span className="text-xs text-[#C6A75E] font-medium shrink-0 ml-2">Выбрать →</span>
                             </div>
                           </motion.div>
                         );

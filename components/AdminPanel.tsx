@@ -308,12 +308,52 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const saveLayoutRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
 
-  const isDirty = useMemo(
-    () =>
+  const isDirty = useMemo(() => {
+    const tablesDirty =
       JSON.stringify(normalizeTables(tables)) !==
-      JSON.stringify(normalizeTables(initialTablesRef.current)),
-    [tables]
-  );
+      JSON.stringify(normalizeTables(initialTablesRef.current));
+    if (tablesDirty) return true;
+    if (!selectedEvent) return false;
+    const ev = selectedEvent;
+    const titleDirty = (eventTitle ?? '').trim() !== (ev.title ?? '').trim();
+    const descDirty = (eventDescription ?? '').trim() !== (ev.description ?? '').trim();
+    const dateDirty = (eventDate ?? '').trim() !== (ev.event_date ?? '').trim();
+    const timeDirty = (eventTime ?? '').trim() !== (ev.event_time ? String(ev.event_time).slice(0, 5) : '');
+    const venueDirty = (venue ?? '').trim() !== (ev.venue ?? '').trim();
+    const phoneDirty = (eventPhone ?? '').trim() !== (ev.paymentPhone ?? '').trim();
+    const posterDirty = (eventPosterUrl ?? '').trim() !== (ev.imageUrl ?? '').trim();
+    const layoutDirty = (layoutUrl ?? '').trim() !== (ev.layoutImageUrl ?? '').trim();
+    const publishedDirty = eventPublished !== (ev.published === true);
+    const featuredDirty = eventFeatured !== ((ev as { isFeatured?: boolean }).isFeatured === true);
+    const tzDirty = timezoneOffsetMinutes !== ((ev as any).timezoneOffsetMinutes ?? 180);
+    return (
+      titleDirty ||
+      descDirty ||
+      dateDirty ||
+      timeDirty ||
+      venueDirty ||
+      phoneDirty ||
+      posterDirty ||
+      layoutDirty ||
+      publishedDirty ||
+      featuredDirty ||
+      tzDirty
+    );
+  }, [
+    tables,
+    selectedEvent,
+    eventTitle,
+    eventDescription,
+    eventDate,
+    eventTime,
+    venue,
+    eventPhone,
+    eventPosterUrl,
+    layoutUrl,
+    eventPublished,
+    eventFeatured,
+    timezoneOffsetMinutes,
+  ]);
 
   useEffect(() => {
     hasInitializedRef.current = false;
