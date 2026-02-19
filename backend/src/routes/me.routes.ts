@@ -272,12 +272,22 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
     }
   }
   if (!event && events.length > 0) {
-    const asOrganizer = events.find((e: any) => {
+    const organizedEvents = events.filter((e: any) => {
       const oid = (e as any).organizerId ?? (e as any).organizer_id;
       return oid != null && String(oid) === userId;
     });
-    if (asOrganizer) {
-      event = asOrganizer;
+    if (organizedEvents.length > 0) {
+      const validStatusesForCount = ['reserved', 'paid', 'awaiting_confirmation', 'payment_submitted', 'confirmed', 'pending'];
+      const withCount = organizedEvents.map((e: any) => ({
+        event: e,
+        count: allBookings.filter((b: any) => {
+          const eid = b.eventId ?? b.event_id;
+          const st = String(b.status ?? '').toLowerCase();
+          return String(eid) === String(e.id) && validStatusesForCount.includes(st);
+        }).length,
+      }));
+      withCount.sort((a, b) => b.count - a.count);
+      event = withCount[0]!.event;
     } else if (isAdmin || adminIds.has(userId)) {
       const validStatuses = ['reserved', 'paid', 'awaiting_confirmation', 'payment_submitted', 'confirmed'];
       const withBookings = events
