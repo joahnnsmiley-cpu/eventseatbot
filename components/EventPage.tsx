@@ -147,7 +147,7 @@ const EventPage: React.FC<EventPageProps> = ({
         />
         <div className="absolute inset-0 bg-[#0a0a0a]" style={{ zIndex: -1 }} />
 
-        <div className="relative">
+        <div className="relative pt-16">
           <div className="flex items-center justify-between h-12 px-4 pt-2 absolute top-0 left-0 right-0 z-20">
             <button
               onClick={onBack}
@@ -169,35 +169,45 @@ const EventPage: React.FC<EventPageProps> = ({
 
           {!eventLoading && !eventError && (
             <>
-              {/* Постер — аккуратный, фиксированная высота, не тянет экран */}
+              {/* Hero poster — full width, safe top spacing, cinematic overlays */}
               <div className="relative -mx-4 w-[calc(100%+2rem)]">
+                {/* Purple radial glow behind hero — 20% opacity, large blur, 10s fade */}
                 <div
-                  className="absolute -bottom-12 left-1/2 -translate-x-1/2 w-[100%] h-16 pointer-events-none"
+                  className="absolute inset-0 pointer-events-none"
                   style={{
-                    background: 'radial-gradient(ellipse 70% 100% at 50% 0%, rgba(88,28,135,0.2) 0%, transparent 70%)',
-                    filter: 'blur(16px)',
+                    background: 'radial-gradient(ellipse 90% 80% at 50% 30%, rgba(88,28,135,0.2) 0%, transparent 65%)',
+                    filter: 'blur(48px)',
+                    animation: 'event-hero-glow 10s ease-in-out infinite',
                   }}
                 />
-                <div className="relative h-[200px] max-h-[32vh] overflow-hidden rounded-xl mx-2">
+                <div className="relative aspect-[4/5] max-h-[55vh] overflow-hidden shadow-2xl shadow-black/70">
                   {imgUrl?.trim() ? (
                     <img
                       src={imgUrl.trim()}
                       alt=""
-                      className="w-full h-full object-cover object-center block"
+                      className="w-full h-full object-cover object-top block"
                     />
                   ) : (
                     <div className="w-full h-full bg-white/5" />
                   )}
+                  {/* Top gradient — clear space under Telegram header */}
                   <div
-                    className="absolute inset-0 pointer-events-none rounded-xl"
+                    className="absolute top-0 left-0 right-0 h-[120px] pointer-events-none"
                     style={{
-                      background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.3) 100%)',
+                      background: 'linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0))',
+                    }}
+                  />
+                  {/* Bottom gradient */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-[120px] pointer-events-none"
+                    style={{
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)',
                     }}
                   />
                 </div>
               </div>
 
-              <div className="px-4 -mt-2 relative z-10 space-y-3">
+              <div className="px-4 -mt-8 relative z-10 space-y-3">
                 <motion.h1
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
