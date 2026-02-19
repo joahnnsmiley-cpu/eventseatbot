@@ -159,28 +159,52 @@ const EventPage: React.FC<EventPageProps> = ({
           {!eventLoading && !eventError && (
             <>
               <div className="-mx-5 mb-5 overflow-hidden">
-                <div className="relative left-1/2 -translate-x-1/2 w-screen max-w-none aspect-[16/10] max-h-[240px] bg-black/20">
+                <div
+                  className="relative left-1/2 -translate-x-1/2 w-screen max-w-none bg-black flex items-center justify-center"
+                  style={{ minHeight: 200, maxHeight: 'min(65vh, 380px)' }}
+                >
+                  {imgUrl?.trim() ? (
+                    <img
+                      src={imgUrl.trim()}
+                      alt=""
+                      className="w-full h-auto max-h-[min(65vh,380px)] object-contain object-top"
+                      style={{ display: 'block' }}
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-white/5" />
+                  )}
                   <div
-                    className="absolute inset-0 bg-cover bg-center"
-                    style={{ backgroundImage: imgUrl?.trim() ? `url(${imgUrl.trim()})` : undefined }}
-                  />
-                  <div
-                    className="absolute inset-0"
+                    className="absolute inset-0 pointer-events-none"
                     style={{
-                      background: 'linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.6) 100%)',
+                      background: 'linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.8) 100%)',
                     }}
                   />
                 </div>
               </div>
 
-              <h1 className="font-luxury-event-title text-[26px] leading-tight mb-4">
+              <motion.h1
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                className="font-luxury-event-title text-[28px] sm:text-[32px] leading-tight mb-4 text-center"
+              >
                 {event.title?.trim() || UI_TEXT.event.eventFallback}
-              </h1>
+              </motion.h1>
 
               {event.description != null && event.description.trim() !== '' && (
-                <p className="text-[15px] text-white/80 leading-relaxed mb-5">
-                  {event.description.trim()}
-                </p>
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+                  className="mb-5 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4"
+                  style={{
+                    boxShadow: '0 0 0 1px rgba(255,255,255,0.06) inset, 0 4px 24px rgba(0,0,0,0.2)',
+                  }}
+                >
+                  <p className="text-[15px] text-white/90 leading-relaxed mb-0 font-medium">
+                    {event.description.trim()}
+                  </p>
+                </motion.div>
               )}
 
               <PrimaryButton
@@ -190,7 +214,7 @@ const EventPage: React.FC<EventPageProps> = ({
                 Купить билеты
               </PrimaryButton>
 
-              <div className="space-y-3">
+              <div className="space-y-3 pb-24">
                 {showDateTime && (
                   <div className="flex items-center gap-3 py-1">
                     <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">

@@ -139,6 +139,9 @@ function App() {
       if (eventMatch) {
         const eventId = eventMatch[1];
         setSelectedEventId(eventId);
+        setSelectedTableId(null);
+        setSelectedSeatsByTable({});
+        setLayoutInitialMode('preview');
         setView('layout');
         loadEvent(eventId);
       }
@@ -406,6 +409,8 @@ function App() {
     setSelectedEvent(null);
     setSelectedEventId(eventId);
     setSelectedTableId(null);
+    setSelectedSeatsByTable({});
+    setLayoutInitialMode('preview');
     setOccupiedMap({});
     setBookingError(null);
     setView('layout');
@@ -440,6 +445,7 @@ function App() {
         onBack={() => setView('events')}
         onViewAsUser={(eventId) => {
           setSelectedEventId(eventId);
+          setLayoutInitialMode('preview');
           loadEvent(eventId);
           setView('layout');
         }}
