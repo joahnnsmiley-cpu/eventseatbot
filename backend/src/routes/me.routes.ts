@@ -283,7 +283,11 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
       const withBookings = events
         .map((e: any) => ({
           event: e,
-          count: allBookings.filter((b: any) => (b.eventId ?? b.event_id) === e.id && validStatuses.includes(String(b.status ?? ''))).length,
+          count: allBookings.filter((b: any) => {
+            const eid = b.eventId ?? b.event_id;
+            const st = String(b.status ?? '').toLowerCase();
+            return String(eid) === String(e.id) && validStatuses.includes(st);
+          }).length,
         }))
         .filter((x) => x.count > 0)
         .sort((a, b) => b.count - a.count);
@@ -298,11 +302,12 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
   const eventId = event.id;
   const tables = Array.isArray(event.tables) ? event.tables : [];
   const validStatuses = ['reserved', 'paid', 'awaiting_confirmation', 'payment_submitted', 'confirmed', 'pending'];
+  const eventIdStr = String(eventId);
   const eventBookings = allBookings.filter(
     (b: any) => {
       const eid = b.eventId ?? b.event_id;
-      const st = String(b.status ?? '');
-      return eid === eventId && validStatuses.includes(st);
+      const st = String(b.status ?? '').toLowerCase();
+      return String(eid) === eventIdStr && validStatuses.includes(st);
     }
   );
 
@@ -372,7 +377,7 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
   const reservedStatuses = ['reserved', 'awaiting_confirmation', 'payment_submitted', 'confirmed', 'pending'];
   for (const b of eventBookings) {
     const amt = Number((b as any).totalAmount ?? (b as any).total_amount ?? 0) || 0;
-    const st = String((b as any).status ?? '');
+    const st = String((b as any).status ?? '').toLowerCase();
     if (paidStatuses.includes(st)) revenueCurrent += amt;
     else if (reservedStatuses.includes(st)) revenueReserved += amt;
   }
@@ -417,7 +422,7 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
 
   for (const b of eventBookings) {
     const amt = Number((b as any).totalAmount ?? (b as any).total_amount ?? 0) || 0;
-    const st = String((b as any).status ?? '');
+    const st = String((b as any).status ?? '').toLowerCase();
     if (st !== 'paid') continue;
     let tid = (b as any).tableId ?? (b as any).table_id;
     if (!tid) {
