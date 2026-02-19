@@ -1,15 +1,15 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import ProfileLayout from '../components/profile/ProfileLayout';
-import ProfileCard from '../components/profile/ProfileCard';
 import ProfileAnimatedStack from '../components/profile/ProfileAnimatedStack';
 import CountdownCard from '../components/profile/CountdownCard';
-import { CATEGORY_COLORS } from '../src/config/categoryColors';
+import {
+  resolveCategoryColorKeyFromName,
+  getCategoryColor,
+} from '../src/config/categoryColors';
 import type { CategoryColorKey } from '../src/config/categoryColors';
-import { luxuryLabel, darkTextPrimary, darkTextMuted, darkTextSubtle } from '../design/theme';
 import { UI_TEXT } from '../constants/uiText';
 import { duration, easing } from '../design/motion';
-import CategoryBadge from '../components/profile/CategoryBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 export type ProfileGuestScreenProps = {
@@ -38,20 +38,10 @@ export type ProfileGuestEmptyProps = {
 // ─── ProfileGuestEmpty ─────────────────────────────────────────────────────
 export function ProfileGuestEmpty({ message = 'У вас пока нет забронированного места' }: ProfileGuestEmptyProps) {
   return (
-    <ProfileLayout>
-      <ProfileCard padding={32} rounded={28} variant="glass">
-        <p
-          style={{
-            fontSize: 18,
-            color: darkTextMuted,
-            textAlign: 'center',
-            margin: 0,
-            lineHeight: 1.6,
-          }}
-        >
-          {message}
-        </p>
-      </ProfileCard>
+    <ProfileLayout className="profile-guest-premium">
+      <div className="pt-12 text-center">
+        <p className="text-base text-white/70 leading-relaxed m-0">{message}</p>
+      </div>
     </ProfileLayout>
   );
 }
@@ -70,6 +60,15 @@ const FALLBACK_AVATAR =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="19" fill="%231a1a1a" stroke="%23C6A75E" stroke-width="1" opacity="0.9"/><circle cx="20" cy="14" r="6" fill="%23C6A75E" opacity="0.6"/></svg>'
   );
 
+/** Resolve category for colors — prefer categoryName when it matches a known category (fixes VIP text + Gold graphic mismatch). */
+function resolveCategoryForColors(
+  categoryColorKey: CategoryColorKey,
+  categoryName?: string
+): CategoryColorKey {
+  const fromName = resolveCategoryColorKeyFromName(categoryName ?? '');
+  return fromName ?? categoryColorKey;
+}
+
 export default function ProfileGuestScreen({
   guestName,
   avatarUrl,
@@ -84,49 +83,26 @@ export default function ProfileGuestScreen({
   privateAccess,
 }: ProfileGuestScreenProps) {
   const effectiveAvatarUrl = avatarUrl || getDefaultAvatarUrl();
-  const categoryConfig = CATEGORY_COLORS[category] ?? CATEGORY_COLORS.gold;
+  const categoryForColors = resolveCategoryForColors(category, categoryName);
+  const categoryConfig = getCategoryColor(categoryForColors);
   const categoryLabel = categoryName ?? categoryConfig.label;
 
   return (
-    <ProfileLayout>
-      <ProfileAnimatedStack>
-        {/* 1️⃣ Hero — avatar + greeting, Apple-style */}
-        <ProfileCard
-          padding={48}
-          rounded={28}
-          variant="hero"
-          style={{
-            background: `linear-gradient(165deg, rgba(22,21,19,0.98) 0%, rgba(14,13,12,0.98) 100%)`,
-            border: `1px solid rgba(255,255,255,0.06)`,
-            boxShadow: '0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: 200,
-            gap: 24,
-          }}
-        >
+    <ProfileLayout className="profile-guest-premium">
+      <ProfileAnimatedStack gap={28}>
+        {/* 1️⃣ Header — no box, small text + large name */}
+        <div className="pt-8 flex flex-col items-center text-center">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, ease: easing.primaryArray }}
-            style={{ position: 'relative' }}
+            transition={{ duration: 0.4, ease: easing.primaryArray }}
+            className="relative"
           >
-            <div
-              style={{
-                width: 88,
-                height: 88,
-                borderRadius: '50%',
-                overflow: 'hidden',
-                border: '2px solid rgba(255,255,255,0.08)',
-                boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-              }}
-            >
+            <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/10 shrink-0 mx-auto">
               <img
                 src={effectiveAvatarUrl}
                 alt=""
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                className="w-full h-full object-cover"
                 onError={(e) => {
                   const img = e.target as HTMLImageElement;
                   const defaultUrl = getDefaultAvatarUrl();
@@ -141,201 +117,130 @@ export default function ProfileGuestScreen({
                 }}
               />
             </div>
-            <CategoryBadge category={category} size={88} />
           </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: duration.entrance / 1000, delay: 0.1, ease: easing.primaryArray }}
-            style={{ textAlign: 'center' }}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.4 }}
+            className="text-sm text-white/50 mt-4 mb-0"
           >
-            <motion.h1
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.08, ease: easing.primaryArray }}
-              style={{
-                fontFamily: "'Cormorant Garamond', 'Times New Roman', serif",
-                fontSize: 'clamp(32px, 6vw, 42px)',
-                fontWeight: 400,
-                color: darkTextPrimary,
-                margin: 0,
-                letterSpacing: '0.02em',
-                lineHeight: 1.25,
-              }}
-            >
-              Рады видеть вас,
-            </motion.h1>
-            <motion.span
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.18, ease: easing.primaryArray }}
-              style={{
-                fontFamily: "'Cormorant Garamond', 'Times New Roman', serif",
-                fontSize: 'clamp(36px, 7vw, 48px)',
-                fontWeight: 500,
-                color: darkTextPrimary,
-                display: 'block',
-                marginTop: 4,
-                letterSpacing: '0.03em',
-              }}
-            >
-              {guestName}
-            </motion.span>
-          </motion.div>
-        </ProfileCard>
+            Рады видеть вас,
+          </motion.p>
+          <motion.h1
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.45, ease: easing.primaryArray }}
+            className="text-5xl font-serif text-white tracking-wide mt-1 mb-0"
+            style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}
+          >
+            {guestName}
+          </motion.h1>
+        </div>
 
-        {/* 2️⃣ CountdownCard — isolated to avoid parent re-renders */}
-        <ProfileCard padding={24} rounded={24} variant="glass">
-          <CountdownCard eventDate={event.dateTime || ''} label="До начала вечера" variant="guest" dark />
-        </ProfileCard>
+        {/* 2️⃣ Countdown — cinematic, glass only */}
+        <div className="rounded-2xl backdrop-blur-md bg-white/5 border border-white/10 px-6 py-5">
+          <CountdownCard
+            eventDate={event.dateTime || ''}
+            label="ДО НАЧАЛА ВЕЧЕРА"
+            variant="guest"
+            dark
+          />
+        </div>
 
-        {/* 3️⃣ MyEveningCard */}
-        <ProfileCard padding={24} rounded={24} variant="glass" interactive>
-          <p style={{ ...luxuryLabel, marginBottom: 16, marginTop: 0 }}>
-            {UI_TEXT.profile.yourEvening}
-          </p>
-          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+        {/* 3️⃣ Upcoming Event — VIP pass card */}
+        <div
+          className="rounded-2xl overflow-hidden border border-yellow-500/25 shadow-[0_0_24px_rgba(212,175,55,0.12)]"
+          style={{
+            background: `linear-gradient(165deg, rgba(22,21,19,0.95) 0%, rgba(14,13,12,0.98) 100%)`,
+          }}
+        >
+          <div className="px-5 py-5 flex gap-4 items-start">
             <div
+              className="w-14 h-14 rounded-full shrink-0 border-2 flex items-center justify-center"
               style={{
-                width: 72,
-                height: 72,
-                borderRadius: '50%',
                 background: categoryConfig.gradient,
-                flexShrink: 0,
-                border: `2px solid ${categoryConfig.base}99`,
-                boxShadow: `0 0 20px ${categoryConfig.base}33`,
+                borderColor: `${categoryConfig.base}99`,
+                boxShadow: `0 0 16px ${categoryConfig.base}40`,
               }}
             />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: darkTextPrimary, letterSpacing: '-0.02em' }}>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-yellow-500/90 uppercase tracking-[0.12em] mb-3 mt-0">
+                {UI_TEXT.profile.yourEvening}
+              </p>
+              <p className="text-2xl font-bold text-white tracking-tight m-0">
                 Стол № {tableNumber}
               </p>
               {seatNumbers.length > 0 && (
-                <p style={{ margin: '6px 0 0', fontSize: 18, fontWeight: 600, color: darkTextPrimary }}>
+                <p className="text-lg font-semibold text-white mt-1 mb-0">
                   {seatNumbers.length > 1 ? 'Места' : 'Место'} № {seatNumbers.join(', ')}
                 </p>
               )}
-              <p style={{ margin: '6px 0 0', fontSize: 16, color: '#E8D48A', fontWeight: 600 }}>{categoryLabel}</p>
-              <p style={{ margin: '4px 0 0', fontSize: 15, color: darkTextMuted }}>{event.venue}</p>
+              <p className="text-sm font-semibold text-yellow-500/90 mt-2 mb-0">{categoryLabel}</p>
+              <p className="text-sm text-white/50 mt-1 mb-0">{event.venue}</p>
             </div>
           </div>
-        </ProfileCard>
+        </div>
 
-        {/* 4️⃣ TableNeighborsCard */}
-        <ProfileCard padding={24} rounded={24} variant="glass" interactive>
-          <p style={{ margin: '0 0 16px', fontSize: 15, color: darkTextMuted }}>
-            {UI_TEXT.profile.neighborsCaption}
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {neighbors.length === 0 ? (
-              <p style={{ margin: 0, fontSize: 15, color: darkTextMuted }}>
-                {UI_TEXT.profile.neighborsEmpty}
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'center' }}>
-                {neighbors.map((n, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.1)',
-                        border: '2px solid rgba(255,255,255,0.15)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                        flexShrink: 0,
+        {/* 4️⃣ Neighbors / Info — minimal, no border */}
+        <div className="space-y-2">
+          <p className="text-[15px] text-white/70 leading-relaxed m-0">{UI_TEXT.profile.neighborsCaption}</p>
+          {neighbors.length === 0 ? (
+            <p className="text-sm text-white/50 leading-relaxed m-0">{UI_TEXT.profile.neighborsEmpty}</p>
+          ) : (
+            <div className="flex flex-wrap gap-4 items-center pt-2">
+              {neighbors.map((n, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 border border-white/15 shrink-0">
+                    <img
+                      src={
+                        n.avatar?.startsWith('http')
+                          ? n.avatar
+                          : n.avatar
+                            ? `${window.location.origin}${n.avatar.startsWith('/') ? '' : '/'}${n.avatar}`
+                            : getDefaultAvatarUrl()
+                      }
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        if (img.dataset.fallback === 'done') return;
+                        img.dataset.fallback = 'done';
+                        img.src = getDefaultAvatarUrl();
                       }}
-                    >
-                      <img
-                        src={
-                          n.avatar?.startsWith('http')
-                            ? n.avatar
-                            : n.avatar
-                              ? `${window.location.origin}${n.avatar.startsWith('/') ? '' : '/'}${n.avatar}`
-                              : getDefaultAvatarUrl()
-                        }
-                        alt=""
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        onError={(e) => {
-                          const img = e.target as HTMLImageElement;
-                          if (img.dataset.fallback === 'done') return;
-                          img.dataset.fallback = 'done';
-                          img.src = getDefaultAvatarUrl();
-                        }}
-                      />
-                    </div>
-                    <span style={{ fontSize: 15, fontWeight: 500, color: darkTextPrimary }}>
-                      {n.name}
-                    </span>
+                    />
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </ProfileCard>
+                  <span className="text-[15px] font-medium text-white">{n.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-        {/* 5️⃣ PrivilegesCard */}
+        {/* 5️⃣ Privileges */}
         {privileges.length > 0 && (
-          <ProfileCard padding={24} rounded={24} variant="glass" interactive>
-            <p style={{ ...luxuryLabel, marginBottom: 16, marginTop: 0 }}>
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-yellow-500/90 uppercase tracking-[0.12em] m-0">
               {UI_TEXT.profile.yourPrivileges}
             </p>
-            <ul style={{ margin: 0, paddingLeft: 20 }}>
+            <ul className="m-0 pl-5 space-y-2 list-none">
               {privileges.map((p, i) => (
-                <li
-                  key={i}
-                  style={{
-                    marginBottom: 12,
-                    fontSize: 15,
-                    color: darkTextPrimary,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  <span style={{ marginRight: 8 }}>✨</span>
+                <li key={i} className="text-[15px] text-white/90 leading-relaxed">
+                  <span className="mr-2">✨</span>
                   {p}
                 </li>
               ))}
             </ul>
-          </ProfileCard>
+          </div>
         )}
 
-        {/* 6️⃣ PrivateAccessCard */}
+        {/* 6️⃣ Private Access */}
         {privateAccess && (
-          <ProfileCard
-            padding={24}
-            rounded={24}
-            variant="glass"
-            interactive
-            style={{
-              border: `1px solid ${categoryConfig.base}66`,
-              boxShadow: `0 0 24px ${categoryConfig.base}22`,
-            }}
-          >
-            <p
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: darkTextPrimary,
-                marginBottom: 12,
-                marginTop: 0,
-              }}
-            >
+          <div className="space-y-2 pt-2">
+            <p className="text-sm font-semibold text-white m-0">
               {UI_TEXT.profile.privateAccessLabel} {categoryLabel}
             </p>
-            <p
-              style={{
-                fontSize: 14,
-                color: darkTextMuted,
-                lineHeight: 1.6,
-                margin: 0,
-              }}
-            >
-              {privateAccess}
-            </p>
-          </ProfileCard>
+            <p className="text-sm text-white/70 leading-relaxed m-0">{privateAccess}</p>
+          </div>
         )}
       </ProfileAnimatedStack>
     </ProfileLayout>

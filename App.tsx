@@ -21,7 +21,7 @@ import { getPriceForTable } from './src/utils/getTablePrice';
 import { getCategoryColorFromCategory } from './src/config/categoryColors';
 import { getCurrentUser } from './src/utils/getCurrentUser';
 import { getEventDisplayParts, getEventDisplayPartsFromIso } from './src/utils/formatDate';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Settings } from 'lucide-react';
 import { UI_TEXT } from './constants/uiText';
 import { useToast } from './src/ui/ToastContext';
 
@@ -1092,10 +1092,7 @@ function App() {
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
               #НИКТОНЕКРУЧЕ
             </h1>
-            <div className="w-16 h-[2px] bg-[#FFC107] mx-auto" />
-            <p className="text-[#FFC107] text-sm tracking-[6px] uppercase">
-              КАССА
-            </p>
+            <div className="events-premium-line mx-auto" />
             <p className="text-muted-light text-sm">
               Выберите ваше эксклюзивное событие
             </p>
@@ -1104,9 +1101,11 @@ function App() {
             <button
               type="button"
               onClick={() => setView('admin')}
-              className="absolute top-4 right-0 z-10 text-xs uppercase tracking-widest text-[#FFC107] opacity-70 hover:opacity-100 transition"
+              className="absolute top-4 right-0 z-10 w-10 h-10 rounded-full flex items-center justify-center bg-white/5 border border-white/10 hover:bg-[#C6A75E]/20 hover:border-[#C6A75E]/40 transition-all"
+              title="Админка"
+              aria-label="Админка"
             >
-              АДМИНКА
+              <Settings size={20} className="text-[#C6A75E]" strokeWidth={2} />
             </button>
           )}
         </div>
@@ -1133,7 +1132,7 @@ function App() {
               <>
                 {featured && (
                   <div>
-                    <p className="text-[#C6A75E] text-xs font-bold tracking-widest uppercase mb-2">
+                    <p className="text-muted-light text-xs tracking-widest uppercase mb-2 text-center">
                       ГЛАВНОЕ СОБЫТИЕ
                     </p>
                     <div className="relative min-h-[200px] max-h-[220px]">
@@ -1197,7 +1196,7 @@ function App() {
 
                 {events.length > 0 && (
                   <div>
-                    <p className="text-muted text-xs tracking-widest uppercase mb-2">
+                    <p className="text-muted-light text-xs tracking-widest uppercase mb-2 text-center">
                       ВСЕ СОБЫТИЯ
                     </p>
                     <div className="space-y-2">

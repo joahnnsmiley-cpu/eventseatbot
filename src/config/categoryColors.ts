@@ -73,6 +73,18 @@ export function getCategoryColor(colorKey: string | undefined): CategoryColorCon
   return CATEGORY_COLORS[key] ?? CATEGORY_COLORS.gold;
 }
 
+/** Resolve color key from category name (e.g. "VIP" -> vip). Use when categoryName and color_key may mismatch. */
+export function resolveCategoryColorKeyFromName(name: string | undefined): CategoryColorKey | null {
+  const n = (name ?? '').toLowerCase();
+  if (n.includes('vip')) return 'vip';
+  if (n.includes('gold') || n.includes('золот') || n.includes('голд')) return 'gold';
+  if (n.includes('silver') || n.includes('серебр') || n.includes('сильвер')) return 'silver';
+  if (n.includes('bronze') || n.includes('бронз')) return 'bronze';
+  if (n.includes('emerald') || n.includes('изумруд')) return 'emerald';
+  if (n.includes('sapphire') || n.includes('сапфир')) return 'sapphire';
+  return null;
+}
+
 export function resolveCategoryColorKey(category: { color_key?: string; styleKey?: string; custom_color?: string } | null | undefined): CategoryColorKey {
   if (!category) return 'gold';
   if ((category as { custom_color?: string }).custom_color) return 'gold';

@@ -4,7 +4,6 @@ import * as StorageService from '../services/storageService';
 import NeonTicketCard from '../src/ui/NeonTicketCard';
 import TicketModal from '../src/ui/TicketModal';
 import Card from '../src/ui/Card';
-import SectionTitle from '../src/ui/SectionTitle';
 import PrimaryButton from '../src/ui/PrimaryButton';
 import { getEventDisplayParts, getEventDisplayPartsFromIso } from '../src/utils/formatDate';
 import { RefreshCw } from 'lucide-react';
@@ -272,17 +271,33 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const hasActiveFilters = statusFilter !== 'all';
 
   return (
-    <div className="max-w-[420px] mx-auto h-full relative overflow-x-hidden">
-      <div className="px-4 pt-4 pb-2 space-y-4">
+    <div className="my-tickets-premium max-w-[420px] mx-auto h-full relative overflow-x-hidden">
+      {/* Subtle purple radial glow background */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 70% 50% at 80% 10%, rgba(88,28,135,0.12) 0%, transparent 55%)',
+        }}
+      />
+      <div className="absolute inset-0 bg-[#0a0a0a]" style={{ zIndex: -1 }} />
+
+      <div className="relative px-4 pt-8 pb-2 space-y-4">
         <div className="flex items-center justify-between">
-          <SectionTitle title="Мои билеты" />
+          <div>
+            <h1 className="text-4xl font-bold tracking-wide text-white">
+              Мои билеты
+            </h1>
+            <p className="text-sm text-white/50 mt-1">
+              Private Access
+            </p>
+          </div>
           <button
             onClick={() => load()}
             disabled={loading}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[#C6A75E]/70 hover:text-[#C6A75E] hover:bg-white/5 transition shrink-0"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-yellow-400/90 hover:text-yellow-400 hover:shadow-[0_0_16px_rgba(250,204,21,0.3)] transition-all shrink-0"
             aria-label={UI_TEXT.common.refresh}
           >
-            <RefreshCw size={18} strokeWidth={2} />
+            <RefreshCw size={20} strokeWidth={2} />
           </button>
         </div>
 
@@ -298,22 +313,23 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
         {!loading && !error && bookings.length > 0 && (
           <div className="flex items-center gap-2">
-            <div className="flex flex-1 min-w-0 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-1">
+            <div className="flex flex-1 min-w-0 rounded-2xl backdrop-blur-md bg-white/5 border border-white/10 p-1.5">
               <div
                 ref={scrollRef}
-                className="flex flex-nowrap overflow-x-auto gap-2 py-2 no-scrollbar scroll-smooth cursor-grab select-none"
+                className="flex flex-nowrap overflow-x-auto gap-2 py-1 no-scrollbar scroll-smooth cursor-grab select-none"
               >
                 {['all', ...rawStatuses].map((status) => {
                   const label = status === 'all' ? 'Все' : STATUS_LABELS[status] ?? status;
+                  const isActive = statusFilter === status;
                   return (
                     <button
                       key={status}
                       type="button"
                       onClick={() => setStatusFilter(status)}
-                      className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm whitespace-nowrap transition-all duration-300 ${
-                        statusFilter === status
-                          ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-black shadow-md shadow-yellow-500/30'
-                          : 'bg-white/5 text-white/60 hover:text-white'
+                      className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-300 ${
+                        isActive
+                          ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] text-black shadow-lg shadow-yellow-500/20'
+                          : 'text-white/60 hover:text-white'
                       }`}
                     >
                       {label}
@@ -382,6 +398,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       </button>
                     </div>
                   )}
+                  <div className="rounded-2xl border border-yellow-500/20 shadow-2xl shadow-black/60 hover:shadow-[0_0_24px_rgba(234,179,8,0.15)] hover:scale-[1.02] transition-all duration-300 overflow-hidden">
                   <NeonTicketCard
                     eventTitle={info?.title ?? 'Событие'}
                     date={date}
@@ -396,6 +413,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       if (url) setSelectedTicket(url);
                     }}
                   />
+                  </div>
                   {canPay && (
                     <PrimaryButton
                       onClick={(e) => {

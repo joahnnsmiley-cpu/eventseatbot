@@ -2,11 +2,9 @@ import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { Settings } from 'lucide-react';
 import ProfileLayout from '../components/profile/ProfileLayout';
-import ProfileCard from '../components/profile/ProfileCard';
 import ProfileAnimatedStack from '../components/profile/ProfileAnimatedStack';
 import CountdownCard from '../components/profile/CountdownCard';
 import OrganizerStatsLazy from '../components/profile/OrganizerStatsLazy';
-import { luxuryLabel } from '../design/theme';
 import { UI_TEXT } from '../constants/uiText';
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -60,28 +58,11 @@ function ActionButton({
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.98 }}
       transition={{ duration: 0.12, ease: 'easeOut' }}
+      className="w-full px-5 py-3.5 text-[15px] font-medium text-white rounded-xl transition-all duration-200 hover:bg-yellow-500/10"
       style={{
-        width: '100%',
-        padding: '14px 20px',
-        fontSize: 15,
-        fontWeight: 500,
-        color: '#EAE6DD',
-        background: 'rgba(255,255,255,0.06)',
-        backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: 12,
+        background: '#1a1a1a',
+        border: '1px solid rgba(234, 179, 8, 0.2)',
         cursor: onClick ? 'pointer' : 'default',
-        transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s',
-      }}
-      onMouseOver={(e) => {
-        if (onClick) {
-          e.currentTarget.style.background = 'rgba(198,167,94,0.15)';
-          e.currentTarget.style.borderColor = 'rgba(198,167,94,0.4)';
-        }
-      }}
-      onMouseOut={(e) => {
-        e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
       }}
     >
       {label}
@@ -124,116 +105,89 @@ function ProfileOrganizerScreenInner({
         </div>
       )}
       <ProfileAnimatedStack>
-        {/* 1️⃣ Hero */}
-        <ProfileCard
-          padding={32}
-          rounded={28}
-          variant="hero"
-        >
-          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h1
-                style={{
-                  fontSize: 'clamp(22px, 3.5vw, 28px)',
-                  fontWeight: 600,
-                  color: '#F5F2EB',
-                  margin: 0,
-                  letterSpacing: '0.02em',
-                }}
-              >
-                Вы управляете этим вечером
-              </h1>
-              <p
-                style={{
-                  fontSize: 15,
-                  fontWeight: 500,
-                  color: '#C6A75E',
-                  marginTop: 10,
-                  marginBottom: 0,
-                  textShadow: '0 0 24px rgba(198,167,94,0.2)',
-                }}
-              >
-                {stats.guestsTotal} гостей · {stats.fillPercent}% заполнено
-              </p>
+        {/* 1️⃣ Hero — no card, hierarchy with spacing */}
+        <div className="pt-8 flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-4xl font-bold tracking-wide text-white">
+              Вы управляете этим вечером
+            </h1>
+            <p className="text-sm text-white/50 mt-1">
+              Private Access
+            </p>
+            <div
+              className="mt-4 font-bold tabular-nums"
+              style={{
+                fontSize: 'clamp(3rem, 8vw, 4.5rem)',
+                background: 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 50%, #E8C547 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              {stats.guestsTotal}
             </div>
-            {onOpenAdmin && (
-              <button
-                type="button"
-                onClick={onOpenAdmin}
-                className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center bg-white/5 border border-white/10 hover:bg-[#C6A75E]/20 hover:border-[#C6A75E]/40 transition-all"
-                title="Перейти в админ-панель"
-                aria-label="Перейти в админ-панель"
-              >
-                <Settings size={24} className="text-[#C6A75E]" strokeWidth={2} />
-              </button>
-            )}
+            <p className="text-sm text-white/50 mt-1">гостей</p>
           </div>
-        </ProfileCard>
+          {onOpenAdmin && (
+            <button
+              type="button"
+              onClick={onOpenAdmin}
+              className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center bg-white/5 border border-white/10 hover:bg-yellow-500/10 hover:border-yellow-500/30 transition-all"
+              title="Перейти в админ-панель"
+              aria-label="Перейти в админ-панель"
+            >
+              <Settings size={24} className="text-yellow-400" strokeWidth={2} />
+            </button>
+          )}
+        </div>
 
-        {/* 2️⃣ CountdownCard — isolated to avoid parent re-renders */}
-        <ProfileCard padding={24} rounded={24} variant="glass">
+        {/* 2️⃣ Countdown — cinematic, glass blur only, no box */}
+        <div className="rounded-2xl backdrop-blur-md bg-white/5 border border-white/10 px-6 py-5">
           <CountdownCard
             eventDate={eventDate || ''}
-            label="До начала события"
+            label="ДО НАЧАЛА СОБЫТИЯ"
             variant="organizer"
           />
-        </ProfileCard>
+        </div>
 
         {/* 3️⃣ & 4️⃣ LiveStatsCard + TablesOverviewCard + Profit + Categories — lazy loaded */}
         <OrganizerStatsLazy stats={stats} tables={tables} categoryStats={categoryStats} />
 
-        {/* 5️⃣ VIPGuestsCard */}
-        <ProfileCard padding={24} rounded={24} variant="glass" interactive>
-          <p style={{ ...luxuryLabel, marginBottom: 16, marginTop: 0 }}>VIP гости</p>
+        {/* 5️⃣ VIP guests — minimal, no heavy card */}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold text-yellow-500/90 uppercase tracking-[0.12em]">
+            VIP гости
+          </p>
           {vipGuests.length > 0 ? (
-            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+            <ul className="space-y-4 list-none m-0 p-0">
               {vipGuests.map((g, i) => (
-                <li
-                  key={i}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 4,
-                    padding: '12px 0',
-                    borderBottom:
-                      i < vipGuests.length - 1 ? '1px solid rgba(255,255,255,0.08)' : 'none',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 15, color: '#EAE6DD', fontWeight: 500 }}>{g.phone}</span>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: '#9B948A',
-                        fontWeight: 500,
-                      }}
-                    >
-                      {g.category}
-                    </span>
+                <li key={i} className="flex flex-col gap-1 py-2 border-b border-white/10 last:border-0">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[15px] text-white font-medium">{g.phone}</span>
+                    <span className="text-xs text-white/50 font-medium">{g.category}</span>
                   </div>
                   {g.names.length > 0 && (
-                    <span style={{ fontSize: 14, color: '#B8B2A8' }}>
-                      {g.names.join(', ')}
-                    </span>
+                    <span className="text-sm text-white/60">{g.names.join(', ')}</span>
                   )}
                 </li>
               ))}
             </ul>
           ) : (
-            <p style={{ margin: 0, fontSize: 15, color: '#9B948A' }}>
-              VIP гости отсутствуют
-            </p>
+            <p className="text-[15px] text-white/50 m-0">VIP гости отсутствуют</p>
           )}
-        </ProfileCard>
+        </div>
 
-        {/* 6️⃣ QuickActionsCard */}
-        <ProfileCard padding={24} rounded={24} variant="glass">
-          <p style={{ ...luxuryLabel, marginBottom: 16, marginTop: 0 }}>Действия</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* 6️⃣ Actions — premium buttons */}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold text-yellow-500/90 uppercase tracking-[0.12em]">
+            Действия
+          </p>
+          <div className="flex flex-col gap-3">
             <ActionButton label="Открыть карту" onClick={onOpenMap} />
             <ActionButton label={UI_TEXT.profile.viewAsGuest} onClick={onViewAsGuest} />
           </div>
-        </ProfileCard>
+        </div>
       </ProfileAnimatedStack>
     </ProfileLayout>
   );

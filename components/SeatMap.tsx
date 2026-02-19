@@ -440,7 +440,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
                       Сбросить масштаб
                     </button>
                     {layoutImageUrl && (
-                      <div className="overflow-hidden rounded-xl border border-white/10 bg-black/80 backdrop-blur-md">
+                      <div className="w-[48px] max-w-[48px] shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/80 backdrop-blur-md">
                         <MiniMap width={48} height={32} borderColor="rgba(198,167,94,0.5)">
                           <img src={layoutImageUrl} alt="" className="w-full h-full object-contain" />
                         </MiniMap>

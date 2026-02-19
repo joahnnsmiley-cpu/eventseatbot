@@ -132,12 +132,22 @@ const EventPage: React.FC<EventPageProps> = ({
 
   const categories = event?.ticketCategories?.filter((c) => c.isActive) ?? [];
 
-  // ─── PREVIEW MODE (Apple premium style) ───────────────────────────────────
+  // ─── PREVIEW MODE (Premium black luxury) ──────────────────────────────────
   if (mode === 'preview') {
     return (
-      <div className="max-w-md mx-auto h-full relative">
-        <div className="px-5 pt-3 pb-8">
-          <div className="flex items-center justify-between h-10 mb-2">
+      <div className="event-details-premium min-h-full relative overflow-hidden">
+        {/* Animated purple gradient background */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse 80% 60% at 85% 15%, rgba(88,28,135,0.15) 0%, transparent 60%)',
+            animation: 'event-details-bg-pulse 8s ease-in-out infinite',
+          }}
+        />
+        <div className="absolute inset-0 bg-[#0a0a0a]" style={{ zIndex: -1 }} />
+
+        <div className="relative">
+          <div className="flex items-center justify-between h-12 px-4 pt-2 absolute top-0 left-0 right-0 z-20">
             <button
               onClick={onBack}
               className="text-[15px] text-white/60 hover:text-white transition"
@@ -146,97 +156,99 @@ const EventPage: React.FC<EventPageProps> = ({
             </button>
             <button
               onClick={onRefresh}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/5 transition"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/5 transition"
               aria-label={UI_TEXT.app.refresh}
             >
               <RefreshCw size={18} strokeWidth={2} />
             </button>
           </div>
 
-          {eventLoading && <div className="text-xs text-muted py-4">{UI_TEXT.app.loadingLayout}</div>}
-          {eventError && <div className="text-sm text-red-400 py-4">{eventError}</div>}
+          {eventLoading && <div className="text-xs text-muted py-4 px-4">{UI_TEXT.app.loadingLayout}</div>}
+          {eventError && <div className="text-sm text-red-400 py-4 px-4">{eventError}</div>}
 
           {!eventLoading && !eventError && (
             <>
-              <div className="-mx-5 mb-5 overflow-hidden">
+              {/* Hero — full width, edge-to-edge, no radius */}
+              <div className="relative -mx-4 w-[calc(100%+2rem)]">
+                {/* Ambient light behind hero */}
                 <div
-                  className="relative left-1/2 -translate-x-1/2 w-screen max-w-none bg-black flex items-center justify-center"
-                  style={{ minHeight: 200, maxHeight: 'min(65vh, 380px)' }}
-                >
+                  className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-[120%] h-32 pointer-events-none"
+                  style={{
+                    background: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(88,28,135,0.25) 0%, transparent 70%)',
+                    filter: 'blur(24px)',
+                  }}
+                />
+                <div className="relative aspect-[4/5] max-h-[55vh] overflow-hidden">
                   {imgUrl?.trim() ? (
                     <img
                       src={imgUrl.trim()}
                       alt=""
-                      className="w-full h-auto max-h-[min(65vh,380px)] object-contain object-top"
-                      style={{ display: 'block' }}
+                      className="w-full h-full object-cover object-top block"
                     />
                   ) : (
-                    <div className="w-full h-48 bg-white/5" />
+                    <div className="w-full h-full bg-white/5" />
                   )}
+                  {/* Bottom dark gradient overlay */}
                   <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                      background: 'linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.8) 100%)',
+                      background: 'linear-gradient(180deg, transparent 0%, transparent 40%, rgba(0,0,0,0.5) 70%, rgba(0,0,0,0.7) 100%)',
                     }}
                   />
                 </div>
               </div>
 
-              <motion.h1
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                className="font-luxury-event-title text-[28px] sm:text-[32px] leading-tight mb-4 text-center"
-              >
-                {event.title?.trim() || UI_TEXT.event.eventFallback}
-              </motion.h1>
-
-              {event.description != null && event.description.trim() !== '' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
+              <div className="px-4 -mt-8 relative z-10 space-y-4">
+                <motion.h1
+                  initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-                  className="mb-5 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4"
-                  style={{
-                    boxShadow: '0 0 0 1px rgba(255,255,255,0.06) inset, 0 4px 24px rgba(0,0,0,0.2)',
-                  }}
+                  transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  className="font-luxury-event-title text-5xl sm:text-6xl font-bold uppercase leading-tight text-center tracking-tight"
                 >
-                  <p className="text-[15px] text-white/90 leading-relaxed mb-0 font-medium">
-                    {event.description.trim()}
-                  </p>
-                </motion.div>
-              )}
+                  {event.title?.trim() || UI_TEXT.event.eventFallback}
+                </motion.h1>
 
-              <PrimaryButton
-                onClick={() => setMode('seatmap')}
-                className="w-full py-3.5 text-[15px] font-medium mb-5"
-              >
-                Купить билеты
-              </PrimaryButton>
-
-              <div className="space-y-3 pb-24">
                 {showDateTime && (
-                  <div className="flex items-center gap-3 py-1">
-                    <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-                      <Calendar size={18} className="text-[#C6A75E]" strokeWidth={2} />
-                    </div>
-                    <div>
-                      <p className="text-[13px] text-white/50">Дата и время</p>
-                      <p className="text-[15px] text-white font-medium">{dateShort}</p>
-                    </div>
-                  </div>
+                  <p className="text-center text-white/60 text-sm sm:text-base">
+                    {dateShort}
+                  </p>
                 )}
-                {showVenue && (
-                  <div className="flex items-center gap-3 py-1">
-                    <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-                      <MapPin size={18} className="text-[#C6A75E]" strokeWidth={2} />
-                    </div>
-                    <div>
-                      <p className="text-[13px] text-white/50">Место проведения</p>
-                      <p className="text-[15px] text-white font-medium">{venue?.trim()}</p>
-                    </div>
-                  </div>
+
+                {event.description != null && event.description.trim() !== '' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+                    className="backdrop-blur-md bg-white/5 border border-white/10 rounded-xl px-4 py-3"
+                  >
+                    <p className="text-[14px] text-white/85 leading-snug line-clamp-2">
+                      {event.description.trim()}
+                    </p>
+                  </motion.div>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => setMode('seatmap')}
+                  className="event-details-cta w-full py-4 text-base font-semibold text-black rounded-xl transition-all hover:opacity-95 active:scale-[0.98]"
+                >
+                  Купить билеты
+                </button>
+
+                <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 py-4 pb-24 text-sm">
+                  {showDateTime && (
+                    <div className="flex items-center gap-2 text-white/70">
+                      <Calendar size={16} strokeWidth={2} />
+                      <span>{dateShort}</span>
+                    </div>
+                  )}
+                  {showVenue && (
+                    <div className="flex items-center gap-2 text-white/70">
+                      <MapPin size={16} strokeWidth={2} />
+                      <span>{venue?.trim()}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           )}
