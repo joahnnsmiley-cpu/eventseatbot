@@ -15,6 +15,7 @@ import BottomNav, { type BottomNavTab } from './src/layout/BottomNav';
 import Card from './src/ui/Card';
 import SectionTitle from './src/ui/SectionTitle';
 import PremiumGreetingModal, { PREMIUM_HIDE_KEY } from './src/ui/PremiumGreetingModal';
+import PaymentReminderBanner, { type PendingBookingInfo } from './src/ui/PaymentReminderBanner';
 import PrimaryButton from './src/ui/PrimaryButton';
 import type { Booking, EventData, Table } from './types';
 import { getPriceForTable } from './src/utils/getTablePrice';
@@ -104,6 +105,65 @@ function App() {
   const [layoutInitialMode, setLayoutInitialMode] = useState<'preview' | 'seatmap'>('preview');
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [premiumMessage, setPremiumMessage] = useState<string | null>(null);
+  const [pendingBookingsForBanner, setPendingBookingsForBanner] = useState<PendingBookingInfo[]>([]);
+
+  // Fetch pending bookings globally for the payment reminder banner
+  const loadPendingBookingsForBanner = React.useCallback(async () => {
+    const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    if (!telegramId) return;
+    try {
+      const allBookings = await StorageService.getMyBookingsPublic(telegramId);
+      const PAYABLE = ['pending', 'reserved', 'awaiting_payment'];
+      const unpaid = allBookings.filter(
+        (b: any) => PAYABLE.includes(b.status) && (!b.expires_at || new Date(b.expires_at).getTime() > Date.now())
+      );
+      if (unpaid.length === 0) {
+        setPendingBookingsForBanner([]);
+        return;
+      }
+      // Enrich with event data (paymentPhone, title, amount)
+      const enriched: PendingBookingInfo[] = [];
+      const eventCache: Record<string, EventData> = {};
+      for (const b of unpaid) {
+        try {
+          if (!eventCache[b.event_id]) {
+            eventCache[b.event_id] = await StorageService.getEvent(b.event_id);
+          }
+          const ev = eventCache[b.event_id];
+          const seatCount = b.seats_booked ?? b.seat_indices?.length ?? 0;
+          const table = b.table_id ? (ev?.tables ?? []).find((t: any) => t.id === b.table_id) : null;
+          const priceFallback = ev?.ticketCategories?.find((c: any) => c.isActive)?.price ?? 0;
+          const price = getPriceForTable(ev, table ?? undefined, priceFallback);
+          enriched.push({
+            bookingId: b.id,
+            eventId: b.event_id,
+            totalAmount: seatCount * price,
+            paymentPhone: (ev as any)?.paymentPhone?.trim() ?? '',
+            eventTitle: ev?.title ?? 'Событие',
+            status: b.status,
+          });
+        } catch {
+          enriched.push({
+            bookingId: b.id,
+            eventId: b.event_id,
+            totalAmount: 0,
+            paymentPhone: '',
+            eventTitle: 'Событие',
+            status: b.status,
+          });
+        }
+      }
+      setPendingBookingsForBanner(enriched);
+    } catch {
+      // silent — banner just won't show
+    }
+  }, []);
+
+  useEffect(() => {
+    // small delay so Telegram init finishes first
+    const timer = setTimeout(loadPendingBookingsForBanner, 1500);
+    return () => clearTimeout(timer);
+  }, [loadPendingBookingsForBanner]);
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
@@ -428,6 +488,15 @@ function App() {
   const wrapWithLayout = (children: React.ReactNode) => (
     <AppLayout>
       {children}
+      {view !== 'booking-success' && pendingBookingsForBanner.length > 0 && (
+        <PaymentReminderBanner
+          pendingBookings={pendingBookingsForBanner}
+          onMarkPaid={(id) => {
+            setPendingBookingsForBanner((prev) => prev.filter((b) => b.bookingId !== id));
+          }}
+          onRefresh={loadPendingBookingsForBanner}
+        />
+      )}
       <BottomNav
         activeTab={bottomNavActiveTab}
         onEventsClick={() => { setView('events'); setSelectedEventId(null); setSelectedEvent(null); setSelectedTableId(null); }}

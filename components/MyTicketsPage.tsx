@@ -304,13 +304,6 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         {loading && <div className="text-xs text-muted">Загрузка…</div>}
         {error && <div className="text-sm text-red-400">{error}</div>}
 
-        {!loading && !error && bookings.length > 0 && bookings.some((b) => PAYABLE_STATUSES.includes(b.status) && !isExpired(b.expires_at)) && (
-          <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 mb-4">
-            <p className="text-amber-300 text-xs font-semibold uppercase tracking-wide">{UI_TEXT.booking.paymentPromptCaps}</p>
-            <p className="text-muted-light text-xs mt-1">{UI_TEXT.booking.paymentPromptOrder}</p>
-          </div>
-        )}
-
         {!loading && !error && bookings.length > 0 && (
           <div className="flex items-center gap-2">
             <div className="flex flex-1 min-w-0 rounded-2xl backdrop-blur-md bg-white/5 border border-white/10 p-1.5">
