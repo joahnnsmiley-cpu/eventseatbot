@@ -268,7 +268,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
               <div className="flex items-center gap-2">
                 <CreditCard size={15} strokeWidth={2} className="text-amber-400/80" />
                 <span className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">
-                  Оплата по СБП
+                  Оплата по СБП (Сбер)
                 </span>
               </div>
 

@@ -276,13 +276,18 @@ const EventPage: React.FC<EventPageProps> = ({
                   const desc = event.description.trim();
                   const isLong = desc.length > 200 || desc.split(/\n/).length > 3;
                   return (
-                    <motion.div
-                      className="rounded-2xl px-4 py-3 min-h-0 relative"
-                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
-                    >
+                    <motion.div className="pt-2 pb-1 relative">
                       <p
-                        className="text-[13px] text-white/70 leading-relaxed whitespace-pre-wrap break-words"
-                        style={isLong && !descriptionExpanded ? { display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
+                        className="text-[14px] leading-relaxed text-white/75"
+                        style={{
+                          ...(isLong && !descriptionExpanded ? {
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                          } : {}),
+                          letterSpacing: '0.015em',
+                        }}
                       >
                         {desc}
                       </p>
@@ -290,8 +295,8 @@ const EventPage: React.FC<EventPageProps> = ({
                         <button
                           type="button"
                           onClick={() => setDescriptionExpanded(true)}
-                          className="text-xs font-semibold mt-1"
-                          style={{ color: '#D4AF37', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                          className="text-[14px] font-medium mt-1.5 transition-colors"
+                          style={{ color: '#D4AF37', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-block' }}
                         >
                           Читать далее
                         </button>
