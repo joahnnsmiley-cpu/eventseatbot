@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const BOTTOM_NAV_HEIGHT = 140;
 
@@ -8,15 +8,12 @@ type AppLayoutProps = {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const [showScrollShadow, setShowScrollShadow] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const check = () => setShowScrollShadow(el.scrollTop > 8);
+    const check = () => setShowScrollShadow(window.scrollY > 8);
     check();
-    el.addEventListener('scroll', check, { passive: true });
-    return () => el.removeEventListener('scroll', check);
+    window.addEventListener('scroll', check, { passive: true });
+    return () => window.removeEventListener('scroll', check);
   }, []);
 
   const grainDataUrl =
@@ -24,13 +21,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div
-      className="flex flex-col w-full max-w-[420px] mx-auto relative bg-black text-white overflow-x-hidden"
-      style={{
-        height: '100dvh',
-        minHeight: '100vh',
-        marginLeft: 'auto',
-        marginRight: 'auto',
-      }}
+      className="flex flex-col w-full max-w-[420px] mx-auto relative bg-black text-white overflow-x-hidden min-h-screen"
     >
       {/* Subtle grain overlay — luxury film look */}
       <div
@@ -44,16 +35,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
       />
       {showScrollShadow && (
         <div
-          className="absolute top-0 left-0 right-0 h-8 z-10 pointer-events-none"
+          className="fixed top-0 left-0 right-0 h-8 z-50 pointer-events-none max-w-[420px] mx-auto"
           style={{
             background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, transparent 100%)',
           }}
         />
       )}
       <div
-        ref={scrollRef}
         data-app-scroll
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden w-full scroll-smooth overscroll-contain"
+        className="flex-1 w-full flex flex-col"
         style={{
           paddingLeft: '1rem',
           paddingRight: '1rem',

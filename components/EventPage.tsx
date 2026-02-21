@@ -318,8 +318,8 @@ const EventPage: React.FC<EventPageProps> = ({
 
   // ─── SEATMAP MODE (legend top, layout, contact below) ─────────────────────
   return (
-    <div className="max-w-md mx-auto h-full relative">
-      <div className="px-4 pt-4 pb-2 space-y-4">
+    <div className="max-w-md mx-auto min-h-screen relative flex flex-col">
+      <div className="px-4 pt-4 pb-2 space-y-4 flex-1">
         <div className="flex items-center justify-between">
           <button
             onClick={() => setMode('preview')}

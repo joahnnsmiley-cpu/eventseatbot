@@ -478,7 +478,7 @@ function App() {
   if (view === 'layout' && selectedEventId) {
     if (!selectedEvent) {
       return wrapWithLayout(
-        <div className="max-w-md mx-auto h-full relative">
+        <div className="max-w-md mx-auto min-h-screen relative">
           <div className="px-4 pt-4 space-y-4">
             <div className="flex items-center justify-between">
               <button
@@ -531,7 +531,7 @@ function App() {
 
   if (view === 'seats' && (!selectedEvent || !selectedTableId || !selectedTable)) {
     return wrapWithLayout(
-      <div className="max-w-md mx-auto h-full bg-surface shadow-2xl relative">
+      <div className="max-w-md mx-auto min-h-screen bg-surface shadow-2xl relative flex flex-col">
         <div className="p-4">
           <div className="text-xs text-muted">{UI_TEXT.app.returningToLayout}</div>
         </div>
@@ -545,7 +545,7 @@ function App() {
 
     return wrapWithLayout(
       <div
-        className="max-w-[420px] mx-auto overflow-x-hidden bg-black h-full"
+        className="max-w-[420px] mx-auto overflow-x-hidden bg-black min-h-screen flex flex-col"
         style={{ '--accent-color': activePalette.base, '--accent-glow': activePalette.glow } as React.CSSProperties}
       >
         <div className="px-4 pt-4 pb-32 space-y-4">
@@ -931,7 +931,7 @@ function App() {
   if (view === 'booking-success') {
     if (!lastCreatedEvent || !lastCreatedBooking) {
       return wrapWithLayout(
-        <div className="max-w-md mx-auto h-full p-4">
+        <div className="max-w-md mx-auto min-h-screen p-4">
           <button onClick={() => setView('events')} className="text-sm border border-white/20 rounded px-3 py-2 text-muted-light">
             {UI_TEXT.app.backToEvents}
           </button>
@@ -953,7 +953,7 @@ function App() {
       setLastCreatedEvent(null);
     };
     return wrapWithLayout(
-      <div className="max-w-md mx-auto h-full">
+      <div className="max-w-md mx-auto min-h-screen">
         <ErrorBoundary
           fallback={
             <div className="max-w-md mx-auto px-4 pt-6 pb-4 space-y-5 text-center">
@@ -993,7 +993,7 @@ function App() {
 
   if (view === 'my-bookings') {
     return wrapWithLayout(
-      <div className="max-w-md mx-auto h-full bg-surface shadow-2xl relative">
+      <div className="max-w-md mx-auto min-h-screen bg-surface shadow-2xl relative">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
             <button

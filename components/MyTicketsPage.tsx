@@ -271,7 +271,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const hasActiveFilters = statusFilter !== 'all';
 
   return (
-    <div className="my-tickets-premium max-w-[420px] mx-auto h-full relative overflow-x-hidden">
+    <div className="my-tickets-premium max-w-[420px] mx-auto min-h-screen relative overflow-x-hidden flex flex-col">
       {/* Subtle purple radial glow background */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -326,11 +326,10 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       key={status}
                       type="button"
                       onClick={() => setStatusFilter(status)}
-                      className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-300 ${
-                        isActive
+                      className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-300 ${isActive
                           ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] text-black shadow-lg shadow-yellow-500/20'
                           : 'text-white/60 hover:text-white'
-                      }`}
+                        }`}
                     >
                       {label}
                     </button>
@@ -399,20 +398,20 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     </div>
                   )}
                   <div className="rounded-2xl border border-yellow-500/20 shadow-2xl shadow-black/60 hover:shadow-[0_0_24px_rgba(234,179,8,0.15)] hover:scale-[1.02] transition-all duration-300 overflow-hidden">
-                  <NeonTicketCard
-                    eventTitle={info?.title ?? 'Событие'}
-                    date={date}
-                    time={time}
-                    tableLabel={getTableDisplay(b)}
-                    seatLabel={seatLabel}
-                    status={getStatusType(b.status)}
-                    ticketImageUrl={getTicketImageUrl(b)}
-                    posterImageUrl={info?.imageUrl ?? undefined}
-                    onClick={() => {
-                      const url = getTicketImageUrl(b);
-                      if (url) setSelectedTicket(url);
-                    }}
-                  />
+                    <NeonTicketCard
+                      eventTitle={info?.title ?? 'Событие'}
+                      date={date}
+                      time={time}
+                      tableLabel={getTableDisplay(b)}
+                      seatLabel={seatLabel}
+                      status={getStatusType(b.status)}
+                      ticketImageUrl={getTicketImageUrl(b)}
+                      posterImageUrl={info?.imageUrl ?? undefined}
+                      onClick={() => {
+                        const url = getTicketImageUrl(b);
+                        if (url) setSelectedTicket(url);
+                      }}
+                    />
                   </div>
                   {canPay && (
                     <PrimaryButton
