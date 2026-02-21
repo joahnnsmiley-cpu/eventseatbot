@@ -160,39 +160,18 @@ const EventPage: React.FC<EventPageProps> = ({
 
   const categories = event?.ticketCategories?.filter((c) => c.isActive) ?? [];
 
+  // ─── PREVIEW MODE (Premium horizontal layout) ────────────────────────────────
   if (mode === 'preview') {
     return (
-      <div className="event-details-premium relative w-full overflow-hidden -mx-4" style={{ minHeight: '100dvh', width: 'calc(100% + 2rem)', background: '#080808' }}>
-
-        {/* ── Full-bleed hero ── */}
-        <div className="absolute inset-0">
-          {imgUrl?.trim() ? (
-            <>
-              {/* Blurred ambient background */}
-              <div
-                className="absolute inset-0 bg-cover bg-center scale-110"
-                style={{ backgroundImage: `url(${imgUrl.trim()})`, filter: 'blur(40px) brightness(0.35)', transform: 'scale(1.15)' }}
-              />
-              {/* Sharp poster — object-cover so it fills the screen nicely */}
-              <img
-                ref={heroImgRef}
-                src={imgUrl.trim()}
-                alt=""
-                className="absolute inset-0 w-full h-full z-10 will-change-transform"
-                style={{ objectFit: 'cover', objectPosition: 'top center' }}
-              />
-            </>
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-b from-purple-950/40 to-black" />
-          )}
-          {/* Strong gradient vignette — fade to black toward bottom */}
-          <div
-            className="absolute inset-0 z-20 pointer-events-none"
-            style={{
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.8) 68%, rgba(0,0,0,0.97) 82%, #080808 100%)',
-            }}
-          />
-        </div>
+      <div className="event-details-premium min-h-[100dvh] relative overflow-hidden -mx-4 w-[calc(100%+2rem)] bg-[#080808] flex flex-col">
+        {/* Animated ambient background */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse 80% 60% at 85% 15%, rgba(88,28,135,0.12) 0%, transparent 60%)',
+            animation: 'event-details-bg-pulse 8s ease-in-out infinite',
+          }}
+        />
 
         {/* ── Floating top nav ── */}
         <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 pt-3 pb-2">
@@ -200,14 +179,10 @@ const EventPage: React.FC<EventPageProps> = ({
             type="button"
             onClick={onBack}
             whileTap={{ scale: 0.93 }}
-            className="flex items-center gap-1.5 text-sm font-medium text-white/80 hover:text-white transition"
+            className="flex items-center gap-1.5 text-sm font-medium text-white/80 hover:text-white transition shadow-lg"
             style={{
-              background: 'rgba(0,0,0,0.35)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: 20,
-              padding: '6px 14px',
+              background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '6px 14px',
             }}
           >
             ← {UI_TEXT.app.back}
@@ -217,11 +192,9 @@ const EventPage: React.FC<EventPageProps> = ({
             onClick={onRefresh}
             whileTap={{ scale: 0.93 }}
             aria-label={UI_TEXT.app.refresh}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white transition"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white transition shadow-lg"
             style={{
-              background: 'rgba(0,0,0,0.35)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
+              background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
               border: '1px solid rgba(255,255,255,0.12)',
             }}
           >
@@ -229,122 +202,150 @@ const EventPage: React.FC<EventPageProps> = ({
           </motion.button>
         </div>
 
-        {/* ── Info panel — pinned to bottom over the gradient ── */}
-        <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-8 space-y-4">
-          {eventLoading && <div className="text-xs text-white/40">{UI_TEXT.app.loadingLayout}</div>}
-          {eventError && <div className="text-xs text-red-400">{eventError}</div>}
+        {eventLoading && <div className="text-xs text-muted py-4 px-4 mt-16">{UI_TEXT.app.loadingLayout}</div>}
+        {eventError && <div className="text-sm text-red-400 py-4 px-4 mt-16">{eventError}</div>}
 
-          {!eventLoading && !eventError && (
-            <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-              className="space-y-3"
-            >
-              {/* Title */}
-              <h1 className="text-3xl font-bold leading-tight tracking-tight text-white">
-                {event.title?.trim() || UI_TEXT.event.eventFallback}
-              </h1>
-
-              {/* Date + venue pills in one row */}
-              {(showDateTime || showVenue) && (
-                <div className="flex flex-wrap gap-2">
-                  {showDateTime && (
-                    <span
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-white/80 rounded-full px-3 py-1.5"
-                      style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
-                    >
-                      <Calendar size={11} strokeWidth={2.5} />
-                      {dateShort}
-                    </span>
-                  )}
-                  {showVenue && (
-                    <span
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-white/80 rounded-full px-3 py-1.5"
-                      style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
-                    >
-                      <MapPin size={11} strokeWidth={2.5} />
-                      {venue?.trim()}
-                    </span>
-                  )}
-                </div>
+        {!eventLoading && !eventError && (
+          <>
+            {/* ── 16:9 Hero Stage ── */}
+            <div className="w-full relative shadow-2xl shadow-black/80 flex shrink-0" style={{ aspectRatio: '16/9', maxHeight: '55vh' }}>
+              {imgUrl?.trim() ? (
+                <>
+                  {/* Blurred background to fill gaps for non-16:9 images */}
+                  <div
+                    className="absolute inset-0 bg-cover bg-center blur-2xl opacity-40 scale-110"
+                    style={{ backgroundImage: `url(${imgUrl.trim()})` }}
+                  />
+                  {/* The actual poster, contained so it's fully visible */}
+                  <img
+                    ref={heroImgRef}
+                    src={imgUrl.trim()}
+                    alt=""
+                    className="relative w-full h-full object-contain block z-10 will-change-transform"
+                  />
+                </>
+              ) : (
+                <div className="w-full h-full bg-white/5 block" />
               )}
+              {/* Bottom gradient to blend into the content area */}
+              <div
+                className="absolute bottom-0 left-0 right-0 h-[80px] pointer-events-none z-20"
+                style={{ background: 'linear-gradient(to top, #080808 0%, rgba(8,8,8,0.8) 40%, transparent 100%)' }}
+              />
+            </div>
 
-              {/* Description — collapsible */}
-              {event.description?.trim() && (() => {
-                const desc = event.description.trim();
-                const isLong = desc.length > 150 || desc.split(/\n/).length > 2;
-                return (
-                  <div>
-                    <p
-                      className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap break-words"
-                      style={isLong && !descriptionExpanded ? {
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      } : undefined}
-                    >
-                      {desc}
-                    </p>
-                    {isLong && !descriptionExpanded && (
-                      <button
-                        type="button"
-                        onClick={() => setDescriptionExpanded(true)}
-                        className="text-xs font-semibold mt-1"
-                        style={{ color: '#D4AF37', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            {/* ── Content area (pulls up slightly over the poster) ── */}
+            <div className="px-4 -mt-4 relative z-20 flex-1 flex flex-col pb-8">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
+                className="space-y-4"
+              >
+                {/* Title */}
+                <h1 className="text-3xl font-bold leading-tight tracking-tight text-white drop-shadow-md">
+                  {event.title?.trim() || UI_TEXT.event.eventFallback}
+                </h1>
+
+                {/* Date + venue pills */}
+                {(showDateTime || showVenue) && (
+                  <div className="flex flex-wrap gap-2">
+                    {showDateTime && (
+                      <span
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-white/90 rounded-full px-3 py-1.5"
+                        style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
                       >
-                        Читать далее
-                      </button>
+                        <Calendar size={12} strokeWidth={2.5} />
+                        {dateShort}
+                      </span>
+                    )}
+                    {showVenue && (
+                      <span
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-white/90 rounded-full px-3 py-1.5"
+                        style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+                      >
+                        <MapPin size={12} strokeWidth={2.5} />
+                        {venue?.trim()}
+                      </span>
                     )}
                   </div>
-                );
-              })()}
+                )}
 
-              {/* Ticket categories */}
-              {categories.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((cat) => (
-                    <span
-                      key={cat.id}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-3 py-1.5"
-                      style={{
-                        background: `${getCategoryColorFromCategory(cat).base}1A`,
-                        border: `1px solid ${getCategoryColorFromCategory(cat).base}40`,
-                        color: getCategoryColorFromCategory(cat).base,
-                      }}
+                {/* Description */}
+                {event.description?.trim() && (() => {
+                  const desc = event.description.trim();
+                  const isLong = desc.length > 200 || desc.split(/\n/).length > 3;
+                  return (
+                    <motion.div
+                      className="rounded-2xl px-4 py-3 min-h-0 relative"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
                     >
-                      <span
-                        style={{
-                          width: 6, height: 6, borderRadius: '50%',
-                          background: getCategoryColorFromCategory(cat).base,
-                          flexShrink: 0,
-                          display: 'inline-block',
-                        }}
-                      />
-                      {cat.name} · {cat.price.toLocaleString('ru-RU')} ₽
-                    </span>
-                  ))}
-                </div>
-              )}
+                      <p
+                        className="text-[13px] text-white/70 leading-relaxed whitespace-pre-wrap break-words"
+                        style={isLong && !descriptionExpanded ? { display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
+                      >
+                        {desc}
+                      </p>
+                      {isLong && !descriptionExpanded && (
+                        <button
+                          type="button"
+                          onClick={() => setDescriptionExpanded(true)}
+                          className="text-xs font-semibold mt-1"
+                          style={{ color: '#D4AF37', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                        >
+                          Читать далее
+                        </button>
+                      )}
+                    </motion.div>
+                  );
+                })()}
 
-              {/* CTA */}
-              <motion.button
-                type="button"
-                onClick={() => setMode('seatmap')}
-                whileTap={{ scale: 0.97 }}
-                className="w-full py-4 rounded-2xl text-base font-semibold text-black transition-all"
-                style={{
-                  background: 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 50%, #C9A227 100%)',
-                  boxShadow: '0 4px 28px rgba(212,175,55,0.35)',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                Выбрать место
-              </motion.button>
-            </motion.div>
-          )}
-        </div>
+                {/* Ticket categories */}
+                {categories.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {categories.map((cat) => (
+                      <span
+                        key={cat.id}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-3 py-1.5"
+                        style={{
+                          background: `${getCategoryColorFromCategory(cat).base}1A`,
+                          border: `1px solid ${getCategoryColorFromCategory(cat).base}40`,
+                          color: getCategoryColorFromCategory(cat).base,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: getCategoryColorFromCategory(cat).base,
+                            flexShrink: 0, display: 'inline-block',
+                          }}
+                        />
+                        {cat.name} · {cat.price.toLocaleString('ru-RU')} ₽
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  {/* CTA */}
+                  <motion.button
+                    type="button"
+                    onClick={() => setMode('seatmap')}
+                    whileTap={{ scale: 0.97 }}
+                    className="w-full py-4 rounded-2xl text-base font-semibold text-black transition-all"
+                    style={{
+                      background: 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 50%, #C9A227 100%)',
+                      boxShadow: '0 4px 28px rgba(212,175,55,0.25)',
+                      letterSpacing: '0.01em',
+                    }}
+                  >
+                    Выбрать место
+                  </motion.button>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
       </div>
     );
   }
