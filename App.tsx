@@ -1102,9 +1102,9 @@ function App() {
   }
 
   return wrapWithLayout(
-    <div className="max-w-md mx-auto h-full relative">
+    <div className="max-w-md mx-auto flex flex-col flex-1 w-full relative">
       <motion.div
-        className="px-4 pt-4 pb-2 space-y-4"
+        className="px-4 pt-4 pb-2 space-y-4 flex flex-col flex-1"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}

@@ -44,10 +44,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <div
         data-app-scroll
         className="flex-1 w-full flex flex-col"
-        style={{
-          paddingLeft: '1rem',
-          paddingRight: '1rem',
-        }}
       >
         {children}
         <div

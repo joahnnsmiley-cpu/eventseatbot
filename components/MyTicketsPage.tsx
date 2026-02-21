@@ -271,7 +271,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const hasActiveFilters = statusFilter !== 'all';
 
   return (
-    <div className="my-tickets-premium max-w-[420px] mx-auto min-h-screen relative overflow-x-hidden flex flex-col">
+    <div className="my-tickets-premium w-full max-w-[420px] mx-auto min-h-screen relative overflow-x-hidden flex flex-col">
       {/* Subtle purple radial glow background */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -327,8 +327,8 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                       type="button"
                       onClick={() => setStatusFilter(status)}
                       className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-300 ${isActive
-                          ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] text-black shadow-lg shadow-yellow-500/20'
-                          : 'text-white/60 hover:text-white'
+                        ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] text-black shadow-lg shadow-yellow-500/20'
+                        : 'text-white/60 hover:text-white'
                         }`}
                     >
                       {label}
