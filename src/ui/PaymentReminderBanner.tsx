@@ -11,6 +11,8 @@ export interface PendingBookingInfo {
     paymentPhone: string;
     eventTitle: string;
     status: string;
+    tableNumber?: number | string;
+    seatIndices?: string;
 }
 
 interface PaymentReminderBannerProps {
@@ -110,7 +112,7 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
                         >
                             {pendingBookings.map((b) => (
                                 <div key={b.bookingId} className="space-y-2.5">
-                                    {/* Event title */}
+                                    {/* Event title + amount */}
                                     <div className="flex items-center justify-between gap-2">
                                         <span className="text-xs text-white/60 truncate">{b.eventTitle}</span>
                                         {b.totalAmount > 0 && (
@@ -119,6 +121,14 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
                                             </span>
                                         )}
                                     </div>
+
+                                    {/* Table & seats info */}
+                                    {(b.tableNumber || b.seatIndices) && (
+                                        <div className="flex items-center gap-3 text-xs text-white/50">
+                                            {b.tableNumber && <span>Стол {b.tableNumber}</span>}
+                                            {b.seatIndices && <span>Места: {b.seatIndices}</span>}
+                                        </div>
+                                    )}
 
                                     {/* SBP Payment details */}
                                     {b.paymentPhone ? (
@@ -135,8 +145,8 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
                                             <p className="text-base font-bold text-white tracking-wide font-mono">
                                                 {b.paymentPhone}
                                             </p>
-                                            <p className="text-[10px] text-white/40">
-                                                {UI_TEXT.booking.bannerPaymentRef} {b.bookingId.slice(0, 8)}…
+                                            <p className="text-[10px] text-white/40 break-all">
+                                                {UI_TEXT.booking.bannerPaymentRef} {b.bookingId}
                                             </p>
                                         </div>
                                     ) : (
@@ -144,6 +154,11 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
                                             {UI_TEXT.booking.paymentNoPhoneFallback}
                                         </p>
                                     )}
+
+                                    {/* FIO reminder */}
+                                    <p className="text-[11px] text-amber-300/70 italic">
+                                        Не забудьте указать ФИО в комментарии к платежу
+                                    </p>
 
                                     {/* I Paid button */}
                                     <button

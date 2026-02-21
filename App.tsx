@@ -134,6 +134,14 @@ function App() {
           const table = b.table_id ? (ev?.tables ?? []).find((t: any) => t.id === b.table_id) : null;
           const priceFallback = ev?.ticketCategories?.find((c: any) => c.isActive)?.price ?? 0;
           const price = getPriceForTable(ev, table ?? undefined, priceFallback);
+
+          // Extract table number and seat indices for display
+          const tableNumber = table?.number ?? (b as any).table_number;
+          const rawSeats: number[] = (b as any).seat_indices ?? (b as any).seats ?? [];
+          const seatIndicesStr = rawSeats.length > 0
+            ? rawSeats.sort((a: number, b: number) => a - b).map((s: number) => s + 1).join(', ')
+            : seatCount > 0 ? `${seatCount} мест` : '';
+
           enriched.push({
             bookingId: b.id,
             eventId: b.event_id,
@@ -141,6 +149,8 @@ function App() {
             paymentPhone: (ev as any)?.paymentPhone?.trim() ?? '',
             eventTitle: ev?.title ?? 'Событие',
             status: b.status,
+            tableNumber,
+            seatIndices: seatIndicesStr,
           });
         } catch {
           enriched.push({
@@ -161,9 +171,14 @@ function App() {
 
   useEffect(() => {
     // small delay so Telegram init finishes first
-    const timer = setTimeout(loadPendingBookingsForBanner, 1500);
+    const timer = setTimeout(loadPendingBookingsForBanner, 300);
     return () => clearTimeout(timer);
   }, [loadPendingBookingsForBanner]);
+
+  // Refresh banner whenever the user navigates to a different screen
+  useEffect(() => {
+    loadPendingBookingsForBanner();
+  }, [view, loadPendingBookingsForBanner]);
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
@@ -1232,62 +1247,96 @@ function App() {
                     <p className="text-muted-light text-xs tracking-widest uppercase mb-2 text-center">
                       ГЛАВНОЕ СОБЫТИЕ
                     </p>
-                    <div className="relative min-h-[200px] max-h-[220px]">
-                      <motion.div
-                        className="relative rounded-3xl overflow-hidden border-2 border-[#C6A75E]/40 shadow-[0_0_40px_rgba(198,167,94,0.25)]"
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => handleEventSelect(featured.id)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleEventSelect(featured.id)}
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.98 }}
-                        transition={{ duration: 0.2 }}
-                      >
+                    <motion.div
+                      className="relative rounded-3xl overflow-hidden cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleEventSelect(featured.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleEventSelect(featured.id)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ duration: 0.2 }}
+                      style={{
+                        border: '1.5px solid rgba(198,167,94,0.35)',
+                        boxShadow: '0 8px 40px rgba(0,0,0,0.5), 0 0 30px rgba(198,167,94,0.12)',
+                      }}
+                    >
+                      {/* Poster image area */}
+                      <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
                         <div
                           className="absolute inset-0 bg-center bg-cover"
                           style={{
                             backgroundImage: (featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()
                               ? `url(${(featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()})`
                               : undefined,
-                            filter: 'brightness(1.25) contrast(1.12) saturate(1.1)',
-                            transform: 'scale(1.05)',
+                            filter: 'brightness(1.1) contrast(1.05)',
                           }}
                         />
+                        {/* Bottom gradient fade for text separation */}
                         <div
                           className="absolute inset-0"
                           style={{
-                            backdropFilter: 'blur(1px)',
-                            WebkitBackdropFilter: 'blur(1px)',
-                            background: 'radial-gradient(circle at center, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.65) 100%)',
+                            background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 40%, transparent 65%)',
                           }}
                         />
-                        <div
-                          className="absolute z-[5] pointer-events-none"
-                          style={{
-                            width: '260px',
-                            height: '260px',
-                            background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                          }}
-                        />
-                        <div className="relative z-10 flex flex-col items-center justify-center text-center py-8 px-4 space-y-2">
-                          <h2 className="text-xl md:text-2xl font-extrabold uppercase tracking-wide text-white">
+                        {/* Title floating on poster */}
+                        <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
+                          <h2
+                            className="text-xl font-extrabold uppercase tracking-wide text-white leading-tight"
+                            style={{
+                              textShadow: '0 2px 12px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.5)',
+                            }}
+                          >
                             {featured?.title ?? UI_TEXT.event.eventFallback}
                           </h2>
-                          <p className="text-[#FFC107] text-lg font-bold tracking-wide">
-                            {fmt?.date ?? featured?.date}
-                          </p>
-                          <p className="text-white text-sm">
-                            {fmt?.time ?? ''}
-                          </p>
-                          <p className="text-muted-light text-xs uppercase tracking-widest truncate max-w-[200px] mx-auto">
+                        </div>
+                      </div>
+
+                      {/* Glassmorphism info bar */}
+                      <div
+                        className="relative px-5 py-3.5 flex items-center justify-between gap-3"
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(18,18,20,0.97) 0%, rgba(24,22,18,0.98) 100%)',
+                          borderTop: '1px solid rgba(198,167,94,0.2)',
+                        }}
+                      >
+                        {/* Date + time */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* Calendar icon block */}
+                          <div
+                            className="shrink-0 w-11 h-11 rounded-xl flex flex-col items-center justify-center"
+                            style={{
+                              background: 'linear-gradient(135deg, #F5BE3C 0%, #D4A030 100%)',
+                              boxShadow: '0 2px 12px rgba(245,190,60,0.3)',
+                            }}
+                          >
+                            <span className="text-[10px] font-bold text-black/60 uppercase leading-none">
+                              {fmt?.date?.split(' ')[1]?.slice(0, 3) ?? ''}
+                            </span>
+                            <span className="text-lg font-extrabold text-black leading-none -mt-0.5">
+                              {fmt?.day ?? '—'}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-white truncate">
+                              {fmt?.date ?? featured?.date ?? '—'}
+                            </p>
+                            {fmt?.time && (
+                              <p className="text-xs text-amber-300/90 font-medium">
+                                {fmt.time}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Venue */}
+                        <div className="text-right min-w-0 shrink">
+                          <p className="text-[11px] text-white/50 uppercase tracking-wider leading-tight truncate">
                             {(featured as { venue?: string })?.venue ?? ''}
                           </p>
                         </div>
-                      </motion.div>
-                    </div>
+                      </div>
+                    </motion.div>
                   </div>
                 )}
 

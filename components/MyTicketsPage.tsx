@@ -38,9 +38,11 @@ const PAYABLE_STATUSES = ['pending', 'reserved', 'awaiting_payment'];
 
 /** Real backend status → Russian label. Keys must match DB booking.status. */
 const STATUS_LABELS: Record<string, string> = {
-  reserved: 'Забронировано',
-  pending: 'Ожидает оплаты',
-  awaiting_confirmation: 'Ждет подтверждения',
+  reserved: 'Забронировано. Ожидаем оплаты',
+  pending: 'Забронировано. Ожидаем оплаты',
+  awaiting_payment: 'Забронировано. Ожидаем оплаты',
+  awaiting_confirmation: 'Ожидаем подтверждения оплаты',
+  payment_submitted: 'Ожидаем подтверждения оплаты',
   paid: 'Оплачено',
   cancelled: 'Отменено',
   expired: 'Истекло',

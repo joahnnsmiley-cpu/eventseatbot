@@ -1,6 +1,6 @@
 import React from 'react';
 
-type StatusType = 'paid' | 'reserved' | 'cancelled';
+type StatusType = 'paid' | 'reserved' | 'pending' | 'awaiting_payment' | 'awaiting_confirmation' | 'payment_submitted' | 'cancelled' | 'expired';
 
 type NeonTicketCardProps = {
   eventTitle: string;
@@ -16,8 +16,13 @@ type NeonTicketCardProps = {
 
 const statusConfig: Record<StatusType, { label: string; className: string }> = {
   paid: { label: 'Оплачено', className: 'bg-[#C6A75E] text-white' },
-  reserved: { label: 'Ожидает оплаты', className: 'bg-[#ECE6DD] text-[#1C1C1C]' },
+  reserved: { label: 'Ожидаем оплаты', className: 'bg-[#ECE6DD] text-[#1C1C1C]' },
+  pending: { label: 'Ожидаем оплаты', className: 'bg-[#ECE6DD] text-[#1C1C1C]' },
+  awaiting_payment: { label: 'Ожидаем оплаты', className: 'bg-[#ECE6DD] text-[#1C1C1C]' },
+  awaiting_confirmation: { label: 'Ожидаем подтверждения', className: 'bg-amber-200 text-amber-900' },
+  payment_submitted: { label: 'Ожидаем подтверждения', className: 'bg-amber-200 text-amber-900' },
   cancelled: { label: 'Отменено', className: 'bg-[#E8CFCF] text-[#7A2E2E]' },
+  expired: { label: 'Истекло', className: 'bg-neutral-300 text-neutral-700' },
 };
 
 export default function NeonTicketCard({
