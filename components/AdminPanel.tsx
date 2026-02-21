@@ -108,133 +108,133 @@ function validateTableNumbers(tables: TableModel[]): string | null {
 
 /** Accordion section — defined outside AdminPanel to avoid remount on parent re-render (fixes scroll jump). */
 const AccordionSection = React.memo(function AccordionSection({
-    title,
-    sectionKey,
-    children,
-    dirtyIndicator,
-    dragHandle,
+  title,
+  sectionKey,
+  children,
+  dirtyIndicator,
+  dragHandle,
   openSections,
   toggleSection,
   sectionRefs,
   isDirty,
-  }: {
-    title: string;
-    sectionKey: string;
-    children: React.ReactNode;
-    dirtyIndicator?: boolean;
-    dragHandle?: React.ReactNode;
+}: {
+  title: string;
+  sectionKey: string;
+  children: React.ReactNode;
+  dirtyIndicator?: boolean;
+  dragHandle?: React.ReactNode;
   openSections: string[];
   toggleSection: (key: string) => void;
   sectionRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
   isDirty: boolean;
 }) {
-    const isOpen = openSections.includes(sectionKey);
-    return (
-      <div
-        ref={(el) => { sectionRefs.current[sectionKey] = el; }}
-        className="relative border border-white/10 rounded-2xl mb-4 bg-[#121212] overflow-hidden"
-      >
-        <div className="sticky top-0 z-20 bg-[#121212] border-b border-white/5">
-          <button
-            type="button"
-            onClick={() => toggleSection(sectionKey)}
-            className="w-full flex items-center justify-between px-4 py-4 text-left hover:bg-white/5 transition"
+  const isOpen = openSections.includes(sectionKey);
+  return (
+    <div
+      ref={(el) => { sectionRefs.current[sectionKey] = el; }}
+      className="relative border border-white/10 rounded-2xl mb-4 bg-[#121212] overflow-hidden"
+    >
+      <div className="sticky top-0 z-20 bg-[#121212] border-b border-white/5">
+        <button
+          type="button"
+          onClick={() => toggleSection(sectionKey)}
+          className="w-full flex items-center justify-between px-4 py-4 text-left hover:bg-white/5 transition"
+        >
+          <span className="font-semibold text-white flex items-center gap-2">
+            {dragHandle}
+            {title}
+            {dirtyIndicator && isDirty && (
+              <span className="ml-2 text-xs text-[#FFC107]">●</span>
+            )}
+          </span>
+          <motion.span
+            animate={{ rotate: isOpen ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+            className="text-[#C6A75E]"
           >
-            <span className="font-semibold text-white flex items-center gap-2">
-              {dragHandle}
-              {title}
-              {dirtyIndicator && isDirty && (
-                <span className="ml-2 text-xs text-[#FFC107]">●</span>
-              )}
-            </span>
-            <motion.span
-              animate={{ rotate: isOpen ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-              className="text-[#C6A75E]"
-            >
-              ▼
-            </motion.span>
-          </button>
-        </div>
-        <AnimatePresence initial={false}>
-          {isOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="px-4 pb-4">{children}</div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            ▼
+          </motion.span>
+        </button>
       </div>
-    );
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 });
 
 /** Sortable section wrapper — defined outside AdminPanel to avoid remount on parent re-render. */
 function SortableSectionInner({
-    id,
-    title,
-    sectionKey,
-    dirtyIndicator,
-    children,
+  id,
+  title,
+  sectionKey,
+  dirtyIndicator,
+  children,
   openSections,
   toggleSection,
   sectionRefs,
   isDirty,
-  }: {
-    id: string;
-    title: string;
-    sectionKey: string;
-    dirtyIndicator?: boolean;
-    children: React.ReactNode;
+}: {
+  id: string;
+  title: string;
+  sectionKey: string;
+  dirtyIndicator?: boolean;
+  children: React.ReactNode;
   openSections: string[];
   toggleSection: (key: string) => void;
   sectionRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
   isDirty: boolean;
 }) {
-    const {
-      setNodeRef,
-      setActivatorNodeRef,
-      listeners,
-      attributes,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id });
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-    };
-    return (
-      <div ref={setNodeRef} style={style} className={isDragging ? 'opacity-50' : ''}>
-        <AccordionSection
-          title={title}
-          sectionKey={sectionKey}
-          dirtyIndicator={dirtyIndicator}
-          dragHandle={
-            <span
-              ref={setActivatorNodeRef}
-              {...listeners}
-              {...attributes}
-              className="cursor-grab active:cursor-grabbing text-[#6E6A64] text-lg px-1 select-none"
-              title="Перетащить"
-              onClick={(e) => e.stopPropagation()}
-            >
-              ☰
-            </span>
-          }
+  const {
+    setNodeRef,
+    setActivatorNodeRef,
+    listeners,
+    attributes,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className={isDragging ? 'opacity-50' : ''}>
+      <AccordionSection
+        title={title}
+        sectionKey={sectionKey}
+        dirtyIndicator={dirtyIndicator}
+        dragHandle={
+          <span
+            ref={setActivatorNodeRef}
+            {...listeners}
+            {...attributes}
+            className="cursor-grab active:cursor-grabbing text-[#6E6A64] text-lg px-1 select-none"
+            title="Перетащить"
+            onClick={(e) => e.stopPropagation()}
+          >
+            ☰
+          </span>
+        }
         openSections={openSections}
         toggleSection={toggleSection}
         sectionRefs={sectionRefs}
         isDirty={isDirty}
-        >
-          {children}
-        </AccordionSection>
-      </div>
-    );
+      >
+        {children}
+      </AccordionSection>
+    </div>
+  );
 }
 
 /** Validate rect tables: width_percent > 0, height_percent > 0, rotation in [-180, 180]. Returns error or null. */
@@ -1008,11 +1008,10 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
               <button
                 type="button"
                 onClick={() => setStatusFilter('')}
-                className={`px-3 py-2 text-sm rounded-lg transition-all ${
-                  !statusFilter
+                className={`px-3 py-2 text-sm rounded-lg transition-all ${!statusFilter
                     ? 'bg-white/10 text-white border border-white/20'
                     : 'text-white/50 hover:text-white'
-                }`}
+                  }`}
               >
                 {UI_TEXT.booking.statusFilterAll}
               </button>
@@ -1021,13 +1020,12 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
                   key={s}
                   type="button"
                   onClick={() => setStatusFilter(s)}
-                  className={`px-3 py-2 text-sm rounded-lg transition-all ${
-                    statusFilter === s
+                  className={`px-3 py-2 text-sm rounded-lg transition-all ${statusFilter === s
                       ? 'bg-white/10 text-white border border-white/20'
                       : 'text-white/50 hover:text-white'
-                  }`}
+                    }`}
                 >
-                  {UI_TEXT.booking.statusLabels[s] ?? s}
+                  {UI_TEXT.booking.adminStatusLabels[s] ?? UI_TEXT.booking.statusLabels[s] ?? s}
                 </button>
               ))}
             </div>
@@ -1045,7 +1043,7 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
             <div className="grid grid-cols-1 gap-4">
               {filteredBookings.map((b) => {
                 const status = String(b.status ?? '');
-                const canConfirm = status === 'reserved' || status === 'awaiting_confirmation' || status === 'payment_submitted';
+                const canConfirm = status === 'reserved' || status === 'pending' || status === 'awaiting_confirmation' || status === 'payment_submitted' || status === 'expired';
                 const telegramId = b.user_telegram_id ?? b.userTelegramId;
                 const userPhone = b.user_phone ?? b.userPhone;
                 const eventId = b.event_id ?? b.event?.id ?? '';
@@ -1058,8 +1056,19 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
                         <h3 className="text-lg font-bold text-white">{b.event?.title || UI_TEXT.event.eventFallback}</h3>
                         <div className="text-sm text-white/60 mt-0.5">{formatEventDateDisplay(eventDetails) || formatAdminDate(b.event?.date)}</div>
                       </div>
-                      <span className="shrink-0 px-3 py-1 text-xs rounded-full bg-white/10 text-white">
-                        {UI_TEXT.booking.statusLabels[status] ?? status ?? '—'}
+                      <span
+                        className={`shrink-0 px-3 py-1 text-xs rounded-full font-medium ${status === 'awaiting_confirmation' || status === 'payment_submitted'
+                            ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                            : status === 'paid'
+                              ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                              : status === 'expired'
+                                ? 'bg-red-500/15 text-red-300 border border-red-500/30'
+                                : status === 'cancelled'
+                                  ? 'bg-white/5 text-white/40 border border-white/10'
+                                  : 'bg-white/10 text-white border border-white/20'
+                          }`}
+                      >
+                        {UI_TEXT.booking.adminStatusLabels[status] ?? status ?? '—'}
                       </span>
                     </div>
 
@@ -1091,10 +1100,10 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
                       <div className="flex gap-2 pt-2">
                         <button
                           onClick={() => confirmBooking(b.id)}
-                          disabled={confirmingId !== null || cancellingId !== null || isExpired(b.expiresAt ?? b.expires_at)}
+                          disabled={confirmingId !== null || cancellingId !== null}
                           className="px-4 py-2 rounded-xl text-sm font-medium bg-[#C6A75E] text-black hover:bg-[#D4B86A] disabled:opacity-50 disabled:cursor-not-allowed transition"
                         >
-                          {confirmingId === b.id ? UI_TEXT.booking.confirming : isExpired(b.expiresAt ?? b.expires_at) ? UI_TEXT.booking.expired : 'Подтвердить оплату'}
+                          {confirmingId === b.id ? UI_TEXT.booking.confirming : 'Подтвердить оплату'}
                         </button>
                         <button
                           onClick={() => cancelBookingAction(b.id)}
@@ -1161,9 +1170,8 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
                         data-active={eventStatusFilter === tab.key ? 'true' : undefined}
                         type="button"
                         onClick={() => setEventStatusFilter(tab.key)}
-                        className={`relative z-10 shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                          eventStatusFilter !== tab.key ? 'border border-white/10 hover:border-white/20' : 'border border-transparent'
-                        }`}
+                        className={`relative z-10 shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${eventStatusFilter !== tab.key ? 'border border-white/10 hover:border-white/20' : 'border border-transparent'
+                          }`}
                         style={{
                           color: eventStatusFilter === tab.key ? '#000' : '#fff',
                           backgroundColor: eventStatusFilter === tab.key ? 'transparent' : '#1A1A1A',
@@ -1172,11 +1180,10 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
                         <span className="relative z-10 flex items-center gap-2">
                           {tab.label}
                           <span
-                            className={`text-xs px-2 py-[2px] rounded-full ${
-                              eventStatusFilter === tab.key
+                            className={`text-xs px-2 py-[2px] rounded-full ${eventStatusFilter === tab.key
                                 ? 'bg-black/20 text-black'
                                 : 'bg-[#FFC107]/20 text-[#FFC107]'
-                            }`}
+                              }`}
                           >
                             {tab.count}
                           </span>
@@ -1216,11 +1223,11 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
                       if (isDirty && selectedEventId && ev.id !== selectedEventId) {
                         setExitConfirmPending({ type: 'switchEvent', eventId: ev.id });
                       } else {
-                      setSelectedEventId(ev.id);
-                      setSelectedEvent(null);
-                      setError(null);
-                      setSuccessMessage(null);
-                      loadEvent(ev.id);
+                        setSelectedEventId(ev.id);
+                        setSelectedEvent(null);
+                        setError(null);
+                        setSuccessMessage(null);
+                        loadEvent(ev.id);
                       }
                     }}
                     onDelete={() => setDeleteConfirmEvent(ev)}
@@ -1266,764 +1273,762 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
                   {sectionOrder.map((key) => {
                     if (key === 'basic') return (
                       <SortableSectionInner key="basic" id="basic" title="Основная информация" sectionKey="basic" dirtyIndicator openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.title}</div>
-                    <input
-                      type="text"
-                      value={eventTitle}
-                      onChange={(e) => { setEventTitle(e.target.value); }}
-                      placeholder={UI_TEXT.event.titlePlaceholder}
-                      className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
-                    />
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.description}</div>
-                    <textarea
-                      value={eventDescription}
-                      onChange={(e) => { setEventDescription(e.target.value); }}
-                      placeholder={UI_TEXT.event.descriptionPlaceholder}
-                      className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
-                      rows={3}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <div className="text-sm font-semibold mb-1">{UI_TEXT.event.eventDate}</div>
-                      <input
-                        type="date"
-                        value={eventDate}
-                        onChange={(e) => { setEventDate(e.target.value); }}
-                        placeholder={UI_TEXT.event.eventDatePlaceholder}
-                        className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
-                      />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold mb-1">{UI_TEXT.event.eventTime}</div>
-                      <input
-                        type="time"
-                        value={eventTime}
-                        onChange={(e) => { setEventTime(e.target.value); }}
-                        placeholder={UI_TEXT.event.eventTimePlaceholder}
-                        className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.timezoneRef}</div>
-                    <p className="text-xs text-muted mb-2">{UI_TEXT.event.timezoneRefHint}</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted">
-                        UTC{timezoneOffsetMinutes >= 0 ? '+' : ''}{timezoneOffsetMinutes / 60}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const now = new Date();
-                          const pad = (n: number) => String(n).padStart(2, '0');
-                          setAdminLocalNow(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`);
-                          setTimezoneRefDialog(true);
-                        }}
-                        className="text-xs px-3 py-1.5 rounded border border-white/20 hover:bg-white/5"
-                      >
-                        {UI_TEXT.event.timezoneSetNow}
-                      </button>
-                    </div>
-                  </div>
-                  {timezoneRefDialog && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-                      <div className="bg-[#1A1A1A] rounded-xl p-6 max-w-sm w-full border border-white/10">
-                        <p className="text-sm font-medium mb-2">Укажите ваше текущее время</p>
-                        <input
-                          type="datetime-local"
-                          value={adminLocalNow}
-                          onChange={(e) => setAdminLocalNow(e.target.value)}
-                          className="w-full border rounded px-3 py-2 text-sm mb-4"
-                          step="60"
-                        />
-                        <div className="flex gap-2 justify-end">
-                          <button
-                            type="button"
-                            onClick={() => setTimezoneRefDialog(false)}
-                            className="px-4 py-2 text-sm rounded border border-white/20"
-                          >
-                            Отмена
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                const { utc } = await StorageService.getAdminServerTime();
-                                const serverTs = new Date(utc).getTime();
-                                const adminTs = new Date(adminLocalNow).getTime();
-                                const offset = Math.round((adminTs - serverTs) / 60000);
-                                setTimezoneOffsetMinutes(Math.max(-720, Math.min(720, offset)));
-                                setTimezoneRefDialog(false);
-                              } catch (e) {
-                                console.error('Timezone calc failed', e);
-                              }
-                            }}
-                            className="px-4 py-2 text-sm rounded bg-[#C6A75E] text-black font-medium"
-                          >
-                            Применить
-                          </button>
+                        <div className="space-y-4">
+                          <div>
+                            <div className="text-sm font-semibold mb-1">{UI_TEXT.event.title}</div>
+                            <input
+                              type="text"
+                              value={eventTitle}
+                              onChange={(e) => { setEventTitle(e.target.value); }}
+                              placeholder={UI_TEXT.event.titlePlaceholder}
+                              className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                            />
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold mb-1">{UI_TEXT.event.description}</div>
+                            <textarea
+                              value={eventDescription}
+                              onChange={(e) => { setEventDescription(e.target.value); }}
+                              placeholder={UI_TEXT.event.descriptionPlaceholder}
+                              className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                              rows={3}
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <div className="text-sm font-semibold mb-1">{UI_TEXT.event.eventDate}</div>
+                              <input
+                                type="date"
+                                value={eventDate}
+                                onChange={(e) => { setEventDate(e.target.value); }}
+                                placeholder={UI_TEXT.event.eventDatePlaceholder}
+                                className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                              />
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold mb-1">{UI_TEXT.event.eventTime}</div>
+                              <input
+                                type="time"
+                                value={eventTime}
+                                onChange={(e) => { setEventTime(e.target.value); }}
+                                placeholder={UI_TEXT.event.eventTimePlaceholder}
+                                className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold mb-1">{UI_TEXT.event.timezoneRef}</div>
+                            <p className="text-xs text-muted mb-2">{UI_TEXT.event.timezoneRefHint}</p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted">
+                                UTC{timezoneOffsetMinutes >= 0 ? '+' : ''}{timezoneOffsetMinutes / 60}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const now = new Date();
+                                  const pad = (n: number) => String(n).padStart(2, '0');
+                                  setAdminLocalNow(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`);
+                                  setTimezoneRefDialog(true);
+                                }}
+                                className="text-xs px-3 py-1.5 rounded border border-white/20 hover:bg-white/5"
+                              >
+                                {UI_TEXT.event.timezoneSetNow}
+                              </button>
+                            </div>
+                          </div>
+                          {timezoneRefDialog && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                              <div className="bg-[#1A1A1A] rounded-xl p-6 max-w-sm w-full border border-white/10">
+                                <p className="text-sm font-medium mb-2">Укажите ваше текущее время</p>
+                                <input
+                                  type="datetime-local"
+                                  value={adminLocalNow}
+                                  onChange={(e) => setAdminLocalNow(e.target.value)}
+                                  className="w-full border rounded px-3 py-2 text-sm mb-4"
+                                  step="60"
+                                />
+                                <div className="flex gap-2 justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => setTimezoneRefDialog(false)}
+                                    className="px-4 py-2 text-sm rounded border border-white/20"
+                                  >
+                                    Отмена
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      try {
+                                        const { utc } = await StorageService.getAdminServerTime();
+                                        const serverTs = new Date(utc).getTime();
+                                        const adminTs = new Date(adminLocalNow).getTime();
+                                        const offset = Math.round((adminTs - serverTs) / 60000);
+                                        setTimezoneOffsetMinutes(Math.max(-720, Math.min(720, offset)));
+                                        setTimezoneRefDialog(false);
+                                      } catch (e) {
+                                        console.error('Timezone calc failed', e);
+                                      }
+                                    }}
+                                    className="px-4 py-2 text-sm rounded bg-[#C6A75E] text-black font-medium"
+                                  >
+                                    Применить
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          <div>
+                            <div className="text-sm font-semibold mb-1">{UI_TEXT.event.venue}</div>
+                            <input
+                              type="text"
+                              value={venue}
+                              onChange={(e) => { setVenue(e.target.value); }}
+                              placeholder={UI_TEXT.event.venuePlaceholder}
+                              className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                            />
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold mb-1">{UI_TEXT.event.organizerPhone}</div>
+                            <input
+                              type="text"
+                              value={eventPhone}
+                              onChange={(e) => { setEventPhone(e.target.value); }}
+                              placeholder={UI_TEXT.event.phonePlaceholder}
+                              className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                            />
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold mb-1">{UI_TEXT.event.posterSectionLabel}</div>
+                            {eventPosterUrl ? (
+                              <div className="space-y-2">
+                                <div className="rounded border overflow-hidden bg-surface max-h-32">
+                                  <img src={eventPosterUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => { }} />
+                                </div>
+                                <label className="inline-block">
+                                  <span className="px-4 py-2 text-sm rounded-xl border border-white/20 hover:bg-white/5 cursor-pointer transition">
+                                    Заменить
+                                  </span>
+                                  <input
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/webp"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handlePosterUpload(file);
+                                      e.target.value = '';
+                                    }}
+                                    disabled={posterUploadLoading || !selectedEvent?.id}
+                                  />
+                                </label>
+                              </div>
+                            ) : (
+                              <label className="block">
+                                <span className="inline-block px-4 py-2 text-sm rounded-xl border border-white/20 hover:bg-white/5 cursor-pointer transition">
+                                  Загрузить афишу
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/png,image/jpeg,image/webp"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handlePosterUpload(file);
+                                    e.target.value = '';
+                                  }}
+                                  disabled={posterUploadLoading || !selectedEvent?.id}
+                                />
+                              </label>
+                            )}
+                            {posterUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
+                            {posterUploadError && <div className="text-xs text-[#6E6A64] mt-1">{posterUploadError}</div>}
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold mb-1">{UI_TEXT.event.ticketTemplateSectionLabel}</div>
+                            {eventTicketTemplateUrl ? (
+                              <div className="space-y-2">
+                                <div className="rounded border overflow-hidden bg-surface max-h-32">
+                                  <img src={eventTicketTemplateUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => { }} />
+                                </div>
+                                <label className="inline-block">
+                                  <span className="px-4 py-2 text-sm rounded-xl border border-white/20 hover:bg-white/5 cursor-pointer transition">
+                                    Заменить
+                                  </span>
+                                  <input
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/webp"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleTicketTemplateUpload(file);
+                                      e.target.value = '';
+                                    }}
+                                    disabled={ticketTemplateUploadLoading || !selectedEvent?.id}
+                                  />
+                                </label>
+                              </div>
+                            ) : (
+                              <label className="block">
+                                <span className="inline-block px-4 py-2 text-sm rounded-xl border border-white/20 hover:bg-white/5 cursor-pointer transition">
+                                  Загрузить шаблон PNG
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/png,image/jpeg,image/webp"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleTicketTemplateUpload(file);
+                                    e.target.value = '';
+                                  }}
+                                  disabled={ticketTemplateUploadLoading || !selectedEvent?.id}
+                                />
+                              </label>
+                            )}
+                            {ticketTemplateUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
+                            {ticketTemplateUploadError && <div className="text-xs text-[#6E6A64] mt-1">{ticketTemplateUploadError}</div>}
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
-                  <div>
-                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.venue}</div>
-                    <input
-                      type="text"
-                      value={venue}
-                      onChange={(e) => { setVenue(e.target.value); }}
-                      placeholder={UI_TEXT.event.venuePlaceholder}
-                      className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
-                    />
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.organizerPhone}</div>
-                    <input
-                      type="text"
-                      value={eventPhone}
-                      onChange={(e) => { setEventPhone(e.target.value); }}
-                      placeholder={UI_TEXT.event.phonePlaceholder}
-                      className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
-                    />
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.posterSectionLabel}</div>
-                    {eventPosterUrl ? (
-                      <div className="space-y-2">
-                        <div className="rounded border overflow-hidden bg-surface max-h-32">
-                          <img src={eventPosterUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => {}} />
-                </div>
-                        <label className="inline-block">
-                          <span className="px-4 py-2 text-sm rounded-xl border border-white/20 hover:bg-white/5 cursor-pointer transition">
-                            Заменить
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handlePosterUpload(file);
-                              e.target.value = '';
-                            }}
-                            disabled={posterUploadLoading || !selectedEvent?.id}
-                          />
-                        </label>
-                      </div>
-                    ) : (
-                      <label className="block">
-                        <span className="inline-block px-4 py-2 text-sm rounded-xl border border-white/20 hover:bg-white/5 cursor-pointer transition">
-                          Загрузить афишу
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handlePosterUpload(file);
-                            e.target.value = '';
-                          }}
-                          disabled={posterUploadLoading || !selectedEvent?.id}
-                        />
-                      </label>
-                    )}
-                    {posterUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
-                    {posterUploadError && <div className="text-xs text-[#6E6A64] mt-1">{posterUploadError}</div>}
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold mb-1">{UI_TEXT.event.ticketTemplateSectionLabel}</div>
-                    {eventTicketTemplateUrl ? (
-                      <div className="space-y-2">
-                        <div className="rounded border overflow-hidden bg-surface max-h-32">
-                          <img src={eventTicketTemplateUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => {}} />
-                        </div>
-                        <label className="inline-block">
-                          <span className="px-4 py-2 text-sm rounded-xl border border-white/20 hover:bg-white/5 cursor-pointer transition">
-                            Заменить
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleTicketTemplateUpload(file);
-                              e.target.value = '';
-                            }}
-                            disabled={ticketTemplateUploadLoading || !selectedEvent?.id}
-                          />
-                        </label>
-                      </div>
-                    ) : (
-                      <label className="block">
-                        <span className="inline-block px-4 py-2 text-sm rounded-xl border border-white/20 hover:bg-white/5 cursor-pointer transition">
-                          Загрузить шаблон PNG
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleTicketTemplateUpload(file);
-                            e.target.value = '';
-                          }}
-                          disabled={ticketTemplateUploadLoading || !selectedEvent?.id}
-                        />
-                      </label>
-                    )}
-                    {ticketTemplateUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
-                    {ticketTemplateUploadError && <div className="text-xs text-[#6E6A64] mt-1">{ticketTemplateUploadError}</div>}
-                  </div>
-                </div>
                       </SortableSectionInner>
                     );
                     if (key === 'categories') return (
                       <SortableSectionInner key="categories" id="categories" title={`Категории (${selectedEvent?.ticketCategories?.length ?? 0})`} sectionKey="categories" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
-                <div className="text-sm font-semibold mb-3">Категории билетов</div>
-                <div className="space-y-4">
-                  {(selectedEvent?.ticketCategories ?? []).map((cat) => {
-                    const colorConfig = getCategoryColorFromCategory(cat);
-                    return (
-                      <div key={cat.id} className="p-3 rounded-lg border border-[#2A2A2A] bg-[#141414] space-y-3">
-                        <div className="flex items-center gap-2">
-                          <label className="relative w-6 h-6 rounded border border-[#2A2A2A] shrink-0 cursor-pointer block" style={{ background: colorConfig.gradient }} title={`${colorConfig.label}. Клик — выбрать цвет из палитры`}>
-                            <input
-                              type="color"
-                              value={cat.custom_color ?? colorConfig.base}
-                              onChange={(e) => {
-                                const hex = e.target.value;
-                                setSelectedEvent((prev) =>
-                                  prev
-                                    ? {
-                                        ...prev,
-                                        ticketCategories: (prev.ticketCategories ?? []).map((c) =>
-                                          c.id === cat.id ? { ...c, custom_color: hex, color_key: undefined } : c
-                                        ),
-                                      }
-                                    : null
-                                );
-                              }}
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            />
-                          </label>
-                          <input
-                            type="text"
-                            value={cat.name}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setSelectedEvent((prev) =>
-                                prev
-                                  ? {
-                                      ...prev,
-                                      ticketCategories: (prev.ticketCategories ?? []).map((c) =>
-                                        c.id === cat.id ? { ...c, name: val } : c
-                                      ),
-                                    }
-                                  : null
-                              );
-                            }}
-                            placeholder="Название"
-                            className="flex-1 border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
-                          />
-                          <label className="flex items-center gap-1 text-xs text-[#6E6A64]">
-                            <input
-                              type="checkbox"
-                              checked={cat.isActive}
-                              onChange={(e) => {
-                                setSelectedEvent((prev) =>
-                                  prev
-                                    ? {
-                                        ...prev,
-                                        ticketCategories: (prev.ticketCategories ?? []).map((c) =>
-                                          c.id === cat.id ? { ...c, isActive: e.target.checked } : c
-                                        ),
-                                      }
-                                    : null
-                                );
-                              }}
-                            />
-                            Активна
-                          </label>
-                          <DangerButton
-                            type="button"
-                            onClick={() => {
-                              const isUsed = tables.some((t) => t.ticketCategoryId === cat.id);
-                              if (isUsed) {
-                                alert('Нельзя отключить категорию, к которой привязаны столы.');
-                                return;
-                              }
-                              setSelectedEvent((prev) =>
-                                prev
-                                  ? {
-                                      ...prev,
-                                      ticketCategories: (prev.ticketCategories ?? []).map((c) =>
-                                        c.id === cat.id ? { ...c, isActive: false } : c
-                                      ),
-                                    }
-                                  : null
-                              );
-                            }}
-                            className="px-2 py-1 text-xs"
-                            title="Отключить (soft delete)"
-                          >
-                            ✕
-                          </DangerButton>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-xs text-[#6E6A64] block mb-1">Цена</label>
-                            <input
-                              type="number"
-                              min={0}
-                              step={100}
-                              value={cat.price}
-                              onChange={(e) => {
-                                const val = Math.max(0, Number(e.target.value) || 0);
-                                setSelectedEvent((prev) =>
-                                  prev
-                                    ? {
-                                        ...prev,
-                                        ticketCategories: (prev.ticketCategories ?? []).map((c) =>
-                                          c.id === cat.id ? { ...c, price: val } : c
-                                        ),
-                                      }
-                                    : null
-                                );
-                              }}
-                              className="w-full border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-[#6E6A64] block mb-2">Цвет</label>
-                            <div className="grid grid-cols-3 gap-3">
-                              {CATEGORY_COLOR_KEYS.map((key) => {
-                                const config = CATEGORY_COLORS[key];
-                                const isPresetSelected = !cat.custom_color && (cat.color_key ?? cat.styleKey ?? 'gold') === key;
-                                return (
-                                  <button
-                                    key={key}
+                        <div className="text-sm font-semibold mb-3">Категории билетов</div>
+                        <div className="space-y-4">
+                          {(selectedEvent?.ticketCategories ?? []).map((cat) => {
+                            const colorConfig = getCategoryColorFromCategory(cat);
+                            return (
+                              <div key={cat.id} className="p-3 rounded-lg border border-[#2A2A2A] bg-[#141414] space-y-3">
+                                <div className="flex items-center gap-2">
+                                  <label className="relative w-6 h-6 rounded border border-[#2A2A2A] shrink-0 cursor-pointer block" style={{ background: colorConfig.gradient }} title={`${colorConfig.label}. Клик — выбрать цвет из палитры`}>
+                                    <input
+                                      type="color"
+                                      value={cat.custom_color ?? colorConfig.base}
+                                      onChange={(e) => {
+                                        const hex = e.target.value;
+                                        setSelectedEvent((prev) =>
+                                          prev
+                                            ? {
+                                              ...prev,
+                                              ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                                c.id === cat.id ? { ...c, custom_color: hex, color_key: undefined } : c
+                                              ),
+                                            }
+                                            : null
+                                        );
+                                      }}
+                                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={cat.name}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setSelectedEvent((prev) =>
+                                        prev
+                                          ? {
+                                            ...prev,
+                                            ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                              c.id === cat.id ? { ...c, name: val } : c
+                                            ),
+                                          }
+                                          : null
+                                      );
+                                    }}
+                                    placeholder="Название"
+                                    className="flex-1 border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
+                                  />
+                                  <label className="flex items-center gap-1 text-xs text-[#6E6A64]">
+                                    <input
+                                      type="checkbox"
+                                      checked={cat.isActive}
+                                      onChange={(e) => {
+                                        setSelectedEvent((prev) =>
+                                          prev
+                                            ? {
+                                              ...prev,
+                                              ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                                c.id === cat.id ? { ...c, isActive: e.target.checked } : c
+                                              ),
+                                            }
+                                            : null
+                                        );
+                                      }}
+                                    />
+                                    Активна
+                                  </label>
+                                  <DangerButton
                                     type="button"
                                     onClick={() => {
-                                setSelectedEvent((prev) =>
-                                  prev
-                                    ? {
-                                        ...prev,
-                                        ticketCategories: (prev.ticketCategories ?? []).map((c) =>
-                                                c.id === cat.id ? { ...c, color_key: key, custom_color: undefined } : c
-                                        ),
+                                      const isUsed = tables.some((t) => t.ticketCategoryId === cat.id);
+                                      if (isUsed) {
+                                        alert('Нельзя отключить категорию, к которой привязаны столы.');
+                                        return;
                                       }
-                                    : null
-                                );
+                                      setSelectedEvent((prev) =>
+                                        prev
+                                          ? {
+                                            ...prev,
+                                            ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                              c.id === cat.id ? { ...c, isActive: false } : c
+                                            ),
+                                          }
+                                          : null
+                                      );
                                     }}
-                                    className={`h-10 w-10 rounded-full transition-all hover:scale-105 ${
-                                      isPresetSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-[#141414]' : ''
-                                    }`}
-                                    style={{
-                                      background: config.gradient,
-                                      boxShadow: isPresetSelected ? config.glow : 'none',
+                                    className="px-2 py-1 text-xs"
+                                    title="Отключить (soft delete)"
+                                  >
+                                    ✕
+                                  </DangerButton>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="text-xs text-[#6E6A64] block mb-1">Цена</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      step={100}
+                                      value={cat.price}
+                                      onChange={(e) => {
+                                        const val = Math.max(0, Number(e.target.value) || 0);
+                                        setSelectedEvent((prev) =>
+                                          prev
+                                            ? {
+                                              ...prev,
+                                              ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                                c.id === cat.id ? { ...c, price: val } : c
+                                              ),
+                                            }
+                                            : null
+                                        );
+                                      }}
+                                      className="w-full border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-[#6E6A64] block mb-2">Цвет</label>
+                                    <div className="grid grid-cols-3 gap-3">
+                                      {CATEGORY_COLOR_KEYS.map((key) => {
+                                        const config = CATEGORY_COLORS[key];
+                                        const isPresetSelected = !cat.custom_color && (cat.color_key ?? cat.styleKey ?? 'gold') === key;
+                                        return (
+                                          <button
+                                            key={key}
+                                            type="button"
+                                            onClick={() => {
+                                              setSelectedEvent((prev) =>
+                                                prev
+                                                  ? {
+                                                    ...prev,
+                                                    ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                                      c.id === cat.id ? { ...c, color_key: key, custom_color: undefined } : c
+                                                    ),
+                                                  }
+                                                  : null
+                                              );
+                                            }}
+                                            className={`h-10 w-10 rounded-full transition-all hover:scale-105 ${isPresetSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-[#141414]' : ''
+                                              }`}
+                                            style={{
+                                              background: config.gradient,
+                                              boxShadow: isPresetSelected ? config.glow : 'none',
+                                            }}
+                                            title={config.label}
+                                          />
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="text-xs text-[#6E6A64] block mb-1">Описание</label>
+                                  <textarea
+                                    value={cat.description}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setSelectedEvent((prev) =>
+                                        prev
+                                          ? {
+                                            ...prev,
+                                            ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                              c.id === cat.id ? { ...c, description: val } : c
+                                            ),
+                                          }
+                                          : null
+                                      );
                                     }}
-                                    title={config.label}
+                                    placeholder="Описание категории"
+                                    rows={2}
+                                    className="w-full border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
                                   />
-                                );
-                              })}
-                            </div>
-                          </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div>
-                          <label className="text-xs text-[#6E6A64] block mb-1">Описание</label>
-                          <textarea
-                            value={cat.description}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setSelectedEvent((prev) =>
-                                prev
-                                  ? {
-                                      ...prev,
-                                      ticketCategories: (prev.ticketCategories ?? []).map((c) =>
-                                        c.id === cat.id ? { ...c, description: val } : c
-                                      ),
-                                    }
-                                  : null
-                              );
-                            }}
-                            placeholder="Описание категории"
-                            rows={2}
-                            className="w-full border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <PrimaryButton
-                  type="button"
-                  onClick={() => {
-                    const newCat: TicketCategory = {
-                      id: crypto.randomUUID(),
-                      name: 'Новая категория',
-                      price: 1000,
-                      description: '',
-                      styleKey: 'gold',
-                      color_key: 'gold',
-                      isActive: true,
-                    };
-                    setSelectedEvent((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            ticketCategories: [...(prev.ticketCategories ?? []), newCat],
-                          }
-                        : null
-                    );
-                  }}
-                  className="mt-3"
-                >
-                  + Добавить категорию
-                </PrimaryButton>
+                        <PrimaryButton
+                          type="button"
+                          onClick={() => {
+                            const newCat: TicketCategory = {
+                              id: crypto.randomUUID(),
+                              name: 'Новая категория',
+                              price: 1000,
+                              description: '',
+                              styleKey: 'gold',
+                              color_key: 'gold',
+                              isActive: true,
+                            };
+                            setSelectedEvent((prev) =>
+                              prev
+                                ? {
+                                  ...prev,
+                                  ticketCategories: [...(prev.ticketCategories ?? []), newCat],
+                                }
+                                : null
+                            );
+                          }}
+                          className="mt-3"
+                        >
+                          + Добавить категорию
+                        </PrimaryButton>
                       </SortableSectionInner>
                     );
                     if (key === 'publish') return (
                       <SortableSectionInner key="publish" id="publish" title="Публикация" sectionKey="publish" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm text-[#6E6A64]">{UI_TEXT.admin.statusLabel}</span>
-                  <span className="px-2 py-1 text-xs rounded-md bg-[#1A1A1A] text-[#C6A75E] border border-[#2A2A2A]">
-                    {selectedEvent?.status === 'published' ? UI_TEXT.admin.published : selectedEvent?.status === 'archived' ? UI_TEXT.admin.archived : UI_TEXT.admin.draft}
-                  </span>
-                  {selectedEvent?.status === 'draft' && (
-                    <PrimaryButton
-                      type="button"
-                      onClick={async () => {
-                        if (!selectedEventId || !selectedEvent) return;
-                        const rawTables = tables;
-                        const numErr = validateTableNumbers(rawTables);
-                        if (numErr) { setError(numErr); return; }
-                        const rectErr = validateRectTables(rawTables);
-                        if (rectErr) { setError(rectErr); return; }
-                        setStatusActionLoading(true);
-                        setError(null);
-                        setSuccessMessage(null);
-                        try {
-                          const payload: Partial<EventData> = {
-                            status: 'published' as const,
-                            ticketCategories: selectedEvent?.ticketCategories ?? [],
-                            tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
-                          };
-                          await StorageService.updateAdminEvent(selectedEvent.id, payload);
-                          setSuccessMessage(UI_TEXT.admin.eventPublished);
-                          await loadEvent(selectedEventId);
-                        } catch (e) {
-                          setError(toFriendlyError(e));
-                        } finally {
-                          setStatusActionLoading(false);
-                        }
-                      }}
-                      disabled={statusActionLoading}
-                      className="px-3 py-1.5 text-sm disabled:opacity-50"
-                    >
-                      {statusActionLoading ? '…' : UI_TEXT.admin.publishEvent}
-                    </PrimaryButton>
-                  )}
-                  {selectedEvent?.status === 'published' && (
-                    <DangerButton
-                      type="button"
-                      onClick={async () => {
-                        if (!selectedEventId) return;
-                        setStatusActionLoading(true);
-                        setError(null);
-                        setSuccessMessage(null);
-                        try {
-                          await StorageService.archiveAdminEvent(selectedEventId);
-                          setSuccessMessage(UI_TEXT.admin.eventArchived);
-                          await loadEvent(selectedEventId);
-                        } catch (e) {
-                          setError(toFriendlyError(e));
-                        } finally {
-                          setStatusActionLoading(false);
-                        }
-                      }}
-                      disabled={statusActionLoading}
-                      className="px-4 py-2 rounded-xl disabled:opacity-50"
-                    >
-                      {statusActionLoading ? '…' : UI_TEXT.admin.archiveEvent}
-                    </DangerButton>
-                )}
-                  {selectedEvent?.status === 'archived' && (
-                    <PrimaryButton
-                      type="button"
-                      onClick={async () => {
-                        if (!selectedEventId || !selectedEvent) return;
-                        const rawTables = tables;
-                        const numErr = validateTableNumbers(rawTables);
-                        if (numErr) { setError(numErr); return; }
-                        const rectErr = validateRectTables(rawTables);
-                        if (rectErr) { setError(rectErr); return; }
-                        setStatusActionLoading(true);
-                        setError(null);
-                        setSuccessMessage(null);
-                        try {
-                          const payload: Partial<EventData> = {
-                            status: 'published' as const,
-                            ticketCategories: selectedEvent?.ticketCategories ?? [],
-                            tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
-                          };
-                          await StorageService.updateAdminEvent(selectedEvent.id, payload);
-                          setSuccessMessage(UI_TEXT.admin.eventPublishedAgain);
-                          await loadEvent(selectedEventId);
-                        } catch (e) {
-                          setError(toFriendlyError(e));
-                        } finally {
-                          setStatusActionLoading(false);
-                        }
-                      }}
-                      disabled={statusActionLoading}
-                      className="disabled:opacity-50"
-                    >
-                      {statusActionLoading ? '…' : UI_TEXT.admin.publishAgain}
-                    </PrimaryButton>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-4 mt-3">
-                  <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={eventPublished}
-                      onChange={(e) => { setEventPublished(e.target.checked); }}
-                  />
-                  {UI_TEXT.admin.publishedCheckbox}
-                </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={eventFeatured}
-                      onChange={(e) => { setEventFeatured(e.target.checked); }}
-                    />
-                    {UI_TEXT.admin.featuredCheckbox}
-                  </label>
-                </div>
-                {selectedEvent?.id && (
-                  <div className="mt-4 space-y-2">
-                    {selectedEvent?.status !== 'published' && (
-                      <p className="text-xs text-[#6E6A64]">Черновик — доступен только вам</p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const id = selectedEvent?.id;
-                        if (!id) return;
-                        if (onViewAsUser) {
-                          onViewAsUser(id);
-                        } else {
-                          window.open(`${window.location.origin}/#/event/${id}`, '_blank');
-                        }
-                      }}
-                      className="bg-[#1A1A1A] border border-white/10 text-white px-4 py-2 rounded-xl text-sm hover:border-white/20 transition"
-                    >
-                      👁 Просмотреть как пользователь
-                    </button>
-                  </div>
-                )}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm text-[#6E6A64]">{UI_TEXT.admin.statusLabel}</span>
+                          <span className="px-2 py-1 text-xs rounded-md bg-[#1A1A1A] text-[#C6A75E] border border-[#2A2A2A]">
+                            {selectedEvent?.status === 'published' ? UI_TEXT.admin.published : selectedEvent?.status === 'archived' ? UI_TEXT.admin.archived : UI_TEXT.admin.draft}
+                          </span>
+                          {selectedEvent?.status === 'draft' && (
+                            <PrimaryButton
+                              type="button"
+                              onClick={async () => {
+                                if (!selectedEventId || !selectedEvent) return;
+                                const rawTables = tables;
+                                const numErr = validateTableNumbers(rawTables);
+                                if (numErr) { setError(numErr); return; }
+                                const rectErr = validateRectTables(rawTables);
+                                if (rectErr) { setError(rectErr); return; }
+                                setStatusActionLoading(true);
+                                setError(null);
+                                setSuccessMessage(null);
+                                try {
+                                  const payload: Partial<EventData> = {
+                                    status: 'published' as const,
+                                    ticketCategories: selectedEvent?.ticketCategories ?? [],
+                                    tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
+                                  };
+                                  await StorageService.updateAdminEvent(selectedEvent.id, payload);
+                                  setSuccessMessage(UI_TEXT.admin.eventPublished);
+                                  await loadEvent(selectedEventId);
+                                } catch (e) {
+                                  setError(toFriendlyError(e));
+                                } finally {
+                                  setStatusActionLoading(false);
+                                }
+                              }}
+                              disabled={statusActionLoading}
+                              className="px-3 py-1.5 text-sm disabled:opacity-50"
+                            >
+                              {statusActionLoading ? '…' : UI_TEXT.admin.publishEvent}
+                            </PrimaryButton>
+                          )}
+                          {selectedEvent?.status === 'published' && (
+                            <DangerButton
+                              type="button"
+                              onClick={async () => {
+                                if (!selectedEventId) return;
+                                setStatusActionLoading(true);
+                                setError(null);
+                                setSuccessMessage(null);
+                                try {
+                                  await StorageService.archiveAdminEvent(selectedEventId);
+                                  setSuccessMessage(UI_TEXT.admin.eventArchived);
+                                  await loadEvent(selectedEventId);
+                                } catch (e) {
+                                  setError(toFriendlyError(e));
+                                } finally {
+                                  setStatusActionLoading(false);
+                                }
+                              }}
+                              disabled={statusActionLoading}
+                              className="px-4 py-2 rounded-xl disabled:opacity-50"
+                            >
+                              {statusActionLoading ? '…' : UI_TEXT.admin.archiveEvent}
+                            </DangerButton>
+                          )}
+                          {selectedEvent?.status === 'archived' && (
+                            <PrimaryButton
+                              type="button"
+                              onClick={async () => {
+                                if (!selectedEventId || !selectedEvent) return;
+                                const rawTables = tables;
+                                const numErr = validateTableNumbers(rawTables);
+                                if (numErr) { setError(numErr); return; }
+                                const rectErr = validateRectTables(rawTables);
+                                if (rectErr) { setError(rectErr); return; }
+                                setStatusActionLoading(true);
+                                setError(null);
+                                setSuccessMessage(null);
+                                try {
+                                  const payload: Partial<EventData> = {
+                                    status: 'published' as const,
+                                    ticketCategories: selectedEvent?.ticketCategories ?? [],
+                                    tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
+                                  };
+                                  await StorageService.updateAdminEvent(selectedEvent.id, payload);
+                                  setSuccessMessage(UI_TEXT.admin.eventPublishedAgain);
+                                  await loadEvent(selectedEventId);
+                                } catch (e) {
+                                  setError(toFriendlyError(e));
+                                } finally {
+                                  setStatusActionLoading(false);
+                                }
+                              }}
+                              disabled={statusActionLoading}
+                              className="disabled:opacity-50"
+                            >
+                              {statusActionLoading ? '…' : UI_TEXT.admin.publishAgain}
+                            </PrimaryButton>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-4 mt-3">
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={eventPublished}
+                              onChange={(e) => { setEventPublished(e.target.checked); }}
+                            />
+                            {UI_TEXT.admin.publishedCheckbox}
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={eventFeatured}
+                              onChange={(e) => { setEventFeatured(e.target.checked); }}
+                            />
+                            {UI_TEXT.admin.featuredCheckbox}
+                          </label>
+                        </div>
+                        {selectedEvent?.id && (
+                          <div className="mt-4 space-y-2">
+                            {selectedEvent?.status !== 'published' && (
+                              <p className="text-xs text-[#6E6A64]">Черновик — доступен только вам</p>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const id = selectedEvent?.id;
+                                if (!id) return;
+                                if (onViewAsUser) {
+                                  onViewAsUser(id);
+                                } else {
+                                  window.open(`${window.location.origin}/#/event/${id}`, '_blank');
+                                }
+                              }}
+                              className="bg-[#1A1A1A] border border-white/10 text-white px-4 py-2 rounded-xl text-sm hover:border-white/20 transition"
+                            >
+                              👁 Просмотреть как пользователь
+                            </button>
+                          </div>
+                        )}
                       </SortableSectionInner>
                     );
                     if (key === 'tables') return (
                       <SortableSectionInner key="tables" id="tables" title={`Столы (${tables.length})`} sectionKey="tables" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
-                <div className="space-y-3">
-                <p className="text-xs text-muted">
-                  Кликните на плане зала для добавления. Выберите стол для редактирования.
-                </p>
-                {tables.length === 0 && (
-                  <div className="text-xs text-muted">{UI_TEXT.tables.noTablesYet}</div>
-                )}
-                {tables.map((t, idx) => (
-                  <button
-                    key={t.id}
-                          type="button"
-                    onClick={() => setSelectedTableId(t.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg border transition ${
-                      selectedTableId === t.id
-                        ? 'border-[#C6A75E] bg-[#C6A75E]/10'
-                        : 'border-white/10 hover:border-white/20'
-                    }`}
-                  >
-                    <span className="text-sm font-medium text-white">
-                      {UI_TEXT.tables.table} {t.number ?? idx + 1}
-                    </span>
-                    <span className="text-xs text-muted ml-2">
-                      {t.seatsTotal ?? 0} мест
-                    </span>
-                  </button>
-                ))}
-                </div>
+                        <div className="space-y-3">
+                          <p className="text-xs text-muted">
+                            Кликните на плане зала для добавления. Выберите стол для редактирования.
+                          </p>
+                          {tables.length === 0 && (
+                            <div className="text-xs text-muted">{UI_TEXT.tables.noTablesYet}</div>
+                          )}
+                          {tables.map((t, idx) => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => setSelectedTableId(t.id)}
+                              className={`w-full text-left px-3 py-2 rounded-lg border transition ${selectedTableId === t.id
+                                  ? 'border-[#C6A75E] bg-[#C6A75E]/10'
+                                  : 'border-white/10 hover:border-white/20'
+                                }`}
+                            >
+                              <span className="text-sm font-medium text-white">
+                                {UI_TEXT.tables.table} {t.number ?? idx + 1}
+                              </span>
+                              <span className="text-xs text-muted ml-2">
+                                {t.seatsTotal ?? 0} мест
+                              </span>
+                            </button>
+                          ))}
+                        </div>
                       </SortableSectionInner>
                     );
                     if (key === 'layout') return (
                       <SortableSectionInner key="layout" id="layout" title="План зала" sectionKey="layout" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
-              <div>
-                <div className="text-sm font-semibold mb-1">{UI_TEXT.tables.layoutImageUrl}</div>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file || !selectedEvent?.id) return;
-                    setLayoutUploadLoading(true);
-                    setLayoutUploadError(null);
-                    try {
-                      const { url, version } = await StorageService.uploadLayoutImage(selectedEvent.id, file);
-                      setLayoutUrl(url);
-                      setLayoutUploadVersion(version ?? null);
-                    } catch (err) {
-                      setLayoutUploadError(err instanceof Error ? err.message : 'Upload failed');
-                    } finally {
-                      setLayoutUploadLoading(false);
-                      e.target.value = '';
-                    }
-                  }}
-                  disabled={layoutUploadLoading || !selectedEvent?.id}
-                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-surface file:cursor-pointer"
-                />
-                {layoutUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
-                {layoutUploadError && <div className="text-xs text-[#6E6A64] mt-1">{layoutUploadError}</div>}
-                <input
-                  type="text"
-                  value={layoutUrl}
-                  onChange={(e) => { setLayoutUrl(e.target.value); setLayoutUploadError(null); setLayoutUploadVersion(null); }}
-                  placeholder={UI_TEXT.tables.layoutImagePlaceholder}
-                  className="w-full max-w-full border rounded px-3 py-2 text-sm box-border mt-2"
-                />
-                <div className="text-xs text-muted mt-1">
-                  {UI_TEXT.tables.layoutImageHint}
-                </div>
-                {layoutUrl && (
-                  <div className="mt-2">
-                    <div className="rounded border overflow-hidden bg-surface max-h-32">
-                      <img src={layoutUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => {}} />
-                    </div>
-                    {layoutUploadVersion != null && (
-                      <div className="text-xs text-muted mt-1">v{layoutUploadVersion}</div>
-                    )}
-                  </div>
-                )}
-                <div className="mt-3">
-                  <SecondaryButton
-                    onClick={() => { setLayoutUrl(selectedEvent?.layoutImageUrl || ''); setLayoutUploadVersion(null); }}
-                    className="w-full md:w-auto"
-                  >
-                    {UI_TEXT.common.reset}
-                  </SecondaryButton>
-                </div>
-              </div>
-
-              <div>
-                <div className="text-sm font-semibold mb-2 flex items-center justify-between gap-2">
-                  <span>{UI_TEXT.tables.layoutPreview}</span>
-                  <button
-                    type="button"
-                    onClick={() => layoutZoomResetRef.current?.()}
-                    className="text-xs text-[#C6A75E] hover:underline"
-                  >
-                    Сбросить масштаб
-                  </button>
-                </div>
-                <div className="relative" style={{ overflow: 'hidden', touchAction: 'none' }}>
-                  <TransformWrapper
-                    minScale={0.5}
-                    maxScale={3}
-                    initialScale={1}
-                    limitToBounds={true}
-                    centerOnInit={true}
-                    wheel={{ step: 0.08 }}
-                    pinch={{ step: 5 }}
-                    doubleClick={{ disabled: true }}
-                    panning={{ velocityDisabled: false, excluded: ['table-wrapper'] }}
-                  >
-                    {({ resetTransform }) => {
-                      layoutZoomResetRef.current = () => resetTransform(300, 'easeOut');
-                      return (
-                      <>
-                        <TransformComponent
-                          wrapperStyle={{ width: '100%', height: '100%', touchAction: 'none' }}
-                          contentStyle={{ width: '100%', height: '100%', position: 'relative', touchAction: 'none' }}
-                        >
-                          <div
-                            ref={layoutPreviewRef}
-                            className="border border-[#242424] rounded-xl bg-[#111111] cursor-crosshair"
-                    style={{
-                      position: 'relative',
-                      width: '100%',
-                      maxWidth: 600,
-                      margin: '0 auto',
-                      containerType: 'inline-size',
-                      cursor: isAddTableMode ? 'crosshair' : 'default',
-                    }}
-                            onClick={(e) => {
-                              if (!isAddTableMode) return;
-                              const target = e.target as HTMLElement;
-                              if (target.closest('[data-table-id]')) return;
-                              const layout = layoutPreviewRef.current;
-                              const img = layout?.querySelector('img');
-                              if (img && (e.target === img || img.contains(target))) {
-                                const me = e.nativeEvent as MouseEvent;
-                                const percentX = (me.offsetX / img.clientWidth) * 100;
-                                const percentY = (me.offsetY / img.clientHeight) * 100;
-                                addTable(percentX, percentY);
-                                setIsAddTableMode(false);
-                              } else if (layout && layoutUrl) {
-                                const rect = layout.getBoundingClientRect();
-                                const percentX = ((e.clientX - rect.left) / rect.width) * 100;
-                                const percentY = ((e.clientY - rect.top) / rect.height) * 100;
-                                addTable(percentX, percentY);
-                                setIsAddTableMode(false);
+                        <div>
+                          <div className="text-sm font-semibold mb-1">{UI_TEXT.tables.layoutImageUrl}</div>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file || !selectedEvent?.id) return;
+                              setLayoutUploadLoading(true);
+                              setLayoutUploadError(null);
+                              try {
+                                const { url, version } = await StorageService.uploadLayoutImage(selectedEvent.id, file);
+                                setLayoutUrl(url);
+                                setLayoutUploadVersion(version ?? null);
+                              } catch (err) {
+                                setLayoutUploadError(err instanceof Error ? err.message : 'Upload failed');
+                              } finally {
+                                setLayoutUploadLoading(false);
+                                e.target.value = '';
                               }
                             }}
-                          >
-                            {layoutUrl ? (
-                              <img
-                                src={layoutUrl}
-                                alt=""
-                                style={{
-                                  width: '100%',
-                                  height: 'auto',
-                                  display: 'block',
-                                }}
-                              />
-                            ) : (
-                              <div className="flex items-center justify-center py-12 text-xs text-muted">
-                                {UI_TEXT.tables.noLayoutImage}
-                              </div>
-                            )}
-                            <AdminTablesLayer
-                              tables={tables}
-                              ticketCategories={selectedEvent?.ticketCategories ?? []}
-                              selectedTableId={selectedTableId}
-                              onTableSelect={(id) => setSelectedTableId(id)}
-                              onTablesChange={(updater) => setTables(updater)}
-                            />
+                            disabled={layoutUploadLoading || !selectedEvent?.id}
+                            className="w-full max-w-full border rounded px-3 py-2 text-sm box-border file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-surface file:cursor-pointer"
+                          />
+                          {layoutUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
+                          {layoutUploadError && <div className="text-xs text-[#6E6A64] mt-1">{layoutUploadError}</div>}
+                          <input
+                            type="text"
+                            value={layoutUrl}
+                            onChange={(e) => { setLayoutUrl(e.target.value); setLayoutUploadError(null); setLayoutUploadVersion(null); }}
+                            placeholder={UI_TEXT.tables.layoutImagePlaceholder}
+                            className="w-full max-w-full border rounded px-3 py-2 text-sm box-border mt-2"
+                          />
+                          <div className="text-xs text-muted mt-1">
+                            {UI_TEXT.tables.layoutImageHint}
                           </div>
-                        </TransformComponent>
-                      </>
-                    );
-                    }}
-                  </TransformWrapper>
-                </div>
-                <div className="text-xs text-muted mt-2">
-                  {isAddTableMode ? UI_TEXT.tables.addTableHint : UI_TEXT.tables.layoutHint}
-                </div>
-                <div className="mt-2">
-                  <PrimaryButton
-                    onClick={() => setIsAddTableMode((prev) => !prev)}
-                    className={isAddTableMode ? 'ring-2 ring-[#C6A75E]' : ''}
-                  >
-                    {isAddTableMode ? UI_TEXT.common.cancel : UI_TEXT.tables.addTable}
-                  </PrimaryButton>
-              </div>
-              </div>
+                          {layoutUrl && (
+                            <div className="mt-2">
+                              <div className="rounded border overflow-hidden bg-surface max-h-32">
+                                <img src={layoutUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => { }} />
+                              </div>
+                              {layoutUploadVersion != null && (
+                                <div className="text-xs text-muted mt-1">v{layoutUploadVersion}</div>
+                              )}
+                            </div>
+                          )}
+                          <div className="mt-3">
+                            <SecondaryButton
+                              onClick={() => { setLayoutUrl(selectedEvent?.layoutImageUrl || ''); setLayoutUploadVersion(null); }}
+                              className="w-full md:w-auto"
+                            >
+                              {UI_TEXT.common.reset}
+                            </SecondaryButton>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-sm font-semibold mb-2 flex items-center justify-between gap-2">
+                            <span>{UI_TEXT.tables.layoutPreview}</span>
+                            <button
+                              type="button"
+                              onClick={() => layoutZoomResetRef.current?.()}
+                              className="text-xs text-[#C6A75E] hover:underline"
+                            >
+                              Сбросить масштаб
+                            </button>
+                          </div>
+                          <div className="relative" style={{ overflow: 'hidden', touchAction: 'none' }}>
+                            <TransformWrapper
+                              minScale={0.5}
+                              maxScale={3}
+                              initialScale={1}
+                              limitToBounds={true}
+                              centerOnInit={true}
+                              wheel={{ step: 0.08 }}
+                              pinch={{ step: 5 }}
+                              doubleClick={{ disabled: true }}
+                              panning={{ velocityDisabled: false, excluded: ['table-wrapper'] }}
+                            >
+                              {({ resetTransform }) => {
+                                layoutZoomResetRef.current = () => resetTransform(300, 'easeOut');
+                                return (
+                                  <>
+                                    <TransformComponent
+                                      wrapperStyle={{ width: '100%', height: '100%', touchAction: 'none' }}
+                                      contentStyle={{ width: '100%', height: '100%', position: 'relative', touchAction: 'none' }}
+                                    >
+                                      <div
+                                        ref={layoutPreviewRef}
+                                        className="border border-[#242424] rounded-xl bg-[#111111] cursor-crosshair"
+                                        style={{
+                                          position: 'relative',
+                                          width: '100%',
+                                          maxWidth: 600,
+                                          margin: '0 auto',
+                                          containerType: 'inline-size',
+                                          cursor: isAddTableMode ? 'crosshair' : 'default',
+                                        }}
+                                        onClick={(e) => {
+                                          if (!isAddTableMode) return;
+                                          const target = e.target as HTMLElement;
+                                          if (target.closest('[data-table-id]')) return;
+                                          const layout = layoutPreviewRef.current;
+                                          const img = layout?.querySelector('img');
+                                          if (img && (e.target === img || img.contains(target))) {
+                                            const me = e.nativeEvent as MouseEvent;
+                                            const percentX = (me.offsetX / img.clientWidth) * 100;
+                                            const percentY = (me.offsetY / img.clientHeight) * 100;
+                                            addTable(percentX, percentY);
+                                            setIsAddTableMode(false);
+                                          } else if (layout && layoutUrl) {
+                                            const rect = layout.getBoundingClientRect();
+                                            const percentX = ((e.clientX - rect.left) / rect.width) * 100;
+                                            const percentY = ((e.clientY - rect.top) / rect.height) * 100;
+                                            addTable(percentX, percentY);
+                                            setIsAddTableMode(false);
+                                          }
+                                        }}
+                                      >
+                                        {layoutUrl ? (
+                                          <img
+                                            src={layoutUrl}
+                                            alt=""
+                                            style={{
+                                              width: '100%',
+                                              height: 'auto',
+                                              display: 'block',
+                                            }}
+                                          />
+                                        ) : (
+                                          <div className="flex items-center justify-center py-12 text-xs text-muted">
+                                            {UI_TEXT.tables.noLayoutImage}
+                                          </div>
+                                        )}
+                                        <AdminTablesLayer
+                                          tables={tables}
+                                          ticketCategories={selectedEvent?.ticketCategories ?? []}
+                                          selectedTableId={selectedTableId}
+                                          onTableSelect={(id) => setSelectedTableId(id)}
+                                          onTablesChange={(updater) => setTables(updater)}
+                                        />
+                                      </div>
+                                    </TransformComponent>
+                                  </>
+                                );
+                              }}
+                            </TransformWrapper>
+                          </div>
+                          <div className="text-xs text-muted mt-2">
+                            {isAddTableMode ? UI_TEXT.tables.addTableHint : UI_TEXT.tables.layoutHint}
+                          </div>
+                          <div className="mt-2">
+                            <PrimaryButton
+                              onClick={() => setIsAddTableMode((prev) => !prev)}
+                              className={isAddTableMode ? 'ring-2 ring-[#C6A75E]' : ''}
+                            >
+                              {isAddTableMode ? UI_TEXT.common.cancel : UI_TEXT.tables.addTable}
+                            </PrimaryButton>
+                          </div>
+                        </div>
                       </SortableSectionInner>
                     );
                     return null;

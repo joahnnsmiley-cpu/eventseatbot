@@ -38,6 +38,12 @@ export type ProfileOrganizerScreenProps = {
   vipGuests: Array<{ phone: string; names: string[]; category: string }>;
   /** Title of the selected event to display in the hero */
   eventTitle?: string | null;
+  /** All events available for selection in the picker */
+  allEvents?: Array<{ id: string; title: string }>;
+  /** Currently selected event id */
+  selectedEventId?: string | null;
+  /** Called when organizer picks a different event */
+  onSelectEvent?: (id: string) => void;
   onOpenAdmin?: () => void;
   onOpenMap?: () => void;
   /** Switch to guest profile view (organizer preview) */
@@ -80,6 +86,9 @@ function ProfileOrganizerScreenInner({
   categoryStats = [],
   vipGuests,
   eventTitle,
+  allEvents = [],
+  selectedEventId,
+  onSelectEvent,
   onOpenAdmin,
   onOpenMap,
   onViewAsGuest,
@@ -117,18 +126,45 @@ function ProfileOrganizerScreenInner({
             <p className="text-sm text-white/50 mt-1">
               Private Access
             </p>
+            {/* Inline event picker — lives right where the event title is */}
             {eventTitle && (
-              <p
-                className="mt-2 text-sm font-semibold truncate"
-                style={{
-                  background: 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                }}
-              >
-                {eventTitle}
-              </p>
+              <div className="relative inline-flex items-center mt-2 max-w-full">
+                <p
+                  className="text-sm font-semibold truncate"
+                  style={{
+                    background: 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {eventTitle}
+                  {allEvents.length > 1 && (
+                    <span style={{ WebkitTextFillColor: 'rgba(212,175,55,0.5)', marginLeft: 4, fontSize: '0.75em' }}>››</span>
+                  )}
+                </p>
+                {/* Transparent select overlay — tappable but invisible */}
+                {allEvents.length > 1 && onSelectEvent && (
+                  <select
+                    value={selectedEventId ?? ''}
+                    onChange={(e) => onSelectEvent(e.target.value)}
+                    aria-label="Выбрать событие"
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      opacity: 0,
+                      width: '100%',
+                      cursor: 'pointer',
+                      fontSize: 0,
+                    }}
+                  >
+                    {allEvents.map((evt) => (
+                      <option key={evt.id} value={evt.id}>{evt.title}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
             )}
             <div
               className="mt-4 font-bold tabular-nums"

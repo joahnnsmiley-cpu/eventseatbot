@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
+import { CheckCircle2, Clock, CreditCard, Copy, ChevronRight, AlertCircle } from 'lucide-react';
 import type { EventData, Booking } from '../types';
 import { getPriceForTable } from '../src/utils/getTablePrice';
 import { getEventDisplayParts, getEventDisplayPartsFromIso } from '../src/utils/formatDate';
 import { UI_TEXT } from '../constants/uiText';
 import * as StorageService from '../services/storageService';
-import Card from '../src/ui/Card';
-import PrimaryButton from '../src/ui/PrimaryButton';
 
 export interface BookingSuccessViewProps {
   event: EventData;
@@ -36,13 +34,11 @@ const formatTablesAndSeats = (booking: Booking, event: EventData): string => {
     const t = tables.find((x) => x.id === tableId);
     return t?.number ?? tableId;
   };
-
   if (Array.isArray(booking.tableBookings) && booking.tableBookings.length > 0) {
     return booking.tableBookings
-      .map((tb) => `Стол ${getTableNumber(tb.tableId)}: ${tb.seats} ${tb.seats === 1 ? 'место' : 'мест'}`)
+      .map((tb) => `Стол ${getTableNumber(tb.tableId)}: ${tb.seats} мест`)
       .join('; ');
   }
-
   if (Array.isArray(booking.seatIds) && booking.seatIds.length > 0) {
     const byTable: Record<string, number[]> = {};
     for (const id of booking.seatIds) {
@@ -52,16 +48,27 @@ const formatTablesAndSeats = (booking: Booking, event: EventData): string => {
       if (!byTable[tableId]) byTable[tableId] = [];
       if (!Number.isNaN(num)) byTable[tableId].push(num);
     }
-    const parts = Object.entries(byTable).map(([tid, seats]) => {
-      const nums = seats.sort((a, b) => a - b);
-      return `Стол ${getTableNumber(tid)}: места ${nums.join(', ')}`;
-    });
-    return parts.join('; ');
+    return Object.entries(byTable)
+      .map(([tid, seats]) => `Стол ${getTableNumber(tid)}: места ${seats.sort((a, b) => a - b).join(', ')}`)
+      .join('; ');
   }
-
   const count = booking.seatsCount ?? booking.seatIds?.length ?? 0;
-  return count > 0 ? `${count} ${count === 1 ? 'место' : 'мест'}` : '—';
+  return count > 0 ? `${count} мест` : '—';
 };
+
+/** Reusable countdown hook */
+function useCountdown(expiresAt?: string | number | null): number {
+  const target = expiresAt
+    ? typeof expiresAt === 'string' ? new Date(expiresAt).getTime() : Number(expiresAt)
+    : 0;
+  const [remaining, setRemaining] = useState(() => target > 0 ? Math.max(0, target - Date.now()) : 0);
+  useEffect(() => {
+    if (target <= 0) return;
+    const id = setInterval(() => setRemaining(Math.max(0, target - Date.now())), 1000);
+    return () => clearInterval(id);
+  }, [target]);
+  return remaining;
+}
 
 const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
   event,
@@ -72,36 +79,31 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
 }) => {
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
-  const [nowTick, setNowTick] = useState(Date.now());
-  const [showScrollHint, setShowScrollHint] = useState(true);
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const [copied, setCopied] = useState(false);
+
   const isAwaitingPayment = booking.status === 'reserved' || booking.status === 'pending';
+  const isAwaitingConfirmation = booking.status === 'awaiting_confirmation' || booking.status === 'payment_submitted';
+  const showPaidButton = isAwaitingPayment;
+
+  const expiresAt = (booking as any).expiresAt;
+  const remainingMs = useCountdown(expiresAt);
+  const mins = Math.floor(remainingMs / 60000);
+  const secs = Math.floor((remainingMs % 60000) / 1000);
+  const isExpired = remainingMs <= 0 && !!expiresAt;
+  const isUrgent = remainingMs > 0 && remainingMs < 5 * 60_000;
+
+  const { date, time } = formatEventDate(event);
+  const venue = (event as { venue?: string }).venue ?? '';
   const tablesAndSeats = formatTablesAndSeats(booking, event);
 
-  useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    let scrollParent: Element | null = el.parentElement;
-    while (scrollParent) {
-      const style = getComputedStyle(scrollParent);
-      if (/(auto|scroll|overlay)/.test(style.overflowY)) break;
-      scrollParent = scrollParent.parentElement;
-    }
-    if (!scrollParent) return;
-    const check = () => setShowScrollHint(scrollParent!.scrollTop < 80);
-    check();
-    scrollParent.addEventListener('scroll', check, { passive: true });
-    return () => scrollParent!.removeEventListener('scroll', check);
-  }, []);
-
-  useEffect(() => {
-    if (!isAwaitingPayment) return;
-    const id = window.setInterval(() => setNowTick(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [isAwaitingPayment]);
-  const isAwaitingConfirmation = booking.status === 'awaiting_confirmation';
-  const showPaidButton = isAwaitingPayment && !isAwaitingConfirmation;
-  const statusLabel = UI_TEXT.booking.statusLabels[booking.status] ?? booking.status ?? '—';
+  const seatCount = booking.tableBookings?.reduce((s, tb) => s + (tb.seats ?? 0), 0)
+    ?? booking.seatIds?.length ?? 0;
+  const tableId = booking.tableId ?? booking.tableBookings?.[0]?.tableId;
+  const table = tableId ? (event.tables ?? []).find((t) => t.id === tableId) : null;
+  const seatPriceFallback = event?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
+  const price = getPriceForTable(event, table ?? undefined, seatPriceFallback);
+  const displayTotal = booking.totalAmount && booking.totalAmount > 0
+    ? booking.totalAmount : seatCount * price;
 
   const handlePaidClick = async () => {
     setStatusUpdateError(null);
@@ -116,176 +118,272 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
     }
   };
 
-  const { date, time } = formatEventDate(event);
-  const venue = (event as { venue?: string }).venue ?? 'Площадка';
+  const copyPhone = () => {
+    if (event.paymentPhone) {
+      navigator.clipboard.writeText(event.paymentPhone.trim()).catch(() => { });
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   return (
-    <div ref={scrollContainerRef} className="max-w-md mx-auto px-4 pt-6 pb-24 space-y-5 text-center">
-      <div className="mx-auto w-16 h-16 rounded-full border border-[#FFC107] flex items-center justify-center">
-        <div className="w-6 h-6 rounded-full bg-[#FFC107]" />
-      </div>
+    <div className="min-h-screen w-full" style={{ background: '#090909' }}>
+      <div className="max-w-md mx-auto px-4 pt-8 pb-32 space-y-4">
 
-      <h1 className="text-xl font-bold text-white">
-        {UI_TEXT.booking.bookingCreated}
-      </h1>
-
-      <p className="text-muted-light text-xs">
-        {UI_TEXT.booking.bookingValidMinutes}
-      </p>
-
-      <AnimatePresence>
-        {showScrollHint && (
+        {/* ── Hero ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="flex flex-col items-center gap-3 pt-4 pb-2"
+        >
+          {/* Animated check circle */}
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
+            initial={{ scale: 0.4, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+            className="relative"
+          >
+            <div
+              className="w-20 h-20 rounded-full flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, rgba(212,175,55,0.15) 0%, rgba(212,175,55,0.05) 100%)',
+                border: '1.5px solid rgba(212,175,55,0.35)',
+                boxShadow: '0 0 40px rgba(212,175,55,0.12)',
+              }}
+            >
+              <CheckCircle2 size={36} strokeWidth={1.5} style={{ color: '#D4AF37' }} />
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="flex flex-col items-center gap-1 py-2"
+            transition={{ delay: 0.25, duration: 0.4 }}
+            className="text-center"
           >
-          <span className="text-[10px] text-muted-light uppercase tracking-wider">Листайте вниз</span>
-          <motion.div
-            animate={{ y: [0, 6, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-            className="flex flex-col items-center"
-          >
-            <ChevronDown size={20} className="text-[#FFC107]/80" strokeWidth={2.5} />
-            <ChevronDown size={16} className="text-[#FFC107]/60 -mt-2" strokeWidth={2.5} />
-            <ChevronDown size={12} className="text-[#FFC107]/40 -mt-2" strokeWidth={2.5} />
+            <h1 className="text-2xl font-bold text-white tracking-tight">
+              Бронь создана
+            </h1>
+            <p className="text-sm text-white/40 mt-1">
+              {event.title}
+            </p>
           </motion.div>
         </motion.div>
-        )}
-      </AnimatePresence>
 
-      <div className="w-12 h-[2px] bg-[#FFC107] mx-auto" />
-
-      <Card>
-        <div className="space-y-2 text-sm">
-          <p className="text-white font-semibold">
-            {event.title?.trim() || '—'}
-          </p>
-          <p className="text-[#FFC107]">
-            {date}{time ? ` • ${time}` : ''}
-          </p>
-          <p className="text-muted-light">
-            {venue}
-          </p>
-        </div>
-      </Card>
-
-      {isAwaitingPayment && (() => {
-        const expiresAt = (booking as { expiresAt?: string | number }).expiresAt;
-        const target = expiresAt ? (typeof expiresAt === 'string' ? new Date(expiresAt).getTime() : Number(expiresAt)) : 0;
-        const diffMs = Number.isFinite(target) ? Math.max(0, target - nowTick) : 0;
-        const mins = Math.floor(diffMs / 60000);
-        const secs = Math.floor((diffMs % 60000) / 1000);
-        const expired = diffMs <= 0;
-        return (
-          <Card className={expired ? 'border-amber-500/50' : ''}>
-            <div className="text-center">
-              <p className="text-xs text-muted-light mb-1">{UI_TEXT.booking.bookingValidMinutes}</p>
-              <p className={`text-2xl font-mono font-bold ${expired ? 'text-amber-400' : 'text-[#FFC107]'}`}>
-                {expired ? '0:00' : `${mins}:${secs.toString().padStart(2, '0')}`}
-              </p>
-            </div>
-          </Card>
-        );
-      })()}
-
-      <Card>
-        <div className="space-y-2 text-sm text-left">
-          <p className="text-muted text-xs">
-            {UI_TEXT.app.bookingNumber} {booking.id}
-          </p>
-          <p className="text-muted text-xs">
-            {UI_TEXT.app.seats} {tablesAndSeats}
-          </p>
-          {(() => {
-            const seatCount = booking.tableBookings?.reduce((sum, tb) => sum + (tb.seats ?? 0), 0)
-              ?? booking.seatIds?.length ?? 0;
-            const tableId = booking.tableId ?? booking.tableBookings?.[0]?.tableId;
-            const table = tableId ? (event.tables ?? []).find((t) => t.id === tableId) : null;
-            const seatPriceFallback = event?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
-            const price = getPriceForTable(event, table ?? undefined, seatPriceFallback);
-            const total = seatCount * price;
-            const displayTotal = booking.totalAmount && booking.totalAmount > 0
-              ? booking.totalAmount
-              : total;
-            return displayTotal > 0 ? (
-              <p className="text-muted text-xs">
-                {UI_TEXT.app.total} {displayTotal.toLocaleString('ru-RU')} ₽
-              </p>
-            ) : null;
-          })()}
-          {!isAwaitingPayment && (
-            <p className="text-muted text-xs">
-              {UI_TEXT.app.status} {statusLabel}
-            </p>
+        {/* ── Status / Awaiting confirmation banner ── */}
+        <AnimatePresence mode="wait">
+          {isAwaitingConfirmation && (
+            <motion.div
+              key="awaiting"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="rounded-2xl px-4 py-4 flex items-start gap-3"
+              style={{
+                background: 'rgba(212,175,55,0.07)',
+                border: '1px solid rgba(212,175,55,0.2)',
+              }}
+            >
+              <Clock size={18} strokeWidth={2} className="text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-300">Ожидаем подтверждения оплаты</p>
+                <p className="text-xs text-white/40 mt-0.5">Организатор проверит платёж и подтвердит бронь</p>
+              </div>
+            </motion.div>
           )}
-        </div>
-      </Card>
+        </AnimatePresence>
 
-      {event.paymentPhone != null && event.paymentPhone.trim() !== '' && isAwaitingPayment && (
-        <Card>
-          <div className="space-y-2 text-sm text-left">
-            <div className="text-white font-semibold">{UI_TEXT.booking.paymentDetailsTitle}</div>
-            {(() => {
-              const seatCount = booking.tableBookings?.reduce((sum, tb) => sum + (tb.seats ?? 0), 0)
-                ?? booking.seatIds?.length ?? 0;
-              const tableId = booking.tableId ?? booking.tableBookings?.[0]?.tableId;
-              const table = tableId ? (event.tables ?? []).find((t) => t.id === tableId) : null;
-              const seatPriceFallback = event?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
-              const price = getPriceForTable(event, table ?? undefined, seatPriceFallback);
-              const total = seatCount * price;
-              const displayTotal = booking.totalAmount && booking.totalAmount > 0 ? booking.totalAmount : total;
-              return displayTotal > 0 ? (
-                <p className="text-[#FFC107] font-semibold">К оплате: {displayTotal.toLocaleString('ru-RU')} ₽</p>
-              ) : null;
-            })()}
-            <p className="text-muted-light">
-              {UI_TEXT.booking.paymentTransferTo} <span className="text-white font-medium">{event.paymentPhone.trim()} {UI_TEXT.booking.paymentPhoneSberbank}</span>
-            </p>
-            <p className="text-muted-light">
-              {UI_TEXT.booking.paymentPurpose} {booking.id}
-            </p>
+        {/* ── Countdown ── */}
+        {isAwaitingPayment && !!expiresAt && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="rounded-2xl px-4 py-3.5 flex items-center gap-3"
+            style={{
+              background: isExpired
+                ? 'rgba(220,38,38,0.08)'
+                : isUrgent
+                  ? 'rgba(251,146,60,0.08)'
+                  : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${isExpired ? 'rgba(220,38,38,0.25)' : isUrgent ? 'rgba(251,146,60,0.25)' : 'rgba(255,255,255,0.08)'}`,
+            }}
+          >
+            <Clock
+              size={16}
+              strokeWidth={2}
+              className={isExpired ? 'text-red-400' : isUrgent ? 'text-orange-400' : 'text-white/30'}
+            />
+            {isExpired ? (
+              <span className="text-sm font-semibold text-red-400">Время брони истекло</span>
+            ) : (
+              <>
+                <span className="text-xs text-white/40">Бронь действует ещё</span>
+                <span
+                  className={`ml-auto font-mono font-bold tabular-nums text-base ${isUrgent ? 'text-orange-400' : 'text-white/70'}`}
+                >
+                  {mins}:{secs.toString().padStart(2, '0')}
+                </span>
+              </>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── Event info card ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="rounded-2xl overflow-hidden"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.07)',
+          }}
+        >
+          <div className="px-4 py-4 space-y-2.5">
+            <Row label="Дата" value={`${date}${time ? ` · ${time}` : ''}`} highlight />
+            {venue && <Row label="Место" value={venue} />}
+            <Row label="Места" value={tablesAndSeats} />
+            {displayTotal > 0 && (
+              <Row label="К оплате" value={`${displayTotal.toLocaleString('ru-RU')} ₽`} highlight />
+            )}
+            <Row label="Бронь №" value={booking.id} mono small />
           </div>
-        </Card>
-      )}
+        </motion.div>
 
-      <p className="text-muted-light text-sm whitespace-pre-wrap text-left">{UI_TEXT.booking.paymentPrompt}</p>
-      <p className="text-amber-300 text-sm font-semibold uppercase tracking-wide whitespace-pre-wrap text-left mt-2">{UI_TEXT.booking.paymentPromptCaps}</p>
-      <p className="text-muted-light text-xs whitespace-pre-wrap text-left mt-1">{UI_TEXT.booking.paymentPromptOrder}</p>
+        {/* ── Payment details ── */}
+        {event.paymentPhone?.trim() && isAwaitingPayment && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="rounded-2xl overflow-hidden"
+            style={{
+              background: 'rgba(212,175,55,0.05)',
+              border: '1px solid rgba(212,175,55,0.18)',
+            }}
+          >
+            <div className="px-4 py-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <CreditCard size={15} strokeWidth={2} className="text-amber-400/80" />
+                <span className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">
+                  Оплата по СБП
+                </span>
+              </div>
 
-      {isAwaitingConfirmation && (
-        <p className="text-sm text-[#6E6A64] bg-[#E7E3DB] rounded-lg p-3 text-left">{UI_TEXT.booking.awaitingConfirmationMessage}</p>
-      )}
+              {/* Phone number — large, copyable */}
+              <button
+                type="button"
+                onClick={copyPhone}
+                className="w-full flex items-center justify-between rounded-xl px-3 py-2.5 transition-all active:scale-[0.98]"
+                style={{
+                  background: 'rgba(212,175,55,0.08)',
+                  border: '1px solid rgba(212,175,55,0.15)',
+                }}
+              >
+                <span className="text-xl font-bold font-mono text-white tracking-wide">
+                  {event.paymentPhone.trim()}
+                </span>
+                <span className="flex items-center gap-1 text-xs text-amber-400/70">
+                  <Copy size={13} strokeWidth={2} />
+                  {copied ? 'Скопировано' : 'Копировать'}
+                </span>
+              </button>
 
-      {statusUpdateError && (
-        <p className="text-sm text-red-400">{statusUpdateError}</p>
-      )}
+              <div className="space-y-1.5 text-xs text-white/40 leading-relaxed">
+                <p>Укажите в комментарии: <span className="text-white/60 font-medium">ФИО и № брони</span></p>
+                <p className="font-medium text-amber-400/70">
+                  После перевода обязательно нажмите «Я оплатил» ниже
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
-      <div className="flex flex-col gap-3">
-        {showPaidButton && (
+        {/* ── Error ── */}
+        {statusUpdateError && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl px-3 py-2.5 flex items-center gap-2"
+            style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.25)' }}
+          >
+            <AlertCircle size={14} className="text-red-400 shrink-0" />
+            <p className="text-sm text-red-400">{statusUpdateError}</p>
+          </motion.div>
+        )}
+
+        {/* ── CTA buttons ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+          className="flex flex-col gap-3 pt-1"
+        >
+          {showPaidButton && (
+            <button
+              type="button"
+              onClick={handlePaidClick}
+              disabled={statusUpdateLoading}
+              className="w-full py-4 rounded-2xl text-sm font-semibold tracking-wide transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
+              style={{
+                background: statusUpdateLoading
+                  ? 'rgba(212,175,55,0.2)'
+                  : 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 50%, #C9A227 100%)',
+                color: '#0a0a0a',
+                boxShadow: statusUpdateLoading ? 'none' : '0 4px 24px rgba(212,175,55,0.3)',
+              }}
+            >
+              {statusUpdateLoading ? 'Отправляем…' : '✓ Я оплатил'}
+            </button>
+          )}
+
           <button
             type="button"
-            onClick={handlePaidClick}
-            disabled={statusUpdateLoading}
-            className="w-full px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white bg-[#0088cc] rounded-xl hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+            onClick={onGoToTickets ?? onBackToEvents}
+            className="w-full py-3.5 rounded-2xl text-sm font-medium transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-1.5"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: 'rgba(255,255,255,0.75)',
+            }}
           >
-            {statusUpdateLoading ? UI_TEXT.common.loading : UI_TEXT.booking.paidButtonCaps}
+            Мои билеты
+            <ChevronRight size={15} strokeWidth={2} className="opacity-50" />
           </button>
-        )}
-        <PrimaryButton onClick={onGoToTickets ?? onBackToEvents} className="w-full">
-          Перейти к билетам
-        </PrimaryButton>
-        <button
-          type="button"
-          onClick={onBackToEvents}
-          className="w-full px-4 py-2 text-sm font-medium text-muted-light border border-white/20 rounded-xl hover:bg-white/5 transition"
-        >
-          {UI_TEXT.booking.backToEvents}
-        </button>
+
+          <button
+            type="button"
+            onClick={onBackToEvents}
+            className="w-full py-2.5 rounded-2xl text-sm font-medium text-white/30 transition-all duration-200 active:scale-[0.98] hover:text-white/50"
+          >
+            {UI_TEXT.booking.backToEvents}
+          </button>
+        </motion.div>
       </div>
     </div>
   );
 };
+
+/** Simple two-column info row */
+const Row: React.FC<{
+  label: string;
+  value: string;
+  highlight?: boolean;
+  mono?: boolean;
+  small?: boolean;
+}> = ({ label, value, highlight, mono, small }) => (
+  <div className="flex items-start justify-between gap-3">
+    <span className="text-xs text-white/30 shrink-0 pt-px">{label}</span>
+    <span
+      className={`text-right break-all leading-snug ${small ? 'text-[10px]' : 'text-sm'
+        } ${mono ? 'font-mono' : 'font-medium'} ${highlight ? 'text-amber-300' : 'text-white/80'
+        }`}
+    >
+      {value}
+    </span>
+  </div>
+);
 
 export default BookingSuccessView;

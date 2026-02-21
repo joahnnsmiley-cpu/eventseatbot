@@ -143,55 +143,21 @@ export default function ProfileScreen({
     }
     const currentEventTitle = publishedEvents.find((e) => e.id === statsEventId)?.title ?? null;
     return (
-      <>
-        {/* Event picker — shown whenever any events are available */}
-        {publishedEvents.length >= 1 && (
-          <div
-            className="w-full px-4 pt-4 pb-1"
-            style={{ maxWidth: 480, margin: '0 auto' }}
-          >
-            <label className="text-[10px] font-semibold text-amber-500/70 uppercase tracking-widest block mb-1.5">
-              Статистика для события
-            </label>
-            <div className="relative">
-              <select
-                value={statsEventId ?? ''}
-                onChange={(e) => setStatsEventId(e.target.value || null)}
-                className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-white appearance-none pr-9 cursor-pointer transition-all focus:outline-none"
-                style={{
-                  background: 'rgba(20,20,22,0.95)',
-                  border: '1px solid rgba(198,167,94,0.3)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-                }}
-              >
-                {publishedEvents.map((evt) => (
-                  <option key={evt.id} value={evt.id} style={{ background: '#111' }}>
-                    {evt.title}
-                  </option>
-                ))}
-              </select>
-              <span
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-amber-400/70"
-                style={{ fontSize: 12 }}
-              >
-                ▼
-              </span>
-            </div>
-          </div>
-        )}
-        <ProfileOrganizerScreen
-          eventDate={organizerData.eventDate}
-          stats={organizerData.stats}
-          tables={organizerData.tables}
-          categoryStats={organizerData.categoryStats}
-          vipGuests={organizerData.vipGuests}
-          eventTitle={currentEventTitle}
-          onOpenAdmin={onOpenAdmin}
-          onOpenMap={onOpenMap}
-          onViewAsGuest={() => setViewAsGuest(true)}
-          isRefreshing={organizerLoading}
-        />
-      </>
+      <ProfileOrganizerScreen
+        eventDate={organizerData.eventDate}
+        stats={organizerData.stats}
+        tables={organizerData.tables}
+        categoryStats={organizerData.categoryStats}
+        vipGuests={organizerData.vipGuests}
+        eventTitle={currentEventTitle}
+        allEvents={publishedEvents}
+        selectedEventId={statsEventId}
+        onSelectEvent={setStatsEventId}
+        onOpenAdmin={onOpenAdmin}
+        onOpenMap={onOpenMap}
+        onViewAsGuest={() => setViewAsGuest(true)}
+        isRefreshing={organizerLoading}
+      />
     );
   }
 
