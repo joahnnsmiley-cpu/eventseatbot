@@ -60,33 +60,37 @@ const EventPage: React.FC<EventPageProps> = ({
       const table = event.tables?.find((t) => t.id === tableId);
       if (!table) return sum;
       const price = getPriceForTable(event, table, 0);
-      return sum + seats.length * price;
+      return sum + (seats as number[]).length * price;
     }, 0);
   }, [selectedSeatsByTable, event]);
 
   const totalSeats = useMemo(
-    () => Object.values(selectedSeatsByTable).reduce((n, arr) => n + arr.length, 0),
+    () => Object.values(selectedSeatsByTable).reduce((n: number, arr: any) => n + (arr as number[]).length, 0),
     [selectedSeatsByTable]
   );
 
-  const totalSeatsAvailable = useMemo(() => {
-    if (!event) return 0;
-    return event.tables?.reduce((sum, t) => sum + (t.seatsAvailable ?? 0), 0) ?? 0;
-  }, [event]);
+  const selectedTablesTotalSeats = useMemo(() => {
+    if (!event || !event.tables) return 0;
+    const selectedTableIds = Object.keys(selectedSeatsByTable);
+    return selectedTableIds.reduce((sum, tid) => {
+      const tb = event.tables!.find(t => t.id === tid);
+      return sum + (tb?.seatsTotal ?? tb?.seatsAvailable ?? 0);
+    }, 0);
+  }, [selectedSeatsByTable, event]);
 
   const breakdown = useMemo(() => {
     if (!event) return [];
     return Object.entries(selectedSeatsByTable)
       .map(([tableId, seats]) => {
         const table = event.tables?.find((t) => t.id === tableId);
-        if (!table || seats.length === 0) return null;
+        if (!table || (seats as number[]).length === 0) return null;
         const price = getPriceForTable(event, table, 0);
         return {
           tableId,
           tableNumber: table.number,
-          count: seats.length,
+          count: (seats as number[]).length,
           price,
-          total: seats.length * price,
+          total: (seats as number[]).length * price,
         };
       })
       .filter((x): x is NonNullable<typeof x> => x != null);
@@ -204,25 +208,32 @@ const EventPage: React.FC<EventPageProps> = ({
                     animation: 'event-hero-glow 10s ease-in-out infinite',
                   }}
                 />
-                <div className="relative aspect-[4/5] max-h-[55vh] w-full overflow-hidden shadow-2xl shadow-black/70">
+                <div className="relative w-full overflow-hidden shadow-2xl shadow-black/70 flex items-center justify-center bg-black/50" style={{ aspectRatio: '16/9', maxHeight: '55vh' }}>
                   {imgUrl?.trim() ? (
-                    <img
-                      ref={heroImgRef}
-                      src={imgUrl.trim()}
-                      alt=""
-                      className="w-full h-full object-cover object-top block will-change-transform"
-                    />
+                    <>
+                      {/* Blurred background to fill any gaps if the image is not exactly 16:9 */}
+                      <div
+                        className="absolute inset-0 bg-cover bg-center blur-2xl opacity-40 scale-110"
+                        style={{ backgroundImage: `url(${imgUrl.trim()})` }}
+                      />
+                      <img
+                        ref={heroImgRef}
+                        src={imgUrl.trim()}
+                        alt=""
+                        className="relative w-full h-full object-contain block will-change-transform z-10"
+                      />
+                    </>
                   ) : (
                     <div className="w-full h-full bg-white/5 block" />
                   )}
                   <div
-                    className="absolute top-0 left-0 right-0 h-[120px] pointer-events-none"
+                    className="absolute top-0 left-0 right-0 h-[120px] pointer-events-none z-20"
                     style={{
                       background: 'linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0))',
                     }}
                   />
                   <div
-                    className="absolute bottom-0 left-0 right-0 h-[120px] pointer-events-none"
+                    className="absolute bottom-0 left-0 right-0 h-[120px] pointer-events-none z-20"
                     style={{
                       background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)',
                     }}
@@ -377,16 +388,18 @@ const EventPage: React.FC<EventPageProps> = ({
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.25 }}
-            className="flex items-center justify-between rounded-xl px-4 py-3"
+            className="flex items-center justify-between rounded-2xl px-5 py-4"
             style={{
-              background: 'rgba(20,20,20,0.95)',
-              border: '1px solid rgba(255,255,255,0.06)',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+              background: 'linear-gradient(135deg, rgba(28,28,30,0.65) 0%, rgba(18,18,20,0.85) 100%)',
+              border: '1px solid rgba(198, 167, 94, 0.25)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
             }}
           >
             <div className="min-w-0 flex-1">
               <p className="text-xs text-muted tracking-wide">
-                Выбрано {totalSeats} из {totalSeatsAvailable}
+                Выбрано {totalSeats} из {selectedTablesTotalSeats}
               </p>
               <motion.p
                 key={totalAmount}
@@ -422,7 +435,7 @@ const EventPage: React.FC<EventPageProps> = ({
             <button
               type="button"
               onClick={handleBooking}
-              className="bg-[#FFC107] text-black font-semibold px-5 py-2 rounded-xl active:scale-95 transition shrink-0 ml-4"
+              className="lux-button font-semibold px-5 py-2 shrink-0 ml-4 whitespace-nowrap"
             >
               Продолжить
             </button>

@@ -111,7 +111,7 @@ function App() {
       setTgAvailable(true);
       try {
         tg.ready?.();
-      } catch {}
+      } catch { }
       setTgInitData(tg.initData || '');
       setTgUser(tg.initDataUnsafe?.user || null);
     } else {
@@ -162,13 +162,15 @@ function App() {
   }, [view]);
 
   useEffect(() => {
-    const tg = window.Telegram?.WebApp;
+    const tg = window.Telegram?.WebApp as any;
     if (!tg) return;
 
     const applyTheme = () => {
+      // @ts-ignore
       const isDark = tg.colorScheme === 'dark';
       document.body.classList.toggle('tg-dark', isDark);
       document.body.classList.toggle('tg-light', !isDark);
+      // @ts-ignore
       const params = tg.themeParams || {};
       const root = document.documentElement;
       if (params.bg_color) root.style.setProperty('--tg-theme-bg-color', params.bg_color);
@@ -181,13 +183,15 @@ function App() {
 
     applyTheme();
     try {
+      // @ts-ignore
       tg.onEvent?.('themeChanged', applyTheme);
-    } catch {}
+    } catch { }
 
     return () => {
       try {
+        // @ts-ignore
         tg.offEvent?.('themeChanged', applyTheme);
-      } catch {}
+      } catch { }
     };
   }, []);
 
@@ -419,7 +423,7 @@ function App() {
 
   const bottomNavActiveTab: BottomNavTab =
     view === 'my-tickets' ? 'my-tickets' :
-    view === 'profile' || view === 'my-bookings' ? 'profile' : 'events';
+      view === 'profile' || view === 'my-bookings' ? 'profile' : 'events';
 
   const wrapWithLayout = (children: React.ReactNode) => (
     <AppLayout>
@@ -536,9 +540,15 @@ function App() {
   }
 
   if (view === 'seats' && selectedEvent) {
+    const activeCategory = selectedTable ? selectedEvent.ticketCategories?.find((c) => c.id === selectedTable.ticketCategoryId) : null;
+    const activePalette = selectedTable ? getCategoryColorFromCategory(activeCategory) : { base: '#C6A75E', glow: 'rgba(198,167,94,0.5)' };
+
     return wrapWithLayout(
-      <div className="max-w-[420px] mx-auto overflow-x-hidden bg-black h-full">
-        <div className="px-4 pt-4 space-y-4">
+      <div
+        className="max-w-[420px] mx-auto overflow-x-hidden bg-black h-full"
+        style={{ '--accent-color': activePalette.base, '--accent-glow': activePalette.glow } as React.CSSProperties}
+      >
+        <div className="px-4 pt-4 pb-32 space-y-4">
           <div className="flex items-center justify-between">
             <button
               onClick={() => {
@@ -642,10 +652,10 @@ function App() {
                       const set = new Set(arr);
                       if (set.has(seatIndex)) set.delete(seatIndex);
                       else set.add(seatIndex);
-                      return { ...prev, [selectedTableId]: [...set].sort((a, b) => a - b) };
+                      return { ...prev, [selectedTableId]: [...set].sort((a, b) => Number(a) - Number(b)) };
                     });
                   }}
-                  />
+                />
               </Card>
 
               <Card>
@@ -655,7 +665,8 @@ function App() {
                 <div className="flex items-center gap-2 mt-2">
                   <button
                     type="button"
-                    className="px-3 py-2 rounded border border-white/20 text-white text-sm"
+                    className="px-3 py-2 rounded text-sm transition-colors"
+                    style={{ border: `1px solid ${activePalette.base}40`, color: activePalette.base }}
                     onClick={() => {
                       if (!selectedTableId) return;
                       const selected = selectedSeatsByTable[selectedTableId] ?? [];
@@ -676,13 +687,15 @@ function App() {
                     min={0}
                     max={selectedTable.seatsTotal}
                     value={(selectedSeatsByTable[selectedTableId] ?? []).length}
-                    className="w-20 text-center border border-white/20 rounded px-2 py-2 text-sm bg-[#111] text-white"
+                    className="w-20 text-center rounded px-2 py-2 text-sm bg-[#111] text-white"
+                    style={{ border: `1px solid ${activePalette.base}40` }}
                     tabIndex={-1}
                     aria-label={UI_TEXT.app.selectedSeatCount}
                   />
                   <button
                     type="button"
-                    className="px-3 py-2 rounded border border-white/20 text-white text-sm"
+                    className="px-3 py-2 rounded text-sm transition-colors"
+                    style={{ border: `1px solid ${activePalette.base}40`, color: activePalette.base }}
                     onClick={() => {
                       if (!selectedTableId) return;
                       const selected = selectedSeatsByTable[selectedTableId] ?? [];
@@ -694,7 +707,7 @@ function App() {
                       if (freeIndex >= total) return;
                       setSelectedSeatsByTable((prev) => ({
                         ...prev,
-                        [selectedTableId]: [...selected, freeIndex].sort((a, b) => a - b),
+                        [selectedTableId]: [...selected, freeIndex].sort((a, b) => Number(a) - Number(b)),
                       }));
                     }}
                     disabled={
@@ -736,7 +749,11 @@ function App() {
                   value={userPhone}
                   onChange={(e) => setUserPhone(e.target.value)}
                   placeholder={UI_TEXT.app.phonePlaceholder}
-                  className="w-full border border-white/20 rounded-xl px-3 py-2 text-sm bg-[#111] text-white placeholder-gray-500"
+                  className="w-full rounded-xl px-3 py-2 text-sm bg-[#111] text-white placeholder-gray-500 focus:outline-none transition-shadow"
+                  style={{
+                    border: `1px solid ${activePalette.base}40`,
+                    boxShadow: userPhone ? `0 0 0 1px ${activePalette.base}40` : 'none'
+                  }}
                   disabled={bookingLoading}
                 />
               </Card>
@@ -748,7 +765,11 @@ function App() {
                   onChange={(e) => setUserComment(e.target.value)}
                   placeholder={UI_TEXT.app.commentPlaceholder}
                   rows={3}
-                  className="w-full border border-white/20 rounded-xl px-3 py-2 text-sm resize-y bg-[#111] text-white placeholder-gray-500"
+                  className="w-full rounded-xl px-3 py-2 text-sm resize-y bg-[#111] text-white placeholder-gray-500 focus:outline-none transition-shadow"
+                  style={{
+                    border: `1px solid ${activePalette.base}40`,
+                    boxShadow: userComment ? `0 0 0 1px ${activePalette.base}40` : 'none'
+                  }}
                   disabled={bookingLoading}
                 />
               </Card>
@@ -781,7 +802,13 @@ function App() {
               </Card>
 
               <PrimaryButton
-                className="w-full disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                style={{
+                  background: `linear-gradient(135deg, ${activePalette.base}, ${activePalette.base}dd)`,
+                  boxShadow: `0 4px 20px ${activePalette.glow}`,
+                  border: `1px solid ${activePalette.base}`,
+                  color: '#000'
+                }}
                 disabled={
                   selectedTable.isAvailable !== true ||
                   selectedTable.seatsAvailable === 0 ||
@@ -856,7 +883,7 @@ function App() {
                         }
                       }
                       setOccupiedMap(map);
-                    } catch {}
+                    } catch { }
                     setView('booking-success');
                     showToast(UI_TEXT.booking.successTitle, 'success');
                   } catch (e) {
