@@ -11,6 +11,8 @@ interface SeatPickerProps {
   tableDisabled?: boolean;
   /** Occupied seat indices (from backend) — these are disabled and get seat--occupied class. */
   occupiedIndices?: Set<number>;
+  /** Dynamic accent color from the selected category. */
+  accentColor?: string;
 }
 
 /**
@@ -23,6 +25,7 @@ const SeatPicker: React.FC<SeatPickerProps> = ({
   onToggleSeat,
   tableDisabled = false,
   occupiedIndices = new Set(),
+  accentColor,
 }) => {
   const count = Math.max(0, Number(table.seatsTotal) || 0);
   const selectedSet = new Set(selectedIndices);
@@ -53,6 +56,7 @@ const SeatPicker: React.FC<SeatPickerProps> = ({
         occupiedIndices={occupiedIndices}
         onSeatClick={tableDisabled ? undefined : handleSeatClick}
         allSeatsDisabled={tableDisabled}
+        accentColor={accentColor}
       />
       {lastAddedSeat && (
         <motion.div
@@ -60,7 +64,8 @@ const SeatPicker: React.FC<SeatPickerProps> = ({
           initial={{ y: 0, opacity: 1 }}
           animate={{ y: -20, opacity: 0 }}
           transition={{ duration: 0.4 }}
-          className="absolute inset-0 flex items-center justify-center pointer-events-none text-[#FFC107] font-bold text-sm"
+          className="absolute inset-0 flex items-center justify-center pointer-events-none font-bold text-sm"
+          style={{ color: accentColor || '#FFC107' }}
         >
           +1
         </motion.div>

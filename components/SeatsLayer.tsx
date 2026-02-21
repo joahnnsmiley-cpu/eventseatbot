@@ -19,6 +19,8 @@ interface SeatsLayerProps {
   onSeatClick?: (index: number) => void;
   /** When true, all seats render as sold/occupied and are not clickable. */
   allSeatsDisabled?: boolean;
+  /** Dynamic accent color from the selected category. */
+  accentColor?: string;
 }
 
 /** Renders seat grid for SeatPicker. */
@@ -28,10 +30,12 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
   occupiedIndices = new Set(),
   onSeatClick,
   allSeatsDisabled = false,
+  accentColor,
 }) => {
   const count = Math.max(0, Number(seatsTotal) || 0);
   const isInteractive = !allSeatsDisabled && typeof onSeatClick === 'function';
   const selectedSet = selectedIndices ?? new Set<number>();
+  const accent = accentColor || '#FFC107';
 
   const baseSeatClass = 'w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 ease-out';
 
@@ -45,37 +49,52 @@ const SeatsLayer: React.FC<SeatsLayerProps> = ({
         const isDisabled = allSeatsDisabled || isOccupied;
         const isSelected = !isDisabled && selectedSet.has(i);
         const isClickable = isInteractive && !isDisabled;
-        const seatClass =
-          isSelected
-            ? `${baseSeatClass} bg-[#FFC107] text-black shadow-[0_0_15px_rgba(255,193,7,0.6)] scale-105`
-            : isOccupied || allSeatsDisabled
-              ? `${baseSeatClass} bg-[#111] text-muted opacity-40 cursor-not-allowed`
-              : `${baseSeatClass} bg-[#1a1a1a] border border-white/10 text-white hover:border-[#FFC107] hover:scale-105`;
+
+        const seatStyle: React.CSSProperties = isSelected
+          ? { backgroundColor: accent, color: '#000', boxShadow: `0 0 15px ${accent}99`, transform: 'scale(1.05)' }
+          : isOccupied || allSeatsDisabled
+            ? { backgroundColor: '#111', opacity: 0.4, cursor: 'not-allowed' }
+            : { backgroundColor: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)' };
+
+        const baseSeatClass = 'w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 ease-out';
+        const hoverClass = (!isSelected && !isDisabled) ? 'hover:scale-105' : '';
+        const textClass = (isOccupied || allSeatsDisabled) ? 'text-muted' : isSelected ? '' : 'text-white';
+
         return (
           <div
             key={i}
-            className={seatClass}
+            className={`${baseSeatClass} ${hoverClass} ${textClass}`}
+            style={{
+              ...seatStyle,
+              ...((!isSelected && !isDisabled) ? { '--hover-border': accent } as React.CSSProperties : {}),
+            }}
             role={isClickable ? 'button' : undefined}
             tabIndex={isClickable ? 0 : undefined}
             aria-pressed={isClickable ? isSelected : undefined}
+            onMouseEnter={(!isSelected && !isDisabled) ? (e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = accent;
+            } : undefined}
+            onMouseLeave={(!isSelected && !isDisabled) ? (e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)';
+            } : undefined}
             onClick={
               isClickable
                 ? (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onSeatClick!(i);
-                  }
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onSeatClick!(i);
+                }
                 : undefined
             }
             onKeyDown={
               isClickable
                 ? (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onSeatClick!(i);
-                    }
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onSeatClick!(i);
                   }
+                }
                 : undefined
             }
           >

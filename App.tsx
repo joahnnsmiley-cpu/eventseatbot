@@ -643,6 +643,7 @@ function App() {
                   selectedIndices={selectedSeatsByTable[selectedTableId!] ?? []}
                   tableDisabled={selectedTable.isAvailable !== true}
                   occupiedIndices={occupiedMap[selectedTableId!] ?? new Set()}
+                  accentColor={activePalette.base}
                   onToggleSeat={(seatIndex) => {
                     if (!selectedTableId) return;
                     const occupied = occupiedMap[selectedTableId] ?? new Set();
