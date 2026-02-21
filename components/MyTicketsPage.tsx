@@ -239,9 +239,14 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     return { date: '—', time: '' };
   };
 
-  const getStatusType = (status: string): 'paid' | 'reserved' | 'cancelled' => {
+  /** Map backend status → NeonTicketCard StatusType.
+   * Returns the actual status string — NeonTicketCard handles all known statuses. */
+  const getStatusType = (status: string): 'paid' | 'reserved' | 'cancelled' | 'awaiting_confirmation' | 'expired' => {
     if (status === 'paid') return 'paid';
-    if (status === 'cancelled' || status === 'expired') return 'cancelled';
+    if (status === 'cancelled') return 'cancelled';
+    if (status === 'expired') return 'expired';
+    if (status === 'awaiting_confirmation' || status === 'payment_submitted') return 'awaiting_confirmation';
+    // reserved / pending / awaiting_payment → reserved
     return 'reserved';
   };
 

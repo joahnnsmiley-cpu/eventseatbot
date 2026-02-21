@@ -58,7 +58,7 @@ async function generateAndSendTicket(booking: Booking): Promise<void> {
     console.error('[generateAndSendTicket]', err);
     const userChatId = typeof booking.userTelegramId === 'number' ? booking.userTelegramId : 0;
     if (Number.isFinite(userChatId) && userChatId > 0) {
-      sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch(() => {});
+      sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch(() => { });
     }
   }
 }
@@ -154,8 +154,13 @@ router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
 
   const current = String(booking.status);
   const validTransitions: Record<string, string[]> = {
-    pending: ['awaiting_confirmation'],
+    pending: ['awaiting_confirmation', 'cancelled'],
+    reserved: ['awaiting_confirmation', 'cancelled'],
+    awaiting_payment: ['awaiting_confirmation', 'cancelled'],
     awaiting_confirmation: ['paid', 'cancelled'],
+    payment_submitted: ['paid', 'cancelled'],
+    // Admin can confirm or cancel expired bookings (user may have transferred money without tapping "I paid")
+    expired: ['paid', 'cancelled'],
   };
   const allowedTargets = validTransitions[current];
   if (!allowedTargets || !allowedTargets.includes(status)) {
@@ -301,14 +306,16 @@ router.post('/bookings/:id/confirm', async (req: Request, res: Response) => {
   const bookings = await db.getBookings();
   const booking = bookings.find((b) => b.id === id);
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
-  if (booking.status !== 'reserved') return res.status(400).json({ error: 'Only reserved bookings can be confirmed' });
-  const now = Date.now();
-  const expiresAtMs = typeof booking.expiresAt === 'number'
-    ? booking.expiresAt
-    : booking.expiresAt ? new Date(booking.expiresAt).getTime() : 0;
-  if (now > expiresAtMs) {
-    return res.status(400).json({ error: 'Booking expired' });
+
+  // Allow confirming: reserved, awaiting_confirmation, payment_submitted, expired
+  // (Admin may confirm expired booking if user transferred money but forgot to tap "I paid")
+  const confirmableStatuses = ['reserved', 'awaiting_confirmation', 'payment_submitted', 'expired', 'pending'];
+  if (!confirmableStatuses.includes(String(booking.status))) {
+    return res.status(400).json({ error: `Cannot confirm booking with status: ${booking.status}` });
   }
+
+  // No expiry check here — admin is explicitly overriding it
+  const now = Date.now();
 
   const tickets: Ticket[] = [];
   if (Array.isArray(booking.seatIds) && booking.seatIds.length > 0) {

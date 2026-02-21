@@ -69,11 +69,13 @@ export default function ProfileScreen({
     if (role !== 'organizer') return;
     StorageService.getAdminEvents()
       .then((evts) => {
-        const published = evts.filter((e: EventData) => (e as any).status === 'published' || (e as any).is_published);
-        setPublishedEvents(published);
-        // If no event selected yet, auto-select the first one
-        if (!statsEventId && published.length > 0) {
-          setStatsEventId(published[0].id);
+        // Show all events that are not archived — let organizer pick any
+        const active = evts.filter((e: EventData) => (e as any).status !== 'archived');
+        const list = active.length > 0 ? active : evts; // fallback: show all if none pass filter
+        setPublishedEvents(list);
+        // Auto-select first if nothing selected yet
+        if (!statsEventId && list.length > 0) {
+          setStatsEventId(list[0].id);
         }
       })
       .catch(() => { /* silent — picker just won't show */ });
@@ -142,8 +144,8 @@ export default function ProfileScreen({
     const currentEventTitle = publishedEvents.find((e) => e.id === statsEventId)?.title ?? null;
     return (
       <>
-        {/* Event picker — shown when there are multiple published events */}
-        {publishedEvents.length > 1 && (
+        {/* Event picker — shown whenever any events are available */}
+        {publishedEvents.length >= 1 && (
           <div
             className="w-full px-4 pt-4 pb-1"
             style={{ maxWidth: 480, margin: '0 auto' }}

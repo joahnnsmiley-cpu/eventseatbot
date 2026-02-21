@@ -341,7 +341,19 @@ const SeatMap: React.FC<SeatMapProps> = ({
                               if (onTableSelect) onTableSelect(table.id);
                             }}
                           >
-                            <div className={`table-shape table-shape-gold ${isCircle ? 'table-shape-circle' : ''}`} style={shapeStyle}>
+                            <div
+                              className={`table-shape table-shape-gold ${isCircle ? 'table-shape-circle' : ''}`}
+                              style={{
+                                ...shapeStyle,
+                                // Apple-style: desaturate + dim instead of overlaying
+                                ...(isTableDisabled && !isEditable ? {
+                                  filter: isSoldOut
+                                    ? 'grayscale(0.85) brightness(0.38)'
+                                    : 'grayscale(0.95) brightness(0.28)',
+                                  transition: 'filter 0.2s ease',
+                                } : {}),
+                              }}
+                            >
                               <div className="table-overlay">
                                 {!isEditable && table.seatsTotal > 0 && (
                                   <TableSeatDots
@@ -371,43 +383,30 @@ const SeatMap: React.FC<SeatMapProps> = ({
                                 )}
                               </div>
 
-                              {/* Unavailable / sold-out overlay — shown only in customer view */}
-                              {!isEditable && isTableDisabled && (
+                              {/* Sold-out micro-badge — only when fully booked, no emoji */}
+                              {!isEditable && isSoldOut && (
                                 <div
                                   style={{
                                     position: 'absolute',
-                                    inset: 0,
-                                    borderRadius: 'inherit',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: 2,
-                                    zIndex: 6,
-                                    background: isSoldOut
-                                      ? 'rgba(180,30,30,0.72)'
-                                      : 'rgba(10,10,14,0.78)',
-                                    backdropFilter: 'blur(3px)',
-                                    WebkitBackdropFilter: 'blur(3px)',
+                                    bottom: '-10px',
+                                    left: '50%',
+                                    transform: 'translateX(-50%)',
+                                    zIndex: 8,
                                     pointerEvents: 'none',
+                                    whiteSpace: 'nowrap',
+                                    padding: '1px 5px',
+                                    borderRadius: 4,
+                                    fontSize: '0.52em',
+                                    fontWeight: 600,
+                                    letterSpacing: '0.04em',
+                                    color: 'rgba(255,255,255,0.45)',
+                                    background: 'rgba(0,0,0,0.55)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    backdropFilter: 'blur(4px)',
+                                    WebkitBackdropFilter: 'blur(4px)',
                                   }}
                                 >
-                                  <span style={{ fontSize: '1em', lineHeight: 1 }}>
-                                    {isSoldOut ? '🔴' : '🔒'}
-                                  </span>
-                                  <span
-                                    style={{
-                                      fontSize: '0.42em',
-                                      fontWeight: 800,
-                                      letterSpacing: '0.06em',
-                                      color: isSoldOut ? '#FFAAAA' : 'rgba(255,255,255,0.55)',
-                                      textAlign: 'center',
-                                      lineHeight: 1.1,
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    {isSoldOut ? 'ПРОДАНО' : 'НЕДОСТУПЕН'}
-                                  </span>
+                                  Занято
                                 </div>
                               )}
                             </div>
