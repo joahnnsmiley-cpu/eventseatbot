@@ -160,156 +160,189 @@ const EventPage: React.FC<EventPageProps> = ({
 
   const categories = event?.ticketCategories?.filter((c) => c.isActive) ?? [];
 
-  // ─── PREVIEW MODE (Premium black luxury) ──────────────────────────────────
   if (mode === 'preview') {
     return (
-      <div className="event-details-premium min-h-full relative overflow-hidden -mx-4 w-[calc(100%+2rem)]">
-        {/* Animated purple gradient background */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse 80% 60% at 85% 15%, rgba(88,28,135,0.15) 0%, transparent 60%)',
-            animation: 'event-details-bg-pulse 8s ease-in-out infinite',
-          }}
-        />
-        <div className="absolute inset-0 bg-[#0a0a0a]" style={{ zIndex: -1 }} />
+      <div className="event-details-premium relative w-full overflow-hidden -mx-4" style={{ minHeight: '100dvh', width: 'calc(100% + 2rem)', background: '#080808' }}>
 
-        {/* Top nav — safe area so hero doesn't overlap Telegram header */}
-        <div className="flex items-center justify-between h-12 px-4 pt-2 absolute top-0 left-0 right-0 z-20">
-          <button
-            onClick={onBack}
-            className="text-[15px] text-white/60 hover:text-white transition"
-          >
-            {UI_TEXT.app.back}
-          </button>
-          <button
-            onClick={onRefresh}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/5 transition"
-            aria-label={UI_TEXT.app.refresh}
-          >
-            <RefreshCw size={18} strokeWidth={2} />
-          </button>
+        {/* ── Full-bleed hero ── */}
+        <div className="absolute inset-0">
+          {imgUrl?.trim() ? (
+            <>
+              {/* Blurred ambient background */}
+              <div
+                className="absolute inset-0 bg-cover bg-center scale-110"
+                style={{ backgroundImage: `url(${imgUrl.trim()})`, filter: 'blur(40px) brightness(0.35)', transform: 'scale(1.15)' }}
+              />
+              {/* Sharp poster — object-cover so it fills the screen nicely */}
+              <img
+                ref={heroImgRef}
+                src={imgUrl.trim()}
+                alt=""
+                className="absolute inset-0 w-full h-full z-10 will-change-transform"
+                style={{ objectFit: 'cover', objectPosition: 'top center' }}
+              />
+            </>
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-b from-purple-950/40 to-black" />
+          )}
+          {/* Strong gradient vignette — fade to black toward bottom */}
+          <div
+            className="absolute inset-0 z-20 pointer-events-none"
+            style={{
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.8) 68%, rgba(0,0,0,0.97) 82%, #080808 100%)',
+            }}
+          />
         </div>
 
-        <div className="relative pt-16">
-          {eventLoading && <div className="text-xs text-muted py-4 px-4">{UI_TEXT.app.loadingLayout}</div>}
-          {eventError && <div className="text-sm text-red-400 py-4 px-4">{eventError}</div>}
+        {/* ── Floating top nav ── */}
+        <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 pt-3 pb-2">
+          <motion.button
+            type="button"
+            onClick={onBack}
+            whileTap={{ scale: 0.93 }}
+            className="flex items-center gap-1.5 text-sm font-medium text-white/80 hover:text-white transition"
+            style={{
+              background: 'rgba(0,0,0,0.35)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 20,
+              padding: '6px 14px',
+            }}
+          >
+            ← {UI_TEXT.app.back}
+          </motion.button>
+          <motion.button
+            type="button"
+            onClick={onRefresh}
+            whileTap={{ scale: 0.93 }}
+            aria-label={UI_TEXT.app.refresh}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white transition"
+            style={{
+              background: 'rgba(0,0,0,0.35)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.12)',
+            }}
+          >
+            <RefreshCw size={16} strokeWidth={2} />
+          </motion.button>
+        </div>
+
+        {/* ── Info panel — pinned to bottom over the gradient ── */}
+        <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-8 space-y-4">
+          {eventLoading && <div className="text-xs text-white/40">{UI_TEXT.app.loadingLayout}</div>}
+          {eventError && <div className="text-xs text-red-400">{eventError}</div>}
 
           {!eventLoading && !eventError && (
-            <>
-              {/* Hero — outside content container, true edge-to-edge */}
-              <div className="w-full relative">
-                {/* Purple radial glow behind hero */}
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background: 'radial-gradient(ellipse 90% 80% at 50% 30%, rgba(88,28,135,0.2) 0%, transparent 65%)',
-                    filter: 'blur(48px)',
-                    animation: 'event-hero-glow 10s ease-in-out infinite',
-                  }}
-                />
-                <div className="relative w-full overflow-hidden shadow-2xl shadow-black/70 flex items-center justify-center bg-black/50" style={{ aspectRatio: '16/9', maxHeight: '55vh' }}>
-                  {imgUrl?.trim() ? (
-                    <>
-                      {/* Blurred background to fill any gaps if the image is not exactly 16:9 */}
-                      <div
-                        className="absolute inset-0 bg-cover bg-center blur-2xl opacity-40 scale-110"
-                        style={{ backgroundImage: `url(${imgUrl.trim()})` }}
-                      />
-                      <img
-                        ref={heroImgRef}
-                        src={imgUrl.trim()}
-                        alt=""
-                        className="relative w-full h-full object-contain block will-change-transform z-10"
-                      />
-                    </>
-                  ) : (
-                    <div className="w-full h-full bg-white/5 block" />
-                  )}
-                  <div
-                    className="absolute top-0 left-0 right-0 h-[120px] pointer-events-none z-20"
-                    style={{
-                      background: 'linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0))',
-                    }}
-                  />
-                  <div
-                    className="absolute bottom-0 left-0 right-0 h-[120px] pointer-events-none z-20"
-                    style={{
-                      background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)',
-                    }}
-                  />
-                </div>
-              </div>
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+              className="space-y-3"
+            >
+              {/* Title */}
+              <h1 className="text-3xl font-bold leading-tight tracking-tight text-white">
+                {event.title?.trim() || UI_TEXT.event.eventFallback}
+              </h1>
 
-              {/* Main content — starts after hero, has padding */}
-              <div className="px-4 pt-6 -mt-8 relative z-10 space-y-3">
-                <motion.h1
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.7,
-                    delay: 0.15,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                  className="font-luxury-event-title text-2xl sm:text-3xl font-bold uppercase leading-tight text-center tracking-tight"
-                >
-                  {event.title?.trim() || UI_TEXT.event.eventFallback}
-                </motion.h1>
-
-                {/* Дата, время и локация — всегда на экране без скролла */}
-                <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1 text-sm text-white/70">
+              {/* Date + venue pills in one row */}
+              {(showDateTime || showVenue) && (
+                <div className="flex flex-wrap gap-2">
                   {showDateTime && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Calendar size={14} strokeWidth={2} />
+                    <span
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-white/80 rounded-full px-3 py-1.5"
+                      style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+                    >
+                      <Calendar size={11} strokeWidth={2.5} />
                       {dateShort}
                     </span>
                   )}
                   {showVenue && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <MapPin size={14} strokeWidth={2} />
+                    <span
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-white/80 rounded-full px-3 py-1.5"
+                      style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+                    >
+                      <MapPin size={11} strokeWidth={2.5} />
                       {venue?.trim()}
                     </span>
                   )}
                 </div>
+              )}
 
-                {event.description != null && event.description.trim() !== '' && (() => {
-                  const desc = event.description.trim();
-                  const isLong = desc.length > 180 || desc.split(/\n/).length > 3;
-                  const showExpand = isLong && !descriptionExpanded;
-                  return (
-                    <motion.div
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
-                      className="backdrop-blur-md bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 min-h-0"
+              {/* Description — collapsible */}
+              {event.description?.trim() && (() => {
+                const desc = event.description.trim();
+                const isLong = desc.length > 150 || desc.split(/\n/).length > 2;
+                return (
+                  <div>
+                    <p
+                      className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap break-words"
+                      style={isLong && !descriptionExpanded ? {
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      } : undefined}
                     >
-                      <p className={`text-[13px] text-white/85 leading-relaxed whitespace-pre-wrap break-words ${showExpand ? 'line-clamp-3' : ''}`}>
-                        {desc}
-                      </p>
-                      {isLong && (
-                        <button
-                          type="button"
-                          onClick={() => setDescriptionExpanded(true)}
-                          className={`text-xs font-medium text-yellow-500/90 hover:text-yellow-400 mt-1.5 ${showExpand ? '' : 'hidden'}`}
-                        >
-                          Читать далее
-                        </button>
-                      )}
-                    </motion.div>
-                  );
-                })()}
+                      {desc}
+                    </p>
+                    {isLong && !descriptionExpanded && (
+                      <button
+                        type="button"
+                        onClick={() => setDescriptionExpanded(true)}
+                        className="text-xs font-semibold mt-1"
+                        style={{ color: '#D4AF37', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                      >
+                        Читать далее
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
 
-                <button
-                  type="button"
-                  onClick={() => setMode('seatmap')}
-                  className="event-details-cta w-full py-3.5 text-base font-semibold text-black rounded-xl transition-all hover:opacity-95 active:scale-[0.98]"
-                >
-                  Купить билеты
-                </button>
+              {/* Ticket categories */}
+              {categories.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat) => (
+                    <span
+                      key={cat.id}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-3 py-1.5"
+                      style={{
+                        background: `${getCategoryColorFromCategory(cat).base}1A`,
+                        border: `1px solid ${getCategoryColorFromCategory(cat).base}40`,
+                        color: getCategoryColorFromCategory(cat).base,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 6, height: 6, borderRadius: '50%',
+                          background: getCategoryColorFromCategory(cat).base,
+                          flexShrink: 0,
+                          display: 'inline-block',
+                        }}
+                      />
+                      {cat.name} · {cat.price.toLocaleString('ru-RU')} ₽
+                    </span>
+                  ))}
+                </div>
+              )}
 
-                <div className="h-20 shrink-0" aria-hidden />
-              </div>
-            </>
+              {/* CTA */}
+              <motion.button
+                type="button"
+                onClick={() => setMode('seatmap')}
+                whileTap={{ scale: 0.97 }}
+                className="w-full py-4 rounded-2xl text-base font-semibold text-black transition-all"
+                style={{
+                  background: 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 50%, #C9A227 100%)',
+                  boxShadow: '0 4px 28px rgba(212,175,55,0.35)',
+                  letterSpacing: '0.01em',
+                }}
+              >
+                Выбрать место
+              </motion.button>
+            </motion.div>
           )}
         </div>
       </div>

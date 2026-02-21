@@ -1,6 +1,6 @@
-import React, { memo } from 'react';
-import { motion } from 'framer-motion';
-import { Settings } from 'lucide-react';
+import React, { memo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Settings, Check } from 'lucide-react';
 import ProfileLayout from '../components/profile/ProfileLayout';
 import ProfileAnimatedStack from '../components/profile/ProfileAnimatedStack';
 import CountdownCard from '../components/profile/CountdownCard';
@@ -94,6 +94,7 @@ function ProfileOrganizerScreenInner({
   onViewAsGuest,
   isRefreshing = false,
 }: ProfileOrganizerScreenProps) {
+  const [sheetOpen, setSheetOpen] = useState(false);
   return (
     <ProfileLayout className="profile-organizer-premium">
       {isRefreshing && (
@@ -126,46 +127,124 @@ function ProfileOrganizerScreenInner({
             <p className="text-sm text-white/50 mt-1">
               Private Access
             </p>
-            {/* Inline event picker — lives right where the event title is */}
+            {/* Inline event picker trigger */}
             {eventTitle && (
-              <div className="relative inline-flex items-center mt-2 max-w-full">
-                <p
+              <button
+                type="button"
+                onClick={() => allEvents.length > 1 && setSheetOpen(true)}
+                style={{ background: 'none', border: 'none', padding: 0, margin: '8px 0 0', cursor: allEvents.length > 1 ? 'pointer' : 'default', display: 'inline-flex', alignItems: 'center', gap: 4, maxWidth: '100%' }}
+                aria-haspopup={allEvents.length > 1 ? 'listbox' : undefined}
+              >
+                <span
                   className="text-sm font-semibold truncate"
                   style={{
                     background: 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
-                    pointerEvents: 'none',
                   }}
                 >
                   {eventTitle}
-                  {allEvents.length > 1 && (
-                    <span style={{ WebkitTextFillColor: 'rgba(212,175,55,0.5)', marginLeft: 4, fontSize: '0.75em' }}>››</span>
-                  )}
-                </p>
-                {/* Transparent select overlay — tappable but invisible */}
-                {allEvents.length > 1 && onSelectEvent && (
-                  <select
-                    value={selectedEventId ?? ''}
-                    onChange={(e) => onSelectEvent(e.target.value)}
-                    aria-label="Выбрать событие"
+                </span>
+                {allEvents.length > 1 && (
+                  <span style={{ color: 'rgba(212,175,55,0.45)', fontSize: '0.7em', flexShrink: 0 }}>›</span>
+                )}
+              </button>
+            )}
+
+            {/* Custom iOS-style bottom sheet picker */}
+            <AnimatePresence>
+              {sheetOpen && allEvents.length > 1 && (
+                <>
+                  <motion.div
+                    key="sheet-backdrop"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.22 }}
+                    onClick={() => setSheetOpen(false)}
                     style={{
-                      position: 'absolute',
-                      inset: 0,
-                      opacity: 0,
-                      width: '100%',
-                      cursor: 'pointer',
-                      fontSize: 0,
+                      position: 'fixed', inset: 0, zIndex: 1000,
+                      background: 'rgba(0,0,0,0.65)',
+                      backdropFilter: 'blur(8px)',
+                      WebkitBackdropFilter: 'blur(8px)',
+                    }}
+                  />
+                  <motion.div
+                    key="sheet-panel"
+                    initial={{ y: '100%' }}
+                    animate={{ y: 0 }}
+                    exit={{ y: '100%' }}
+                    transition={{ type: 'spring', damping: 26, stiffness: 280, mass: 0.7 }}
+                    style={{
+                      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1001,
+                      maxWidth: 480, margin: '0 auto',
+                      paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)',
                     }}
                   >
-                    {allEvents.map((evt) => (
-                      <option key={evt.id} value={evt.id}>{evt.title}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            )}
+                    <div style={{
+                      background: 'rgba(14,14,16,0.98)',
+                      borderTop: '1px solid rgba(255,255,255,0.09)',
+                      borderRadius: '22px 22px 0 0',
+                      overflow: 'hidden',
+                    }}>
+                      {/* Handle */}
+                      <div style={{ padding: '10px 0 4px', display: 'flex', justifyContent: 'center' }}>
+                        <div style={{ width: 34, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)' }} />
+                      </div>
+                      {/* Header */}
+                      <p style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.28)', padding: '6px 0 10px' }}>
+                        Выберите событие
+                      </p>
+                      {/* Divider */}
+                      <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '0 16px 4px' }} />
+                      {/* Options */}
+                      {allEvents.map((evt, i) => {
+                        const isSelected = evt.id === selectedEventId;
+                        return (
+                          <React.Fragment key={evt.id}>
+                            {i > 0 && <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '0 20px' }} />}
+                            <motion.button
+                              type="button"
+                              whileTap={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
+                              onClick={() => { onSelectEvent?.(evt.id); setSheetOpen(false); }}
+                              style={{
+                                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: '15px 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+                              }}
+                            >
+                              <span style={{
+                                fontSize: 15, fontWeight: isSelected ? 600 : 400,
+                                color: isSelected ? '#F5D76E' : 'rgba(255,255,255,0.82)',
+                                flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}>
+                                {evt.title}
+                              </span>
+                              {isSelected && <Check size={15} strokeWidth={2.5} style={{ color: '#D4AF37', flexShrink: 0, marginLeft: 10 }} />}
+                            </motion.button>
+                          </React.Fragment>
+                        );
+                      })}
+                      {/* Cancel */}
+                      <div style={{ padding: '10px 16px 4px' }}>
+                        <motion.button
+                          type="button"
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => setSheetOpen(false)}
+                          style={{
+                            width: '100%', padding: '14px 0', borderRadius: 14,
+                            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)',
+                            color: 'rgba(255,255,255,0.45)', fontSize: 15, fontWeight: 500, cursor: 'pointer',
+                          }}
+                        >
+                          Отмена
+                        </motion.button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
             <div
               className="mt-4 font-bold tabular-nums"
               style={{
