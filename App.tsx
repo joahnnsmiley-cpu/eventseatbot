@@ -1294,14 +1294,14 @@ function App() {
 
                       {/* Glassmorphism info bar */}
                       <div
-                        className="relative px-5 py-3.5 flex items-center justify-between gap-3"
+                        className="relative px-5 py-3.5"
                         style={{
                           background: 'linear-gradient(135deg, rgba(18,18,20,0.97) 0%, rgba(24,22,18,0.98) 100%)',
                           borderTop: '1px solid rgba(198,167,94,0.2)',
                         }}
                       >
-                        {/* Date + time */}
-                        <div className="flex items-center gap-3 min-w-0">
+                        {/* Date + time row */}
+                        <div className="flex items-center gap-3">
                           {/* Calendar icon block */}
                           <div
                             className="shrink-0 w-11 h-11 rounded-xl flex flex-col items-center justify-center"
@@ -1317,8 +1317,8 @@ function App() {
                               {fmt?.day ?? '—'}
                             </span>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-white truncate">
+                          <div>
+                            <p className="text-sm font-semibold text-white">
                               {fmt?.date ?? featured?.date ?? '—'}
                             </p>
                             {fmt?.time && (
@@ -1329,12 +1329,12 @@ function App() {
                           </div>
                         </div>
 
-                        {/* Venue */}
-                        <div className="text-right min-w-0 shrink">
-                          <p className="text-[11px] text-white/50 uppercase tracking-wider leading-tight truncate">
-                            {(featured as { venue?: string })?.venue ?? ''}
+                        {/* Venue row */}
+                        {(featured as { venue?: string })?.venue && (
+                          <p className="text-[11px] text-white/50 uppercase tracking-wider mt-2.5 leading-snug">
+                            {(featured as { venue?: string })?.venue}
                           </p>
-                        </div>
+                        )}
                       </div>
                     </motion.div>
                   </div>
