@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-const BOTTOM_NAV_HEIGHT = 72;
+const BOTTOM_NAV_HEIGHT = 120;
 
 type AppLayoutProps = {
   children: React.ReactNode;
