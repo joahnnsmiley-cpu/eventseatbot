@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-const BOTTOM_NAV_HEIGHT = 120;
+const BOTTOM_NAV_HEIGHT = 140;
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -57,10 +57,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
         style={{
           paddingLeft: '1rem',
           paddingRight: '1rem',
-          paddingBottom: `calc(${BOTTOM_NAV_HEIGHT}px + env(safe-area-inset-bottom))`,
         }}
       >
         {children}
+        <div
+          className="w-full shrink-0"
+          style={{ height: `calc(${BOTTOM_NAV_HEIGHT}px + env(safe-area-inset-bottom))` }}
+        />
       </div>
     </div>
   );
