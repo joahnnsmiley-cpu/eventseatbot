@@ -255,6 +255,7 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
   const userId = String(user.id);
   const isAdmin = req.user?.role === 'admin' || (process.env.ADMINS_IDS || '').split(',').map((id) => id.trim()).filter(Boolean).includes(userId);
   const eventIdParam = typeof req.query?.eventId === 'string' ? req.query.eventId.trim() : '';
+  const onlyAvailable = req.query?.onlyAvailable === 'true';
 
   const events = await db.getEvents();
   const allBookings = await db.getBookings();
@@ -310,7 +311,11 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
   }
 
   const eventId = event.id;
-  const tables = Array.isArray(event.tables) ? event.tables : [];
+  const allTables = Array.isArray(event.tables) ? event.tables : [];
+  // When onlyAvailable=true, count only tables marked available for sale
+  const tables = onlyAvailable
+    ? allTables.filter((t: any) => t.is_available === true || t.isAvailable === true)
+    : allTables;
   const validStatuses = ['reserved', 'paid', 'awaiting_confirmation', 'payment_submitted', 'confirmed', 'pending'];
   const eventIdStr = String(eventId);
   const eventBookings = allBookings.filter(

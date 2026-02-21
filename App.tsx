@@ -151,6 +151,7 @@ function App() {
             status: b.status,
             tableNumber,
             seatIndices: seatIndicesStr,
+            expiresAt: b.expires_at ?? (b as any).expiresAt ?? null,
           });
         } catch {
           enriched.push({

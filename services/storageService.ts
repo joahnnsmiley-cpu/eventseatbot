@@ -253,19 +253,19 @@ export const getMyBookings = async (): Promise<Booking[]> => {
 export type ProfileGuestData =
   | { hasBooking: false }
   | {
-      hasBooking: true;
-      guestName: string;
-      avatarUrl: string;
-      event: { name: string; title: string; start_at: string; date: string; venue: string };
-      tableNumber: number;
-      categoryName: string;
-      categoryColorKey: string;
-      seatNumbers: number[];
-      seatsFree: number;
-      neighbors: Array<{ name: string; avatar: string }>;
-      privileges: string[];
-      privateAccess: string;
-    };
+    hasBooking: true;
+    guestName: string;
+    avatarUrl: string;
+    event: { name: string; title: string; start_at: string; date: string; venue: string };
+    tableNumber: number;
+    categoryName: string;
+    categoryColorKey: string;
+    seatNumbers: number[];
+    seatsFree: number;
+    neighbors: Array<{ name: string; avatar: string }>;
+    privileges: string[];
+    privateAccess: string;
+  };
 
 /** GET /me/profile-guest — data for ProfileGuestScreen. */
 export const getProfileGuestData = async (): Promise<ProfileGuestData> => {
@@ -279,36 +279,37 @@ export const getProfileGuestData = async (): Promise<ProfileGuestData> => {
 export type ProfileOrganizerData =
   | { hasData: false }
   | {
-      hasData: true;
-      eventDate: string;
-      stats: {
-        guestsTotal: number;
-        fillPercent: number;
-        ticketsSold: number;
-        seatsFree: number;
-        revenueExpected?: number;
-        revenueCurrent?: number;
-        revenueReserved?: number;
-      };
-      tables: { total: number; full: number; partial: number; empty: number };
-      categoryStats?: Array<{
-        id: string;
-        name: string;
-        colorKey: string;
-        seatsTotal: number;
-        seatsSold: number;
-        seatsFree: number;
-        revenueExpected: number;
-        revenueCurrent: number;
-      }>;
-      vipGuests: Array<{ phone: string; names: string[]; category: string }>;
+    hasData: true;
+    eventDate: string;
+    stats: {
+      guestsTotal: number;
+      fillPercent: number;
+      ticketsSold: number;
+      seatsFree: number;
+      revenueExpected?: number;
+      revenueCurrent?: number;
+      revenueReserved?: number;
     };
+    tables: { total: number; full: number; partial: number; empty: number };
+    categoryStats?: Array<{
+      id: string;
+      name: string;
+      colorKey: string;
+      seatsTotal: number;
+      seatsSold: number;
+      seatsFree: number;
+      revenueExpected: number;
+      revenueCurrent: number;
+    }>;
+    vipGuests: Array<{ phone: string; names: string[]; category: string }>;
+  };
 
 /** GET /me/profile-organizer — data for ProfileOrganizerScreen. eventId optional. */
 export const getProfileOrganizerData = async (eventId?: string | null): Promise<ProfileOrganizerData> => {
   const apiBaseUrl = getApiBaseUrl();
   const url = new URL(`${apiBaseUrl}/me/profile-organizer`);
   if (eventId) url.searchParams.set('eventId', eventId);
+  url.searchParams.set('onlyAvailable', 'true');
   const res = await fetch(url.toString(), { headers: AuthService.getAuthHeader() });
   if (!res.ok) await handleAuthError(res, 'Failed to load organizer profile');
   return res.json();

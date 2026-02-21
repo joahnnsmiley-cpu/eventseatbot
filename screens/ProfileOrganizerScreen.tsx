@@ -36,6 +36,8 @@ export type ProfileOrganizerScreenProps = {
     revenueCurrent: number;
   }>;
   vipGuests: Array<{ phone: string; names: string[]; category: string }>;
+  /** Title of the selected event to display in the hero */
+  eventTitle?: string | null;
   onOpenAdmin?: () => void;
   onOpenMap?: () => void;
   /** Switch to guest profile view (organizer preview) */
@@ -77,6 +79,7 @@ function ProfileOrganizerScreenInner({
   tables,
   categoryStats = [],
   vipGuests,
+  eventTitle,
   onOpenAdmin,
   onOpenMap,
   onViewAsGuest,
@@ -114,6 +117,19 @@ function ProfileOrganizerScreenInner({
             <p className="text-sm text-white/50 mt-1">
               Private Access
             </p>
+            {eventTitle && (
+              <p
+                className="mt-2 text-sm font-semibold truncate"
+                style={{
+                  background: 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
+              >
+                {eventTitle}
+              </p>
+            )}
             <div
               className="mt-4 font-bold tabular-nums"
               style={{

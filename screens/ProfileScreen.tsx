@@ -7,6 +7,7 @@ import BackHeader from '../src/ui/BackHeader';
 import * as StorageService from '../services/storageService';
 import type { CategoryColorKey } from '../src/config/categoryColors';
 import { UI_TEXT } from '../constants/uiText';
+import type { EventData } from '../types';
 
 const ProfileStateMessage = ({
   message,
@@ -49,6 +50,9 @@ export default function ProfileScreen({
   const [organizerData, setOrganizerData] = useState<StorageService.ProfileOrganizerData | null>(null);
   const [organizerLoading, setOrganizerLoading] = useState(false);
   const [organizerError, setOrganizerError] = useState<string | null>(null);
+  // Event picker state for organizer statistics
+  const [publishedEvents, setPublishedEvents] = useState<EventData[]>([]);
+  const [statsEventId, setStatsEventId] = useState<string | null>(selectedEventId ?? null);
 
   useEffect(() => {
     if (role !== 'guest' && !(role === 'organizer' && viewAsGuest)) return;
@@ -60,11 +64,26 @@ export default function ProfileScreen({
       .finally(() => setGuestLoading(false));
   }, [role, viewAsGuest]);
 
+  // Load organizer event list for the stats picker
+  useEffect(() => {
+    if (role !== 'organizer') return;
+    StorageService.getAdminEvents()
+      .then((evts) => {
+        const published = evts.filter((e: EventData) => (e as any).status === 'published' || (e as any).is_published);
+        setPublishedEvents(published);
+        // If no event selected yet, auto-select the first one
+        if (!statsEventId && published.length > 0) {
+          setStatsEventId(published[0].id);
+        }
+      })
+      .catch(() => { /* silent — picker just won't show */ });
+  }, [role]);
+
   useEffect(() => {
     if (role !== 'organizer') return;
     setOrganizerLoading(true);
     setOrganizerError(null);
-    StorageService.getProfileOrganizerData(selectedEventId ?? undefined)
+    StorageService.getProfileOrganizerData(statsEventId ?? undefined)
       .then((data) => {
         setOrganizerData(data);
       })
@@ -72,7 +91,7 @@ export default function ProfileScreen({
         setOrganizerError(err?.message ?? 'Ошибка загрузки');
       })
       .finally(() => setOrganizerLoading(false));
-  }, [role, selectedEventId]);
+  }, [role, statsEventId]);
 
   const wrapWithBack = (content: React.ReactNode, backHandler?: () => void, backLabel?: string) => {
     const handler = backHandler ?? onBack;
@@ -120,18 +139,57 @@ export default function ProfileScreen({
     if (!organizerData || !organizerData.hasData) {
       return <ProfileStateMessage message="Нет доступных событий для управления" />;
     }
+    const currentEventTitle = publishedEvents.find((e) => e.id === statsEventId)?.title ?? null;
     return (
-      <ProfileOrganizerScreen
-        eventDate={organizerData.eventDate}
-        stats={organizerData.stats}
-        tables={organizerData.tables}
-        categoryStats={organizerData.categoryStats}
-        vipGuests={organizerData.vipGuests}
-        onOpenAdmin={onOpenAdmin}
-        onOpenMap={onOpenMap}
-        onViewAsGuest={() => setViewAsGuest(true)}
-        isRefreshing={organizerLoading}
-      />
+      <>
+        {/* Event picker — shown when there are multiple published events */}
+        {publishedEvents.length > 1 && (
+          <div
+            className="w-full px-4 pt-4 pb-1"
+            style={{ maxWidth: 480, margin: '0 auto' }}
+          >
+            <label className="text-[10px] font-semibold text-amber-500/70 uppercase tracking-widest block mb-1.5">
+              Статистика для события
+            </label>
+            <div className="relative">
+              <select
+                value={statsEventId ?? ''}
+                onChange={(e) => setStatsEventId(e.target.value || null)}
+                className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-white appearance-none pr-9 cursor-pointer transition-all focus:outline-none"
+                style={{
+                  background: 'rgba(20,20,22,0.95)',
+                  border: '1px solid rgba(198,167,94,0.3)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                }}
+              >
+                {publishedEvents.map((evt) => (
+                  <option key={evt.id} value={evt.id} style={{ background: '#111' }}>
+                    {evt.title}
+                  </option>
+                ))}
+              </select>
+              <span
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-amber-400/70"
+                style={{ fontSize: 12 }}
+              >
+                ▼
+              </span>
+            </div>
+          </div>
+        )}
+        <ProfileOrganizerScreen
+          eventDate={organizerData.eventDate}
+          stats={organizerData.stats}
+          tables={organizerData.tables}
+          categoryStats={organizerData.categoryStats}
+          vipGuests={organizerData.vipGuests}
+          eventTitle={currentEventTitle}
+          onOpenAdmin={onOpenAdmin}
+          onOpenMap={onOpenMap}
+          onViewAsGuest={() => setViewAsGuest(true)}
+          isRefreshing={organizerLoading}
+        />
+      </>
     );
   }
 
