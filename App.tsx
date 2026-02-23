@@ -1381,6 +1381,13 @@ function App() {
             );
           })()}
         </div>
+
+        {/* Authors attribution */}
+        <div className="pt-8 pb-4 text-center">
+          <p className="text-[12px] font-medium text-white/30 tracking-wide">
+            By I.S. & Daria Podkoviryna
+          </p>
+        </div>
       </motion.div>
     </div>
   );
