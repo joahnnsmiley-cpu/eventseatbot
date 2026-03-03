@@ -721,6 +721,35 @@ function App() {
                 );
               })()}
 
+              {['8', '10', '21', '22'].includes(String(selectedTable.number)) && (
+                <motion.div
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="relative overflow-hidden rounded-2xl p-4 flex items-start gap-4 border border-white/5"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+                  <div className="relative z-10 text-white/50 mt-0.5">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                      <circle cx="12" cy="12" r="3" />
+                      <line x1="3" y1="3" x2="21" y2="21" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
+                    </svg>
+                  </div>
+                  <div className="relative z-10 flex-1">
+                    <h4 className="text-sm font-medium text-white/90 tracking-wide mb-1">Ограниченный обзор</h4>
+                    <p className="text-xs text-white/50 leading-relaxed font-light">
+                      Места за этим столом имеют частичное ограничение видимости сцены. Пожалуйста, учитывайте это при бронировании.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+
               <Card>
                 <div className="text-sm font-semibold text-white mb-2">{UI_TEXT.app.selectSeats}</div>
                 <SeatPicker
