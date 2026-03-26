@@ -660,6 +660,26 @@ function App() {
     </AppLayout>
   );
 
+  // --- AUTH GATE ---
+  // If we're on VK, we MUST wait for the sign query to be recovered before doing anything. 
+  // This prevents child components from firing premature API calls that would fail with 401.
+  if (isVkPlatform && !AuthService.getToken() && !vkSignQuery && !authError) {
+    return (
+      <div className="min-h-screen bg-[#0b0b0b] flex flex-col items-center justify-center p-8 space-y-6">
+        <div className="relative">
+          <div className="w-16 h-16 border-2 border-[#C6A75E]/20 border-t-[#C6A75E] rounded-full animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-8 h-8 bg-[#C6A75E]/10 rounded-full animate-pulse blur-xl" />
+          </div>
+        </div>
+        <div className="space-y-2 text-center">
+          <h2 className="text-xl font-bold text-white tracking-tight">Инициализация</h2>
+          <p className="text-sm text-[#C6A75E]/60 font-medium animate-pulse">Восстановление сессии VK...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (isAdmin && view === 'admin') {
     return wrapWithLayout(
       <AdminPanel
