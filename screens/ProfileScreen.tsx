@@ -32,6 +32,7 @@ export type ProfileScreenProps = {
   onOpenMap?: () => void;
   /** Navigate to previous screen */
   onBack?: () => void;
+  authLoading?: boolean;
 };
 
 export default function ProfileScreen({
@@ -41,6 +42,7 @@ export default function ProfileScreen({
   onOpenAdmin,
   onOpenMap,
   onBack,
+  authLoading,
 }: ProfileScreenProps) {
   const role = userRoleProp ?? 'guest';
   const [viewAsGuest, setViewAsGuest] = useState(false);
@@ -55,6 +57,7 @@ export default function ProfileScreen({
   const [statsEventId, setStatsEventId] = useState<string | null>(selectedEventId ?? null);
 
   useEffect(() => {
+    if (authLoading) return;
     if (role !== 'guest' && !(role === 'organizer' && viewAsGuest)) return;
     setGuestLoading(true);
     setGuestError(null);
@@ -66,7 +69,7 @@ export default function ProfileScreen({
 
   // Load organizer event list for the stats picker
   useEffect(() => {
-    if (role !== 'organizer') return;
+    if (authLoading || role !== 'organizer') return;
     StorageService.getAdminEvents()
       .then((evts) => {
         // Show only published events
@@ -83,7 +86,7 @@ export default function ProfileScreen({
   }, [role]);
 
   useEffect(() => {
-    if (role !== 'organizer') return;
+    if (authLoading || role !== 'organizer') return;
     setOrganizerLoading(true);
     setOrganizerError(null);
     StorageService.getProfileOrganizerData(statsEventId ?? undefined)

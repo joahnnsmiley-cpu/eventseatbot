@@ -342,7 +342,9 @@ router.post('/bookings', async (req: Request, res: Response) => {
     const commentLine = '';
     const extras = [phoneLine, commentLine].filter(Boolean);
     const extrasBlock = extras.length ? '\n' + extras.join('\n') : '';
-    const adminMsg = `🆕 <b>Новая бронь</b>\n\n<b>${ev.title}</b>\nСтол ${tableNumber}\nМеста: ${seatIndices.length}\nСумма: ${totalAmount} ₽\n\n👤 Telegram ID: —${extrasBlock}`;
+    const platformLabel = platform === 'vk' ? 'VK' : 'Telegram';
+    const platformId = platform === 'vk' ? (vkUserId || '—') : '—';
+    const adminMsg = `🆕 <b>Новая бронь</b>\n\n<b>${ev.title}</b>\nСтол ${tableNumber}\nМеста: ${seatIndices.length}\nСумма: ${totalAmount} ₽\n\n👤 ${platformLabel} ID: ${platformId}${extrasBlock}`;
     notifyAdmins(adminMsg).catch((err) => console.error('Telegram notify admins:', err));
     res.status(201).json({ ok: true, id: booking.id });
   } catch (e) {
@@ -459,7 +461,9 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
       const commentLine = b.userComment ? `💬 Комментарий: ${escapeHtml(b.userComment)}` : '';
       const extras = [phoneLine, commentLine].filter(Boolean);
       const extrasBlock = extras.length ? '\n' + extras.join('\n') : '';
-      const adminMsg = `🆕 <b>Новая бронь</b>\n\n<b>${ev?.title ?? '—'}</b>\nСтол ${tableNumber}\nМеста: ${b.seatsBooked ?? b.seats ?? 0}\nСумма: ${b.totalAmount ?? 0} ₽\n\n👤 Telegram ID: ${b.userTelegramId ?? '—'}${extrasBlock}`;
+      const platformLabel = b.platform === 'vk' ? 'VK' : 'Telegram';
+      const platformId = b.platform === 'vk' ? (b.user_vk_id || '—') : (b.userTelegramId || '—');
+      const adminMsg = `🆕 <b>Новая бронь</b>\n\n<b>${ev?.title ?? '—'}</b>\nСтол ${tableNumber}\nМеста: ${b.seatsBooked ?? b.seats ?? 0}\nСумма: ${b.totalAmount ?? 0} ₽\n\n👤 ${platformLabel} ID: ${platformId}${extrasBlock}`;
       notifyAdmins(adminMsg).catch((err) => console.error('Telegram notify admins:', err));
     }
 
@@ -643,7 +647,9 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
     const commentLine = normalizedUserComment ? `💬 Комментарий: ${escapeHtml(normalizedUserComment)}` : '';
     const extras = [phoneLine, commentLine].filter(Boolean);
     const extrasBlock = extras.length ? '\n' + extras.join('\n') : '';
-    const adminMsg = `🆕 <b>Новая бронь</b>\n\n<b>${ev.title}</b>\nСтол ${tableNumber}\nМеста: ${indices.length}\nСумма: ${totalAmountVal} ₽\n\n👤 Telegram ID: ${tgId}${extrasBlock}`;
+    const platformLabel = booking.platform === 'vk' ? 'VK' : 'Telegram';
+    const platformId = booking.platform === 'vk' ? (booking.user_vk_id || '—') : (booking.user_telegram_id || '—');
+    const adminMsg = `🆕 <b>Новая бронь</b>\n\n<b>${ev.title}</b>\nСтол ${tableNumber}\nМеста: ${indices.length}\nСумма: ${totalAmountVal} ₽\n\n👤 ${platformLabel} ID: ${platformId}${extrasBlock}`;
     notifyAdmins(adminMsg).catch((err) => console.error('Telegram notify admins:', err));
 
     return res.status(201).json(booking);

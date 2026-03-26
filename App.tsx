@@ -625,7 +625,10 @@ function App() {
   }
 
   if (view === 'my-tickets') {
-    return wrapWithLayout(<MyTicketsPage onBack={() => { setView('events'); window.location.hash = ''; }} />);
+    return wrapWithLayout(<MyTicketsPage
+      onBack={() => { setView('events'); window.location.hash = ''; }}
+      authLoading={authLoading}
+    />);
   }
 
   if (view === 'profile') {
@@ -638,6 +641,7 @@ function App() {
         onOpenAdmin={() => setView('admin')}
         onOpenMap={() => setView('events')}
         onBack={() => setView('events')}
+        authLoading={authLoading}
       />
     );
   }

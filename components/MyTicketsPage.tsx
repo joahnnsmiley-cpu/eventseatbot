@@ -49,7 +49,7 @@ const STATUS_LABELS: Record<string, string> = {
   expired: 'Истекло',
 };
 
-const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
+const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = ({ onBack, authLoading }) => {
   const { showToast } = useToast();
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,9 +134,8 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       userId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id;
     }
 
-    if (!userId) {
-      // If still not found, we can't load bookings yet. 
-      // This is expected during early init.
+    if (!userId || authLoading) {
+      // If still not found or auth is loading, we can't load bookings yet. 
       return;
     }
 

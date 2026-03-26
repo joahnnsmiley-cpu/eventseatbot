@@ -80,6 +80,8 @@ type BookingsRow = {
   is_used?: boolean | null;
   created_at?: string;
   expires_at: string | null;
+  platform?: string | null;
+  user_vk_id?: number | null;
 };
 
 type AdminsRow = {
@@ -175,6 +177,8 @@ function bookingsRowToBooking(row: BookingsRow): Booking {
   if (row.user_comment != null) booking.userComment = row.user_comment;
   if (expiresAt !== undefined) booking.expiresAt = expiresAt;
   if (Array.isArray(row.tickets)) booking.tickets = row.tickets as Ticket[];
+  if (row.platform != null) booking.platform = row.platform as 'telegram' | 'vk';
+  if (row.user_vk_id != null) booking.user_vk_id = row.user_vk_id;
   return booking;
 }
 
@@ -594,6 +598,8 @@ export async function addBooking(booking: Booking): Promise<void> {
     status: booking.status,
     created_at: new Date(booking.createdAt).toISOString(),
     expires_at: expiresAt,
+    platform: booking.platform || 'telegram',
+    user_vk_id: booking.user_vk_id != null ? Number(booking.user_vk_id) : null,
   });
   if (error) {
     console.error('[addBooking] Supabase insert error:', error);

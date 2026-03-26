@@ -116,6 +116,10 @@ export interface Booking {
   ticketFileUrl?: string | null;
   /** Whether ticket has been used/verified at entry */
   isUsed?: boolean | null;
+  /** Platform identifier: 'telegram' | 'vk' */
+  platform?: 'telegram' | 'vk';
+  /** VK User ID (numeric but stored as number or string in different contexts) */
+  user_vk_id?: number | string | null;
 }
 
 export interface Admin {

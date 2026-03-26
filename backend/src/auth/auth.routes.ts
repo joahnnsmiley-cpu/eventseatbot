@@ -171,8 +171,11 @@ router.post('/vk', (req, res) => {
     return res.status(500).json({ error: 'Server misconfiguration: JWT secret not set' });
   }
 
-  // For now, VK users are 'user' roles. We could check against an ADMIN_VK_IDS env var if needed.
-  const role = 'user';
+  const telegramAdmins = process.env.ADMINS_IDS?.split(',').map((id) => id.trim()) || [];
+  const vkAdmins = process.env.VK_ADMINS_IDS?.split(',').map((id) => id.trim()) || [];
+
+  // Check specifically in VK list, with fallback to general list for convenience
+  const role = (vkAdmins.includes(String(vkUserId)) || telegramAdmins.includes(String(vkUserId))) ? 'admin' : 'user';
   console.log(`[AUTH] vkUserId=${vkUserId} role=${role} platform=vk`);
 
   try {
