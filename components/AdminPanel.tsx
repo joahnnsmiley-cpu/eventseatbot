@@ -1009,8 +1009,8 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
                 type="button"
                 onClick={() => setStatusFilter('')}
                 className={`px-3 py-2 text-sm rounded-lg transition-all ${!statusFilter
-                    ? 'bg-white/10 text-white border border-white/20'
-                    : 'text-white/50 hover:text-white'
+                  ? 'bg-white/10 text-white border border-white/20'
+                  : 'text-white/50 hover:text-white'
                   }`}
               >
                 {UI_TEXT.booking.statusFilterAll}
@@ -1021,8 +1021,8 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
                   type="button"
                   onClick={() => setStatusFilter(s)}
                   className={`px-3 py-2 text-sm rounded-lg transition-all ${statusFilter === s
-                      ? 'bg-white/10 text-white border border-white/20'
-                      : 'text-white/50 hover:text-white'
+                    ? 'bg-white/10 text-white border border-white/20'
+                    : 'text-white/50 hover:text-white'
                     }`}
                 >
                   {UI_TEXT.booking.adminStatusLabels[s] ?? UI_TEXT.booking.statusLabels[s] ?? s}
@@ -1058,14 +1058,14 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
                       </div>
                       <span
                         className={`shrink-0 px-3 py-1 text-xs rounded-full font-medium ${status === 'awaiting_confirmation' || status === 'payment_submitted'
-                            ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                            : status === 'paid'
-                              ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                              : status === 'expired'
-                                ? 'bg-red-500/15 text-red-300 border border-red-500/30'
-                                : status === 'cancelled'
-                                  ? 'bg-white/5 text-white/40 border border-white/10'
-                                  : 'bg-white/10 text-white border border-white/20'
+                          ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                          : status === 'paid'
+                            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                            : status === 'expired'
+                              ? 'bg-red-500/15 text-red-300 border border-red-500/30'
+                              : status === 'cancelled'
+                                ? 'bg-white/5 text-white/40 border border-white/10'
+                                : 'bg-white/10 text-white border border-white/20'
                           }`}
                       >
                         {UI_TEXT.booking.adminStatusLabels[status] ?? status ?? '—'}
@@ -1081,7 +1081,7 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
 
                     <div className="border-t border-white/10 pt-3 space-y-1 text-xs text-white/60">
                       <div>Покупатель: {userPhone || '—'}</div>
-                      <div>Telegram ID: {typeof telegramId === 'number' ? telegramId : '—'}</div>
+                      <div>ID ({b.user_vk_id ? 'VK' : 'TG'}): {b.user_vk_id || telegramId || '—'}</div>
                       <div>Создано: {formatAdminDate(b.created_at)}</div>
                     </div>
 
@@ -1181,8 +1181,8 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
                           {tab.label}
                           <span
                             className={`text-xs px-2 py-[2px] rounded-full ${eventStatusFilter === tab.key
-                                ? 'bg-black/20 text-black'
-                                : 'bg-[#FFC107]/20 text-[#FFC107]'
+                              ? 'bg-black/20 text-black'
+                              : 'bg-[#FFC107]/20 text-[#FFC107]'
                               }`}
                           >
                             {tab.count}
@@ -1852,8 +1852,8 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
                               type="button"
                               onClick={() => setSelectedTableId(t.id)}
                               className={`w-full text-left px-3 py-2 rounded-lg border transition ${selectedTableId === t.id
-                                  ? 'border-[#C6A75E] bg-[#C6A75E]/10'
-                                  : 'border-white/10 hover:border-white/20'
+                                ? 'border-[#C6A75E] bg-[#C6A75E]/10'
+                                : 'border-white/10 hover:border-white/20'
                                 }`}
                             >
                               <span className="text-sm font-medium text-white">

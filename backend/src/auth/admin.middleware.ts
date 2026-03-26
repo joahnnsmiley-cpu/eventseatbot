@@ -6,10 +6,9 @@ export function adminOnly(
   res: Response,
   next: NextFunction
 ) {
-  const adminIds = (process.env.ADMINS_IDS || '')
-    .split(',')
-    .map((id) => id.trim())
-    .filter(Boolean);
+  const telegramAdmins = (process.env.ADMINS_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+  const vkAdmins = (process.env.VK_ADMINS_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+  const adminIds = [...telegramAdmins, ...vkAdmins];
 
   const userId = typeof req.user?.id === 'string' || typeof req.user?.id === 'number'
     ? String(req.user?.id)

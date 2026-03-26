@@ -5,6 +5,7 @@ import { adminOnly } from '../auth/admin.middleware';
 import { db } from '../db';
 import { supabase } from '../supabaseClient';
 import { sendTelegramMessage, sendTelegramPhoto } from '../services/telegramService';
+import { sendVkMessage, sendVkPhoto } from '../services/vkService';
 import { generateTicket } from '../services/ticketGenerator';
 import type { Ticket } from '../models';
 import type { Booking } from '../models';
@@ -44,21 +45,33 @@ async function generateAndSendTicket(booking: Booking): Promise<void> {
     if (ticketUrl) {
       await db.updateBookingTicketFileUrl(booking.id, ticketUrl);
 
-      const userChatId = typeof booking.userTelegramId === 'number' ? booking.userTelegramId : 0;
-      if (Number.isFinite(userChatId) && userChatId > 0) {
-        await sendTelegramPhoto(userChatId, ticketUrl, '🎟 Ваш билет');
+      if (booking.platform === 'vk' && booking.user_vk_id) {
+        await sendVkPhoto(booking.user_vk_id, ticketUrl, '🎟 Ваш билет');
+      } else {
+        const userChatId = typeof booking.userTelegramId === 'number' ? booking.userTelegramId : 0;
+        if (Number.isFinite(userChatId) && userChatId > 0) {
+          await sendTelegramPhoto(userChatId, ticketUrl, '🎟 Ваш билет');
+        }
       }
     } else {
-      const userChatId = typeof booking.userTelegramId === 'number' ? booking.userTelegramId : 0;
-      if (Number.isFinite(userChatId) && userChatId > 0) {
-        await sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!');
+      if (booking.platform === 'vk' && booking.user_vk_id) {
+        await sendVkMessage(booking.user_vk_id, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!');
+      } else {
+        const userChatId = typeof booking.userTelegramId === 'number' ? booking.userTelegramId : 0;
+        if (Number.isFinite(userChatId) && userChatId > 0) {
+          await sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!');
+        }
       }
     }
   } catch (err) {
     console.error('[generateAndSendTicket]', err);
-    const userChatId = typeof booking.userTelegramId === 'number' ? booking.userTelegramId : 0;
-    if (Number.isFinite(userChatId) && userChatId > 0) {
-      sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch(() => { });
+    if (booking.platform === 'vk' && booking.user_vk_id) {
+      sendVkMessage(booking.user_vk_id, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch(() => { });
+    } else {
+      const userChatId = typeof booking.userTelegramId === 'number' ? booking.userTelegramId : 0;
+      if (Number.isFinite(userChatId) && userChatId > 0) {
+        sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch(() => { });
+      }
     }
   }
 }
