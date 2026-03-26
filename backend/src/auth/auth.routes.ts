@@ -155,12 +155,17 @@ router.post('/vk', (req, res) => {
         .replace(/=$/, '');
 
       if (paramsHash !== vkSign) {
+        console.error(`[AUTH] VK Signature mismatch! expected=${paramsHash} received=${vkSign}`);
         return res.status(401).json({ error: 'Invalid VK signature' });
       }
+      console.log(`[AUTH] VK Signature verified successfully for user ${vkUserId}`);
     } catch (e) {
       console.error('[AUTH] Error validating VK signature', e);
       return res.status(401).json({ error: 'Error validating VK signature' });
     }
+  } else {
+    console.warn(`[AUTH] VK login attempted without signature or params. vkSign=${!!vkSign} allParams=${!!allParams}`);
+    if (secret) return res.status(401).json({ error: 'Missing VK signature parameters' });
   }
 
   if (!process.env.JWT_SECRET) {

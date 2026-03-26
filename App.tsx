@@ -197,10 +197,22 @@ function App() {
   }, [view, loadPendingBookingsForBanner]);
 
   useEffect(() => {
+    // Initial attempt to get user info from URL (fastest)
     if (isVkPlatform) {
+      const params = new URLSearchParams(window.location.search);
+      const userId = params.get('vk_user_id');
+      if (userId) {
+        setTgUser((prev) => prev && prev.id === userId ? prev : {
+          id: Number(userId),
+          platform: 'vk',
+          first_name: params.get('vk_user_first_name') || '',
+          last_name: params.get('vk_user_last_name') || '',
+        });
+        setVkSignQuery(window.location.search.slice(1));
+      }
+
       import('@vkontakte/vk-bridge').then((vkBridgeModule) => {
         const vkBridge = vkBridgeModule.default;
-        // VKWebAppInit was already called in index.tsx, but we can safely call it again if we want to ensure bridge availability
         setVkAvailable(true);
         vkBridge.send('VKWebAppGetUserInfo').then((info) => {
           setTgUser({
@@ -212,13 +224,7 @@ function App() {
           });
           setVkSignQuery(window.location.search.slice(1));
         }).catch(() => {
-          // Fallback to URL params if bridge fails
-          const params = new URLSearchParams(window.location.search);
-          const userId = params.get('vk_user_id');
-          if (userId) {
-            setTgUser({ id: Number(userId), platform: 'vk' } as TgUser);
-          }
-          setVkSignQuery(window.location.search.slice(1));
+          // If bridge fails, we already have URL fallback from above
         });
       });
     } else {
@@ -333,30 +339,49 @@ function App() {
   useEffect(() => {
     const run = async () => {
       if (!tgUser?.id) return;
-      if (AuthService.getToken()) return;
+
+      const existingToken = AuthService.getToken();
+      if (existingToken) {
+        const payload = AuthService.decodeToken(existingToken);
+        const currentPlatform = isVkPlatform ? 'vk' : 'telegram';
+        // If token platform doesn't match current platform, logout and re-auth
+        if (payload?.platform !== currentPlatform) {
+          AuthService.logout();
+        } else {
+          return;
+        }
+      }
 
       if (isVkPlatform) {
         if (!vkSignQuery) return;
         setAuthLoading(true);
         setAuthError(null);
         try {
+          // If we have an existing token but we reached here, and it's not matching or expired, loginWithVk will overwrite it.
           const data = await AuthService.loginWithVk(tgUser.id, vkSignQuery);
           setIsAdmin(data?.role === 'admin');
           setAuthRole(data?.role ?? null);
-        } catch {
+          setAuthError(null); // Clear any previous auth errors
+        } catch (e: any) {
+          console.error('[App] VK Auth failed:', e);
           setAuthError(UI_TEXT.common.errors.unableToVerifyAccess);
+          // If auth failed, clear the token to prevent subsequent unauthorized calls
+          AuthService.logout();
         } finally {
           setAuthLoading(false);
         }
       } else {
-        if (!tgInitData) return;
+        const tg = (window as any).Telegram?.WebApp;
+        const initData = tg?.initData || '';
+        if (!initData) return;
         setAuthLoading(true);
         setAuthError(null);
         try {
-          const data = await AuthService.loginWithTelegram(tgUser.id, tgInitData);
+          const data = await AuthService.loginWithTelegram(tgUser.id as number, initData);
           setIsAdmin(data?.role === 'admin');
           setAuthRole(data?.role ?? null);
-        } catch {
+        } catch (e: any) {
+          console.error('[App] TG Auth failed:', e);
           setAuthError(UI_TEXT.common.errors.unableToVerifyAccess);
         } finally {
           setAuthLoading(false);
@@ -364,7 +389,7 @@ function App() {
       }
     };
     void run();
-  }, [tgUser?.id, tgInitData, vkSignQuery, isVkPlatform]);
+  }, [tgUser?.id, vkSignQuery, isVkPlatform]);
 
   useEffect(() => {
     const fetchPremium = async () => {
@@ -1003,9 +1028,9 @@ function App() {
                   }
                   let telegramId: string | number | null = null;
                   if (isVkPlatform) {
-                    telegramId = tgUser?.id ?? null;
+                    telegramId = tgUser?.id ?? new URLSearchParams(window.location.search).get('vk_user_id') ?? null;
                   } else {
-                    telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? null;
+                    telegramId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id ?? null;
                   }
                   if (telegramId == null) {
                     setBookingError('User ID not found');
