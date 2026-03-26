@@ -47,10 +47,11 @@ declare global {
 }
 
 type TgUser = {
-  id?: number;
+  id?: number | string;
   username?: string;
   first_name?: string;
   last_name?: string;
+  platform?: 'telegram' | 'vk';
 };
 
 const getEventDisplayDate = (event: EventData): { day: number; date: string; time: string } | null => {
@@ -62,9 +63,13 @@ const getEventDisplayDate = (event: EventData): { day: number; date: string; tim
 
 function App() {
   const { showToast } = useToast();
+  const isVkPlatform = import.meta.env.VITE_PLATFORM === 'vk';
+  const [vkAvailable, setVkAvailable] = useState(false);
   const [tgAvailable, setTgAvailable] = useState(false);
   const [tgInitData, setTgInitData] = useState('');
   const [tgUser, setTgUser] = useState<TgUser | null>(null);
+  // for VK:
+  const [vkSignQuery, setVkSignQuery] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -109,10 +114,15 @@ function App() {
 
   // Fetch pending bookings globally for the payment reminder banner
   const loadPendingBookingsForBanner = React.useCallback(async () => {
-    const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-    if (!telegramId) return;
+    let platformId: string | number | undefined;
+    if (isVkPlatform) {
+      platformId = tgUser?.id; // tgUser state holds vk user if VK
+    } else {
+      platformId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    }
+    if (!platformId) return;
     try {
-      const allBookings = await StorageService.getMyBookingsPublic(telegramId);
+      const allBookings = await StorageService.getMyBookingsPublic(platformId);
       const PAYABLE = ['pending', 'reserved', 'awaiting_payment'];
       const unpaid = allBookings.filter(
         (b: any) => PAYABLE.includes(b.status) && (!b.expires_at || new Date(b.expires_at).getTime() > Date.now())
@@ -182,18 +192,41 @@ function App() {
   }, [view, loadPendingBookingsForBanner]);
 
   useEffect(() => {
-    const tg = window.Telegram?.WebApp;
-    if (tg) {
-      setTgAvailable(true);
-      try {
-        tg.ready?.();
-      } catch { }
-      setTgInitData(tg.initData || '');
-      setTgUser(tg.initDataUnsafe?.user || null);
+    if (isVkPlatform) {
+      import('@vkontakte/vk-bridge').then((vkBridgeModule) => {
+        const vkBridge = vkBridgeModule.default;
+        vkBridge.send('VKWebAppInit')
+          .then(() => {
+            setVkAvailable(true);
+            vkBridge.send('VKWebAppGetUserInfo').then((info) => {
+              setTgUser({
+                id: info.id,
+                first_name: info.first_name,
+                last_name: info.last_name,
+                username: '',
+                platform: 'vk',
+              });
+              setVkSignQuery(window.location.search.slice(1));
+            }).catch(() => {
+              showToast('Не удалось получить профиль VK', 'error');
+            });
+          })
+          .catch(() => setVkAvailable(false));
+      });
     } else {
-      setTgAvailable(false);
+      const tg = window.Telegram?.WebApp;
+      if (tg) {
+        setTgAvailable(true);
+        try {
+          tg.ready?.();
+        } catch { }
+        setTgInitData(tg.initData || '');
+        setTgUser({ ...tg.initDataUnsafe?.user, platform: 'telegram' } || null);
+      } else {
+        setTgAvailable(false);
+      }
     }
-  }, []);
+  }, [isVkPlatform]);
 
   useEffect(() => {
     document.title = UI_TEXT.app.appTitle;
@@ -238,6 +271,7 @@ function App() {
   }, [view]);
 
   useEffect(() => {
+    if (isVkPlatform) return;
     const tg = window.Telegram?.WebApp as any;
     if (!tg) return;
 
@@ -293,21 +327,37 @@ function App() {
     const run = async () => {
       if (!tgUser?.id) return;
       if (AuthService.getToken()) return;
-      if (!tgInitData) return;
-      setAuthLoading(true);
-      setAuthError(null);
-      try {
-        const data = await AuthService.loginWithTelegram(tgUser.id, tgInitData);
-        setIsAdmin(data?.role === 'admin');
-        setAuthRole(data?.role ?? null);
-      } catch {
-        setAuthError(UI_TEXT.common.errors.unableToVerifyAccess);
-      } finally {
-        setAuthLoading(false);
+
+      if (isVkPlatform) {
+        if (!vkSignQuery) return;
+        setAuthLoading(true);
+        setAuthError(null);
+        try {
+          const data = await AuthService.loginWithVk(tgUser.id, vkSignQuery);
+          setIsAdmin(data?.role === 'admin');
+          setAuthRole(data?.role ?? null);
+        } catch {
+          setAuthError(UI_TEXT.common.errors.unableToVerifyAccess);
+        } finally {
+          setAuthLoading(false);
+        }
+      } else {
+        if (!tgInitData) return;
+        setAuthLoading(true);
+        setAuthError(null);
+        try {
+          const data = await AuthService.loginWithTelegram(tgUser.id, tgInitData);
+          setIsAdmin(data?.role === 'admin');
+          setAuthRole(data?.role ?? null);
+        } catch {
+          setAuthError(UI_TEXT.common.errors.unableToVerifyAccess);
+        } finally {
+          setAuthLoading(false);
+        }
       }
     };
     void run();
-  }, [tgUser?.id, tgInitData]);
+  }, [tgUser?.id, tgInitData, vkSignQuery, isVkPlatform]);
 
   useEffect(() => {
     const fetchPremium = async () => {
@@ -944,11 +994,17 @@ function App() {
                     setBookingError(UI_TEXT.app.selectAtLeastOneSeat);
                     return;
                   }
-                  const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? null;
+                  let telegramId: string | number | null = null;
+                  if (isVkPlatform) {
+                    telegramId = tgUser?.id ?? null;
+                  } else {
+                    telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? null;
+                  }
                   if (telegramId == null) {
-                    setBookingError('Telegram ID not found');
+                    setBookingError('User ID not found');
                     return;
                   }
+
                   const prevSeats = selectedSeatsByTable;
                   const prevTableId = selectedTableId;
                   const prevEvent = selectedEvent;
@@ -965,6 +1021,8 @@ function App() {
                       telegramId,
                       totalAmount: total,
                       userComment: userComment.trim() || undefined,
+                      platform: isVkPlatform ? 'vk' : 'telegram',
+                      vkUserId: isVkPlatform ? String(telegramId) : undefined,
                     });
                     const raw = res as Record<string, unknown>;
                     const booking: Booking = {

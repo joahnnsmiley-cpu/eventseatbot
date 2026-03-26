@@ -276,7 +276,7 @@ router.get('/view/:id', (req: Request, res: Response) => {
 router.post('/bookings', async (req: Request, res: Response) => {
   console.log('BOOKINGS HIT', req.body);
   try {
-    const { eventId, tableId, seats, phone } = req.body || {};
+    const { eventId, tableId, seats, phone, platform, vkUserId } = req.body || {};
     if (!eventId || !tableId) {
       res.status(400).json({ error: 'eventId and tableId are required' });
       return;
@@ -328,10 +328,12 @@ router.post('/bookings', async (req: Request, res: Response) => {
       userPhone: normalizedPhone,
       status: 'pending',
       createdAt,
-      userTelegramId: 0,
+      userTelegramId: platform === 'vk' ? undefined : 0,
       username: '',
       seatIds: [],
       totalAmount,
+      platform: platform || 'telegram',
+      user_vk_id: platform === 'vk' ? Number(vkUserId) : undefined,
     } as any;
     await db.addBooking(booking);
     // Fire-and-forget: notify admins only (no user telegramId)
@@ -351,9 +353,9 @@ router.post('/bookings', async (req: Request, res: Response) => {
 
 // POST /public/bookings/table
 // Create a reserved booking for a table (public read-only booking endpoint)
-// Body: { eventId, tableId, seatsRequested }
+// Body: { eventId, tableId, seatsRequested, platform, vkUserId }
 router.post('/bookings/table', async (req: Request, res: Response) => {
-  const { eventId, tableId, seatsRequested, userPhone, userComment } = req.body || {};
+  const { eventId, tableId, seatsRequested, userPhone, userComment, platform, vkUserId } = req.body || {};
   if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
   const normalizedUserPhone = typeof userPhone === 'string' ? userPhone.trim() : '';
   if (!normalizedUserPhone) return res.status(400).json({ error: 'userPhone is required' });
@@ -367,7 +369,7 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
 
   const runWithLock = async <T,>(key: string, fn: () => Promise<T>) => {
     const prev = locks.get(key) || Promise.resolve();
-    let release: () => void = () => {};
+    let release: () => void = () => { };
     const next = new Promise<void>((r) => { release = r; });
     locks.set(key, prev.then(() => next));
     try {
@@ -416,6 +418,8 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
         userComment: normalizedUserComment,
         totalAmount,
         tableBookings: [{ tableId, seats }], // full shape for frontend
+        platform: platform || 'telegram',
+        user_vk_id: platform === 'vk' ? Number(vkUserId) : undefined,
       } as any;
 
       console.log('[POST BOOKING] inserting booking id:', booking.id);
@@ -440,7 +444,7 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
         bookingId: booking.id,
         eventId: booking.eventId,
         seats: booking.seatsBooked,
-      }).catch(() => {}); // Already handled in emitter
+      }).catch(() => { }); // Already handled in emitter
 
       return { status: 201, body: booking, ev, tbl };
     });
@@ -505,12 +509,13 @@ router.get('/bookings/my', async (req: Request, res: Response) => {
 
 // POST /public/bookings/seats
 router.post('/bookings/seats', async (req: Request, res: Response) => {
-  const { eventId, tableId, seatIndices, userPhone, telegramId, userComment } = req.body || {};
+  const { eventId, tableId, seatIndices, userPhone, telegramId, userComment, platform, vkUserId } = req.body || {};
   if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
   const normalizedPhone = typeof userPhone === 'string' ? userPhone.trim() : '';
   if (!normalizedPhone) return res.status(400).json({ error: 'userPhone is required' });
-  const tgId = Number(telegramId);
-  if (!Number.isFinite(tgId)) return res.status(400).json({ error: 'telegramId is required' });
+  // For VK, telegramId might be 0 or omitted
+  const tgId = Number(telegramId) || 0;
+  if (platform !== 'vk' && !tgId) return res.status(400).json({ error: 'telegramId is required for TG' });
 
   const indices = Array.isArray(seatIndices) ? seatIndices.filter((s: number) => Number.isInteger(s)) : [];
   if (indices.length === 0) return res.status(400).json({ error: 'seatIndices must be non-empty array' });
@@ -580,6 +585,8 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
       status: 'reserved',
       created_at: new Date().toISOString(),
       expires_at: expiresAt,
+      platform: platform || 'telegram',
+      user_vk_id: platform === 'vk' ? Number(vkUserId) : null,
     });
 
     if (insertErr) {
@@ -611,6 +618,8 @@ router.post('/bookings/seats', async (req: Request, res: Response) => {
       status: 'reserved',
       created_at: new Date().toISOString(),
       expires_at: expiresAt,
+      platform: platform || 'telegram',
+      user_vk_id: platform === 'vk' ? Number(vkUserId) : undefined,
     };
 
     // Fire-and-forget Telegram notifications (user + admins)
@@ -700,7 +709,7 @@ router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
 
   const runWithLock = async <T,>(key: string, fn: () => Promise<T>) => {
     const prev = locks.get(key) || Promise.resolve();
-    let release: () => void = () => {};
+    let release: () => void = () => { };
     const next = new Promise<void>((r) => { release = r; });
     locks.set(key, prev.then(() => next));
     try {
@@ -744,7 +753,7 @@ router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
         bookingId: booking.id,
         eventId: booking.eventId,
         reason: 'manual',
-      }).catch(() => {}); // Already handled in emitter
+      }).catch(() => { }); // Already handled in emitter
 
       return { status: 200, body: { ok: true } };
     });
@@ -814,18 +823,18 @@ router.post('/contact-organizer', async (req: Request, res: Response) => {
 
     const bookingInfo = booking
       ? [
-          `Стол № ${tableNumber}`,
-          seatsLabel,
-          `Сумма: ${booking.totalAmount ?? booking.total_amount ?? 0} ₽`,
-          `Статус: ${escapeHtml(booking.status ?? '—')}`,
-          `Телефон: ${escapeHtml(booking.userPhone ?? booking.user_phone ?? '—')}`,
-          booking.userComment || booking.user_comment
-            ? `Комментарий: ${escapeHtml((booking.userComment ?? booking.user_comment ?? '').slice(0, 150))}`
-            : '',
-          `ID брони: ${escapeHtml(booking.id)}`,
-        ]
-          .filter(Boolean)
-          .join('\n')
+        `Стол № ${tableNumber}`,
+        seatsLabel,
+        `Сумма: ${booking.totalAmount ?? booking.total_amount ?? 0} ₽`,
+        `Статус: ${escapeHtml(booking.status ?? '—')}`,
+        `Телефон: ${escapeHtml(booking.userPhone ?? booking.user_phone ?? '—')}`,
+        booking.userComment || booking.user_comment
+          ? `Комментарий: ${escapeHtml((booking.userComment ?? booking.user_comment ?? '').slice(0, 150))}`
+          : '',
+        `ID брони: ${escapeHtml(booking.id)}`,
+      ]
+        .filter(Boolean)
+        .join('\n')
       : 'Бронь не указана';
 
     const adminMsg = [

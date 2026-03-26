@@ -6,6 +6,7 @@ export interface UserPayload {
   sub?: string | number;
   userId?: string | number;
   role?: string;
+  platform?: 'telegram' | 'vk';
   iat?: number;
   exp?: number;
   [key: string]: unknown;

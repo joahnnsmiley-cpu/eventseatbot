@@ -123,7 +123,10 @@ router.get('/bookings', authMiddleware, async (req: AuthRequest, res) => {
   const events = await db.getEvents();
   const all = await db.getBookings();
   const userBookings = all.filter(
-    (b: any) => String(b.userTelegramId ?? '') === userId && (b.status === 'reserved' || b.status === 'paid'),
+    (b: any) => {
+      const isOwner = (b.platform === 'vk' && String(b.user_vk_id) === userId) || (String(b.userTelegramId ?? '') === userId);
+      return isOwner && (b.status === 'reserved' || b.status === 'paid');
+    }
   );
 
   res.json(userBookings.map((b: any) => mapBooking(b, events)));
@@ -138,7 +141,10 @@ router.get('/tickets', authMiddleware, async (req: AuthRequest, res) => {
   const userId = String(user.id);
   const events = await db.getEvents();
   const all = await db.getBookings();
-  const tickets = all.filter((b: any) => String(b.userTelegramId ?? '') === userId && b.status === 'paid');
+  const tickets = all.filter((b: any) => {
+    const isOwner = (b.platform === 'vk' && String(b.user_vk_id) === userId) || (String(b.userTelegramId ?? '') === userId);
+    return isOwner && b.status === 'paid';
+  });
 
   res.json(tickets.map((b: any) => mapBooking(b, events)));
 });
@@ -156,7 +162,10 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
   const events = await db.getEvents();
   const allBookings = await db.getBookings();
   const userBookings = allBookings.filter(
-    (b: any) => String(b.userTelegramId ?? '') === userId && (b.status === 'reserved' || b.status === 'paid')
+    (b: any) => {
+      const isOwner = (b.platform === 'vk' && String(b.user_vk_id) === userId) || (String(b.userTelegramId ?? '') === userId);
+      return isOwner && (b.status === 'reserved' || b.status === 'paid');
+    }
   );
 
   if (userBookings.length === 0) {
@@ -184,7 +193,10 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
   const tableBookings = allBookings.filter(
     (b: any) => b.eventId === eventId && b.tableId === tableId && (b.status === 'reserved' || b.status === 'paid')
   );
-  const neighborBookings = tableBookings.filter((b: any) => String(b.userTelegramId ?? '') !== userId);
+  const neighborBookings = tableBookings.filter((b: any) => {
+    const isOwner = (b.platform === 'vk' && String(b.user_vk_id) === userId) || (String(b.userTelegramId ?? '') === userId);
+    return !isOwner;
+  });
 
   const neighbors: Array<{ name: string; avatar: string }> = [];
   for (const b of neighborBookings) {
@@ -193,7 +205,10 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
     const names = parseCommentNames(comment);
     const displayNames = names.length > 0 ? names : [raw.username?.trim() || 'Гость'];
     const tgId = raw.userTelegramId ?? raw.user_telegram_id;
-    const buyerAvatarUrl = bot && tgId != null ? `${API_BASE}/me/avatar/${tgId}` : null;
+    const isVk = raw.platform === 'vk';
+    // For VK users, we don't have a direct backend way to fetch avatar yet (need VK API call with service token).
+    // So we just use the default avatar for now.
+    const buyerAvatarUrl = (bot && tgId != null && !isVk) ? `${API_BASE}/me/avatar/${tgId}` : null;
 
     displayNames.forEach((name, idx) => {
       const avatar = idx === 0 && buyerAvatarUrl ? buyerAvatarUrl : DEFAULT_AVATAR_PATH;
@@ -212,7 +227,8 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
   const privileges = (category as any)?.privileges;
   const privilegesList = Array.isArray(privileges) ? privileges : [];
 
-  const avatarUrl = bot ? `${API_BASE}/me/avatar/${userId}` : DEFAULT_AVATAR_PATH;
+  const isVk = req.user?.platform === 'vk';
+  const avatarUrl = (bot && !isVk) ? `${API_BASE}/me/avatar/${userId}` : DEFAULT_AVATAR_PATH;
 
   res.json({
     hasBooking: true,

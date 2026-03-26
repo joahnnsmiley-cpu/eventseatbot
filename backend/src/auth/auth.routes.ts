@@ -106,6 +106,86 @@ router.post('/telegram', (req, res) => {
   }
 });
 
+import crypto from 'crypto';
 
+router.post('/vk', (req, res) => {
+  const body = req && typeof req.body === 'object' ? req.body : {};
+  const { vkUserId, vkSign, allParams } = body;
+
+  if (!vkUserId) {
+    return res.status(400).json({ error: 'vkUserId is required' });
+  }
+
+  // Allow bypassing signature check in dev if secret is not set, 
+  // but require it in production.
+  const secret = process.env.VK_APP_SECRET;
+
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(500).json({ error: 'Server misconfiguration: VK_APP_SECRET not set' });
+    }
+    // In dev, just trust the vkUserId
+    console.warn('[AUTH] VK_APP_SECRET not set, allowing VK login for dev purposes');
+  } else if (vkSign && allParams) {
+    try {
+      // VK Signature validation logic
+      // Sort query params that start with 'vk_'
+      const signParams: Record<string, string> = {};
+      const searchParams = new URLSearchParams(allParams);
+
+      for (const [key, value] of searchParams.entries()) {
+        if (key.startsWith('vk_')) {
+          signParams[key] = value;
+        }
+      }
+
+      const stringParams = Object.keys(signParams)
+        .sort()
+        .reduce((acc, key, idx) => {
+          return acc + (idx === 0 ? '' : '&') + `${key}=${encodeURIComponent(signParams[key])}`;
+        }, '');
+
+      const paramsHash = crypto
+        .createHmac('sha256', secret)
+        .update(stringParams)
+        .digest()
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=$/, '');
+
+      if (paramsHash !== vkSign) {
+        return res.status(401).json({ error: 'Invalid VK signature' });
+      }
+    } catch (e) {
+      console.error('[AUTH] Error validating VK signature', e);
+      return res.status(401).json({ error: 'Error validating VK signature' });
+    }
+  }
+
+  if (!process.env.JWT_SECRET) {
+    return res.status(500).json({ error: 'Server misconfiguration: JWT secret not set' });
+  }
+
+  // For now, VK users are 'user' roles. We could check against an ADMIN_VK_IDS env var if needed.
+  const role = 'user';
+  console.log(`[AUTH] vkUserId=${vkUserId} role=${role} platform=vk`);
+
+  try {
+    const token = jwt.sign(
+      {
+        id: String(vkUserId),
+        role,
+        platform: 'vk',
+      },
+      process.env.JWT_SECRET as string,
+      { expiresIn: '12h' }
+    );
+
+    return res.json({ token, role });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to generate token' });
+  }
+});
 
 export default router;

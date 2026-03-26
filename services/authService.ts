@@ -9,7 +9,7 @@ let token: string | null = null;
 const emitAuthChange = (t: string | null) => {
   try {
     window.dispatchEvent(new CustomEvent('auth:changed', { detail: { token: t } }));
-  } catch {}
+  } catch { }
 };
 
 export const setToken = (t: string | null) => {
@@ -17,7 +17,7 @@ export const setToken = (t: string | null) => {
   try {
     if (t) sessionStorage.setItem(STORAGE_KEY, t);
     else sessionStorage.removeItem(STORAGE_KEY);
-  } catch {}
+  } catch { }
   emitAuthChange(t);
 };
 
@@ -80,8 +80,31 @@ export const logout = () => setToken(null);
 // initialize token from storage on module load
 loadToken();
 
+export const loginWithVk = async (vkUserId: number | string, allParams: string) => {
+  // We extract vk_sign from allParams but we'll just pass allParams to backend.
+  // The backend will extract all vk_* params, sort them, and check the signature.
+  const searchParams = new URLSearchParams(allParams);
+  const vkSign = searchParams.get('vk_sign');
+
+  const res = await fetch(`${API_BASE}/auth/vk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ vkUserId, vkSign, allParams }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err && (err as any).error) || 'VK Login failed');
+  }
+  const data = await res.json();
+  const t = data.token as string | undefined;
+  if (!t) throw new Error('No token returned');
+  setToken(t);
+  return data;
+};
+
 export default {
   loginWithTelegram,
+  loginWithVk,
   getToken,
   getAuthHeader,
   decodeToken,
