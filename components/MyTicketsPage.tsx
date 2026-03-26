@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import * as StorageService from '../services/storageService';
 import NeonTicketCard from '../src/ui/NeonTicketCard';
@@ -9,6 +9,7 @@ import { getEventDisplayParts, getEventDisplayPartsFromIso } from '../src/utils/
 import { RefreshCw } from 'lucide-react';
 import { UI_TEXT } from '../constants/uiText';
 import { useToast } from '../src/ui/ToastContext';
+import { getPlatform } from '../src/utils/platform';
 
 type BookingItem = {
   id: string;
@@ -120,12 +121,29 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   }, []);
 
   const load = React.useCallback(async () => {
-    const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-    if (!telegramId) return;
+    // Platform-aware user ID retrieval
+    const platform = getPlatform();
+    let userId: string | number | undefined;
+
+    if (platform === 'vk') {
+      // For VK, we might still be initializing. 
+      // We'll try to find the ID from the URL as a fallback if window.vkBridge is not ready.
+      const params = new URLSearchParams(window.location.search);
+      userId = params.get('vk_user_id') || undefined;
+    } else {
+      userId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    }
+
+    if (!userId) {
+      // If still not found, we can't load bookings yet. 
+      // This is expected during early init.
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const data = await StorageService.getMyBookingsPublic(telegramId);
+      const data = await StorageService.getMyBookingsPublic(userId);
       setBookings(data);
 
       const eventIds = [...new Set(data.map((b) => b.event_id).filter(Boolean))];
@@ -157,7 +175,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             timezoneOffsetMinutes: (ev as any)?.timezoneOffsetMinutes ?? 180,
             tableIdToNumber,
             categoryByTableId,
-            imageUrl: ev?.imageUrl ?? ev?.coverImageUrl ?? null,
+            imageUrl: ev?.imageUrl ?? null,
           };
         } catch {
           tableMap[eventId] = new Set();
@@ -174,9 +192,18 @@ const MyTicketsPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   }, []);
 
   useEffect(() => {
-    const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-    if (!telegramId) {
-      setError('Telegram ID not found');
+    const platform = getPlatform();
+    let userId: string | number | undefined;
+
+    if (platform === 'vk') {
+      const params = new URLSearchParams(window.location.search);
+      userId = params.get('vk_user_id') || undefined;
+    } else {
+      userId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    }
+
+    if (!userId) {
+      setError(platform === 'vk' ? 'VK User ID not found' : 'Telegram ID not found');
       setLoading(false);
       return;
     }

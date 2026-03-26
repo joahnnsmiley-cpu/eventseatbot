@@ -56,7 +56,7 @@ export const getEvent = async (eventId: string): Promise<EventData> => {
 };
 
 /** GET /public/bookings/my?telegramId=... — returns user bookings (no auth). */
-export const getMyBookingsPublic = async (telegramId: number): Promise<{
+export const getMyBookingsPublic = async (userId: number | string): Promise<{
   id: string;
   event_id: string;
   table_id: string | null;
@@ -69,7 +69,9 @@ export const getMyBookingsPublic = async (telegramId: number): Promise<{
   ticket_file_url?: string | null;
 }[]> => {
   const apiBaseUrl = getApiBaseUrl();
-  const res = await fetch(`${apiBaseUrl}/public/bookings/my?telegramId=${encodeURIComponent(telegramId)}`);
+  const platform = (import.meta as any).env.VITE_PLATFORM;
+  const paramName = platform === 'vk' ? 'vkUserId' : 'telegramId';
+  const res = await fetch(`${apiBaseUrl}/public/bookings/my?${paramName}=${encodeURIComponent(userId)}`);
   if (!res.ok) throw new Error('Failed to load bookings');
   const data = await res.json();
   return Array.isArray(data) ? data : [];
@@ -108,7 +110,6 @@ export const createTableBooking = async (payload: {
   return res.json();
 };
 
-/** POST /public/bookings/seats — seat-based booking with conflict check. */
 export const createSeatsBooking = async (payload: {
   eventId: string;
   tableId: string;
@@ -117,6 +118,8 @@ export const createSeatsBooking = async (payload: {
   telegramId: number;
   totalAmount?: number;
   userComment?: string;
+  platform?: string;
+  vkUserId?: string | number;
 }): Promise<any> => {
   const apiBaseUrl = getApiBaseUrl();
   const url = `${apiBaseUrl}/public/bookings/seats`;

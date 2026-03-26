@@ -22,6 +22,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
   return (
     <div
       className="flex flex-col w-full max-w-[420px] mx-auto relative bg-black text-white overflow-x-hidden min-h-screen"
+      style={{
+        paddingTop: 'var(--vk-safe-top, 0px)',
+      }}
     >
       {/* Subtle grain overlay — luxury film look */}
       <div
@@ -31,12 +34,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
           backgroundImage: `url(${grainDataUrl})`,
           opacity: 0.04,
           mixBlendMode: 'overlay',
+          top: 'var(--vk-safe-top, 0px)',
         }}
       />
       {showScrollShadow && (
         <div
-          className="fixed top-0 left-0 right-0 h-8 z-50 pointer-events-none max-w-[420px] mx-auto"
+          className="fixed left-0 right-0 h-8 z-50 pointer-events-none max-w-[420px] mx-auto"
           style={{
+            top: 'var(--vk-safe-top, 0px)',
             background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, transparent 100%)',
           }}
         />

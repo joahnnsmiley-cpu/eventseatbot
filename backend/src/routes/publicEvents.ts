@@ -471,16 +471,24 @@ router.post('/bookings/table', async (req: Request, res: Response) => {
 
 // GET /public/bookings/my
 router.get('/bookings/my', async (req: Request, res: Response) => {
-  const telegramId = Number(req.query.telegramId);
-  if (!Number.isFinite(telegramId)) return res.status(400).json({ error: 'telegramId query param is required' });
+  const telegramId = req.query.telegramId ? Number(req.query.telegramId) : null;
+  const vkUserId = req.query.vkUserId ? Number(req.query.vkUserId) : null;
+
+  if (!telegramId && !vkUserId) {
+    return res.status(400).json({ error: 'telegramId or vkUserId query param is required' });
+  }
   if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
 
   try {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('user_telegram_id', telegramId)
-      .order('created_at', { ascending: false });
+    let query = supabase.from('bookings').select('*');
+
+    if (vkUserId) {
+      query = query.eq('user_vk_id', vkUserId);
+    } else {
+      query = query.eq('user_telegram_id', telegramId);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.error('[bookings/my]', error);

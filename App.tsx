@@ -25,6 +25,7 @@ import { getEventDisplayParts, getEventDisplayPartsFromIso } from './src/utils/f
 import { RefreshCw, Settings } from 'lucide-react';
 import { UI_TEXT } from './constants/uiText';
 import { useToast } from './src/ui/ToastContext';
+import { getPlatform, getPlatformUserId } from './src/utils/platform';
 
 declare global {
   interface Window {
@@ -63,7 +64,7 @@ const getEventDisplayDate = (event: EventData): { day: number; date: string; tim
 
 function App() {
   const { showToast } = useToast();
-  const isVkPlatform = import.meta.env.VITE_PLATFORM === 'vk';
+  const isVkPlatform = (import.meta as any).env.VITE_PLATFORM === 'vk';
   const [vkAvailable, setVkAvailable] = useState(false);
   const [tgAvailable, setTgAvailable] = useState(false);
   const [tgInitData, setTgInitData] = useState('');
@@ -114,12 +115,16 @@ function App() {
 
   // Fetch pending bookings globally for the payment reminder banner
   const loadPendingBookingsForBanner = React.useCallback(async () => {
+    const platform = getPlatform();
     let platformId: string | number | undefined;
-    if (isVkPlatform) {
-      platformId = tgUser?.id; // tgUser state holds vk user if VK
+
+    if (platform === 'vk') {
+      const params = new URLSearchParams(window.location.search);
+      platformId = params.get('vk_user_id') || undefined;
     } else {
-      platformId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      platformId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id;
     }
+
     if (!platformId) return;
     try {
       const allBookings = await StorageService.getMyBookingsPublic(platformId);
@@ -195,33 +200,35 @@ function App() {
     if (isVkPlatform) {
       import('@vkontakte/vk-bridge').then((vkBridgeModule) => {
         const vkBridge = vkBridgeModule.default;
-        vkBridge.send('VKWebAppInit')
-          .then(() => {
-            setVkAvailable(true);
-            vkBridge.send('VKWebAppGetUserInfo').then((info) => {
-              setTgUser({
-                id: info.id,
-                first_name: info.first_name,
-                last_name: info.last_name,
-                username: '',
-                platform: 'vk',
-              });
-              setVkSignQuery(window.location.search.slice(1));
-            }).catch(() => {
-              showToast('Не удалось получить профиль VK', 'error');
-            });
-          })
-          .catch(() => setVkAvailable(false));
+        // VKWebAppInit was already called in index.tsx, but we can safely call it again if we want to ensure bridge availability
+        setVkAvailable(true);
+        vkBridge.send('VKWebAppGetUserInfo').then((info) => {
+          setTgUser({
+            id: info.id,
+            first_name: info.first_name,
+            last_name: info.last_name,
+            username: '',
+            platform: 'vk',
+          });
+          setVkSignQuery(window.location.search.slice(1));
+        }).catch(() => {
+          // Fallback to URL params if bridge fails
+          const params = new URLSearchParams(window.location.search);
+          const userId = params.get('vk_user_id');
+          if (userId) {
+            setTgUser({ id: Number(userId), platform: 'vk' } as TgUser);
+          }
+          setVkSignQuery(window.location.search.slice(1));
+        });
       });
     } else {
-      const tg = window.Telegram?.WebApp;
+      const tg = (window as any).Telegram?.WebApp;
       if (tg) {
         setTgAvailable(true);
         try {
           tg.ready?.();
         } catch { }
-        setTgInitData(tg.initData || '');
-        setTgUser({ ...tg.initDataUnsafe?.user, platform: 'telegram' } || null);
+        setTgUser({ ...tg.initDataUnsafe?.user, platform: 'telegram' } as TgUser);
       } else {
         setTgAvailable(false);
       }
@@ -1018,7 +1025,7 @@ function App() {
                       tableId: selectedTableId,
                       seatIndices: seats,
                       userPhone: normalizedPhone,
-                      telegramId,
+                      telegramId: Number(telegramId),
                       totalAmount: total,
                       userComment: userComment.trim() || undefined,
                       platform: isVkPlatform ? 'vk' : 'telegram',
