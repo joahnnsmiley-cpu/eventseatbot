@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import vkBridge from '@vkontakte/vk-bridge';
 import * as StorageService from './services/storageService';
 import AdminPanel from './components/AdminPanel';
 import AuthService from './services/authService';
@@ -235,42 +236,39 @@ function App() {
 
   useEffect(() => {
     if (isVkPlatform) {
-      import('@vkontakte/vk-bridge').then((vkBridgeModule) => {
-        const vkBridge = vkBridgeModule.default;
-        setVkAvailable(true);
-        vkBridge.send('VKWebAppInit', {});
+      setVkAvailable(true);
+      vkBridge.send('VKWebAppInit', {});
 
-        // Try getting params via bridge as a LAST RESORT
-        vkBridge.send('VKWebAppGetLaunchParams', {})
-          .then((data) => {
-            console.log('[DEBUG] VKWebAppGetLaunchParams data received');
-            if (data && (data as any).vk_sign) {
-              const bridgeQuery = Object.entries(data)
-                .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
-                .join('&');
+      // Try getting params via bridge as a LAST RESORT
+      vkBridge.send('VKWebAppGetLaunchParams', {})
+        .then((data) => {
+          console.log('[DEBUG] VKWebAppGetLaunchParams data received');
+          if (data && (data as any).vk_sign) {
+            const bridgeQuery = Object.entries(data)
+              .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+              .join('&');
 
-              // Only overwrite if we don't have a signature yet or the bridge seems more complete
-              setVkSignQuery(prev => prev.includes('vk_sign') ? prev : bridgeQuery);
-            }
-          })
-          .catch((err) => {
-            console.warn('[DEBUG] VKWebAppGetLaunchParams error:', err);
-          });
+            // Only overwrite if we don't have a signature yet or the bridge seems more complete
+            setVkSignQuery(prev => prev.includes('vk_sign') ? prev : bridgeQuery);
+          }
+        })
+        .catch((err) => {
+          console.warn('[DEBUG] VKWebAppGetLaunchParams error:', err);
+        });
 
-        vkBridge.send('VKWebAppGetUserInfo', {})
-          .then((info) => {
-            setTgUser({
-              id: info.id,
-              first_name: info.first_name,
-              last_name: info.last_name,
-              username: '',
-              platform: 'vk',
-            });
-          })
-          .catch((err) => {
-            console.warn('[DEBUG] VK User Info error:', err);
-          });
-      });
+      vkBridge.send('VKWebAppGetUserInfo', {})
+        .then((info) => {
+          setTgUser((prev) => ({
+            ...prev,
+            id: info.id,
+            first_name: info.first_name,
+            last_name: info.last_name,
+            platform: 'vk',
+          } as TgUser));
+        })
+        .catch((err) => {
+          console.warn('[DEBUG] VK User Info error:', err);
+        });
     } else {
       const tg = (window as any).Telegram?.WebApp;
       if (tg) {
@@ -672,6 +670,8 @@ function App() {
     }
   }, [isVkPlatform, vkSignQuery, authError]);
 
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+
   // --- AUTH GATE ---
   // If we're on VK, we MUST wait for the sign query to be recovered before doing anything. 
   // This prevents child components from firing premature API calls that would fail with 401.
@@ -692,7 +692,7 @@ function App() {
             </div>
           )}
         </div>
-        <div className="space-y-4 text-center">
+        <div className="space-y-4 text-center w-full max-w-xs">
           <h2 className="text-xl font-bold text-white tracking-tight">
             {initTimeout ? 'Ошибка входа' : 'Инициализация'}
           </h2>
@@ -701,13 +701,32 @@ function App() {
               ? 'Не удалось получить данные авторизации от VK. Попробуйте обновить страницу.'
               : 'Восстановление сессии VK...'}
           </p>
+
           {initTimeout && (
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-semibold rounded-xl transition"
-            >
-              Перезагрузить
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full py-3 bg-[#C6A75E] hover:bg-[#b09450] text-black text-sm font-bold rounded-xl transition shadow-lg shadow-[#C6A75E]/10"
+              >
+                Перезагрузить
+              </button>
+
+              <button
+                onClick={() => setShowDiagnostics(!showDiagnostics)}
+                className="w-full py-2 text-xs text-white/40 hover:text-white/60 transition"
+              >
+                {showDiagnostics ? 'Скрыть диагностику' : 'Показать диагностику'}
+              </button>
+
+              {showDiagnostics && (
+                <div className="mt-4 p-4 bg-white/5 border border-white/10 rounded-xl text-[10px] text-left font-mono break-all space-y-2 opacity-80 overflow-auto max-h-[200px]">
+                  <p><span className="text-[#C6A75E]">URL:</span> {window.location.search || 'empty'}</p>
+                  <p><span className="text-[#C6A75E]">HASH:</span> {window.location.hash || 'empty'}</p>
+                  <p><span className="text-[#C6A75E]">PLATFORM:</span> {getPlatform()}</p>
+                  <p><span className="text-[#C6A75E]">BRIDGE:</span> {vkAvailable ? 'Ready' : 'Not Loaded'}</p>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
