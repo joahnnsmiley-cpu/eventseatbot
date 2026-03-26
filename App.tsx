@@ -660,6 +660,18 @@ function App() {
     </AppLayout>
   );
 
+  const [initTimeout, setInitTimeout] = useState(false);
+
+  // Set a timeout for VK initialization
+  useEffect(() => {
+    if (isVkPlatform && !AuthService.getToken() && !vkSignQuery && !authError) {
+      const timer = setTimeout(() => {
+        setInitTimeout(true);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [isVkPlatform, vkSignQuery, authError]);
+
   // --- AUTH GATE ---
   // If we're on VK, we MUST wait for the sign query to be recovered before doing anything. 
   // This prevents child components from firing premature API calls that would fail with 401.
@@ -667,14 +679,36 @@ function App() {
     return (
       <div className="min-h-screen bg-[#0b0b0b] flex flex-col items-center justify-center p-8 space-y-6">
         <div className="relative">
-          <div className="w-16 h-16 border-2 border-[#C6A75E]/20 border-t-[#C6A75E] rounded-full animate-spin" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-8 h-8 bg-[#C6A75E]/10 rounded-full animate-pulse blur-xl" />
-          </div>
+          {!initTimeout ? (
+            <>
+              <div className="w-16 h-16 border-2 border-[#C6A75E]/20 border-t-[#C6A75E] rounded-full animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-8 h-8 bg-[#C6A75E]/10 rounded-full animate-pulse blur-xl" />
+              </div>
+            </>
+          ) : (
+            <div className="w-16 h-16 flex items-center justify-center bg-red-500/10 border border-red-500/30 rounded-full">
+              <span className="text-red-500 text-2xl">!</span>
+            </div>
+          )}
         </div>
-        <div className="space-y-2 text-center">
-          <h2 className="text-xl font-bold text-white tracking-tight">Инициализация</h2>
-          <p className="text-sm text-[#C6A75E]/60 font-medium animate-pulse">Восстановление сессии VK...</p>
+        <div className="space-y-4 text-center">
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            {initTimeout ? 'Ошибка входа' : 'Инициализация'}
+          </h2>
+          <p className="text-sm text-[#C6A75E]/60 font-medium">
+            {initTimeout
+              ? 'Не удалось получить данные авторизации от VK. Попробуйте обновить страницу.'
+              : 'Восстановление сессии VK...'}
+          </p>
+          {initTimeout && (
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-semibold rounded-xl transition"
+            >
+              Перезагрузить
+            </button>
+          )}
         </div>
       </div>
     );
