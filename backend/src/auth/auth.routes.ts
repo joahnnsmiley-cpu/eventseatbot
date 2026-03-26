@@ -127,15 +127,18 @@ router.post('/vk', (req, res) => {
     // In dev, just trust the vkUserId
     console.warn('[AUTH] VK_APP_SECRET not set, allowing VK login for dev purposes');
   } else if (vkSign && allParams) {
+    const trimmedSecret = secret.trim();
     try {
       // VK Signature validation logic
-      // Sort query params that start with 'vk_'
+      // IMPORTANT: Use raw encoded values from the query string, as URLSearchParams decodes them
       const signParams: Record<string, string> = {};
-      const searchParams = new URLSearchParams(allParams);
+      const pairs = allParams.split('&');
 
-      for (const [key, value] of searchParams.entries()) {
-        if (key.startsWith('vk_') && key !== 'vk_sign') {
-          signParams[key] = value;
+      for (const pair of pairs) {
+        const [key, value] = pair.split('=');
+        if (key && key.startsWith('vk_') && key !== 'vk_sign') {
+          // Store the RAW value as received in the query string
+          signParams[key] = value || '';
         }
       }
 
@@ -145,7 +148,7 @@ router.post('/vk', (req, res) => {
         .join('&');
 
       const paramsHash = crypto
-        .createHmac('sha256', secret)
+        .createHmac('sha256', trimmedSecret)
         .update(stringParams)
         .digest()
         .toString('base64')
@@ -154,7 +157,10 @@ router.post('/vk', (req, res) => {
         .replace(/=$/, '');
 
       if (paramsHash !== vkSign) {
-        console.error(`[AUTH] VK Signature mismatch! expected=${paramsHash} received=${vkSign}`);
+        console.error(`[AUTH] VK Signature mismatch!`);
+        console.error(`[AUTH] String used for hash: "${stringParams}"`);
+        console.error(`[AUTH] Expected hash (URL-safe Base64): ${paramsHash}`);
+        console.error(`[AUTH] Received vk_sign from client: ${vkSign}`);
         return res.status(401).json({ error: 'Invalid VK signature' });
       }
       console.log(`[AUTH] VK Signature verified successfully for user ${vkUserId}`);
