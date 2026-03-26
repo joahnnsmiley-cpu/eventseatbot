@@ -115,27 +115,27 @@ import crypto from 'crypto';
 
 router.post('/vk', (req, res) => {
   const body = req && typeof req.body === 'object' ? req.body : {};
-  const { vkUserId, vkSign, allParams } = body;
+
+  // Strictly cast all inputs to strings to avoid TS undefined errors
+  const vkUserId = String(body.vkUserId || '');
+  const vkSign = String(body.vkSign || '');
+  const allParams = String(body.allParams || '');
 
   if (!vkUserId) {
     return res.status(400).json({ error: 'vkUserId is required' });
   }
 
-  // Allow bypassing signature check in dev if secret is not set, 
-  // but require it in production.
+  // Allow bypassing signature check in dev if secret is not set
   const secret = process.env.VK_APP_SECRET;
 
   if (!secret) {
     if (process.env.NODE_ENV === 'production') {
       return res.status(500).json({ error: 'Server misconfiguration: VK_APP_SECRET not set' });
     }
-    // In dev, just trust the vkUserId
     console.warn('[AUTH] VK_APP_SECRET not set, allowing VK login for dev purposes');
   } else if (vkSign && allParams) {
     const trimmedSecret = secret.trim();
     try {
-      // VK Signature validation logic
-      // IMPORTANT: Use raw encoded values from the query string, as URLSearchParams decodes them
       const signParams: Record<string, string> = {};
       const pairs = allParams.split('&');
 
@@ -145,7 +145,6 @@ router.post('/vk', (req, res) => {
         const key = pair.substring(0, firstEqualIndex);
         const value = pair.substring(firstEqualIndex + 1);
         if (key && key.startsWith('vk_') && key !== 'vk_sign') {
-          // Store the RAW value as received in the query string
           signParams[key] = value || '';
         }
       }
@@ -165,9 +164,8 @@ router.post('/vk', (req, res) => {
         .replace(/=$/, '');
 
       if (paramsHash !== vkSign) {
-        console.error(`[AUTH] VK Signature mismatch!`);
+        console.error(`[AUTH] VK Signature mismatch! userId=${vkUserId}`);
         console.error(`[AUTH] String used for hash: "${stringParams}"`);
-        console.error(`[AUTH] Expected hash (URL-safe Base64): ${paramsHash}`);
         console.error(`[AUTH] Received vk_sign from client: ${vkSign}`);
         return res.status(401).json({ error: 'Invalid VK signature' });
       }
@@ -177,7 +175,7 @@ router.post('/vk', (req, res) => {
       return res.status(401).json({ error: 'Error validating VK signature' });
     }
   } else {
-    console.warn(`[AUTH] VK login attempted without signature or params. userId=${vkUserId} vkSign=${!!vkSign} allParamsLen=${allParams?.length}`);
+    console.warn(`[AUTH] VK login attempted without signature or params. userId=${vkUserId} vkSign=${!!vkSign} allParamsLen=${allParams.length}`);
     if (secret) return res.status(401).json({ error: 'Missing VK signature parameters' });
   }
 
@@ -187,26 +185,28 @@ router.post('/vk', (req, res) => {
     return res.status(500).json({ error: 'Server misconfiguration: JWT secret not set' });
   }
 
-  const telegramAdmins = process.env.ADMINS_IDS?.split(',').map((id) => id.trim()) || [];
-  const vkAdmins = process.env.VK_ADMINS_IDS?.split(',').map((id) => id.trim()) || [];
+  const telegramAdmins = (process.env.ADMINS_IDS || '').split(',').map((id) => id.trim());
+  const vkAdmins = (process.env.VK_ADMINS_IDS || '').split(',').map((id) => id.trim());
 
-  // Check specifically in VK list, with fallback to general list for convenience
-  const role = (vkAdmins.includes(String(vkUserId)) || telegramAdmins.includes(String(vkUserId))) ? 'admin' : 'user';
-  console.log(`[AUTH] vkUserId=${vkUserId} role=${role} platform=vk`);
+  const userIdentifier = String(vkUserId);
+  const role = (vkAdmins.includes(userIdentifier) || telegramAdmins.includes(userIdentifier)) ? 'admin' : 'user';
+
+  console.log(`[AUTH] Success: vkUserId=${vkUserId} role=${role} platform=vk`);
 
   try {
     const token = jwt.sign(
       {
-        id: String(vkUserId),
+        id: userIdentifier,
         role,
         platform: 'vk',
       },
-      process.env.JWT_SECRET as string,
+      jwtSecret,
       { expiresIn: '12h' }
     );
 
     return res.json({ token, role });
   } catch (err) {
+    console.error('[AUTH] Token generation error:', err);
     return res.status(500).json({ error: 'Failed to generate token' });
   }
 });
