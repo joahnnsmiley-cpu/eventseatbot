@@ -36,12 +36,13 @@ export function authMiddleware(
   }
 
   const parts = authHeader.split(' ');
-  if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
+  const scheme = parts[0];
+  const token = parts[1];
+
+  if (parts.length !== 2 || !scheme || scheme.toLowerCase() !== 'bearer' || !token) {
     console.warn(`[AUTH] Middleware: Invalid authorization header format for path ${urlPath || 'unknown'}`);
     return res.status(401).json({ error: 'Invalid authorization header' });
   }
-
-  const token = parts[1];
 
   // Development/test bypass: allow a simple bearer token to act as admin when
   // NODE_ENV !== 'production'. This enables backend-only tests to run without
