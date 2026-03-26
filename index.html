@@ -41,6 +41,24 @@
   </div>
   <div id="root"></div>
   <script async src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Load vk-bridge from CDN and call VKWebAppInit synchronously, before any modules -->
+  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+  <script>
+    try {
+      if (window.vkBridge) {
+        window.__dbg('vkBridge found, calling VKWebAppInit');
+        window.vkBridge.send('VKWebAppInit').then(function () {
+          window.__dbg('VKWebAppInit OK');
+        }).catch(function (e) {
+          window.__dbg('VKWebAppInit REJECT: ' + e);
+        });
+      } else {
+        window.__dbg('vkBridge NOT found on window');
+      }
+    } catch (e) {
+      window.__dbg('VKWebAppInit exception: ' + e);
+    }
+  </script>
   <script type="module" src="/index.tsx"></script>
 </body>
 
