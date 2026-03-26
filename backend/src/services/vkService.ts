@@ -55,11 +55,20 @@ export async function sendVkPhoto(userId: number | string, photoUrl: string, cap
         // 2. Download photo from URL
         const imgRes = await fetch(photoUrl);
         const imgBuffer = await imgRes.arrayBuffer();
+        console.log(`[VK] Downloaded ticket image, size: ${imgBuffer.byteLength} bytes`);
+
+        if (imgBuffer.byteLength === 0) {
+            console.error('[VK] Downloaded ticket image is empty!');
+            return await sendVkMessage(userId, (caption ? caption + '\n\n' : '') + photoUrl);
+        }
+
         const blob = new Blob([imgBuffer], { type: 'image/png' });
 
         // 3. Upload to VK
+        // IMPORTANT: VK docs specify 'file' field for photos.getMessagesUploadServer
         const formData = new FormData();
-        formData.append('photo', blob, 'ticket.png');
+        formData.append('file', blob, 'ticket.png');
+        formData.append('photo', blob, 'ticket.png'); // Fallback for some versions
 
         const uploadRes = await fetch(uploadUrl, {
             method: 'POST',
@@ -67,14 +76,16 @@ export async function sendVkPhoto(userId: number | string, photoUrl: string, cap
         });
         const uploadData = await uploadRes.json();
 
-        if (!uploadData.photo) {
-            console.error('[VK] upload photo failed:', JSON.stringify(uploadData));
+        if (!uploadData.photo && !uploadData.file) {
+            console.error('[VK] upload photo failed (no photo/file in response):', JSON.stringify(uploadData));
             return await sendVkMessage(userId, (caption ? caption + '\n\n' : '') + photoUrl);
         }
 
         // 4. Save photo
+        // saveMessagesPhoto expects the value from 'photo' field of upload response
+        const photoToSave = uploadData.photo || uploadData.file;
         const saveParams = new URLSearchParams({
-            photo: uploadData.photo,
+            photo: photoToSave,
             server: String(uploadData.server),
             hash: uploadData.hash,
             access_token: VK_TOKEN,

@@ -198,13 +198,16 @@ function App() {
 
   // Initial query extraction for VK
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
     if (isVkPlatform) {
-      const userId = params.get('vk_user_id');
-      const firstName = params.get('vk_user_first_name');
-      const lastName = params.get('vk_user_last_name');
+      console.log('[DEBUG] Initial URL check:', window.location.href);
+      const params = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.slice(1));
 
-      console.log('[DEBUG] VK Platform detected. userId from URL:', userId);
+      const userId = params.get('vk_user_id') || hashParams.get('vk_user_id');
+      const firstName = params.get('vk_user_first_name') || hashParams.get('vk_user_first_name');
+      const lastName = params.get('vk_user_last_name') || hashParams.get('vk_user_last_name');
+
+      console.log('[DEBUG] VK initial check. userId:', userId);
 
       if (userId) {
         setTgUser({
@@ -221,6 +224,7 @@ function App() {
       const combined = [currentSearch, currentHash].filter(Boolean).join('&');
 
       if (combined.includes('vk_sign')) {
+        console.log('[DEBUG] Found vk_sign in URL');
         setVkSignQuery(combined);
       }
     }
@@ -231,18 +235,36 @@ function App() {
       import('@vkontakte/vk-bridge').then((vkBridgeModule) => {
         const vkBridge = vkBridgeModule.default;
         setVkAvailable(true);
-        vkBridge.send('VKWebAppGetUserInfo').then((info) => {
-          setTgUser({
-            id: info.id,
-            first_name: info.first_name,
-            last_name: info.last_name,
-            username: '',
-            platform: 'vk',
+        vkBridge.send('VKWebAppInit', {});
+
+        // Try getting params via bridge (more reliable)
+        vkBridge.send('VKWebAppGetLaunchParams', {})
+          .then((data) => {
+            console.log('[DEBUG] VKWebAppGetLaunchParams data received');
+            if (data && (data as any).vk_sign) {
+              const bridgeQuery = Object.entries(data)
+                .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+                .join('&');
+              setVkSignQuery(bridgeQuery);
+            }
+          })
+          .catch((err) => {
+            console.warn('[DEBUG] VKWebAppGetLaunchParams error:', err);
           });
-          setVkSignQuery(window.location.search.slice(1));
-        }).catch(() => {
-          // If bridge fails, we already have URL fallback from above
-        });
+
+        vkBridge.send('VKWebAppGetUserInfo', {})
+          .then((info) => {
+            setTgUser({
+              id: info.id,
+              first_name: info.first_name,
+              last_name: info.last_name,
+              username: '',
+              platform: 'vk',
+            });
+          })
+          .catch((err) => {
+            console.warn('[DEBUG] VK User Info error:', err);
+          });
       });
     } else {
       const tg = (window as any).Telegram?.WebApp;
