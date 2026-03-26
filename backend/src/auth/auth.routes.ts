@@ -142,7 +142,7 @@ router.post('/vk', (req, res) => {
       const stringParams = Object.keys(signParams)
         .sort()
         .reduce((acc, key, idx) => {
-          return acc + (idx === 0 ? '' : '&') + `${key}=${encodeURIComponent(signParams[key])}`;
+          return acc + (idx === 0 ? '' : '&') + `${key}=${encodeURIComponent(signParams[key]!)}`;
         }, '');
 
       const paramsHash = crypto
