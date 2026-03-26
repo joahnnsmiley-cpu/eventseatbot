@@ -135,7 +135,10 @@ router.post('/vk', (req, res) => {
       const pairs = allParams.split('&');
 
       for (const pair of pairs) {
-        const [key, value] = pair.split('=');
+        const firstEqualIndex = pair.indexOf('=');
+        if (firstEqualIndex === -1) continue;
+        const key = pair.substring(0, firstEqualIndex);
+        const value = pair.substring(firstEqualIndex + 1);
         if (key && key.startsWith('vk_') && key !== 'vk_sign') {
           // Store the RAW value as received in the query string
           signParams[key] = value || '';

@@ -46,7 +46,7 @@ export async function sendVkPhoto(userId: number | string, photoUrl: string, cap
         const serverData = await serverRes.json();
 
         if (serverData.error || !serverData.response?.upload_url) {
-            console.error('[VK] getMessagesUploadServer error:', serverData.error);
+            console.error('[VK] getMessagesUploadServer error:', JSON.stringify(serverData.error || 'No response'));
             return await sendVkMessage(userId, (caption ? caption + '\n\n' : '') + photoUrl);
         }
 
@@ -68,7 +68,7 @@ export async function sendVkPhoto(userId: number | string, photoUrl: string, cap
         const uploadData = await uploadRes.json();
 
         if (!uploadData.photo) {
-            console.error('[VK] upload photo failed:', uploadData);
+            console.error('[VK] upload photo failed:', JSON.stringify(uploadData));
             return await sendVkMessage(userId, (caption ? caption + '\n\n' : '') + photoUrl);
         }
 
@@ -84,7 +84,7 @@ export async function sendVkPhoto(userId: number | string, photoUrl: string, cap
         const saveData = await saveRes.json();
 
         if (saveData.error || !saveData.response?.[0]) {
-            console.error('[VK] saveMessagesPhoto error:', saveData.error);
+            console.error('[VK] saveMessagesPhoto error:', JSON.stringify(saveData.error || 'No response'));
             return await sendVkMessage(userId, (caption ? caption + '\n\n' : '') + photoUrl);
         }
 
@@ -93,7 +93,7 @@ export async function sendVkPhoto(userId: number | string, photoUrl: string, cap
 
         // 5. Send message with attachment
         const sendParams = new URLSearchParams({
-            user_id: String(userId),
+            peer_id: String(userId),
             random_id: String(Math.floor(Math.random() * 2000000000)),
             message: caption || '',
             attachment,
@@ -105,10 +105,11 @@ export async function sendVkPhoto(userId: number | string, photoUrl: string, cap
         const finalData = await finalRes.json();
 
         if (finalData.error) {
-            console.error('[VK] messages.send with photo error:', finalData.error);
+            console.error('[VK] messages.send with photo error:', JSON.stringify(finalData.error));
             // Fallback to text link if photo attachment fails
             return await sendVkMessage(userId, (caption ? caption + '\n\n' : '') + photoUrl);
         }
+        console.log(`[VK] Ticket sent successfully to user ${userId}`);
     } catch (error) {
         console.error('[VK] sendVkPhoto exception:', error);
         // Fallback

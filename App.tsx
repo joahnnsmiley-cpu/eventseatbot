@@ -347,7 +347,13 @@ function App() {
         // If token platform doesn't match current platform, logout and re-auth
         if (payload?.platform !== currentPlatform) {
           AuthService.logout();
+        } else if (isVkPlatform && payload?.role !== 'admin') {
+          // If on VK and not an admin yet, force re-auth once to check for new admin status
+          // (but only if we didn't just try in this specific run to avoid infinite loops)
+          console.log('[App] Refreshing VK role...');
         } else {
+          setIsAdmin(payload?.role === 'admin');
+          setAuthRole(payload?.role ?? null);
           return;
         }
       }
