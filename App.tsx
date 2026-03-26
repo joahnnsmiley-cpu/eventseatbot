@@ -196,21 +196,38 @@ function App() {
     loadPendingBookingsForBanner();
   }, [view, loadPendingBookingsForBanner]);
 
+  // Initial query extraction for VK
   useEffect(() => {
-    // Initial attempt to get user info from URL (fastest)
+    const params = new URLSearchParams(window.location.search);
     if (isVkPlatform) {
-      const params = new URLSearchParams(window.location.search);
       const userId = params.get('vk_user_id');
+      const firstName = params.get('vk_user_first_name');
+      const lastName = params.get('vk_user_last_name');
+
+      console.log('[DEBUG] VK Platform detected. userId from URL:', userId);
+
       if (userId) {
-        setTgUser((prev) => prev && prev.id === userId ? prev : {
+        setTgUser({
           id: Number(userId),
+          first_name: firstName || 'User',
+          last_name: lastName || '',
+          username: '',
           platform: 'vk',
-          first_name: params.get('vk_user_first_name') || '',
-          last_name: params.get('vk_user_last_name') || '',
         });
-        setVkSignQuery(window.location.search.slice(1));
       }
 
+      const currentSearch = window.location.search.slice(1);
+      const currentHash = window.location.hash.slice(1);
+      const combined = [currentSearch, currentHash].filter(Boolean).join('&');
+
+      if (combined.includes('vk_sign')) {
+        setVkSignQuery(combined);
+      }
+    }
+  }, [isVkPlatform]);
+
+  useEffect(() => {
+    if (isVkPlatform) {
       import('@vkontakte/vk-bridge').then((vkBridgeModule) => {
         const vkBridge = vkBridgeModule.default;
         setVkAvailable(true);

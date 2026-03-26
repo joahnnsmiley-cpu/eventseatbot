@@ -81,10 +81,14 @@ export const logout = () => setToken(null);
 loadToken();
 
 export const loginWithVk = async (vkUserId: number | string, allParams: string) => {
-  // We extract vk_sign from allParams but we'll just pass allParams to backend.
-  // The backend will extract all vk_* params, sort them, and check the signature.
-  const searchParams = new URLSearchParams(allParams);
-  const vkSign = searchParams.get('vk_sign');
+  console.log(`[AuthService] loginWithVk: userId=${vkUserId}, allParamsLen=${allParams?.length}`);
+  const params = new URLSearchParams(allParams);
+  const vkSign = params.get('vk_sign');
+
+  if (!vkSign) {
+    console.warn('[AuthService] No vk_sign found in allParams string!');
+    console.log('[AuthService] raw allParams:', allParams);
+  }
 
   const res = await fetch(`${API_BASE}/auth/vk`, {
     method: 'POST',

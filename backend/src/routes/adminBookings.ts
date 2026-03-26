@@ -184,12 +184,14 @@ router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
   if (!updated) return res.status(500).json({ error: 'Failed to update booking status' });
 
   // Fire-and-forget: notify user on paid/cancelled; for paid also generate and send ticket
-  const userChatId = typeof updated.userTelegramId === 'number' ? updated.userTelegramId : 0;
-  if (Number.isFinite(userChatId) && userChatId > 0) {
-    if (status === 'paid') {
-      generateAndSendTicket(updated).catch((err) => console.error('Telegram/ticket:', err));
-    } else if (status === 'cancelled') {
-      sendTelegramMessage(userChatId, '❌ Бронь отменена\n\nСвяжитесь с организатором при необходимости.').catch((err) => console.error('Telegram user:', err));
+  if (status === 'paid') {
+    console.log(`[ADMIN] Confirming paid booking ${id} on platform ${updated.platform}`);
+    generateAndSendTicket(updated).catch((err) => console.error('Ticket delivery error:', err));
+  } else if (status === 'cancelled') {
+    if (updated.platform === 'vk' && updated.user_vk_id) {
+      sendVkMessage(updated.user_vk_id, '❌ Бронь отменена\n\nСвяжитесь с организатором при необходимости.').catch(() => { });
+    } else if (updated.userTelegramId) {
+      sendTelegramMessage(updated.userTelegramId, '❌ Бронь отменена\n\nСвяжитесь с организатором при необходимости.').catch(() => { });
     }
   }
 
@@ -242,16 +244,17 @@ router.patch('/bookings/:id/confirm', async (req: Request, res: Response) => {
       totalAmount: Number(updated.total_amount) || 0,
       status: 'paid',
       createdAt: Date.now(),
+      platform: updated.platform, // CRITICAL: Added platform
+      user_vk_id: updated.user_vk_id, // CRITICAL: Added user_vk_id
     };
     if (Array.isArray(updated.seat_indices)) bookingForTicket.seatIndices = updated.seat_indices;
     if (updated.seats_booked != null) bookingForTicket.seatsBooked = updated.seats_booked;
     if (updated.table_id && updated.seats_booked != null) {
       bookingForTicket.tableBookings = [{ tableId: updated.table_id, seats: updated.seats_booked }];
     }
-    const userChatId = Number(updated?.user_telegram_id ?? 0);
-    if (Number.isFinite(userChatId) && userChatId > 0) {
-      generateAndSendTicket(bookingForTicket).catch((err) => console.error('Telegram/ticket:', err));
-    }
+
+    console.log(`[ADMIN] Simple confirm for booking ${id} on platform ${updated.platform}`);
+    generateAndSendTicket(bookingForTicket).catch((err) => console.error('Ticket delivery error:', err));
 
     return res.json(updated);
   } catch (err) {

@@ -1,9 +1,16 @@
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const ADMIN_IDS = process.env.ADMINS_IDS
-  ? process.env.ADMINS_IDS.split(',').map((id) => id.trim()).filter(Boolean)
-  : [];
+const ADMIN_IDS = (process.env.ADMINS_IDS || '')
+  .split(',')
+  .map((id) => id.trim())
+  .filter(Boolean);
 
-console.log('Admin IDs:', ADMIN_IDS);
+const VK_ADMIN_IDS = (process.env.VK_ADMINS_IDS || '')
+  .split(',')
+  .map((id) => id.trim())
+  .filter(Boolean);
+
+console.log('Admin IDs (TG):', ADMIN_IDS);
+console.log('Admin IDs (VK):', VK_ADMIN_IDS);
 
 export async function sendTelegramPhoto(chatId: string | number, photoUrl: string, caption?: string): Promise<void> {
   if (!BOT_TOKEN) return;
