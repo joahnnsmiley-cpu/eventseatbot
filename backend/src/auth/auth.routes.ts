@@ -134,16 +134,15 @@ router.post('/vk', (req, res) => {
       const searchParams = new URLSearchParams(allParams);
 
       for (const [key, value] of searchParams.entries()) {
-        if (key.startsWith('vk_')) {
+        if (key.startsWith('vk_') && key !== 'vk_sign') {
           signParams[key] = value;
         }
       }
 
       const stringParams = Object.keys(signParams)
         .sort()
-        .reduce((acc, key, idx) => {
-          return acc + (idx === 0 ? '' : '&') + `${key}=${encodeURIComponent(signParams[key]!)}`;
-        }, '');
+        .map((key) => `${key}=${signParams[key]}`)
+        .join('&');
 
       const paramsHash = crypto
         .createHmac('sha256', secret)

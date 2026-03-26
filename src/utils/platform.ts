@@ -5,15 +5,18 @@
 export type Platform = 'telegram' | 'vk';
 
 export const getPlatform = (): Platform => {
+    if (typeof window !== 'undefined') {
+        const search = window.location.search;
+        if (search.includes('vk_user_id') || search.includes('vk_app_id')) return 'vk';
+        if ((window as any).Telegram?.WebApp?.initData) return 'telegram';
+    }
     return (import.meta as any).env.VITE_PLATFORM === 'vk' ? 'vk' : 'telegram';
 };
 
 export const getPlatformUserId = (): string | number | undefined => {
     if (getPlatform() === 'vk') {
-        // Note: On VK, we rely on the state being populated in App.tsx 
-        // or we can try to look at window.vkBridge if needed.
-        // However, for consistency, we'll often pass this from state.
-        return undefined;
+        const params = new URLSearchParams(window.location.search);
+        return params.get('vk_user_id') || undefined;
     }
     return (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id;
 };

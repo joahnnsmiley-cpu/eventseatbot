@@ -64,7 +64,7 @@ const getEventDisplayDate = (event: EventData): { day: number; date: string; tim
 
 function App() {
   const { showToast } = useToast();
-  const isVkPlatform = (import.meta as any).env.VITE_PLATFORM === 'vk';
+  const isVkPlatform = getPlatform() === 'vk';
   const [vkAvailable, setVkAvailable] = useState(false);
   const [tgAvailable, setTgAvailable] = useState(false);
   const [tgInitData, setTgInitData] = useState('');

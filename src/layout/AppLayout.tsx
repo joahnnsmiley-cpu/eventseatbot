@@ -23,7 +23,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <div
       className="flex flex-col w-full max-w-[420px] mx-auto relative bg-black text-white overflow-x-hidden min-h-screen"
       style={{
-        paddingTop: 'var(--vk-safe-top, 0px)',
+        paddingTop: 'calc(var(--vk-safe-top, 0px) + env(safe-area-inset-top))',
       }}
     >
       {/* Subtle grain overlay — luxury film look */}
