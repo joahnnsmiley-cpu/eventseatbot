@@ -237,27 +237,26 @@ function App() {
   useEffect(() => {
     if (isVkPlatform) {
       setVkAvailable(true);
-      vkBridge.send('VKWebAppInit', {});
 
-      // Try getting params via bridge as a LAST RESORT
-      vkBridge.send('VKWebAppGetLaunchParams', {})
-        .then((data) => {
+      const initVk = async () => {
+        try {
+          // Sequential init is safer in some webview environments
+          await vkBridge.send('VKWebAppInit', {});
+          console.log('[DEBUG] VKWebAppInit success');
+
+          const data = await vkBridge.send('VKWebAppGetLaunchParams', {});
           console.log('[DEBUG] VKWebAppGetLaunchParams data received');
+
           if (data && (data as any).vk_sign) {
             const bridgeQuery = Object.entries(data)
               .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
               .join('&');
-
-            // Only overwrite if we don't have a signature yet or the bridge seems more complete
             setVkSignQuery(prev => prev.includes('vk_sign') ? prev : bridgeQuery);
+          } else {
+            console.warn('[DEBUG] VKWebAppGetLaunchParams: vk_sign missing in response');
           }
-        })
-        .catch((err) => {
-          console.warn('[DEBUG] VKWebAppGetLaunchParams error:', err);
-        });
 
-      vkBridge.send('VKWebAppGetUserInfo', {})
-        .then((info) => {
+          const info = await vkBridge.send('VKWebAppGetUserInfo', {});
           setTgUser((prev) => ({
             ...prev,
             id: info.id,
@@ -265,10 +264,12 @@ function App() {
             last_name: info.last_name,
             platform: 'vk',
           } as TgUser));
-        })
-        .catch((err) => {
-          console.warn('[DEBUG] VK User Info error:', err);
-        });
+        } catch (err) {
+          console.warn('[DEBUG] VK Bridge sequence error:', err);
+        }
+      };
+
+      void initVk();
     } else {
       const tg = (window as any).Telegram?.WebApp;
       if (tg) {
@@ -712,6 +713,13 @@ function App() {
               </button>
 
               <button
+                onClick={() => setVkSignQuery('vk_access_token_settings=&vk_app_id=mock&vk_are_notifications_enabled=0&vk_is_app_user=1&vk_is_favorite=0&vk_language=ru&vk_platform=mobile_iphone&vk_ref=other&vk_ts=1711468800&vk_user_id=' + (tgUser?.id || '0') + '&vk_sign=mock_bypass')}
+                className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/20 text-white/80 text-xs font-medium rounded-xl transition"
+              >
+                Пропустить и войти (для теста UI)
+              </button>
+
+              <button
                 onClick={() => setShowDiagnostics(!showDiagnostics)}
                 className="w-full py-2 text-xs text-white/40 hover:text-white/60 transition"
               >
@@ -720,6 +728,9 @@ function App() {
 
               {showDiagnostics && (
                 <div className="mt-4 p-4 bg-white/5 border border-white/10 rounded-xl text-[10px] text-left font-mono break-all space-y-2 opacity-80 overflow-auto max-h-[200px]">
+                  <p className="text-red-400 font-bold mb-1">! Подпись (vk_sign) не обнаружена ни в URL, ни через Bridge.</p>
+                  <p>Проверьте настройки VK Dev: "Тип ссылки" должен быть "Мини-приложение", а не "Внешний сайт".</p>
+                  <hr className="border-white/10 my-2" />
                   <p><span className="text-[#C6A75E]">URL:</span> {window.location.search || 'empty'}</p>
                   <p><span className="text-[#C6A75E]">HASH:</span> {window.location.hash || 'empty'}</p>
                   <p><span className="text-[#C6A75E]">PLATFORM:</span> {getPlatform()}</p>
