@@ -26,7 +26,7 @@ import { getEventDisplayParts, getEventDisplayPartsFromIso } from './src/utils/f
 import { RefreshCw, Settings } from 'lucide-react';
 import { UI_TEXT } from './constants/uiText';
 import { useToast } from './src/ui/ToastContext';
-import { getPlatform, getPlatformUserId } from './src/utils/platform';
+import { getPlatform, getPlatformUserId, extractParam } from './src/utils/platform';
 
 declare global {
   interface Window {
@@ -197,16 +197,16 @@ function App() {
     loadPendingBookingsForBanner();
   }, [view, loadPendingBookingsForBanner]);
 
+
+
   // Initial query extraction for VK
   useEffect(() => {
     if (isVkPlatform) {
       console.log('[DEBUG] Initial URL check:', window.location.href);
-      const params = new URLSearchParams(window.location.search);
-      const hashParams = new URLSearchParams(window.location.hash.slice(1));
 
-      const userId = params.get('vk_user_id') || hashParams.get('vk_user_id');
-      const firstName = params.get('vk_user_first_name') || hashParams.get('vk_user_first_name');
-      const lastName = params.get('vk_user_last_name') || hashParams.get('vk_user_last_name');
+      const userId = extractParam('vk_user_id');
+      const firstName = extractParam('vk_user_first_name');
+      const lastName = extractParam('vk_user_last_name');
 
       console.log('[DEBUG] VK initial check. userId:', userId);
 
@@ -220,16 +220,23 @@ function App() {
         });
       }
 
-      const currentSearch = window.location.search.slice(1);
-      const currentHash = window.location.hash.slice(1);
-
-      // PRIORITIZE the raw search string if it has vk_sign
-      if (currentSearch.includes('vk_sign')) {
-        console.log('[DEBUG] Using raw window.location.search for signature');
-        setVkSignQuery(currentSearch);
-      } else if (currentHash.includes('vk_sign')) {
-        console.log('[DEBUG] Fallback: Using window.location.hash for signature');
-        setVkSignQuery(currentHash);
+      // Aggressively capture all parameters for the signature
+      const url = window.location.href;
+      const searchIdx = url.indexOf('?');
+      if (searchIdx !== -1) {
+        const fullQuery = url.substring(searchIdx + 1).replace(/#/, '&');
+        if (fullQuery.includes('vk_sign')) {
+          setVkSignQuery(fullQuery);
+        }
+      } else {
+        // Try fallback if no '?' but maybe sign is after '#'
+        const hashIdx = url.indexOf('#');
+        if (hashIdx !== -1) {
+          const hashContent = url.substring(hashIdx + 1);
+          if (hashContent.includes('vk_sign')) {
+            setVkSignQuery(hashContent);
+          }
+        }
       }
     }
   }, [isVkPlatform]);
@@ -731,8 +738,7 @@ function App() {
                   <p className="text-red-400 font-bold mb-1">! Подпись (vk_sign) не обнаружена ни в URL, ни через Bridge.</p>
                   <p>Проверьте настройки VK Dev: "Тип ссылки" должен быть "Мини-приложение", а не "Внешний сайт".</p>
                   <hr className="border-white/10 my-2" />
-                  <p><span className="text-[#C6A75E]">URL:</span> {window.location.search || 'empty'}</p>
-                  <p><span className="text-[#C6A75E]">HASH:</span> {window.location.hash || 'empty'}</p>
+                  <p><span className="text-[#C6A75E]">HREF:</span> {window.location.href}</p>
                   <p><span className="text-[#C6A75E]">PLATFORM:</span> {getPlatform()}</p>
                   <p><span className="text-[#C6A75E]">BRIDGE:</span> {vkAvailable ? 'Ready' : 'Not Loaded'}</p>
                 </div>
