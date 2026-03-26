@@ -127,3 +127,21 @@ export async function sendVkPhoto(userId: number | string, photoUrl: string, cap
         await sendVkMessage(userId, (caption ? caption + '\n\n' : '') + photoUrl);
     }
 }
+
+/** Broadcast a message to all VK admins defined in VK_ADMINS_IDS */
+export async function notifyVkAdmins(message: string): Promise<void> {
+    const vkAdminIds = (process.env.VK_ADMINS_IDS || '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+
+    if (vkAdminIds.length === 0) {
+        console.log('[VK] No VK_ADMINS_IDS set, skipping admin notification');
+        return;
+    }
+
+    console.log(`[VK] Notifying ${vkAdminIds.length} admins...`);
+    for (const adminId of vkAdminIds) {
+        await sendVkMessage(adminId, message);
+    }
+}

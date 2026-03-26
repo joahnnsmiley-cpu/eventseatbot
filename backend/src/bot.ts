@@ -1,6 +1,7 @@
 import { Telegraf, Markup } from 'telegraf';
 import { db } from './db';
 import { createPendingBookingFromWebAppPayload } from './webappBooking';
+import { notifyVkAdmins } from './services/vkService';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:4000';
@@ -73,14 +74,23 @@ if (bot) {
 // ===== send-only helpers =====
 
 export const notifyAdminsAboutBooking = async (text: string) => {
-  if (!bot) return;
-  const admins = await db.getAdmins();
-  for (const admin of admins) {
-    try {
-      await bot.telegram.sendMessage(admin.id, text);
-    } catch (e) {
-      console.error('Failed to notify admin', admin.id, e);
+  // 1. Notify TG admins (from DB)
+  if (bot) {
+    const admins = await db.getAdmins();
+    for (const admin of admins) {
+      try {
+        await bot.telegram.sendMessage(admin.id, text);
+      } catch (e) {
+        console.error('Failed to notify admin', admin.id, e);
+      }
     }
+  }
+
+  // 2. Notify VK admins (from Env)
+  try {
+    await notifyVkAdmins(text);
+  } catch (e) {
+    console.error('Failed to notify VK admins', e);
   }
 };
 

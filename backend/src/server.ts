@@ -11,7 +11,7 @@ import publicEventsRouter from './routes/publicEvents';
 import publicPaymentsRouter from './routes/publicPayments';
 import adminPaymentsRouter from './routes/adminPayments';
 import debugRouter from './routes/debug-routes';
-import { notifyAdmins } from './services/telegramService';
+import { notifyAllAdmins } from './services/notificationService';
 import { authMiddleware } from './auth/auth.middleware';
 import 'dotenv/config';
 import authRoutes from './auth/auth.routes';
@@ -252,7 +252,7 @@ app.use('/debug', debugRouter);
 // Temporary test: GET /test-admin-notify — calls notifyAdmins("Test message")
 app.get('/test-admin-notify', async (_req, res) => {
   try {
-    await notifyAdmins('Test message');
+    await notifyAllAdmins('Test message');
     res.json({ ok: true, message: 'notifyAdmins called' });
   } catch (err) {
     console.error('[test-admin-notify]', err);
