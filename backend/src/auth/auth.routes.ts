@@ -45,16 +45,19 @@ router.post('/dev-user-login', (req, res) => {
 });
 
 router.post('/telegram', (req, res) => {
+  console.log('[AUTH] Telegram login attempt received');
   // Guard against missing body (ensure JSON parsing worked) and accept fallback query params
   const body = req && typeof req.body === 'object' ? req.body : {};
   const initData = typeof body.initData === 'string' ? body.initData : '';
   let rawId: unknown = body.telegramId ?? body.telegram_id ?? body.userId ?? body.user_id ?? body.id ?? req.query?.telegramId ?? req.query?.telegram_id ?? req.query?.userId ?? req.query?.user_id ?? req.query?.id;
 
   if (rawId === undefined || rawId === null) {
+    console.warn('[AUTH] Telegram login failed: telegramId missing');
     return res.status(400).json({ error: 'telegramId is required and must be provided in the request body or query string' });
   }
 
   if (!initData) {
+    console.warn('[AUTH] Telegram login failed: initData missing');
     return res.status(400).json({ error: 'initData is required' });
   }
 
@@ -62,6 +65,7 @@ router.post('/telegram', (req, res) => {
   if (typeof rawId === 'string') rawId = rawId.trim();
 
   if (rawId === '') {
+    console.warn('[AUTH] Telegram login failed: telegramId is empty');
     return res.status(400).json({ error: 'telegramId must not be empty' });
   }
 
@@ -71,6 +75,7 @@ router.post('/telegram', (req, res) => {
 
   // Ensure JWT secret is present
   if (!process.env.JWT_SECRET) {
+    console.error('[AUTH] Telegram login failed: Server misconfiguration - JWT secret not set');
     return res.status(500).json({ error: 'Server misconfiguration: JWT secret not set' });
   }
 
@@ -172,11 +177,13 @@ router.post('/vk', (req, res) => {
       return res.status(401).json({ error: 'Error validating VK signature' });
     }
   } else {
-    console.warn(`[AUTH] VK login attempted without signature or params. vkSign=${!!vkSign} allParams=${!!allParams}`);
+    console.warn(`[AUTH] VK login attempted without signature or params. userId=${vkUserId} vkSign=${!!vkSign} allParamsLen=${allParams?.length}`);
     if (secret) return res.status(401).json({ error: 'Missing VK signature parameters' });
   }
 
-  if (!process.env.JWT_SECRET) {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    console.error('[AUTH] ERROR: JWT_SECRET not set');
     return res.status(500).json({ error: 'Server misconfiguration: JWT secret not set' });
   }
 

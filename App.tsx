@@ -221,11 +221,14 @@ function App() {
 
       const currentSearch = window.location.search.slice(1);
       const currentHash = window.location.hash.slice(1);
-      const combined = [currentSearch, currentHash].filter(Boolean).join('&');
 
-      if (combined.includes('vk_sign')) {
-        console.log('[DEBUG] Found vk_sign in URL');
-        setVkSignQuery(combined);
+      // PRIORITIZE the raw search string if it has vk_sign
+      if (currentSearch.includes('vk_sign')) {
+        console.log('[DEBUG] Using raw window.location.search for signature');
+        setVkSignQuery(currentSearch);
+      } else if (currentHash.includes('vk_sign')) {
+        console.log('[DEBUG] Fallback: Using window.location.hash for signature');
+        setVkSignQuery(currentHash);
       }
     }
   }, [isVkPlatform]);
@@ -237,7 +240,7 @@ function App() {
         setVkAvailable(true);
         vkBridge.send('VKWebAppInit', {});
 
-        // Try getting params via bridge (more reliable)
+        // Try getting params via bridge as a LAST RESORT
         vkBridge.send('VKWebAppGetLaunchParams', {})
           .then((data) => {
             console.log('[DEBUG] VKWebAppGetLaunchParams data received');
@@ -245,7 +248,9 @@ function App() {
               const bridgeQuery = Object.entries(data)
                 .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
                 .join('&');
-              setVkSignQuery(bridgeQuery);
+
+              // Only overwrite if we don't have a signature yet or the bridge seems more complete
+              setVkSignQuery(prev => prev.includes('vk_sign') ? prev : bridgeQuery);
             }
           })
           .catch((err) => {
