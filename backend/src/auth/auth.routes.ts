@@ -144,7 +144,10 @@ router.post('/vk', (req, res) => {
         if (firstEqualIndex === -1) continue;
         const key = pair.substring(0, firstEqualIndex);
         const value = pair.substring(firstEqualIndex + 1);
-        if (key && key.startsWith('vk_') && key !== 'vk_sign') {
+
+        // VK signature logic: include all vk_ parameters except the signature itself
+        // Note: Some platforms use 'vk_sign', others use just 'sign'. Both must be excluded.
+        if (key && (key.startsWith('vk_') || key === 'sign') && key !== 'vk_sign' && key !== 'sign') {
           signParams[key] = value || '';
         }
       }

@@ -224,8 +224,9 @@ function App() {
       const url = window.location.href;
       const searchIdx = url.indexOf('?');
       if (searchIdx !== -1) {
+        // Get everything after '?' and treat '#' as a separator for params if it exists incorrectly
         const fullQuery = url.substring(searchIdx + 1).replace(/#/, '&');
-        if (fullQuery.includes('vk_sign')) {
+        if (fullQuery.includes('vk_sign') || fullQuery.includes('sign=')) {
           setVkSignQuery(fullQuery);
         }
       } else {
@@ -233,7 +234,7 @@ function App() {
         const hashIdx = url.indexOf('#');
         if (hashIdx !== -1) {
           const hashContent = url.substring(hashIdx + 1);
-          if (hashContent.includes('vk_sign')) {
+          if (hashContent.includes('vk_sign') || hashContent.includes('sign=')) {
             setVkSignQuery(hashContent);
           }
         }

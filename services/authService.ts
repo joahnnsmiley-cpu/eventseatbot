@@ -83,7 +83,7 @@ loadToken();
 export const loginWithVk = async (vkUserId: number | string, allParams: string) => {
   console.log(`[AuthService] loginWithVk: userId=${vkUserId}, allParamsLen=${allParams?.length}`);
   const params = new URLSearchParams(allParams);
-  const vkSign = params.get('vk_sign');
+  const vkSign = params.get('vk_sign') || params.get('sign');
 
   if (!vkSign) {
     console.warn('[AuthService] No vk_sign found in allParams string!');
