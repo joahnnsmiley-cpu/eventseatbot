@@ -525,6 +525,15 @@ export const cleanupExpiredLocks = () => {
   // no-op: на бэкенде есть фоновой процесс очистки
 };
 
+// ---- Me ----
+
+export const getMyUserInfo = async (): Promise<{ isPremium: boolean; isController: boolean; premiumMessage?: string | null }> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/me/user`, { headers: AuthService.getAuthHeader() });
+  if (!res.ok) return { isPremium: false, isController: false };
+  return res.json();
+};
+
 // ---- Admin: Controller management ----
 
 export type ControllerEntry = {

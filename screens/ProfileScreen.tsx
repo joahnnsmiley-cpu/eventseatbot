@@ -40,7 +40,7 @@ export type ProfileScreenProps = {
 
 export default function ProfileScreen({
   userRole: userRoleProp,
-  isController = false,
+  isController: isControllerProp = false,
   guestNameOverride,
   selectedEventId,
   onOpenAdmin,
@@ -51,6 +51,9 @@ export default function ProfileScreen({
   const role = userRoleProp ?? 'guest';
   const [viewAsGuest, setViewAsGuest] = useState(false);
   const [controllerMode, setControllerMode] = useState(false);
+  // Server-side controller check — authoritative, overrides JWT-based prop
+  const [isControllerServer, setIsControllerServer] = useState<boolean | null>(null);
+  const isController = isControllerServer !== null ? isControllerServer : isControllerProp;
   const [guestData, setGuestData] = useState<StorageService.ProfileGuestData | null>(null);
   const [guestLoading, setGuestLoading] = useState(false);
   const [guestError, setGuestError] = useState<string | null>(null);
@@ -60,6 +63,14 @@ export default function ProfileScreen({
   // Event picker state for organizer statistics
   const [publishedEvents, setPublishedEvents] = useState<EventData[]>([]);
   const [statsEventId, setStatsEventId] = useState<string | null>(selectedEventId ?? null);
+
+  // Check controller status from server (always up-to-date, not dependent on JWT cache)
+  useEffect(() => {
+    if (authLoading) return;
+    StorageService.getMyUserInfo()
+      .then((info) => setIsControllerServer(info.isController))
+      .catch(() => setIsControllerServer(false));
+  }, [authLoading]);
 
   useEffect(() => {
     if (authLoading) return;

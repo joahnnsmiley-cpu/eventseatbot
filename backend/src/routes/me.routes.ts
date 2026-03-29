@@ -56,10 +56,11 @@ router.get('/user', authMiddleware, async (req: AuthRequest, res) => {
   const user = req.user;
   if (!user || typeof user.id === 'undefined') return res.status(401).json({ error: 'Unauthorized' });
   const info = getPremiumUserInfo(user.id);
+  const isController = await db.isUserController(user.id).catch(() => false);
   if (info.isPremium) {
-    return res.json({ isPremium: true, premiumMessage: info.premiumMessage ?? null });
+    return res.json({ isPremium: true, premiumMessage: info.premiumMessage ?? null, isController });
   }
-  return res.json({ isPremium: false });
+  return res.json({ isPremium: false, isController });
 });
 
 const mapBooking = (b: any, events: any[]) => {

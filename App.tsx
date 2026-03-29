@@ -404,9 +404,6 @@ function App() {
           // If on VK and not an admin yet, force re-auth once to check for new admin status
           // (but only if we didn't just try in this specific run to avoid infinite loops)
           console.log('[App] Refreshing VK role...');
-        } else if ((payload as any)?.isController === undefined) {
-          // Old token without isController field — force re-auth once to get fresh token
-          AuthService.logout();
         } else {
           setIsAdmin(payload?.role === 'admin');
           setIsController((payload as any)?.isController === true);
