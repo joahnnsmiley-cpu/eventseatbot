@@ -19,15 +19,14 @@ router.patch('/bookings/:id/mark-used', async (req, res) => {
   if (!bookingId) return res.status(400).json({ error: 'bookingId is required' });
 
   try {
-    const booking = await db.markBookingAsUsed(bookingId);
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    const result = await db.markBookingAsUsed(bookingId);
+    if (!result) return res.status(404).json({ error: 'Booking not found' });
 
-    if (booking.isUsed) {
-      // markBookingAsUsed returned existing record — it was already used
+    if (result.wasAlreadyUsed) {
       return res.status(409).json({ ok: false, alreadyUsed: true });
     }
 
-    res.json({ ok: true, booking });
+    res.json({ ok: true });
   } catch (err) {
     console.error('[controllerRoutes] markBookingAsUsed error:', err);
     res.status(500).json({ error: 'Failed to mark booking as used' });

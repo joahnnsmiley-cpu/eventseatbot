@@ -697,23 +697,31 @@ export async function isUserController(userId: string | number): Promise<boolean
   return (count ?? 0) > 0;
 }
 
-export async function markBookingAsUsed(bookingId: string): Promise<Booking | undefined> {
+export async function markBookingAsUsed(bookingId: string): Promise<{ booking: Booking; wasAlreadyUsed: boolean } | undefined> {
   if (!supabase) return undefined;
+
+  // Check current state first
+  const { data: existing, error: fetchErr } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('id', bookingId)
+    .single();
+  if (fetchErr || !existing) return undefined;
+
+  const current = bookingsRowToBooking(existing as BookingsRow);
+  if (current.isUsed === true) {
+    return { booking: current, wasAlreadyUsed: true };
+  }
+
+  // Mark as used unconditionally
   const { data, error } = await supabase
     .from('bookings')
     .update({ is_used: true })
     .eq('id', bookingId)
-    .is('is_used', null)
     .select()
-    .maybeSingle();
+    .single();
   if (error) throw error;
-  if (!data) {
-    // Either not found or already marked used — fetch current state to distinguish
-    const { data: existing } = await supabase.from('bookings').select('*').eq('id', bookingId).single();
-    if (!existing) return undefined;
-    return bookingsRowToBooking(existing as BookingsRow);
-  }
-  return bookingsRowToBooking(data as BookingsRow);
+  return { booking: bookingsRowToBooking(data as BookingsRow), wasAlreadyUsed: false };
 }
 
 // ---- Admins ----
