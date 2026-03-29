@@ -300,6 +300,12 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
   const [activeTabWidth, setActiveTabWidth] = useState(0);
   const [deleteConfirmEvent, setDeleteConfirmEvent] = useState<EventData | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [controllers, setControllers] = useState<StorageService.ControllerEntry[]>([]);
+  const [controllersLoading, setControllersLoading] = useState(false);
+  const [newControllerId, setNewControllerId] = useState('');
+  const [newControllerPlatform, setNewControllerPlatform] = useState<'telegram' | 'vk'>('telegram');
+  const [newControllerLabel, setNewControllerLabel] = useState('');
+  const [controllerError, setControllerError] = useState<string | null>(null);
   const [tables, setTables] = useState<TableModel[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const initialTablesRef = useRef<TableModel[]>([]);
@@ -676,9 +682,23 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
   };
   saveLayoutRef.current = saveLayout;
 
+  const loadControllers = async () => {
+    setControllersLoading(true);
+    setControllerError(null);
+    try {
+      const data = await StorageService.getAdminControllers();
+      setControllers(data);
+    } catch (err: any) {
+      setControllerError(err?.message ?? 'Ошибка загрузки');
+    } finally {
+      setControllersLoading(false);
+    }
+  };
+
   useEffect(() => {
     load();
     loadEvents();
+    loadControllers();
   }, []);
 
   const formatAdminSeatLabel = (b: AdminBooking): string => {
@@ -2104,6 +2124,91 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Controllers section */}
+      {mode === 'bookings' && (
+        <div className="mt-8">
+          <AdminCard title="Контролеры">
+            <p className="text-xs text-white/40 mb-4">
+              Контролеры могут сканировать QR-коды билетов на входе. Укажите числовой ID пользователя в Telegram или VK.
+            </p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <input
+                type="number"
+                placeholder="ID пользователя"
+                value={newControllerId}
+                onChange={(e) => setNewControllerId(e.target.value)}
+                className="flex-1 min-w-[120px] bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+              />
+              <select
+                value={newControllerPlatform}
+                onChange={(e) => setNewControllerPlatform(e.target.value as 'telegram' | 'vk')}
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
+              >
+                <option value="telegram">Telegram</option>
+                <option value="vk">VK</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Имя (опционально)"
+                value={newControllerLabel}
+                onChange={(e) => setNewControllerLabel(e.target.value)}
+                className="flex-1 min-w-[120px] bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+              />
+              <PrimaryButton
+                disabled={!newControllerId || controllersLoading}
+                onClick={async () => {
+                  setControllerError(null);
+                  try {
+                    await StorageService.addAdminController(
+                      Number(newControllerId),
+                      newControllerPlatform,
+                      newControllerLabel || undefined
+                    );
+                    setNewControllerId('');
+                    setNewControllerLabel('');
+                    await loadControllers();
+                  } catch (err: any) {
+                    setControllerError(err?.message ?? 'Ошибка');
+                  }
+                }}
+              >
+                Добавить
+              </PrimaryButton>
+            </div>
+            {controllerError && (
+              <p className="text-sm text-red-400 mb-3">{controllerError}</p>
+            )}
+            {controllersLoading && controllers.length === 0 && (
+              <p className="text-sm text-white/40">Загрузка...</p>
+            )}
+            {!controllersLoading && controllers.length === 0 && (
+              <p className="text-sm text-white/40">Контролеры не назначены</p>
+            )}
+            {controllers.map((c) => (
+              <div key={c.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                <div className="flex flex-col">
+                  <span className="text-sm text-white">{c.label ?? `ID ${c.id}`}</span>
+                  <span className="text-xs text-white/40">{c.platform} · {c.id}</span>
+                </div>
+                <DangerButton
+                  onClick={async () => {
+                    setControllerError(null);
+                    try {
+                      await StorageService.removeAdminController(c.id);
+                      await loadControllers();
+                    } catch (err: any) {
+                      setControllerError(err?.message ?? 'Ошибка');
+                    }
+                  }}
+                >
+                  Удалить
+                </DangerButton>
+              </div>
+            ))}
+          </AdminCard>
         </div>
       )}
 

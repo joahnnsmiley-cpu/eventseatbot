@@ -524,3 +524,38 @@ export const deleteAdminEvent = async (id: string): Promise<void> => {
 export const cleanupExpiredLocks = () => {
   // no-op: на бэкенде есть фоновой процесс очистки
 };
+
+// ---- Admin: Controller management ----
+
+export type ControllerEntry = {
+  id: number;
+  platform: string;
+  label: string | null;
+  createdAt?: string;
+};
+
+export const getAdminControllers = async (): Promise<ControllerEntry[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/controllers`, { headers: AuthService.getAuthHeader() });
+  if (!res.ok) await handleAuthError(res, 'Failed to load controllers');
+  return res.json();
+};
+
+export const addAdminController = async (id: number, platform: string, label?: string): Promise<void> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/controllers`, {
+    method: 'POST',
+    headers: { ...(AuthService.getAuthHeader() as Record<string, string>), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, platform, label }),
+  });
+  if (!res.ok) await handleAuthError(res, 'Failed to add controller');
+};
+
+export const removeAdminController = async (id: number): Promise<void> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/controllers/${id}`, {
+    method: 'DELETE',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) await handleAuthError(res, 'Failed to remove controller');
+};

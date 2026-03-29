@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ProfileGuestScreen, { ProfileGuestEmpty } from './ProfileGuestScreen';
 import ProfileOrganizerScreen from './ProfileOrganizerScreen';
+import ControllerScannerScreen from './ControllerScannerScreen';
 import ProfileOrganizerSkeleton from '../components/profile/ProfileOrganizerSkeleton';
 import ProfileGuestSkeleton from '../components/profile/ProfileGuestSkeleton';
 import BackHeader from '../src/ui/BackHeader';
@@ -24,6 +25,8 @@ const ProfileStateMessage = ({
 export type ProfileScreenProps = {
   /** Role from auth/context. Fallback to guest if not determined. */
   userRole?: 'guest' | 'organizer' | null;
+  /** Whether the user has been assigned the controller role by an admin. */
+  isController?: boolean;
   /** Override guest name (e.g. from Telegram first_name). */
   guestNameOverride?: string;
   /** Event ID for organizer profile (optional; backend picks first if omitted). */
@@ -37,6 +40,7 @@ export type ProfileScreenProps = {
 
 export default function ProfileScreen({
   userRole: userRoleProp,
+  isController = false,
   guestNameOverride,
   selectedEventId,
   onOpenAdmin,
@@ -46,6 +50,7 @@ export default function ProfileScreen({
 }: ProfileScreenProps) {
   const role = userRoleProp ?? 'guest';
   const [viewAsGuest, setViewAsGuest] = useState(false);
+  const [controllerMode, setControllerMode] = useState(false);
   const [guestData, setGuestData] = useState<StorageService.ProfileGuestData | null>(null);
   const [guestLoading, setGuestLoading] = useState(false);
   const [guestError, setGuestError] = useState<string | null>(null);
@@ -111,6 +116,29 @@ export default function ProfileScreen({
   };
 
 
+  // Controller scanner mode — priority render regardless of role
+  if (isController && controllerMode) {
+    return (
+      <>
+        <BackHeader onBack={() => setControllerMode(false)} variant="dark" backLabel="Назад" />
+        <ControllerScannerScreen />
+      </>
+    );
+  }
+
+  // Controller toggle button — shown when user is a controller
+  const controllerToggle = isController ? (
+    <div className="w-full max-w-[720px] mx-auto px-6 py-3">
+      <button
+        onClick={() => setControllerMode(true)}
+        className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-medium active:opacity-80"
+      >
+        <span>Контролер — проверка билетов</span>
+        <span className="text-[#C6A75E]">Открыть сканер →</span>
+      </button>
+    </div>
+  ) : null;
+
   if (role === 'organizer' && viewAsGuest) {
     if (guestLoading) return wrapWithBack(<ProfileGuestSkeleton />, () => setViewAsGuest(false), UI_TEXT.profile.backToOrganizer);
     if (guestError) return wrapWithBack(<ProfileStateMessage message={guestError} isError />, () => setViewAsGuest(false), UI_TEXT.profile.backToOrganizer);
@@ -147,21 +175,24 @@ export default function ProfileScreen({
     }
     const currentEventTitle = publishedEvents.find((e) => e.id === statsEventId)?.title ?? null;
     return (
-      <ProfileOrganizerScreen
-        eventDate={organizerData.eventDate}
-        stats={organizerData.stats}
-        tables={organizerData.tables}
-        categoryStats={organizerData.categoryStats}
-        vipGuests={organizerData.vipGuests}
-        eventTitle={currentEventTitle}
-        allEvents={publishedEvents}
-        selectedEventId={statsEventId}
-        onSelectEvent={setStatsEventId}
-        onOpenAdmin={onOpenAdmin}
-        onOpenMap={onOpenMap}
-        onViewAsGuest={() => setViewAsGuest(true)}
-        isRefreshing={organizerLoading}
-      />
+      <>
+        {controllerToggle}
+        <ProfileOrganizerScreen
+          eventDate={organizerData.eventDate}
+          stats={organizerData.stats}
+          tables={organizerData.tables}
+          categoryStats={organizerData.categoryStats}
+          vipGuests={organizerData.vipGuests}
+          eventTitle={currentEventTitle}
+          allEvents={publishedEvents}
+          selectedEventId={statsEventId}
+          onSelectEvent={setStatsEventId}
+          onOpenAdmin={onOpenAdmin}
+          onOpenMap={onOpenMap}
+          onViewAsGuest={() => setViewAsGuest(true)}
+          isRefreshing={organizerLoading}
+        />
+      </>
     );
   }
 
@@ -192,5 +223,10 @@ export default function ProfileScreen({
     privateAccess: guestData.privateAccess ?? '',
   };
 
-  return <ProfileGuestScreen {...guestProps} />;
+  return (
+    <>
+      {controllerToggle}
+      <ProfileGuestScreen {...guestProps} />
+    </>
+  );
 }

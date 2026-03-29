@@ -73,6 +73,7 @@ function App() {
   // for VK:
   const [vkSignQuery, setVkSignQuery] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isController, setIsController] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authRole, setAuthRole] = useState<string | null>(null);
@@ -373,6 +374,7 @@ function App() {
     const updateRole = (t: string | null) => {
       const payload = AuthService.decodeToken(t);
       setIsAdmin(payload?.role === 'admin');
+      setIsController((payload as any)?.isController === true);
       setTokenRole(payload?.role ?? null);
     };
 
@@ -777,6 +779,7 @@ function App() {
     return wrapWithLayout(
       <ProfileScreen
         userRole={currentUser.role}
+        isController={isController}
         guestNameOverride={tgUser?.first_name}
         selectedEventId={selectedEventId}
         onOpenAdmin={() => setView('admin')}

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
+import { isUserController } from '../db-postgres';
 
 const router = Router();
 
@@ -44,7 +45,7 @@ router.post('/dev-user-login', (req, res) => {
   res.json({ token });
 });
 
-router.post('/telegram', (req, res) => {
+router.post('/telegram', async (req, res) => {
   console.log('[AUTH] Telegram login attempt received');
   // Guard against missing body (ensure JSON parsing worked) and accept fallback query params
   const body = req && typeof req.body === 'object' ? req.body : {};
@@ -95,11 +96,15 @@ router.post('/telegram', (req, res) => {
   const telegramIdValue = Number.isFinite(asNumber) ? asNumber : String(normalizedId);
   console.log(`[AUTH] telegramId=${telegramIdValue} username=${username || '-'} role=${role}`);
 
+  let isController = false;
+  try { isController = await isUserController(normalizedId); } catch { /* non-fatal */ }
+
   try {
     const token = jwt.sign(
       {
         id: String(normalizedId),
         role,
+        isController,
       },
       process.env.JWT_SECRET,
       { expiresIn: '12h' }
@@ -113,7 +118,7 @@ router.post('/telegram', (req, res) => {
 
 import crypto from 'crypto';
 
-router.post('/vk', (req, res) => {
+router.post('/vk', async (req, res) => {
   const body = req && typeof req.body === 'object' ? req.body : {};
 
   // Strictly cast all inputs to strings to avoid TS undefined errors
@@ -196,12 +201,16 @@ router.post('/vk', (req, res) => {
 
   console.log(`[AUTH] Success: vkUserId=${vkUserId} role=${role} platform=vk`);
 
+  let isControllerVk = false;
+  try { isControllerVk = await isUserController(vkUserId); } catch { /* non-fatal */ }
+
   try {
     const token = jwt.sign(
       {
         id: userIdentifier,
         role,
         platform: 'vk',
+        isController: isControllerVk,
       },
       jwtSecret,
       { expiresIn: '12h' }

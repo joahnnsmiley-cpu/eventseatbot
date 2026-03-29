@@ -641,6 +641,81 @@ export async function updateBookingTicketFileUrl(bookingId: string, ticketFileUr
   if (error) throw error;
 }
 
+// ---- Controllers ----
+
+export interface Controller {
+  id: number;
+  platform: string;
+  label: string | null;
+  createdAt?: string | undefined;
+}
+
+type ControllersRow = {
+  id: number;
+  created_at?: string;
+  platform: string;
+  label: string | null;
+};
+
+function controllerRowToController(row: ControllersRow): Controller {
+  return {
+    id: row.id,
+    platform: row.platform,
+    label: row.label ?? null,
+    createdAt: row.created_at,
+  };
+}
+
+export async function getControllers(): Promise<Controller[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('controllers').select('*').order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((r) => controllerRowToController(r as ControllersRow));
+}
+
+export async function addController(id: number, platform: string, label?: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('controllers').insert({ id, platform, label: label ?? null });
+  if (error) throw error;
+}
+
+export async function removeController(id: number): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('controllers').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function isUserController(userId: string | number): Promise<boolean> {
+  if (!supabase) return false;
+  const numericId = Number(userId);
+  if (!Number.isFinite(numericId)) return false;
+  const { count, error } = await supabase
+    .from('controllers')
+    .select('*', { count: 'exact', head: true })
+    .eq('id', numericId);
+  if (error) return false;
+  return (count ?? 0) > 0;
+}
+
+export async function markBookingAsUsed(bookingId: string): Promise<Booking | undefined> {
+  if (!supabase) return undefined;
+  const { data, error } = await supabase
+    .from('bookings')
+    .update({ is_used: true })
+    .eq('id', bookingId)
+    .is('is_used', null)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    // Either not found or already marked used — fetch current state to distinguish
+    const { data: existing } = await supabase.from('bookings').select('*').eq('id', bookingId).single();
+    if (!existing) return undefined;
+    return bookingsRowToBooking(existing as BookingsRow);
+  }
+  return bookingsRowToBooking(data as BookingsRow);
+}
+
 // ---- Admins ----
 export async function getAdmins(): Promise<Admin[]> {
   if (!supabase) return [];

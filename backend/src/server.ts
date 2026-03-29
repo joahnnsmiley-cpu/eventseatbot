@@ -10,6 +10,8 @@ import adminBookingsRouter from './routes/adminBookings';
 import publicEventsRouter from './routes/publicEvents';
 import publicPaymentsRouter from './routes/publicPayments';
 import adminPaymentsRouter from './routes/adminPayments';
+import adminControllersRouter from './routes/adminControllers';
+import controllerRouter from './routes/controllerRoutes';
 import debugRouter from './routes/debug-routes';
 import { notifyAllAdmins } from './services/notificationService';
 import { authMiddleware } from './auth/auth.middleware';
@@ -244,6 +246,8 @@ app.use('/admin', adminEventsRouter);
 app.use('/admin', adminUploadLayoutRouter);
 app.use('/admin', adminBookingsRouter);
 app.use('/admin', adminPaymentsRouter);
+app.use('/admin', adminControllersRouter);
+app.use('/controller', controllerRouter);
 // Public read-only event views and JSON endpoints
 app.use('/public', publicEventsRouter);
 app.use('/public', publicPaymentsRouter);
