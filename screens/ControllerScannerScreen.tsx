@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeScanType } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { getApiBaseUrl } from '@/config/api';
 import AuthService from '../services/authService';
 import { getPlatform } from '../src/utils/platform';
@@ -24,13 +24,9 @@ function decodeTokenPayload(token: string): { bookingId?: string } | null {
 }
 
 async function verifyAndMarkUsed(rawToken: string): Promise<ScanResult> {
-  // The QR contains a full URL like https://host/verify-ticket/TOKEN
-  // or just the token itself. Extract the token part.
   let token = rawToken;
   const tokenMatch = rawToken.match(/\/verify-ticket\/([^/?#]+)/);
-  if (tokenMatch?.[1]) {
-    token = tokenMatch[1];
-  }
+  if (tokenMatch?.[1]) token = tokenMatch[1];
 
   const apiBase = getApiBaseUrl();
 
@@ -47,7 +43,6 @@ async function verifyAndMarkUsed(rawToken: string): Promise<ScanResult> {
     return { state: 'invalid' };
   }
 
-  // Extract bookingId from token payload
   const payload = decodeTokenPayload(token);
   const bookingId = verifyData.bookingId ?? payload?.bookingId;
   if (!bookingId) return { state: 'invalid' };
@@ -57,7 +52,6 @@ async function verifyAndMarkUsed(rawToken: string): Promise<ScanResult> {
       method: 'PATCH',
       headers: { ...(AuthService.getAuthHeader() as Record<string, string>), 'Content-Type': 'application/json' },
     });
-
     if (markRes.status === 409) return { state: 'already_used' };
     if (!markRes.ok) {
       const body = await markRes.json().catch(() => ({}));
@@ -75,38 +69,54 @@ async function verifyAndMarkUsed(rawToken: string): Promise<ScanResult> {
   };
 }
 
+const SCANNER_ELEMENT_ID = 'qr-reader-raw';
+
 export default function ControllerScannerScreen() {
   const [result, setResult] = useState<ScanResult>({ state: 'idle' });
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
-  const scannerInitialized = useRef(false);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scanningRef = useRef(false);
 
-  const handleToken = (token: string) => {
-    setResult({ state: 'loading' });
-    verifyAndMarkUsed(token).then(setResult);
+  const stopScanner = async () => {
+    if (scannerRef.current) {
+      try {
+        const state = scannerRef.current.getState();
+        // state 2 = SCANNING, state 3 = PAUSED
+        if (state === 2 || state === 3) {
+          await scannerRef.current.stop();
+        }
+      } catch { /* ignore */ }
+      scannerRef.current = null;
+    }
+    scanningRef.current = false;
   };
 
-  const startWebScanner = () => {
-    if (scannerInitialized.current) return;
-    scannerInitialized.current = true;
+  const startWebScanner = async () => {
+    if (scanningRef.current) return;
+    scanningRef.current = true;
 
-    const scanner = new Html5QrcodeScanner(
-      'qr-reader',
-      {
-        fps: 10,
-        qrbox: { width: 260, height: 260 },
-        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-      },
-      false
-    );
+    const el = document.getElementById(SCANNER_ELEMENT_ID);
+    if (!el) { scanningRef.current = false; return; }
+
+    const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false });
     scannerRef.current = scanner;
-    scanner.render(
-      (decodedText) => {
-        scanner.clear().catch(() => {});
-        scannerInitialized.current = false;
-        handleToken(decodedText);
-      },
-      () => { /* ignore per-frame errors */ }
-    );
+
+    try {
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 15, qrbox: { width: 240, height: 240 }, aspectRatio: 1 },
+        (decodedText) => {
+          // Stop scanning immediately after first success
+          stopScanner().then(() => {
+            setResult({ state: 'loading' });
+            verifyAndMarkUsed(decodedText).then(setResult);
+          });
+        },
+        () => { /* per-frame error — ignore */ }
+      );
+    } catch {
+      scanningRef.current = false;
+      setResult({ state: 'error', message: 'Нет доступа к камере. Разрешите доступ в настройках браузера.' });
+    }
   };
 
   const startTelegramScanner = () => {
@@ -114,11 +124,11 @@ export default function ControllerScannerScreen() {
     if (typeof tg?.showScanQrPopup === 'function') {
       tg.showScanQrPopup({ text: 'Наведите камеру на QR-код билета' }, (scannedText: string) => {
         tg.closeScanQrPopup?.();
-        handleToken(scannedText);
-        return true; // close after first scan
+        setResult({ state: 'loading' });
+        verifyAndMarkUsed(scannedText).then(setResult);
+        return true;
       });
     } else {
-      // Telegram client too old — fall back to web scanner
       startWebScanner();
     }
   };
@@ -128,120 +138,159 @@ export default function ControllerScannerScreen() {
     if (platform === 'telegram') {
       startTelegramScanner();
     } else {
-      startWebScanner();
+      // Small delay to ensure DOM element is mounted
+      setTimeout(startWebScanner, 80);
     }
   };
 
   useEffect(() => {
-    if (result.state === 'idle') {
-      initScanner();
-    }
-    return () => {
-      scannerRef.current?.clear().catch(() => {});
-      scannerRef.current = null;
-      scannerInitialized.current = false;
-    };
+    initScanner();
+    return () => { stopScanner(); };
   }, []);
 
   const reset = () => {
-    scannerRef.current?.clear().catch(() => {});
-    scannerRef.current = null;
-    scannerInitialized.current = false;
-    setResult({ state: 'idle' });
-    // Re-init scanner after state update
-    setTimeout(initScanner, 100);
+    stopScanner().then(() => {
+      setResult({ state: 'idle' });
+      setTimeout(initScanner, 100);
+    });
   };
 
+  const isIdle = result.state === 'idle';
+
   return (
-    <div className="w-full max-w-[720px] mx-auto px-6 py-6 flex flex-col gap-4">
-      <h2 className="text-white text-xl font-semibold">Проверка билетов</h2>
+    <div className="w-full max-w-[720px] mx-auto flex flex-col" style={{ minHeight: '60vh' }}>
 
-      {/* Scanner container — shown when idle */}
-      {result.state === 'idle' && (
-        <div id="qr-reader" className="w-full rounded-xl overflow-hidden" />
-      )}
+      {/* Camera viewfinder */}
+      {isIdle && (
+        <div className="relative w-full bg-black" style={{ aspectRatio: '1' }}>
+          {/* Raw scanner target — fills the container */}
+          <div id={SCANNER_ELEMENT_ID} className="w-full h-full" />
 
-      {/* Loading */}
-      {result.state === 'loading' && (
-        <div className="flex flex-col items-center justify-center py-12 gap-3">
-          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          <p className="text-white/60 text-sm">Проверка билета...</p>
+          {/* Overlay: dark corners + bright frame */}
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            {/* Dark vignette */}
+            <div className="absolute inset-0" style={{
+              background: 'radial-gradient(ellipse at center, transparent 38%, rgba(0,0,0,0.65) 65%)'
+            }} />
+            {/* Scanning frame */}
+            <div className="relative" style={{ width: 220, height: 220 }}>
+              {/* Corner marks */}
+              {[
+                'top-0 left-0 border-t-2 border-l-2 rounded-tl-lg',
+                'top-0 right-0 border-t-2 border-r-2 rounded-tr-lg',
+                'bottom-0 left-0 border-b-2 border-l-2 rounded-bl-lg',
+                'bottom-0 right-0 border-b-2 border-r-2 rounded-br-lg',
+              ].map((cls, i) => (
+                <div key={i} className={`absolute border-white w-8 h-8 ${cls}`} />
+              ))}
+              {/* Scanning line animation */}
+              <div className="absolute inset-x-2 top-1/2 h-px bg-white/60" style={{
+                animation: 'scanLine 1.8s ease-in-out infinite',
+              }} />
+            </div>
+          </div>
+
+          {/* Hint text */}
+          <div className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none">
+            <span className="text-white/80 text-sm bg-black/40 px-3 py-1 rounded-full">
+              Наведите камеру на QR-код билета
+            </span>
+          </div>
         </div>
       )}
 
-      {/* Success */}
-      {result.state === 'success' && (
-        <div className="rounded-2xl border border-green-500/30 bg-green-500/10 p-5 flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">✅</span>
-            <span className="text-green-400 text-lg font-semibold">Билет принят</span>
-          </div>
-          {result.eventTitle && (
-            <p className="text-white/80 text-sm">{result.eventTitle}</p>
-          )}
-          <div className="flex gap-4 text-sm text-white/60">
-            {result.tableNumber !== '' && <span>Стол: <span className="text-white">{result.tableNumber}</span></span>}
-            {result.seats !== '' && <span>Мест: <span className="text-white">{result.seats}</span></span>}
-          </div>
-          <button
-            onClick={reset}
-            className="mt-2 w-full py-3 rounded-xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-80"
-          >
-            Сканировать следующий
-          </button>
-        </div>
-      )}
+      {/* Result cards */}
+      <div className="px-5 py-5 flex flex-col gap-4">
 
-      {/* Already used */}
-      {result.state === 'already_used' && (
-        <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-5 flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">⚠️</span>
-            <span className="text-yellow-400 text-lg font-semibold">Билет уже использован</span>
+        {result.state === 'loading' && (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            <p className="text-white/50 text-sm">Проверка...</p>
           </div>
-          <p className="text-white/60 text-sm">Этот билет был отсканирован ранее.</p>
-          <button
-            onClick={reset}
-            className="mt-2 w-full py-3 rounded-xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-80"
-          >
-            Сканировать следующий
-          </button>
-        </div>
-      )}
+        )}
 
-      {/* Invalid */}
-      {result.state === 'invalid' && (
-        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-5 flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">❌</span>
-            <span className="text-red-400 text-lg font-semibold">Недействительный билет</span>
+        {result.state === 'success' && (
+          <div className="rounded-2xl border border-green-500/40 bg-green-500/10 p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">✅</span>
+              <span className="text-green-400 text-xl font-bold">Билет принят</span>
+            </div>
+            {result.eventTitle && <p className="text-white/70 text-sm">{result.eventTitle}</p>}
+            <div className="flex gap-5 text-sm text-white/50">
+              {result.tableNumber !== '' && (
+                <span>Стол <span className="text-white font-semibold">{result.tableNumber}</span></span>
+              )}
+              {result.seats !== '' && (
+                <span>Мест <span className="text-white font-semibold">{result.seats}</span></span>
+              )}
+            </div>
+            <button onClick={reset}
+              className="mt-1 w-full py-3 rounded-xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-70">
+              Следующий билет
+            </button>
           </div>
-          <p className="text-white/60 text-sm">Билет не найден, не оплачен или недействителен.</p>
-          <button
-            onClick={reset}
-            className="mt-2 w-full py-3 rounded-xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-80"
-          >
-            Сканировать ещё раз
-          </button>
-        </div>
-      )}
+        )}
 
-      {/* Error */}
-      {result.state === 'error' && (
-        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-5 flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">❌</span>
-            <span className="text-red-400 text-lg font-semibold">Ошибка</span>
+        {result.state === 'already_used' && (
+          <div className="rounded-2xl border border-yellow-500/40 bg-yellow-500/10 p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">⚠️</span>
+              <span className="text-yellow-400 text-xl font-bold">Уже использован</span>
+            </div>
+            <p className="text-white/50 text-sm">Этот билет уже был отсканирован ранее.</p>
+            <button onClick={reset}
+              className="mt-1 w-full py-3 rounded-xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-70">
+              Следующий билет
+            </button>
           </div>
-          <p className="text-white/60 text-sm">{result.message}</p>
-          <button
-            onClick={reset}
-            className="mt-2 w-full py-3 rounded-xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-80"
-          >
-            Попробовать снова
-          </button>
-        </div>
-      )}
+        )}
+
+        {result.state === 'invalid' && (
+          <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">❌</span>
+              <span className="text-red-400 text-xl font-bold">Недействителен</span>
+            </div>
+            <p className="text-white/50 text-sm">Билет не найден или не оплачен.</p>
+            <button onClick={reset}
+              className="mt-1 w-full py-3 rounded-xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-70">
+              Сканировать снова
+            </button>
+          </div>
+        )}
+
+        {result.state === 'error' && (
+          <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">❌</span>
+              <span className="text-red-400 text-xl font-bold">Ошибка</span>
+            </div>
+            <p className="text-white/50 text-sm">{result.message}</p>
+            <button onClick={reset}
+              className="mt-1 w-full py-3 rounded-xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-70">
+              Попробовать снова
+            </button>
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        @keyframes scanLine {
+          0%   { transform: translateY(-100px); opacity: 0; }
+          10%  { opacity: 1; }
+          90%  { opacity: 1; }
+          100% { transform: translateY(100px); opacity: 0; }
+        }
+        #${SCANNER_ELEMENT_ID} video {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
+        }
+        #${SCANNER_ELEMENT_ID} img,
+        #${SCANNER_ELEMENT_ID} > div:not([id]) {
+          display: none !important;
+        }
+      `}</style>
     </div>
   );
 }

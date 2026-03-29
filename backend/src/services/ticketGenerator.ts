@@ -68,9 +68,10 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
     const seatsY = height * 0.78;
     const fontSize = Math.round(width * 0.04);
 
-    // QR position (avoid overlap with design)
-    const qrLeft = width * 0.05;
-    const qrTop = height * 0.7;
+    // QR position and size — large enough to scan reliably from a phone
+    const qrSize = Math.round(Math.min(width, height) * 0.32); // ~32% of shorter side
+    const qrLeft = Math.round(width * 0.04);
+    const qrTop = Math.round(height * 0.62);
 
     const textSvg = `
 <svg width="${width}" height="${height}">
@@ -111,7 +112,11 @@ export async function generateTicket(params: GenerateTicketParams): Promise<stri
       return null;
     }
 
-    const qrBuffer = await QRCode.toBuffer(qrUrl, { width: 180 });
+    const qrBuffer = await QRCode.toBuffer(qrUrl, {
+      width: qrSize,
+      errorCorrectionLevel: 'H', // highest: survives 30% damage, best for printing
+      margin: 2,
+    });
 
     const finalBuffer = await sharp(baseBuffer)
       .composite([
