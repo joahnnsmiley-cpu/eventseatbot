@@ -252,7 +252,7 @@ function validateRectTables(tables: TableModel[]): string | null {
 }
 
 const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: string) => void }> = ({ onBack, onViewAsUser }) => {
-  const [mode, setMode] = useState<'bookings' | 'layout'>('bookings');
+  const [mode, setMode] = useState<'bookings' | 'layout' | 'controllers'>('bookings');
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -980,6 +980,7 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
             onClick={() => {
               if (mode === 'bookings') load();
               if (mode === 'layout') loadEvents();
+              if (mode === 'controllers') loadControllers();
             }}
             disabled={loading || eventsLoading}
             className="h-10 px-4 py-2.5 rounded-xl text-sm whitespace-nowrap min-w-fit"
@@ -1014,6 +1015,12 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
           className={`px-3 py-2 rounded-lg text-sm ${mode === 'layout' ? 'bg-[#C6A75E] text-black' : 'bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A]'}`}
         >
           {UI_TEXT.admin.venueLayout}
+        </button>
+        <button
+          onClick={() => setMode('controllers')}
+          className={`px-3 py-2 rounded-lg text-sm ${mode === 'controllers' ? 'bg-[#C6A75E] text-black' : 'bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A]'}`}
+        >
+          Контролеры
         </button>
       </div>
 
@@ -2128,8 +2135,8 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
       )}
 
       {/* Controllers section */}
-      {mode === 'bookings' && (
-        <div className="mt-8">
+      {mode === 'controllers' && (
+        <div className="mt-2">
           <AdminCard title="Контролеры">
             <p className="text-xs text-white/40 mb-4">
               Контролеры могут сканировать QR-коды билетов на входе. Укажите числовой ID пользователя в Telegram или VK.
