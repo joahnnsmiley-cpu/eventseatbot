@@ -20,3 +20,11 @@ const isDevOrEmpty =
 export const apiBaseUrl = isDevOrEmpty ? PRODUCTION_API_BASE_URL : normalized;
 
 export const getApiBaseUrl = () => apiBaseUrl;
+
+export async function warmupBackend(): Promise<void> {
+  try {
+    await fetch(`${apiBaseUrl}/health`, { method: 'GET', cache: 'no-store' });
+  } catch {
+    // silent — warmup is best-effort
+  }
+}

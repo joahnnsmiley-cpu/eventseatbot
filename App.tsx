@@ -27,6 +27,8 @@ import { RefreshCw, Settings } from 'lucide-react';
 import { UI_TEXT } from './constants/uiText';
 import { useToast } from './src/ui/ToastContext';
 import { getPlatform, getPlatformUserId, extractParam } from './src/utils/platform';
+import PrivacyConsentModal, { PRIVACY_CONSENT_KEY } from './components/PrivacyConsentModal';
+import { warmupBackend } from './config/api';
 
 declare global {
   interface Window {
@@ -65,6 +67,14 @@ const getEventDisplayDate = (event: EventData): { day: number; date: string; tim
 
 function App() {
   const { showToast } = useToast();
+
+  const [privacyConsented, setPrivacyConsented] = useState<boolean>(() => {
+    try { return localStorage.getItem(PRIVACY_CONSENT_KEY) === 'true'; } catch { return false; }
+  });
+
+  // Warm up Render.com backend immediately on mount (prevents cold-start delay)
+  useEffect(() => { void warmupBackend(); }, []);
+
   const isVkPlatform = getPlatform() === 'vk';
   const [vkAvailable, setVkAvailable] = useState(false);
   const [tgAvailable, setTgAvailable] = useState(false);
@@ -684,8 +694,27 @@ function App() {
 
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
+  // --- PRIVACY CONSENT GATE ---
+  if (!privacyConsented) {
+    return (
+      <PrivacyConsentModal
+        onAccept={() => {
+          try { localStorage.setItem(PRIVACY_CONSENT_KEY, 'true'); } catch {}
+          setPrivacyConsented(true);
+        }}
+        onDecline={() => {
+          try {
+            const tg = (window as any).Telegram?.WebApp;
+            if (tg?.close) { tg.close(); return; }
+          } catch {}
+          try { vkBridge.send('VKWebAppClose' as any, {} as any); } catch {}
+        }}
+      />
+    );
+  }
+
   // --- AUTH GATE ---
-  // If we're on VK, we MUST wait for the sign query to be recovered before doing anything. 
+  // If we're on VK, we MUST wait for the sign query to be recovered before doing anything.
   // This prevents child components from firing premature API calls that would fail with 401.
   if (isVkPlatform && !AuthService.getToken() && !vkSignQuery && !authError) {
     return (

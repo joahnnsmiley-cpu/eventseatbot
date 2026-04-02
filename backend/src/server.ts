@@ -76,6 +76,11 @@ void (async () => {
   }
 })();
 
+// Health check — used by UptimeRobot to prevent Render.com free-tier sleep
+app.get('/health', (_req, res) => {
+  res.json({ ok: true, ts: Date.now() });
+});
+
 // CORS before any routes — required for Telegram WebApp cross-origin POST (e.g. /public/bookings)
 app.use(cors({
   origin: '*',
