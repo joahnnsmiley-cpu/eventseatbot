@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuid } from 'uuid';
+import rateLimit from 'express-rate-limit';
 import { db } from '../db';
 import { supabase } from '../supabaseClient';
 import { emitBookingCreated, emitBookingCancelled, calculateBookingExpiration } from '../domain/bookings';
@@ -9,6 +10,8 @@ import { notifyAllAdmins } from '../services/notificationService';
 import { formatDateForNotification, parseEventToUtc } from '../utils/formatDate';
 
 const router = Router();
+
+const bookingLimiter = rateLimit({ windowMs: 60_000, max: 15, standardHeaders: true, legacyHeaders: false });
 
 const now = () => new Date().toISOString();
 
@@ -167,7 +170,7 @@ router.get('/events/:eventId/occupied-seats', async (req: Request, res: Response
     return res.json(result);
   } catch (err) {
     console.error('[occupied-seats]', err);
-    return res.status(500).json({ error: String(err) });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -199,9 +202,24 @@ router.get('/view', (_req: Request, res: Response) => {
         const list = data.featured ? [data.featured, ...(data.events || [])] : (data.events || []);
         list.forEach(ev=>{
           const a = document.createElement('a');
-          a.href = '/public/view/'+ev.id;
+          a.href = '/public/view/'+encodeURIComponent(ev.id);
           a.className='link';
-          a.innerHTML = '<div class="card"><div class="cover" style="background-image:url("' + (ev.coverImageUrl || '') + '")"></div><div class="meta"><h3>' + (ev.title || '') + '</h3><p>' + (ev.description || '') + '</p></div></div>';
+          const card = document.createElement('div');
+          card.className='card';
+          const cover = document.createElement('div');
+          cover.className='cover';
+          if(ev.coverImageUrl) cover.style.backgroundImage='url('+encodeURIComponent(ev.coverImageUrl)+')';
+          const meta = document.createElement('div');
+          meta.className='meta';
+          const h3 = document.createElement('h3');
+          h3.textContent = ev.title || '';
+          const p = document.createElement('p');
+          p.textContent = ev.description || '';
+          meta.appendChild(h3);
+          meta.appendChild(p);
+          card.appendChild(cover);
+          card.appendChild(meta);
+          a.appendChild(card);
           container.appendChild(a);
         });
       }catch(e){document.getElementById('list').innerText='Failed to load events';}
@@ -274,7 +292,7 @@ router.get('/view/:id', (req: Request, res: Response) => {
 
 // POST /public/bookings — create pending booking (no payment, no seat blocking)
 // Body: { eventId, tableId, seats: number[], phone }
-router.post('/bookings', async (req: Request, res: Response) => {
+router.post('/bookings', bookingLimiter, async (req: Request, res: Response) => {
   console.log('BOOKINGS HIT', req.body);
   try {
     const { eventId, tableId, seats, phone, platform, vkUserId } = req.body || {};
@@ -357,7 +375,7 @@ router.post('/bookings', async (req: Request, res: Response) => {
 // POST /public/bookings/table
 // Create a reserved booking for a table (public read-only booking endpoint)
 // Body: { eventId, tableId, seatsRequested, platform, vkUserId }
-router.post('/bookings/table', async (req: Request, res: Response) => {
+router.post('/bookings/table', bookingLimiter, async (req: Request, res: Response) => {
   const { eventId, tableId, seatsRequested, userPhone, userComment, platform, vkUserId } = req.body || {};
   if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
   const normalizedUserPhone = typeof userPhone === 'string' ? userPhone.trim() : '';
@@ -516,12 +534,12 @@ router.get('/bookings/my', async (req: Request, res: Response) => {
     return res.json(result);
   } catch (err) {
     console.error('[bookings/my]', err);
-    return res.status(500).json({ error: String(err) });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // POST /public/bookings/seats
-router.post('/bookings/seats', async (req: Request, res: Response) => {
+router.post('/bookings/seats', bookingLimiter, async (req: Request, res: Response) => {
   const { eventId, tableId, seatIndices, userPhone, telegramId, userComment, platform, vkUserId } = req.body || {};
   if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
   const normalizedPhone = typeof userPhone === 'string' ? userPhone.trim() : '';

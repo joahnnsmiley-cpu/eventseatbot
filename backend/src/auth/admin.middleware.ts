@@ -14,9 +14,10 @@ export function adminOnly(
     ? String(req.user?.id)
     : '';
 
-  const isAdminByList = adminIds.length > 0
-    ? adminIds.includes(userId)
-    : req.user?.role === 'admin';
+  if (adminIds.length === 0) {
+    return res.status(403).json({ error: 'Forbidden: no admin list configured' });
+  }
+  const isAdminByList = adminIds.includes(userId);
 
   if (!isAdminByList) {
     return res.status(403).json({ error: 'Admin only' });

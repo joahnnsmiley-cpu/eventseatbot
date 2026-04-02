@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import bodyParser from 'body-parser';
 import type { EventData } from './models';
 import { db } from './db';
@@ -15,6 +17,7 @@ import controllerRouter from './routes/controllerRoutes';
 import debugRouter from './routes/debug-routes';
 import { notifyAllAdmins } from './services/notificationService';
 import { authMiddleware } from './auth/auth.middleware';
+import { adminOnly } from './auth/admin.middleware';
 import 'dotenv/config';
 import authRoutes from './auth/auth.routes';
 import meRoutes from './routes/me.routes';
@@ -31,7 +34,7 @@ import { verifyTicketToken } from './services/ticketToken';
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-console.log('[ENV CHECK] SUPABASE_URL:', process.env.SUPABASE_URL);
+app.use(helmet());
 
 /**
  * ==============================
@@ -147,7 +150,8 @@ app.post('/telegram/webhook', (req, res) => {
  * Body: JSON { eventId, tableId, seats: number[], phone } or raw string (JSON).
  * Creates pending booking and returns { ok: true }.
  */
-app.post('/telegram/webapp', async (req, res) => {
+const webappLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false });
+app.post('/telegram/webapp', webappLimiter, async (req, res) => {
   try {
     let payload: { eventId?: string; tableId?: string; seats?: number[]; phone?: string };
     if (typeof req.body === 'string') {
@@ -178,7 +182,7 @@ app.post('/telegram/webapp', async (req, res) => {
 
 // Seed a single published event for dev/preview or explicit flag.
 const seedTestEvent = async () => {
-  const shouldSeed = process.env.SEED_TEST_EVENT === 'true' || process.env.NODE_ENV !== 'production';
+  const shouldSeed = process.env.SEED_TEST_EVENT === 'true';
   if (!shouldSeed) return;
 
   const seedId = 'seed-public-event';
@@ -235,10 +239,13 @@ app.get('/events/:eventId', async (req, res) => {
 // ==============================
 // MY BOOKINGS
 // ==============================
-app.get('/bookings/my', async (req, res) => {
+app.get('/bookings/my', authMiddleware, async (req: any, res) => {
   const telegramUserId = Number(req.query.telegramUserId);
   if (!telegramUserId) {
     return res.status(400).json({ error: 'telegramUserId is required' });
+  }
+  if (String(telegramUserId) !== String(req.user?.id)) {
+    return res.status(403).json({ error: 'Forbidden' });
   }
   const all = await db.getBookings();
   const mine = all.filter((b) => b.userTelegramId === telegramUserId);
@@ -259,7 +266,7 @@ app.use('/public', publicPaymentsRouter);
 app.use('/debug', debugRouter);
 
 // Temporary test: GET /test-admin-notify — calls notifyAdmins("Test message")
-app.get('/test-admin-notify', async (_req, res) => {
+app.get('/test-admin-notify', authMiddleware, adminOnly, async (_req, res) => {
   try {
     await notifyAllAdmins('Test message');
     res.json({ ok: true, message: 'notifyAdmins called' });

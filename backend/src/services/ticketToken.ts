@@ -41,11 +41,15 @@ export function verifyTicketToken(token: string): TicketPayload | null {
     .update(base64)
     .digest('base64url');
 
-  if (signature !== expected) return null;
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
 
   try {
     const json = Buffer.from(base64, 'base64url').toString();
-    return JSON.parse(json) as TicketPayload;
+    const payload = JSON.parse(json) as TicketPayload;
+    // Reject tokens older than 24 hours
+    const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+    if (Date.now() - payload.iat > TOKEN_TTL_MS) return null;
+    return payload;
   } catch {
     return null;
   }

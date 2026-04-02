@@ -48,8 +48,8 @@ export function authMiddleware(
   // NODE_ENV !== 'production'. This enables backend-only tests to run without
   // configuring a JWT_SECRET. The bypass token can be set via
   // `ADMIN_BYPASS_TOKEN` env var; default value for tests is 'TEST_ADMIN_BYPASS'.
-  const bypassToken = process.env.ADMIN_BYPASS_TOKEN || 'TEST_ADMIN_BYPASS';
-  if (process.env.NODE_ENV !== 'production' && token === bypassToken) {
+  const bypassToken = process.env.ADMIN_BYPASS_TOKEN;
+  if (bypassToken && process.env.NODE_ENV !== 'production' && token === bypassToken) {
     req.user = { role: 'admin', id: 'admin' } as UserPayload;
     return next();
   }
