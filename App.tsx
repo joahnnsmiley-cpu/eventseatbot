@@ -694,6 +694,24 @@ function App() {
 
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
+  // --- PLATFORM GATE: только Telegram и VK ---
+  if (getPlatform() === 'web') {
+    return (
+      <div className="fixed inset-0 bg-[#0b0b0b] flex flex-col items-center justify-center px-6 text-center">
+        <div className="text-5xl mb-5">🎟️</div>
+        <h1 className="text-xl font-bold text-white mb-3">EventSeatBot</h1>
+        <p className="text-sm text-white/60 leading-relaxed max-w-xs">
+          Сервис доступен только внутри{' '}
+          <span className="text-white/90 font-medium">Telegram</span> или{' '}
+          <span className="text-white/90 font-medium">ВКонтакте</span>.
+        </p>
+        <p className="text-xs text-white/30 mt-6">
+          Откройте приложение через мини-приложение в одной из платформ.
+        </p>
+      </div>
+    );
+  }
+
   // --- PRIVACY CONSENT GATE ---
   if (!privacyConsented) {
     return (
