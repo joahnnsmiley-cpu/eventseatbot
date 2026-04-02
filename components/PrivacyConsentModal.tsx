@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import PrivacyPolicyScreen from './PrivacyPolicyScreen';
+import UserAgreementScreen from './UserAgreementScreen';
 
 export const PRIVACY_CONSENT_KEY = 'eventseatbot_privacy_v1';
 
@@ -11,9 +12,14 @@ type Props = {
 export default function PrivacyConsentModal({ onAccept, onDecline }: Props) {
   const [checked, setChecked] = useState(false);
   const [showPolicy, setShowPolicy] = useState(false);
+  const [showAgreement, setShowAgreement] = useState(false);
 
   if (showPolicy) {
     return <PrivacyPolicyScreen onBack={() => setShowPolicy(false)} />;
+  }
+
+  if (showAgreement) {
+    return <UserAgreementScreen onBack={() => setShowAgreement(false)} />;
   }
 
   return (
@@ -73,12 +79,20 @@ export default function PrivacyConsentModal({ onAccept, onDecline }: Props) {
               Я ознакомился(-ась) с{' '}
               <button
                 type="button"
+                onClick={(e) => { e.preventDefault(); setShowAgreement(true); }}
+                className="text-[#C6A75E] underline underline-offset-2 hover:text-[#d4b86c] transition"
+              >
+                пользовательским соглашением
+              </button>{' '}
+              и{' '}
+              <button
+                type="button"
                 onClick={(e) => { e.preventDefault(); setShowPolicy(true); }}
                 className="text-[#C6A75E] underline underline-offset-2 hover:text-[#d4b86c] transition"
               >
                 политикой конфиденциальности
-              </button>{' '}
-              и даю согласие на обработку персональных данных.
+              </button>
+              , даю согласие на обработку персональных данных.
             </span>
           </label>
         </div>
