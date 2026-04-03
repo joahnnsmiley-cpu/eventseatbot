@@ -17,6 +17,9 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+
+# Claude Code local settings (contains internal MCP UUIDs)
+.claude/settings.local.json
 *.suo
 *.ntvs*
 *.njsproj
