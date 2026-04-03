@@ -60,23 +60,36 @@ router.post('/telegram', async (req, res) => {
   }
 
   // HMAC verification (https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app)
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  // IMPORTANT: must NOT use URLSearchParams — it decodes '+' as space, breaking the hash.
+  // Parse manually with decodeURIComponent to preserve exact values Telegram signed.
+  const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
   if (!botToken) {
     console.error('[AUTH] Telegram login failed: TELEGRAM_BOT_TOKEN not set');
     return res.status(500).json({ error: 'Server misconfigured' });
   }
 
-  const params = new URLSearchParams(initData);
-  const receivedHash = params.get('hash');
+  const pairs: Array<{ key: string; value: string }> = initData.split('&').map((pair: string) => {
+    const eqIdx = pair.indexOf('=');
+    if (eqIdx === -1) return { key: decodeURIComponent(pair), value: '' };
+    return {
+      key: decodeURIComponent(pair.slice(0, eqIdx)),
+      value: decodeURIComponent(pair.slice(eqIdx + 1)),
+    };
+  });
+
+  const hashPair = pairs.find((p: { key: string; value: string }) => p.key === 'hash');
+  const receivedHash = hashPair?.value ?? '';
   if (!receivedHash) {
     console.warn('[AUTH] Telegram login failed: hash missing in initData');
     return res.status(401).json({ error: 'Invalid initData: missing hash' });
   }
-  params.delete('hash');
-  const checkString = [...params.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}=${v}`)
+
+  const checkString = pairs
+    .filter((p: { key: string; value: string }) => p.key !== 'hash')
+    .sort((a: { key: string }, b: { key: string }) => a.key.localeCompare(b.key))
+    .map((p: { key: string; value: string }) => `${p.key}=${p.value}`)
     .join('\n');
+
   const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
   const expectedHash = crypto.createHmac('sha256', secretKey).update(checkString).digest('hex');
 
