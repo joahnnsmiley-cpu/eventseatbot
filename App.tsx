@@ -71,6 +71,7 @@ function App() {
   const [privacyConsented, setPrivacyConsented] = useState<boolean>(() => {
     try { return localStorage.getItem(PRIVACY_CONSENT_KEY) === 'true'; } catch { return false; }
   });
+  const [consentChecked, setConsentChecked] = useState(false);
 
   // Warm up Render.com backend immediately on mount (prevents cold-start delay)
   useEffect(() => { void warmupBackend(); }, []);
@@ -84,6 +85,8 @@ function App() {
   const [vkSignQuery, setVkSignQuery] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [isController, setIsController] = useState(false);
+  const [organizerEventIds, setOrganizerEventIds] = useState<string[]>([]);
+  const isOrganizer = organizerEventIds.length > 0;
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authRole, setAuthRole] = useState<string | null>(null);
@@ -385,6 +388,7 @@ function App() {
       const payload = AuthService.decodeToken(t);
       setIsAdmin(payload?.role === 'admin');
       setIsController((payload as any)?.isController === true);
+      setOrganizerEventIds((payload as any)?.organizerEventIds ?? []);
       setTokenRole(payload?.role ?? null);
     };
 
@@ -461,6 +465,21 @@ function App() {
     };
     void run();
   }, [tgUser?.id, vkSignQuery, isVkPlatform]);
+
+  // After auth, check server-side consent if localStorage says not consented yet
+  useEffect(() => {
+    if (!authRole || authLoading || consentChecked) return;
+    if (privacyConsented) { setConsentChecked(true); return; }
+    StorageService.checkPrivacyConsent()
+      .then((consented) => {
+        if (consented) {
+          try { localStorage.setItem(PRIVACY_CONSENT_KEY, 'true'); } catch {}
+          setPrivacyConsented(true);
+        }
+      })
+      .catch(() => { /* silent — show modal as fallback */ })
+      .finally(() => setConsentChecked(true));
+  }, [authRole, authLoading]);
 
   useEffect(() => {
     const fetchPremium = async () => {
@@ -720,6 +739,7 @@ function App() {
         onAccept={() => {
           try { localStorage.setItem(PRIVACY_CONSENT_KEY, 'true'); } catch {}
           setPrivacyConsented(true);
+          StorageService.recordPrivacyConsent().catch(() => {});
         }}
         onDecline={() => {
           try {
@@ -802,9 +822,11 @@ function App() {
     );
   }
 
-  if (isAdmin && view === 'admin') {
+  if ((isAdmin || isOrganizer) && view === 'admin') {
     return wrapWithLayout(
       <AdminPanel
+        isAdmin={isAdmin}
+        organizerEventIds={organizerEventIds}
         onBack={() => setView('events')}
         onViewAsUser={(eventId) => {
           setSelectedEventId(eventId);
@@ -1526,7 +1548,7 @@ function App() {
               Выберите ваше эксклюзивное событие
             </p>
           </div>
-          {isAdmin && (
+          {(isAdmin || isOrganizer) && (
             <button
               type="button"
               onClick={() => setView('admin')}

@@ -5,6 +5,7 @@ import { bot } from '../bot';
 import { getPremiumUserInfo } from '../config/premium';
 import { formatEventDateRu, parseEventToIso } from '../utils/formatDate';
 import { getPriceForTable } from '../utils/getTablePrice';
+import { setPrivacyConsent, getPrivacyConsent } from '../db-postgres';
 
 const router = Router();
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:4000';
@@ -522,6 +523,37 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
     categoryStats,
     vipGuests,
   });
+});
+
+/**
+ * GET /me/consent — check if user has accepted privacy policy
+ */
+router.get('/consent', authMiddleware, async (req: AuthRequest, res) => {
+  const user = req.user;
+  if (!user || typeof user.id === 'undefined') return res.status(401).json({ error: 'Unauthorized' });
+  const platform = (user as any).platform ?? 'telegram';
+  try {
+    const consented = await getPrivacyConsent(user.id, platform);
+    return res.json({ consented });
+  } catch {
+    return res.json({ consented: false });
+  }
+});
+
+/**
+ * POST /me/consent — record that user has accepted privacy policy
+ */
+router.post('/consent', authMiddleware, async (req: AuthRequest, res) => {
+  const user = req.user;
+  if (!user || typeof user.id === 'undefined') return res.status(401).json({ error: 'Unauthorized' });
+  const platform = (user as any).platform ?? 'telegram';
+  try {
+    await setPrivacyConsent(user.id, platform);
+    return res.json({ ok: true });
+  } catch (err: any) {
+    console.error('[me] setPrivacyConsent error:', err);
+    return res.status(500).json({ error: 'Failed to record consent' });
+  }
 });
 
 export default router;

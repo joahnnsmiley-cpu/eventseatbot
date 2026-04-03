@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { isUserController } from '../db-postgres';
+import { isUserController, upsertAppUser, getOrganizerEventIds } from '../db-postgres';
 
 const router = Router();
 
@@ -136,12 +136,35 @@ router.post('/telegram', async (req, res) => {
   const telegramIdValue = Number.isFinite(asNumber) ? asNumber : String(normalizedId);
   console.log(`[AUTH] telegramId=${telegramIdValue} username=${username || '-'} role=${role}`);
 
+  // Extract user info for app_users upsert
+  const userObj = pairs.find((p) => p.key === 'user')?.value;
+  let tgFirstName: string | undefined;
+  let tgLastName: string | undefined;
+  let tgUsername: string | undefined;
+  if (userObj) {
+    try {
+      const parsed = JSON.parse(userObj);
+      tgFirstName = parsed.first_name ?? undefined;
+      tgLastName = parsed.last_name ?? undefined;
+      tgUsername = parsed.username ?? undefined;
+    } catch { /* ignore */ }
+  }
+  // Fallback to top-level body fields
+  if (!tgUsername && username) tgUsername = username;
+
+  const numericIdForUpsert = Number.isFinite(asNumber) ? asNumber : null;
+  if (numericIdForUpsert !== null) {
+    upsertAppUser(numericIdForUpsert, 'telegram', tgFirstName, tgLastName, tgUsername).catch(() => {});
+  }
+
   let isController = false;
   try { isController = await isUserController(normalizedId); } catch { /* non-fatal */ }
 
+  const organizerEventIds = await getOrganizerEventIds(normalizedId).catch(() => [] as string[]);
+
   try {
     const token = jwt.sign(
-      { id: String(normalizedId), role, isController, platform: 'telegram' },
+      { id: String(normalizedId), role, isController, platform: 'telegram', organizerEventIds },
       process.env.JWT_SECRET,
       { expiresIn: '12h' }
     );
@@ -245,9 +268,17 @@ async function issueVkToken(res: any, userId: string) {
   let isControllerVk = false;
   try { isControllerVk = await isUserController(userId); } catch { /* non-fatal */ }
 
+  const organizerEventIds = await getOrganizerEventIds(userId).catch(() => [] as string[]);
+
+  // Upsert VK user (numeric IDs only)
+  const numericVkId = Number(userId);
+  if (Number.isFinite(numericVkId)) {
+    upsertAppUser(numericVkId, 'vk').catch(() => {});
+  }
+
   try {
     const token = jwt.sign(
-      { id: userId, role, platform: 'vk', isController: isControllerVk },
+      { id: userId, role, platform: 'vk', isController: isControllerVk, organizerEventIds },
       jwtSecret,
       { expiresIn: '12h' }
     );

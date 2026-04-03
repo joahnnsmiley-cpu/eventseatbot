@@ -13,6 +13,7 @@ import publicEventsRouter from './routes/publicEvents';
 import publicPaymentsRouter from './routes/publicPayments';
 import adminPaymentsRouter from './routes/adminPayments';
 import adminControllersRouter from './routes/adminControllers';
+import adminRolesRouter from './routes/adminRoles';
 import controllerRouter from './routes/controllerRoutes';
 import debugRouter from './routes/debug-routes';
 import { notifyAllAdmins } from './services/notificationService';
@@ -259,6 +260,7 @@ app.use('/admin', adminUploadLayoutRouter);
 app.use('/admin', adminBookingsRouter);
 app.use('/admin', adminPaymentsRouter);
 app.use('/admin', adminControllersRouter);
+app.use('/admin', adminRolesRouter);
 app.use('/controller', controllerRouter);
 // Public read-only event views and JSON endpoints
 app.use('/public', publicEventsRouter);

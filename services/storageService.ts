@@ -568,3 +568,89 @@ export const removeAdminController = async (id: number): Promise<void> => {
   });
   if (!res.ok) await handleAuthError(res, 'Failed to remove controller');
 };
+
+// ---- App Users ----
+
+export type AppUser = {
+  id: number;
+  platform: string;
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+  lastSeen: string;
+  privacyConsentedAt: string | null;
+};
+
+export const getAppUsers = async (platform?: string): Promise<AppUser[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const url = platform
+    ? `${apiBaseUrl}/admin/app-users?platform=${encodeURIComponent(platform)}`
+    : `${apiBaseUrl}/admin/app-users`;
+  const res = await fetch(url, { headers: AuthService.getAuthHeader() });
+  if (!res.ok) await handleAuthError(res, 'Failed to load app users');
+  return res.json();
+};
+
+// ---- Organizers ----
+
+export type OrganizerEntry = {
+  userId: number;
+  eventId: string;
+  platform: string;
+  label: string | null;
+  createdAt: string;
+};
+
+export const getAdminOrganizers = async (): Promise<OrganizerEntry[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/organizers`, { headers: AuthService.getAuthHeader() });
+  if (!res.ok) await handleAuthError(res, 'Failed to load organizers');
+  return res.json();
+};
+
+export const addAdminOrganizer = async (
+  userId: number,
+  eventId: string,
+  platform: string,
+  label?: string,
+): Promise<void> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/organizers`, {
+    method: 'POST',
+    headers: { ...(AuthService.getAuthHeader() as Record<string, string>), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, eventId, platform, label }),
+  });
+  if (!res.ok) await handleAuthError(res, 'Failed to add organizer');
+};
+
+export const removeAdminOrganizer = async (
+  userId: number,
+  eventId: string,
+  platform: string,
+): Promise<void> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/organizers/${userId}/${encodeURIComponent(eventId)}/${encodeURIComponent(platform)}`, {
+    method: 'DELETE',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) await handleAuthError(res, 'Failed to remove organizer');
+};
+
+// ---- Privacy Consent ----
+
+export const checkPrivacyConsent = async (): Promise<boolean> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/me/consent`, { headers: AuthService.getAuthHeader() });
+  if (!res.ok) return false;
+  const data = await res.json();
+  return data?.consented === true;
+};
+
+export const recordPrivacyConsent = async (): Promise<void> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/me/consent`, {
+    method: 'POST',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) await handleAuthError(res, 'Failed to record consent');
+};

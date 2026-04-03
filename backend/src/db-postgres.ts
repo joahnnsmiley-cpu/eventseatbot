@@ -724,6 +724,149 @@ export async function markBookingAsUsed(bookingId: string): Promise<{ booking: B
   return { booking: bookingsRowToBooking(data as BookingsRow), wasAlreadyUsed: false };
 }
 
+// ---- App Users ----
+
+export type AppUser = {
+  id: number;
+  platform: string;
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+  lastSeen: string;
+  privacyConsentedAt: string | null;
+};
+
+export async function upsertAppUser(
+  id: number | string,
+  platform: string,
+  firstName?: string,
+  lastName?: string,
+  username?: string,
+): Promise<void> {
+  if (!supabase) return;
+  const numericId = typeof id === 'string' ? Number(id) : id;
+  if (!Number.isFinite(numericId)) return;
+  const { error } = await supabase.from('app_users').upsert(
+    {
+      id: numericId,
+      platform,
+      first_name: firstName ?? null,
+      last_name: lastName ?? null,
+      username: username ?? null,
+      last_seen: new Date().toISOString(),
+    },
+    { onConflict: 'id,platform', ignoreDuplicates: false }
+  );
+  if (error) throw error;
+}
+
+export async function getAppUsers(platform?: string): Promise<AppUser[]> {
+  if (!supabase) return [];
+  let query = supabase.from('app_users').select('*').order('last_seen', { ascending: false });
+  if (platform) query = query.eq('platform', platform);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    platform: r.platform,
+    firstName: r.first_name ?? null,
+    lastName: r.last_name ?? null,
+    username: r.username ?? null,
+    lastSeen: r.last_seen,
+    privacyConsentedAt: r.privacy_consented_at ?? null,
+  }));
+}
+
+export async function setPrivacyConsent(id: number | string, platform: string): Promise<void> {
+  if (!supabase) return;
+  const numericId = typeof id === 'string' ? Number(id) : id;
+  const { error } = await supabase
+    .from('app_users')
+    .update({ privacy_consented_at: new Date().toISOString() })
+    .eq('id', numericId)
+    .eq('platform', platform);
+  if (error) throw error;
+}
+
+export async function getPrivacyConsent(id: number | string, platform: string): Promise<boolean> {
+  if (!supabase) return false;
+  const numericId = typeof id === 'string' ? Number(id) : id;
+  const { data, error } = await supabase
+    .from('app_users')
+    .select('privacy_consented_at')
+    .eq('id', numericId)
+    .eq('platform', platform)
+    .single();
+  if (error) return false;
+  return data?.privacy_consented_at != null;
+}
+
+// ---- Organizers ----
+
+export type OrganizerEntry = {
+  userId: number;
+  eventId: string;
+  platform: string;
+  label: string | null;
+  createdAt: string;
+};
+
+export async function getOrganizers(): Promise<OrganizerEntry[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('organizers').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r: any) => ({
+    userId: r.user_id,
+    eventId: r.event_id,
+    platform: r.platform,
+    label: r.label ?? null,
+    createdAt: r.created_at,
+  }));
+}
+
+export async function addOrganizer(
+  userId: number | string,
+  eventId: string,
+  platform: string,
+  label?: string,
+): Promise<void> {
+  if (!supabase) return;
+  const numericId = typeof userId === 'string' ? Number(userId) : userId;
+  const { error } = await supabase.from('organizers').upsert(
+    { user_id: numericId, event_id: eventId, platform, label: label ?? null },
+    { onConflict: 'user_id,event_id,platform', ignoreDuplicates: false }
+  );
+  if (error) throw error;
+}
+
+export async function removeOrganizer(
+  userId: number | string,
+  eventId: string,
+  platform: string,
+): Promise<void> {
+  if (!supabase) return;
+  const numericId = typeof userId === 'string' ? Number(userId) : userId;
+  const { error } = await supabase
+    .from('organizers')
+    .delete()
+    .eq('user_id', numericId)
+    .eq('event_id', eventId)
+    .eq('platform', platform);
+  if (error) throw error;
+}
+
+export async function getOrganizerEventIds(userId: number | string): Promise<string[]> {
+  if (!supabase) return [];
+  const numericId = typeof userId === 'string' ? Number(userId) : userId;
+  if (!Number.isFinite(numericId)) return [];
+  const { data, error } = await supabase
+    .from('organizers')
+    .select('event_id')
+    .eq('user_id', numericId);
+  if (error) return [];
+  return (data ?? []).map((r: any) => r.event_id);
+}
+
 // ---- Admins ----
 export async function getAdmins(): Promise<Admin[]> {
   if (!supabase) return [];

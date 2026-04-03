@@ -251,8 +251,13 @@ function validateRectTables(tables: TableModel[]): string | null {
   return null;
 }
 
-const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: string) => void }> = ({ onBack, onViewAsUser }) => {
-  const [mode, setMode] = useState<'bookings' | 'layout' | 'controllers'>('bookings');
+const AdminPanel: React.FC<{
+  onBack?: () => void;
+  onViewAsUser?: (eventId: string) => void;
+  isAdmin?: boolean;
+  organizerEventIds?: string[];
+}> = ({ onBack, onViewAsUser, isAdmin = false, organizerEventIds = [] }) => {
+  const [mode, setMode] = useState<'bookings' | 'layout' | 'controllers' | 'roles'>('bookings');
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -306,6 +311,20 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
   const [newControllerPlatform, setNewControllerPlatform] = useState<'telegram' | 'vk'>('telegram');
   const [newControllerLabel, setNewControllerLabel] = useState('');
   const [controllerError, setControllerError] = useState<string | null>(null);
+  // Roles tab state
+  const [organizers, setOrganizers] = useState<StorageService.OrganizerEntry[]>([]);
+  const [organizersLoading, setOrganizersLoading] = useState(false);
+  const [appUsers, setAppUsers] = useState<StorageService.AppUser[]>([]);
+  const [appUsersLoading, setAppUsersLoading] = useState(false);
+  const [rolesError, setRolesError] = useState<string | null>(null);
+  const [rolesSubTab, setRolesSubTab] = useState<'controllers' | 'organizers'>('controllers');
+  const [showOrganizerPicker, setShowOrganizerPicker] = useState(false);
+  const [orgPickerQuery, setOrgPickerQuery] = useState('');
+  const [orgPickerEventId, setOrgPickerEventId] = useState('');
+  const [orgPickerPlatform, setOrgPickerPlatform] = useState<'telegram' | 'vk'>('telegram');
+  const [orgPickerLabel, setOrgPickerLabel] = useState('');
+  const [orgPickerManualId, setOrgPickerManualId] = useState('');
+  const [orgPickerSelectedUserId, setOrgPickerSelectedUserId] = useState<number | null>(null);
   const [tables, setTables] = useState<TableModel[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const initialTablesRef = useRef<TableModel[]>([]);
@@ -695,6 +714,31 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
     }
   };
 
+  const loadOrganizers = async () => {
+    setOrganizersLoading(true);
+    setRolesError(null);
+    try {
+      const data = await StorageService.getAdminOrganizers();
+      setOrganizers(data);
+    } catch (err: any) {
+      setRolesError(err?.message ?? 'Ошибка загрузки организаторов');
+    } finally {
+      setOrganizersLoading(false);
+    }
+  };
+
+  const loadAppUsers = async () => {
+    setAppUsersLoading(true);
+    try {
+      const data = await StorageService.getAppUsers();
+      setAppUsers(data);
+    } catch {
+      /* silent */
+    } finally {
+      setAppUsersLoading(false);
+    }
+  };
+
   useEffect(() => {
     load();
     loadEvents();
@@ -861,12 +905,19 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
   }, [bookings.length, statusFilter, uniqueBookingStatuses]);
 
   const filteredBookings = useMemo(() => {
-    if (!statusFilter) return bookings;
-    return bookings.filter((b) => String(b.status ?? '') === statusFilter);
-  }, [bookings, statusFilter]);
+    let result = bookings;
+    // Organizer: show only bookings for their events
+    if (!isAdmin && organizerEventIds.length > 0) {
+      result = result.filter((b) => organizerEventIds.includes(b.event?.id ?? b.event_id ?? ''));
+    }
+    if (!statusFilter) return result;
+    return result.filter((b) => String(b.status ?? '') === statusFilter);
+  }, [bookings, statusFilter, isAdmin, organizerEventIds]);
 
   const filteredEvents = useMemo(() => {
     return events.filter((ev) => {
+      // Organizer: show only their events
+      if (!isAdmin && organizerEventIds.length > 0 && !organizerEventIds.includes(ev.id)) return false;
       const status = ev.status ?? (ev.published ? 'published' : 'draft');
       const isDeleted = (ev as { is_deleted?: boolean }).is_deleted === true;
       if (eventStatusFilter === 'deleted') return isDeleted;
@@ -981,6 +1032,7 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
               if (mode === 'bookings') load();
               if (mode === 'layout') loadEvents();
               if (mode === 'controllers') loadControllers();
+              if (mode === 'roles') { loadOrganizers(); loadAppUsers(); }
             }}
             disabled={loading || eventsLoading}
             className="h-10 px-4 py-2.5 rounded-xl text-sm whitespace-nowrap min-w-fit"
@@ -1022,6 +1074,18 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
         >
           Контролеры
         </button>
+        {isAdmin && (
+          <button
+            onClick={() => {
+              setMode('roles');
+              loadOrganizers();
+              loadAppUsers();
+            }}
+            className={`px-3 py-2 rounded-lg text-sm ${mode === 'roles' ? 'bg-[#C6A75E] text-black' : 'bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A]'}`}
+          >
+            Роли
+          </button>
+        )}
       </div>
 
       {loading && <div className="text-sm text-muted">{UI_TEXT.admin.loadingBookings}</div>}
@@ -2131,6 +2195,286 @@ const AdminPanel: React.FC<{ onBack?: () => void; onViewAsUser?: (eventId: strin
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Roles section */}
+      {mode === 'roles' && isAdmin && (
+        <div className="mt-2 space-y-4">
+          {/* Sub-tabs */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setRolesSubTab('controllers')}
+              className={`px-3 py-2 rounded-lg text-sm ${rolesSubTab === 'controllers' ? 'bg-white/15 text-white' : 'text-white/50 hover:text-white'}`}
+            >
+              Контролёры
+            </button>
+            <button
+              onClick={() => setRolesSubTab('organizers')}
+              className={`px-3 py-2 rounded-lg text-sm ${rolesSubTab === 'organizers' ? 'bg-white/15 text-white' : 'text-white/50 hover:text-white'}`}
+            >
+              Организаторы
+            </button>
+          </div>
+
+          {rolesError && <p className="text-sm text-red-400">{rolesError}</p>}
+
+          {/* Controllers sub-tab (reuse existing controllers state) */}
+          {rolesSubTab === 'controllers' && (
+            <AdminCard>
+              <p className="text-xs text-white/40 mb-4">
+                Контролёры могут сканировать QR-коды билетов на входе.
+              </p>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <input
+                  type="number"
+                  placeholder="ID пользователя"
+                  value={newControllerId}
+                  onChange={(e) => setNewControllerId(e.target.value)}
+                  className="flex-1 min-w-[120px] bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+                />
+                <select
+                  value={newControllerPlatform}
+                  onChange={(e) => setNewControllerPlatform(e.target.value as 'telegram' | 'vk')}
+                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
+                >
+                  <option value="telegram">Telegram</option>
+                  <option value="vk">VK</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Имя (опционально)"
+                  value={newControllerLabel}
+                  onChange={(e) => setNewControllerLabel(e.target.value)}
+                  className="flex-1 min-w-[120px] bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+                />
+                <PrimaryButton
+                  disabled={!newControllerId || controllersLoading}
+                  onClick={async () => {
+                    setControllerError(null);
+                    try {
+                      await StorageService.addAdminController(Number(newControllerId), newControllerPlatform, newControllerLabel || undefined);
+                      setNewControllerId('');
+                      setNewControllerLabel('');
+                      await loadControllers();
+                    } catch (err: any) {
+                      setControllerError(err?.message ?? 'Ошибка');
+                    }
+                  }}
+                >
+                  Добавить
+                </PrimaryButton>
+              </div>
+              {controllerError && <p className="text-sm text-red-400 mb-3">{controllerError}</p>}
+              {controllersLoading && controllers.length === 0 && <p className="text-sm text-white/40">Загрузка...</p>}
+              {!controllersLoading && controllers.length === 0 && <p className="text-sm text-white/40">Контролёры не назначены</p>}
+              {controllers.map((c) => (
+                <div key={c.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                  <div className="flex flex-col">
+                    <span className="text-sm text-white">{c.label ?? `ID ${c.id}`}</span>
+                    <span className="text-xs text-white/40">{c.platform} · {c.id}</span>
+                  </div>
+                  <DangerButton onClick={async () => {
+                    setControllerError(null);
+                    try { await StorageService.removeAdminController(c.id); await loadControllers(); }
+                    catch (err: any) { setControllerError(err?.message ?? 'Ошибка'); }
+                  }}>
+                    Удалить
+                  </DangerButton>
+                </div>
+              ))}
+            </AdminCard>
+          )}
+
+          {/* Organizers sub-tab */}
+          {rolesSubTab === 'organizers' && (
+            <AdminCard>
+              <p className="text-xs text-white/40 mb-4">
+                Организаторы видят полную админку, но только своё событие. Выберите пользователя из списка или введите ID вручную.
+              </p>
+
+              <PrimaryButton
+                onClick={() => {
+                  setShowOrganizerPicker(true);
+                  setOrgPickerQuery('');
+                  setOrgPickerSelectedUserId(null);
+                  setOrgPickerManualId('');
+                  setOrgPickerEventId(events[0]?.id ?? '');
+                  setOrgPickerPlatform('telegram');
+                  setOrgPickerLabel('');
+                }}
+                className="mb-4"
+              >
+                + Назначить организатора
+              </PrimaryButton>
+
+              {organizersLoading && organizers.length === 0 && <p className="text-sm text-white/40">Загрузка...</p>}
+              {!organizersLoading && organizers.length === 0 && <p className="text-sm text-white/40">Организаторы не назначены</p>}
+              {organizers.map((o) => {
+                const event = events.find((e) => e.id === o.eventId);
+                return (
+                  <div key={`${o.userId}-${o.eventId}-${o.platform}`} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-white">{o.label ?? `ID ${o.userId}`}</span>
+                      <span className="text-xs text-white/40">{o.platform} · {o.userId}</span>
+                      <span className="text-xs text-[#C6A75E]">{event?.title ?? o.eventId}</span>
+                    </div>
+                    <DangerButton onClick={async () => {
+                      setRolesError(null);
+                      try { await StorageService.removeAdminOrganizer(o.userId, o.eventId, o.platform); await loadOrganizers(); }
+                      catch (err: any) { setRolesError(err?.message ?? 'Ошибка'); }
+                    }}>
+                      Удалить
+                    </DangerButton>
+                  </div>
+                );
+              })}
+            </AdminCard>
+          )}
+
+          {/* Organizer picker modal */}
+          {showOrganizerPicker && (
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4">
+              <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl">
+                <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-white/10">
+                  <h3 className="text-base font-semibold text-white">Выбор пользователя</h3>
+                  <button onClick={() => setShowOrganizerPicker(false)} className="text-white/40 hover:text-white text-xl leading-none">×</button>
+                </div>
+                <div className="overflow-y-auto flex-1 p-4 space-y-3">
+                  {/* Event selector */}
+                  <div>
+                    <label className="text-xs text-white/50 mb-1 block">Событие</label>
+                    <select
+                      value={orgPickerEventId}
+                      onChange={(e) => setOrgPickerEventId(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
+                    >
+                      {events.map((e) => (
+                        <option key={e.id} value={e.id}>{e.title}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Platform selector */}
+                  <div>
+                    <label className="text-xs text-white/50 mb-1 block">Платформа</label>
+                    <select
+                      value={orgPickerPlatform}
+                      onChange={(e) => setOrgPickerPlatform(e.target.value as 'telegram' | 'vk')}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
+                    >
+                      <option value="telegram">Telegram</option>
+                      <option value="vk">VK</option>
+                    </select>
+                  </div>
+
+                  {/* User search from DB */}
+                  <div>
+                    <label className="text-xs text-white/50 mb-1 block">Поиск по имени / @username</label>
+                    <input
+                      type="text"
+                      placeholder="Введите имя или @username..."
+                      value={orgPickerQuery}
+                      onChange={(e) => setOrgPickerQuery(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+                    />
+                    {appUsersLoading && <p className="text-xs text-white/40 mt-1">Загрузка пользователей...</p>}
+                    <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                      {appUsers
+                        .filter((u) => {
+                          if (!orgPickerQuery) return true;
+                          const q = orgPickerQuery.toLowerCase();
+                          const name = `${u.firstName ?? ''} ${u.lastName ?? ''} ${u.username ?? ''}`.toLowerCase();
+                          return name.includes(q) || String(u.id).includes(q);
+                        })
+                        .slice(0, 20)
+                        .map((u) => (
+                          <button
+                            key={`${u.id}-${u.platform}`}
+                            type="button"
+                            onClick={() => {
+                              setOrgPickerSelectedUserId(u.id);
+                              setOrgPickerPlatform(u.platform as 'telegram' | 'vk');
+                              const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || '';
+                              setOrgPickerLabel(name);
+                              setOrgPickerManualId('');
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${orgPickerSelectedUserId === u.id ? 'bg-[#C6A75E]/20 border border-[#C6A75E]/40 text-white' : 'bg-white/5 text-white/70 hover:bg-white/10'}`}
+                          >
+                            <span className="font-medium">{[u.firstName, u.lastName].filter(Boolean).join(' ') || `ID ${u.id}`}</span>
+                            {u.username && <span className="text-white/40 ml-1">@{u.username}</span>}
+                            <span className="text-white/30 text-xs ml-2">{u.platform} · {u.id}</span>
+                          </button>
+                        ))}
+                      {!appUsersLoading && appUsers.filter((u) => {
+                        if (!orgPickerQuery) return true;
+                        const q = orgPickerQuery.toLowerCase();
+                        const name = `${u.firstName ?? ''} ${u.lastName ?? ''} ${u.username ?? ''}`.toLowerCase();
+                        return name.includes(q) || String(u.id).includes(q);
+                      }).length === 0 && (
+                        <p className="text-xs text-white/30 px-1">Пользователи не найдены</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Manual ID fallback */}
+                  <div>
+                    <label className="text-xs text-white/50 mb-1 block">Или введите ID вручную</label>
+                    <input
+                      type="number"
+                      placeholder="Числовой ID"
+                      value={orgPickerManualId}
+                      onChange={(e) => {
+                        setOrgPickerManualId(e.target.value);
+                        setOrgPickerSelectedUserId(null);
+                      }}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+                    />
+                  </div>
+
+                  {/* Label */}
+                  <div>
+                    <label className="text-xs text-white/50 mb-1 block">Имя (для отображения)</label>
+                    <input
+                      type="text"
+                      placeholder="Иван Иванов"
+                      value={orgPickerLabel}
+                      onChange={(e) => setOrgPickerLabel(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+                    />
+                  </div>
+                </div>
+
+                <div className="px-4 pb-4 pt-3 border-t border-white/10 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowOrganizerPicker(false)}
+                    className="flex-1 px-4 py-2 text-sm rounded-xl border border-white/20 text-white/80 hover:bg-white/5 transition"
+                  >
+                    Отмена
+                  </button>
+                  <PrimaryButton
+                    className="flex-1"
+                    disabled={(!orgPickerSelectedUserId && !orgPickerManualId) || !orgPickerEventId}
+                    onClick={async () => {
+                      const userId = orgPickerSelectedUserId ?? Number(orgPickerManualId);
+                      if (!userId || !orgPickerEventId) return;
+                      setRolesError(null);
+                      try {
+                        await StorageService.addAdminOrganizer(userId, orgPickerEventId, orgPickerPlatform, orgPickerLabel || undefined);
+                        setShowOrganizerPicker(false);
+                        await loadOrganizers();
+                      } catch (err: any) {
+                        setRolesError(err?.message ?? 'Ошибка назначения');
+                      }
+                    }}
+                  >
+                    Назначить
+                  </PrimaryButton>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
