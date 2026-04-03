@@ -62,7 +62,7 @@ router.post('/telegram', async (req, res) => {
   // HMAC verification (https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app)
   // IMPORTANT: must NOT use URLSearchParams — it decodes '+' as space, breaking the hash.
   // Parse manually with decodeURIComponent to preserve exact values Telegram signed.
-  const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  const botToken = (process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN)?.trim();
   if (!botToken) {
     console.error('[AUTH] Telegram login failed: TELEGRAM_BOT_TOKEN not set');
     return res.status(500).json({ error: 'Server misconfigured' });
