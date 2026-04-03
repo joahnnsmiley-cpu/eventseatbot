@@ -81,7 +81,7 @@ export default function ProfileScreen({
       .then(setGuestData)
       .catch((err) => setGuestError(err?.message ?? 'Ошибка загрузки'))
       .finally(() => setGuestLoading(false));
-  }, [role, viewAsGuest]);
+  }, [role, viewAsGuest, authLoading]);
 
   // Load organizer event list for the stats picker
   useEffect(() => {

@@ -141,7 +141,7 @@ router.post('/telegram', async (req, res) => {
 
   try {
     const token = jwt.sign(
-      { id: String(normalizedId), role, isController },
+      { id: String(normalizedId), role, isController, platform: 'telegram' },
       process.env.JWT_SECRET,
       { expiresIn: '12h' }
     );
