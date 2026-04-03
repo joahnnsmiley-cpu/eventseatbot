@@ -453,6 +453,7 @@ function App() {
         } catch (e: any) {
           console.error('[App] TG Auth failed:', e);
           setAuthError(UI_TEXT.common.errors.unableToVerifyAccess);
+          AuthService.logout();
         } finally {
           setAuthLoading(false);
         }

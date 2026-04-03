@@ -6,6 +6,7 @@ import ProfileOrganizerSkeleton from '../components/profile/ProfileOrganizerSkel
 import ProfileGuestSkeleton from '../components/profile/ProfileGuestSkeleton';
 import BackHeader from '../src/ui/BackHeader';
 import * as StorageService from '../services/storageService';
+import AuthService from '../services/authService';
 import type { CategoryColorKey } from '../src/config/categoryColors';
 import { UI_TEXT } from '../constants/uiText';
 import type { EventData } from '../types';
@@ -73,7 +74,7 @@ export default function ProfileScreen({
   }, [authLoading]);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !AuthService.getToken()) return;
     if (role !== 'guest' && !(role === 'organizer' && viewAsGuest)) return;
     setGuestLoading(true);
     setGuestError(null);
@@ -85,7 +86,7 @@ export default function ProfileScreen({
 
   // Load organizer event list for the stats picker
   useEffect(() => {
-    if (authLoading || role !== 'organizer') return;
+    if (authLoading || !AuthService.getToken() || role !== 'organizer') return;
     StorageService.getAdminEvents()
       .then((evts) => {
         // Show only published events
@@ -99,10 +100,10 @@ export default function ProfileScreen({
         }
       })
       .catch(() => { /* silent — picker just won't show */ });
-  }, [role]);
+  }, [role, authLoading]);
 
   useEffect(() => {
-    if (authLoading || role !== 'organizer') return;
+    if (authLoading || !AuthService.getToken() || role !== 'organizer') return;
     setOrganizerLoading(true);
     setOrganizerError(null);
     StorageService.getProfileOrganizerData(statsEventId ?? undefined)
@@ -113,7 +114,7 @@ export default function ProfileScreen({
         setOrganizerError(err?.message ?? 'Ошибка загрузки');
       })
       .finally(() => setOrganizerLoading(false));
-  }, [role, statsEventId]);
+  }, [role, statsEventId, authLoading]);
 
   const wrapWithBack = (content: React.ReactNode, backHandler?: () => void, backLabel?: string) => {
     const handler = backHandler ?? onBack;
