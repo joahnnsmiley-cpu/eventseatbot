@@ -23,8 +23,6 @@ export type DetectedObject = {
   seatsTotal?: number;
 };
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
-
 const DETECT_PROMPT = `Это схема зала для мероприятия. Твоя задача — определить ВСЕ объекты на схеме.
 
 Типы объектов:
@@ -37,7 +35,7 @@ const DETECT_PROMPT = `Это схема зала для мероприятия.
 
 Для каждого объекта верни:
 - type: тип объекта (table | stage | bar | wall | passage | other)
-- label: короткое описание (например "Сцена", "Бар", "Стол 1") — необязательно для table
+- label: короткое описание (например "Сцена", "Бар") — необязательно для table
 - centerX: горизонтальная позиция центра в процентах от ширины (0-100)
 - centerY: вертикальная позиция центра в процентах от высоты (0-100)
 - widthPercent: ширина объекта в процентах от ширины изображения (2-50)
@@ -53,9 +51,9 @@ const router = Router();
 router.use(authMiddleware, adminOnly);
 
 router.post('/detect-layout', upload.single('file'), async (req: Request, res: Response) => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return res.status(503).json({ error: 'GEMINI_API_KEY not configured' });
+    return res.status(503).json({ error: 'OPENAI_API_KEY not configured' });
   }
 
   const file = (req as any).file;
@@ -71,43 +69,44 @@ router.post('/detect-layout', upload.single('file'), async (req: Request, res: R
   const mimeType = file.mimetype;
 
   const body = {
-    contents: [
+    model: 'gpt-4o',
+    messages: [
       {
-        parts: [
-          { text: DETECT_PROMPT },
+        role: 'user',
+        content: [
+          { type: 'text', text: DETECT_PROMPT },
           {
-            inline_data: {
-              mime_type: mimeType,
-              data: base64Image,
+            type: 'image_url',
+            image_url: {
+              url: `data:${mimeType};base64,${base64Image}`,
+              detail: 'high',
             },
           },
         ],
       },
     ],
-    generationConfig: {
-      temperature: 0.1,
-      maxOutputTokens: 8192,
-    },
+    max_tokens: 4096,
+    temperature: 0.1,
   };
 
   try {
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      }
-    );
+    const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      console.error('[detect-layout] Gemini API error', geminiRes.status, errText);
-      return res.status(502).json({ error: 'Gemini API error', details: errText });
+    if (!openaiRes.ok) {
+      const errText = await openaiRes.text();
+      console.error('[detect-layout] OpenAI API error', openaiRes.status, errText);
+      return res.status(502).json({ error: 'OpenAI API error', details: errText });
     }
 
-    const geminiData = await geminiRes.json() as any;
-    const rawText: string = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    const openaiData = await openaiRes.json() as any;
+    const rawText: string = openaiData?.choices?.[0]?.message?.content ?? '';
 
     // Strip markdown code fences if present
     const jsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
@@ -116,8 +115,8 @@ router.post('/detect-layout', upload.single('file'), async (req: Request, res: R
     try {
       parsed = JSON.parse(jsonText);
     } catch (e) {
-      console.error('[detect-layout] Failed to parse Gemini response', rawText);
-      return res.status(502).json({ error: 'Failed to parse Gemini response', raw: rawText });
+      console.error('[detect-layout] Failed to parse OpenAI response', rawText);
+      return res.status(502).json({ error: 'Failed to parse OpenAI response', raw: rawText });
     }
 
     const objects: DetectedObject[] = (parsed.objects ?? []).map((obj: any) => {
