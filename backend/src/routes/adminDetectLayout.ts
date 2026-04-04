@@ -14,8 +14,8 @@ const upload = multer({
 export type DetectedObject = {
   type: 'table' | 'stage' | 'bar' | 'wall' | 'passage' | 'other';
   label?: string;
-  centerX: number;  // 0-100 percent
-  centerY: number;  // 0-100 percent
+  centerX: number;
+  centerY: number;
   widthPercent: number;
   heightPercent: number;
   rotation?: number;
@@ -23,29 +23,41 @@ export type DetectedObject = {
   seatsTotal?: number;
 };
 
-const DETECT_PROMPT = `Это схема зала для мероприятия. Твоя задача — определить ВСЕ объекты на схеме.
+const DETECT_PROMPT = `You are analyzing a venue seating chart image. Your task is to detect ALL objects visible in the image and return their positions as percentages of the image dimensions.
 
-Типы объектов:
-- table: стол, за которым сидят гости. Обычно круглый или прямоугольный. Укажи примерное число мест (seatsTotal).
-- stage: сцена, подиум, площадка выступлений
-- bar: бар, буфет, стойка
-- wall: стена, перегородка, граница зала
-- passage: проход, коридор, выход
-- other: любой другой объект
+COORDINATE SYSTEM:
+- centerX=0 means left edge, centerX=100 means right edge
+- centerY=0 means top edge, centerY=100 means bottom edge
+- widthPercent and heightPercent are sizes relative to image dimensions
+- Be precise: look carefully at each object's actual position
 
-Для каждого объекта верни:
-- type: тип объекта (table | stage | bar | wall | passage | other)
-- label: короткое описание (например "Сцена", "Бар") — необязательно для table
-- centerX: горизонтальная позиция центра в процентах от ширины (0-100)
-- centerY: вертикальная позиция центра в процентах от высоты (0-100)
-- widthPercent: ширина объекта в процентах от ширины изображения (2-50)
-- heightPercent: высота объекта в процентах от высоты изображения (2-50)
-- rotation: угол поворота в градусах (0 если прямо)
-- shape: "circle" для круглых объектов, "rect" для прямоугольных
-- seatsTotal: для столов — примерное число мест (1-12)
+OBJECT TYPES:
+- "table": a table where guests sit (usually circle or rectangle). Count approximate seats.
+- "stage": stage, podium, performance area
+- "bar": bar, buffet, counter
+- "wall": wall, partition, room boundary
+- "passage": aisle, corridor, exit
+- "other": any other element
 
-Верни ТОЛЬКО валидный JSON объект (без markdown, без пояснений):
-{"objects": [...]}`;
+RULES:
+- Detect EVERY object, including all individual tables
+- For each table: estimate center position very carefully
+- shape: "circle" for round objects, "rect" for rectangular ones
+- Return ONLY valid JSON, no markdown, no explanation
+
+JSON format:
+{"objects":[{"type":"table","centerX":25,"centerY":30,"widthPercent":8,"heightPercent":8,"shape":"circle","seatsTotal":4},{"type":"stage","label":"Stage","centerX":50,"centerY":10,"widthPercent":60,"heightPercent":15,"shape":"rect"}]}`;
+
+/** Extract first valid JSON object from text (handles markdown fences and extra text) */
+function extractJson(text: string): string {
+  // Remove markdown fences
+  let t = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+  // Find first { and last }
+  const start = t.indexOf('{');
+  const end = t.lastIndexOf('}');
+  if (start === -1 || end === -1 || end < start) return t;
+  return t.slice(start, end + 1);
+}
 
 const router = Router();
 router.use(authMiddleware, adminOnly);
@@ -69,23 +81,21 @@ router.post('/detect-layout', upload.single('file'), async (req: Request, res: R
   const mimeType = file.mimetype;
 
   const body = {
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
     messages: [
       {
         role: 'user',
         content: [
-          { type: 'text', text: DETECT_PROMPT },
           {
             type: 'image_url',
-            image_url: {
-              url: `data:${mimeType};base64,${base64Image}`,
-            },
+            image_url: { url: `data:${mimeType};base64,${base64Image}` },
           },
+          { type: 'text', text: DETECT_PROMPT },
         ],
       },
     ],
     max_tokens: 4096,
-    temperature: 0.1,
+    temperature: 0.05,
   };
 
   try {
@@ -106,26 +116,31 @@ router.post('/detect-layout', upload.single('file'), async (req: Request, res: R
 
     const groqData = await groqRes.json() as any;
     const rawText: string = groqData?.choices?.[0]?.message?.content ?? '';
+    console.log('[detect-layout] raw response:', rawText.slice(0, 300));
 
-    // Strip markdown code fences if present
-    const jsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    const jsonText = extractJson(rawText);
 
     let parsed: { objects: DetectedObject[] };
     try {
       parsed = JSON.parse(jsonText);
     } catch (e) {
-      console.error('[detect-layout] Failed to parse Groq response', rawText);
-      return res.status(502).json({ error: 'Failed to parse Groq response', raw: rawText });
+      console.error('[detect-layout] Failed to parse response:', rawText);
+      return res.status(502).json({ error: 'Failed to parse response', raw: rawText.slice(0, 500) });
     }
 
-    const objects: DetectedObject[] = (parsed.objects ?? []).map((obj: any) => {
-      const type: DetectedObject['type'] = ['table', 'stage', 'bar', 'wall', 'passage', 'other'].includes(obj.type)
+    if (!Array.isArray(parsed.objects)) {
+      return res.status(502).json({ error: 'Invalid response structure', raw: rawText.slice(0, 500) });
+    }
+
+    const VALID_TYPES = ['table', 'stage', 'bar', 'wall', 'passage', 'other'];
+    const objects: DetectedObject[] = parsed.objects.map((obj: any) => {
+      const type: DetectedObject['type'] = VALID_TYPES.includes(obj.type)
         ? (obj.type as DetectedObject['type'])
         : 'other';
       const result: DetectedObject = {
         type,
-        centerX: Math.max(0, Math.min(100, Number(obj.centerX) || 50)),
-        centerY: Math.max(0, Math.min(100, Number(obj.centerY) || 50)),
+        centerX: Math.max(1, Math.min(99, Number(obj.centerX) || 50)),
+        centerY: Math.max(1, Math.min(99, Number(obj.centerY) || 50)),
         widthPercent: Math.max(2, Math.min(60, Number(obj.widthPercent) || 8)),
         heightPercent: Math.max(2, Math.min(60, Number(obj.heightPercent) || 8)),
         rotation: Number(obj.rotation) || 0,
@@ -136,6 +151,7 @@ router.post('/detect-layout', upload.single('file'), async (req: Request, res: R
       return result;
     });
 
+    console.log('[detect-layout] detected objects:', objects.length);
     return res.json({ objects });
   } catch (e) {
     console.error('[detect-layout]', e);

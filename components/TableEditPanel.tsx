@@ -41,7 +41,7 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
   return (
     <div
       className="fixed right-0 top-0 h-full w-[300px] bg-[#0f0f0f] border-l border-[#C6A75E]/30 shadow-[-8px_0_24px_rgba(0,0,0,0.5)] z-40 flex flex-col animate-slide-in-right"
-      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}
     >
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
         <h3 className="font-semibold text-white">{isDecorative ? 'Редактирование объекта' : 'Редактирование стола'}</h3>
