@@ -1,7 +1,16 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
 import { isUserController, upsertAppUser, getOrganizerEventIds } from '../db-postgres';
+
+const webLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: 'Слишком много попыток входа. Попробуйте через 15 минут.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const router = Router();
 
@@ -42,6 +51,48 @@ if (process.env.NODE_ENV !== 'production') {
     res.json({ token });
   });
 }
+
+router.post('/web-login', webLoginLimiter, (req, res) => {
+  const { login, password } = (req.body || {}) as { login?: string; password?: string };
+  const webLogin = process.env.ADMIN_WEB_LOGIN?.trim();
+  const webPassword = process.env.ADMIN_WEB_PASSWORD?.trim();
+
+  if (!webLogin || !webPassword) {
+    return res.status(503).json({ error: 'Веб-доступ не настроен. Добавьте ADMIN_WEB_LOGIN и ADMIN_WEB_PASSWORD.' });
+  }
+
+  if (!process.env.JWT_SECRET) {
+    return res.status(500).json({ error: 'Server misconfiguration: JWT_SECRET not set' });
+  }
+
+  const loginStr = String(login ?? '');
+  const passwordStr = String(password ?? '');
+
+  let valid = false;
+  try {
+    // timingSafeEqual requires same-length buffers; pad both sides with a fixed prefix
+    const a = Buffer.from(loginStr + ':' + passwordStr);
+    const b = Buffer.from(webLogin + ':' + webPassword);
+    if (a.length === b.length) {
+      valid = crypto.timingSafeEqual(a, b);
+    }
+  } catch {
+    valid = false;
+  }
+
+  if (!valid) {
+    return res.status(401).json({ error: 'Неверный логин или пароль' });
+  }
+
+  const token = jwt.sign(
+    { id: 'web-admin', role: 'admin', platform: 'web' },
+    process.env.JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+
+  console.log('[AUTH] Web admin login successful');
+  return res.json({ token });
+});
 
 router.post('/telegram', async (req, res) => {
   console.log('[AUTH] Telegram login attempt received');

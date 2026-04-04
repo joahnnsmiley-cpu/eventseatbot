@@ -4,6 +4,7 @@ import './index.css';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './src/ui/ToastContext';
+import WebAdminApp from './src/pages/WebAdminApp';
 
 // Call VKWebAppInit as early as possible so VK removes its loading overlay
 // This must happen before React renders, not inside a useEffect
@@ -35,12 +36,14 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
+const isWebAdmin = window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/');
+
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
       <ToastProvider>
-        <App />
+        {isWebAdmin ? <WebAdminApp /> : <App />}
       </ToastProvider>
     </ErrorBoundary>
   </React.StrictMode>

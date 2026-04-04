@@ -13,6 +13,7 @@ export function organizerForEvent(getEventId: (req: AuthRequest) => string | und
     const userId = String(req.user?.id ?? '');
 
     if (adminIds.includes(userId)) return next();
+    if ((req.user as any)?.role === 'admin') return next();
 
     const eventId = getEventId(req);
     const orgIds: string[] = (req.user as any)?.organizerEventIds ?? [];
@@ -39,8 +40,10 @@ export function adminOnly(
     return res.status(403).json({ error: 'Forbidden: no admin list configured' });
   }
   const isAdminByList = adminIds.includes(userId);
+  // Also allow JWT with explicit role='admin' (e.g. web admin login)
+  const isAdminByRole = (req.user as any)?.role === 'admin';
 
-  if (!isAdminByList) {
+  if (!isAdminByList && !isAdminByRole) {
     return res.status(403).json({ error: 'Admin only' });
   }
 
