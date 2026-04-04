@@ -51,9 +51,9 @@ const router = Router();
 router.use(authMiddleware, adminOnly);
 
 router.post('/detect-layout', upload.single('file'), async (req: Request, res: Response) => {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(503).json({ error: 'OPENAI_API_KEY not configured' });
+    return res.status(503).json({ error: 'GEMINI_API_KEY not configured' });
   }
 
   const file = (req as any).file;
@@ -69,44 +69,43 @@ router.post('/detect-layout', upload.single('file'), async (req: Request, res: R
   const mimeType = file.mimetype;
 
   const body = {
-    model: 'gpt-4o',
-    messages: [
+    contents: [
       {
-        role: 'user',
-        content: [
-          { type: 'text', text: DETECT_PROMPT },
+        parts: [
+          { text: DETECT_PROMPT },
           {
-            type: 'image_url',
-            image_url: {
-              url: `data:${mimeType};base64,${base64Image}`,
-              detail: 'high',
+            inline_data: {
+              mime_type: mimeType,
+              data: base64Image,
             },
           },
         ],
       },
     ],
-    max_tokens: 4096,
-    temperature: 0.1,
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: 4096,
+    },
   };
 
   try {
-    const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }
+    );
 
-    if (!openaiRes.ok) {
-      const errText = await openaiRes.text();
-      console.error('[detect-layout] OpenAI API error', openaiRes.status, errText);
-      return res.status(502).json({ error: 'OpenAI API error', details: errText });
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      console.error('[detect-layout] Gemini API error', geminiRes.status, errText);
+      return res.status(502).json({ error: 'Gemini API error', details: errText });
     }
 
-    const openaiData = await openaiRes.json() as any;
-    const rawText: string = openaiData?.choices?.[0]?.message?.content ?? '';
+    const geminiData = await geminiRes.json() as any;
+    const rawText: string = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
     // Strip markdown code fences if present
     const jsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
@@ -115,8 +114,8 @@ router.post('/detect-layout', upload.single('file'), async (req: Request, res: R
     try {
       parsed = JSON.parse(jsonText);
     } catch (e) {
-      console.error('[detect-layout] Failed to parse OpenAI response', rawText);
-      return res.status(502).json({ error: 'Failed to parse OpenAI response', raw: rawText });
+      console.error('[detect-layout] Failed to parse Gemini response', rawText);
+      return res.status(502).json({ error: 'Failed to parse Gemini response', raw: rawText });
     }
 
     const objects: DetectedObject[] = (parsed.objects ?? []).map((obj: any) => {
