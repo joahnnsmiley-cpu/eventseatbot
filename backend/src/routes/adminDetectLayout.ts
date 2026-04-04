@@ -81,7 +81,7 @@ router.post('/detect-layout', upload.single('file'), async (req: Request, res: R
   const mimeType = file.mimetype;
 
   const body = {
-    model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     messages: [
       {
         role: 'user',
