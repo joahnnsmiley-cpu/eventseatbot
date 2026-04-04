@@ -5,6 +5,68 @@ import WebAdminLoginPage from './WebAdminLoginPage';
 
 const WEB_ADMIN_JWT_KEY = 'nnk_web_admin_jwt';
 
+/** Inject desktop-specific CSS overrides once */
+const DESKTOP_STYLE = `
+  body.web-admin-mode {
+    background: #0a0a0a;
+    overflow-x: hidden;
+  }
+
+  /* Wider content area with desktop padding */
+  body.web-admin-mode .admin-root {
+    max-width: 1600px !important;
+    margin: 0 auto !important;
+    padding: 28px 40px 120px !important;
+  }
+
+  /* Save/action bar — full width on desktop, not mobile-centered */
+  body.web-admin-mode .fixed.bottom-0.left-0.right-0 {
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 40px !important;
+    padding-right: 40px !important;
+  }
+
+  /* TableEditPanel — wider sidebar for desktop readability */
+  body.web-admin-mode .fixed.right-0.top-0.h-full {
+    width: 380px !important;
+  }
+
+  /* Add table "+" button — reposition away from wider right panel */
+  body.web-admin-mode .fixed.bottom-28.right-4 {
+    right: 400px !important;
+  }
+
+  /* Venue map container — let it breathe on wide screens */
+  body.web-admin-mode .relative.border.border-white\\/10.rounded-2xl {
+    min-height: 520px;
+  }
+
+  /* Dialogs and modals stay centered */
+  body.web-admin-mode .fixed.inset-0 {
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  /* Remove mobile safe-area padding influence on desktop */
+  body.web-admin-mode * {
+    --safe-area: 0px;
+  }
+`;
+
+function injectStyle() {
+  if (document.getElementById('web-admin-style')) return;
+  const el = document.createElement('style');
+  el.id = 'web-admin-style';
+  el.textContent = DESKTOP_STYLE;
+  document.head.appendChild(el);
+}
+
+function removeStyle() {
+  document.getElementById('web-admin-style')?.remove();
+}
+
 function isTokenExpired(token: string): boolean {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
@@ -23,6 +85,15 @@ export default function WebAdminApp() {
     } catch { /* ignore */ }
     return null;
   });
+
+  useEffect(() => {
+    document.body.classList.add('web-admin-mode');
+    injectStyle();
+    return () => {
+      document.body.classList.remove('web-admin-mode');
+      removeStyle();
+    };
+  }, []);
 
   // Sync token into AuthService so all StorageService API calls work
   useEffect(() => {
@@ -46,29 +117,13 @@ export default function WebAdminApp() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
-      {/* Thin top bar with logout button */}
-      <div className="sticky top-0 z-50 bg-[#0f0f0f] border-b border-white/10 flex items-center justify-between px-4 h-10">
-        <span className="text-xs text-white/40 font-medium">#НиктоНеКруче — веб-панель</span>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="text-xs text-white/40 hover:text-white/80 transition-colors"
-        >
-          Выйти
-        </button>
-      </div>
-
-      {/* Admin panel runs in its own scroll context */}
-      <AdminPanel
-        isAdmin={true}
-        organizerEventIds={[]}
-        onBack={handleLogout}
-        onViewAsUser={() => {
-          // In web panel just open a new tab pointing to the main app
-          window.open(window.location.origin + '/', '_blank');
-        }}
-      />
-    </div>
+    <AdminPanel
+      isAdmin={true}
+      organizerEventIds={[]}
+      onBack={handleLogout}
+      onViewAsUser={() => {
+        window.open(window.location.origin + '/', '_blank');
+      }}
+    />
   );
 }

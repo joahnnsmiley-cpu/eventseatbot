@@ -31,6 +31,13 @@ type Props = {
 };
 
 export default function TableEditPanel({ table, ticketCategories, onUpdate, onDelete, onClose }: Props) {
+  // Close panel on Escape key
+  React.useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
   if (!table) return null;
 
   const objType = (table.objectType ?? 'table') as string;
@@ -48,8 +55,9 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
         <button
           type="button"
           onClick={onClose}
-          className="text-white/60 hover:text-white text-2xl leading-none"
-          aria-label="Закрыть"
+          className="text-white/50 hover:text-white text-2xl leading-none px-2 py-1 rounded hover:bg-white/10 transition-colors"
+          aria-label="Закрыть (Esc)"
+          title="Закрыть (Esc)"
         >
           ×
         </button>
