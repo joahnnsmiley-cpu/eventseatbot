@@ -221,7 +221,19 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
   const eventDate = (event as any).event_date ?? null;
   const eventTime = (event as any).event_time ?? null;
   const offset = (event as any).timezoneOffsetMinutes ?? 180;
-  const startAt = parseEventToIso(eventDate, eventTime, offset) ?? (event as any).date ?? null;
+  let startAt = parseEventToIso(eventDate, eventTime, offset);
+  if (!startAt) {
+    const rawDate = (event as any).date;
+    if (rawDate) {
+      const rawStr = String(rawDate);
+      // If no timezone info, treat as Moscow time (UTC+3) to get correct UTC ISO string
+      if (!rawStr.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(rawStr)) {
+        startAt = new Date(rawStr + '+03:00').toISOString();
+      } else {
+        startAt = new Date(rawStr).toISOString();
+      }
+    }
+  }
 
   const seatIndices = booking.seatIndices ?? [];
   const seatNumbers = seatIndices.map((i: number) => i + 1);

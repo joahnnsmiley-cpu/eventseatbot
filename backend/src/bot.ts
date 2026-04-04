@@ -18,6 +18,18 @@ if (!API_BASE_URL) {
 // ВАЖНО: бот создаётся, но НЕ запускается
 export const bot = BOT_TOKEN ? new Telegraf(BOT_TOKEN) : null;
 
+// In-memory map for support sessions: `${adminId}:${forwardedMsgId}` → originalUserId
+const supportSessions = new Map<string, number>();
+
+function getTelegramAdminIds(): number[] {
+  return (process.env.ADMINS_IDS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(Number)
+    .filter((n) => !isNaN(n) && n > 0);
+}
+
 /**
  * Регистрируем handlers.
  * НИКАКОГО bot.launch() — webhook режим
@@ -45,8 +57,57 @@ if (bot) {
     ctx.reply('Используйте кнопку "🎟 Выбрать место" в сообщении /start.');
   });
 
+  bot.command('support', async (ctx) => {
+    const text = ctx.message.text.replace(/^\/support\s*/i, '').trim();
+    if (!text) {
+      await ctx.reply('Напишите обращение после команды:\n/support ваш вопрос или проблема');
+      return;
+    }
+    const userId = ctx.from.id;
+    const username = ctx.from.username ? `@${ctx.from.username}` : ctx.from.first_name;
+    const adminIds = getTelegramAdminIds();
+    if (adminIds.length === 0) {
+      await ctx.reply('Сервис поддержки временно недоступен. Попробуйте позже.');
+      return;
+    }
+    for (const adminId of adminIds) {
+      try {
+        const fwd = await ctx.telegram.sendMessage(
+          adminId,
+          `📩 Обращение от ${username} (ID: ${userId}):\n\n${text}\n\n_Ответьте на это сообщение, чтобы написать пользователю._`,
+          { parse_mode: 'Markdown' }
+        );
+        supportSessions.set(`${adminId}:${fwd.message_id}`, userId);
+      } catch (e) {
+        console.error('[bot] Failed to forward support message to admin', adminId, e);
+      }
+    }
+    await ctx.reply('✅ Ваше обращение отправлено организаторам. Ожидайте ответа.');
+  });
+
   // Telegram WebApp sendData: booking payload (eventId, tableId, seats, phone)
   bot.on('message', async (ctx) => {
+    // Check if this is an admin replying to a forwarded support message
+    const replyTo = (ctx.message as any).reply_to_message;
+    if (replyTo) {
+      const adminId = ctx.from.id;
+      const key = `${adminId}:${replyTo.message_id}`;
+      if (supportSessions.has(key)) {
+        const targetUserId = supportSessions.get(key)!;
+        const replyText = (ctx.message as any).text;
+        if (replyText) {
+          try {
+            await ctx.telegram.sendMessage(targetUserId, `💬 Ответ от организаторов:\n\n${replyText}`);
+            await ctx.reply('✅ Ответ отправлен пользователю.');
+          } catch (e) {
+            console.error('[bot] Failed to send support reply to user', targetUserId, e);
+            await ctx.reply('Не удалось доставить ответ пользователю.');
+          }
+        }
+        return;
+      }
+    }
+
     const msg = (ctx.message as { web_app_data?: { data?: string } }) || {};
     const data = msg.web_app_data?.data;
     if (!data) return;

@@ -103,6 +103,8 @@ const normalizeTables = (tables: unknown): EventData['tables'] => {
     }
 
     table.ticketCategoryId = typeof obj.ticketCategoryId === 'string' ? obj.ticketCategoryId : null;
+    table.objectType = typeof obj.objectType === 'string' ? obj.objectType : 'table';
+    table.label = typeof obj.label === 'string' ? obj.label : null;
 
     return table as unknown as EventData['tables'][number];
   });
@@ -122,7 +124,7 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     return respondBadRequest(res, new Error('Event id is required'), { error: 'Event id is required' });
   }
 
-  const existing = await db.findEventById(id);
+  const existing = await db.findEventById(id, true); // includeDecorative=true for admin
   if (!existing) return res.status(404).json({ error: 'Event not found' });
 
   console.log(

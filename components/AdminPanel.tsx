@@ -86,14 +86,17 @@ function normalizeTables(tables: TableModel[]): Array<Record<string, unknown>> {
       seatsCount: t.seatsCount,
       categoryId: t.categoryId,
       isActive: t.isActive,
+      objectType: t.objectType ?? 'table',
+      label: t.label ?? null,
     }))
     .sort((a, b) => String(a.id).localeCompare(String(b.id)));
 }
 
-/** Validate table numbers: positive integer, unique within event. Returns error message or null. */
+/** Validate table numbers: positive integer, unique within event. Decorative objects are excluded. */
 function validateTableNumbers(tables: TableModel[]): string | null {
   const seen = new Map<number, string>();
   for (const t of tables) {
+    if (t.objectType && t.objectType !== 'table') continue; // skip decorative objects
     const n = t.number;
     if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) {
       return `${UI_TEXT.tables.tableNumberInvalid}`;
@@ -299,6 +302,8 @@ const AdminPanel: React.FC<{
   const [layoutUploadLoading, setLayoutUploadLoading] = useState(false);
   const [layoutUploadError, setLayoutUploadError] = useState<string | null>(null);
   const [layoutUploadVersion, setLayoutUploadVersion] = useState<number | null>(null);
+  const [detectLoading, setDetectLoading] = useState(false);
+  const [detectError, setDetectError] = useState<string | null>(null);
   const [eventTablesMap, setEventTablesMap] = useState<Record<string, TableModel[]>>({});
   const [eventDetailsMap, setEventDetailsMap] = useState<Record<string, EventData>>({});
   const [activeTabLeft, setActiveTabLeft] = useState(0);
@@ -1984,6 +1989,63 @@ const AdminPanel: React.FC<{
                             disabled={layoutUploadLoading || !selectedEvent?.id}
                             className="w-full max-w-full border rounded px-3 py-2 text-sm box-border file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-surface file:cursor-pointer"
                           />
+                          <div className="mt-2 flex items-center gap-2 flex-wrap">
+                            <label
+                              className={`flex items-center gap-2 px-3 py-2 text-sm rounded border border-[#C6A75E]/50 text-[#C6A75E] cursor-pointer hover:bg-[#C6A75E]/10 transition ${detectLoading || !selectedEvent?.id ? 'opacity-50 pointer-events-none' : ''}`}
+                            >
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                className="hidden"
+                                disabled={detectLoading || !selectedEvent?.id}
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  setDetectLoading(true);
+                                  setDetectError(null);
+                                  try {
+                                    const objects = await StorageService.detectLayout(file);
+                                    if (!objects.length) {
+                                      setDetectError('Объекты не обнаружены. Попробуйте другое изображение.');
+                                      return;
+                                    }
+                                    // Convert detected objects to TableModel format and add to tables
+                                    const existingTableNums = tables.filter(t => !t.objectType || t.objectType === 'table').map(t => t.number);
+                                    let tableCounter = existingTableNums.length > 0 ? Math.max(...existingTableNums) : 0;
+                                    const newObjects: TableModel[] = objects.map((obj) => {
+                                      const isTable = obj.type === 'table';
+                                      if (isTable) tableCounter++;
+                                      return {
+                                        id: crypto.randomUUID(),
+                                        number: isTable ? tableCounter : 0,
+                                        centerXPercent: obj.centerX,
+                                        centerYPercent: obj.centerY,
+                                        shape: obj.shape === 'rect' ? 'rect' : 'circle',
+                                        widthPercent: obj.widthPercent,
+                                        heightPercent: obj.heightPercent,
+                                        rotationDeg: obj.rotation ?? 0,
+                                        seatsCount: obj.seatsTotal ?? 4,
+                                        categoryId: '',
+                                        isActive: true,
+                                        objectType: obj.type,
+                                        label: obj.label,
+                                      } as TableModel;
+                                    });
+                                    setTables((prev) => [...prev, ...newObjects]);
+                                  } catch (err) {
+                                    setDetectError(err instanceof Error ? err.message : 'Ошибка распознавания');
+                                  } finally {
+                                    setDetectLoading(false);
+                                    e.target.value = '';
+                                  }
+                                }}
+                              />
+                              {detectLoading ? 'Распознаю...' : '✦ Распознать из схемы'}
+                            </label>
+                            {detectError && (
+                              <span className="text-xs text-red-400">{detectError}</span>
+                            )}
+                          </div>
                           {layoutUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
                           {layoutUploadError && <div className="text-xs text-[#6E6A64] mt-1">{layoutUploadError}</div>}
                           <input

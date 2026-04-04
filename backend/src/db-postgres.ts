@@ -61,6 +61,8 @@ type EventTablesRow = {
   visible_from?: string | null;
   visible_until?: string | null;
   ticket_category_id?: string | null;
+  object_type?: string | null;
+  label?: string | null;
   created_at?: string;
 };
 
@@ -148,6 +150,8 @@ function eventTablesRowToTable(row: EventTablesRow, bookedSeats?: number): Table
   if (row.visible_from != null) t.visibleFrom = row.visible_from;
   if (row.visible_until != null) t.visibleUntil = row.visible_until;
   if (row.ticket_category_id != null) t.ticketCategoryId = row.ticket_category_id;
+  if (row.object_type != null) (t as any).objectType = row.object_type;
+  if (row.label != null) (t as any).label = row.label;
   return t;
 }
 
@@ -243,10 +247,11 @@ export async function getEvents(): Promise<EventData[]> {
   if (eventsErr) throw eventsErr;
   if (!eventsRows?.length) return [];
 
-  // Load all event_tables (no filtering by is_available, is_active, visible_from, visible_until)
+  // Load bookable tables only (object_type='table'; decorative objects excluded from public/booking routes)
   const { data: tablesRows, error: tablesErr } = await supabase
     .from('event_tables')
     .select('*')
+    .eq('object_type', 'table')
     .order('event_id', { ascending: true })
     .order('number', { ascending: true });
   if (tablesErr) throw tablesErr;
@@ -273,7 +278,7 @@ export async function getEvents(): Promise<EventData[]> {
   });
 }
 
-export async function findEventById(id: string): Promise<EventData | undefined> {
+export async function findEventById(id: string, includeDecorative = false): Promise<EventData | undefined> {
   if (!supabase) return undefined;
   // 1. Read event from events
   const { data: eventRow, error: eventErr } = await supabase.from('events').select('*').eq('id', id).single();
@@ -281,13 +286,19 @@ export async function findEventById(id: string): Promise<EventData | undefined> 
 
   const event = eventsRowToEvent(eventRow as EventsRow, []);
 
-  // 2. Rebuild tables from event_tables (all tables, no filtering by is_available, is_active, visible_from, visible_until)
-  const { data: tablesRows, error: tablesErr } = await supabase
+  // 2. Rebuild tables from event_tables (only object_type='table' for public; all for admin)
+  let query = supabase
     .from('event_tables')
     .select('*')
     .eq('event_id', event.id)
     .eq('is_active', true)
     .order('number', { ascending: true });
+
+  if (!includeDecorative) {
+    query = query.eq('object_type', 'table');
+  }
+
+  const { data: tablesRows, error: tablesErr } = await query;
   if (tablesErr) return undefined;
 
   const bookedByTable = await getBookedSeatsByTable(event.id);
@@ -459,6 +470,8 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
           visible_from: visFrom || null,
           visible_until: visUntil || null,
           ticket_category_id: t.ticketCategoryId ?? null,
+          object_type: (t as any).objectType ?? 'table',
+          label: (t as any).label ?? null,
         })
         .eq('id', tableId)
         .eq('event_id', event.id);
@@ -504,6 +517,8 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
         visible_from: visFrom || null,
         visible_until: visUntil || null,
         ticket_category_id: t.ticketCategoryId ?? null,
+        object_type: (t as any).objectType ?? 'table',
+        label: (t as any).label ?? null,
       });
 
       if (insErr) {

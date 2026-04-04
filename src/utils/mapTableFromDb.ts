@@ -47,6 +47,8 @@ export function mapTableFromDb(raw: any): TableModel & {
     seatsCount: seatsTotal,
     categoryId: String(categoryId || ''),
     isActive,
+    objectType: (raw.objectType ?? raw.object_type ?? 'table') as string,
+    label: raw.label ?? undefined,
     // Legacy fields for SeatMap (public view)
     centerX: Number(centerX) || 50,
     centerY: Number(centerY) || 50,

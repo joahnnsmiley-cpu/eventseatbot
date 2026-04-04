@@ -8,11 +8,27 @@ import {
   type DragStartEvent,
   useDraggable,
 } from '@dnd-kit/core';
-import type { TableModel } from '../types';
+import type { TableModel, ObjectType } from '../types';
 import { getCategoryColorFromCategory } from '../src/config/categoryColors';
 import { getTableShapeStyle, getTableLabelStyle } from '../src/utils/tableShapeStyles';
 import { TableNumber } from './TableLabel';
 import { UI_TEXT } from '../constants/uiText';
+
+const DECORATIVE_COLORS: Record<string, string> = {
+  stage: '#2a2a3a',
+  bar: '#3a2a1a',
+  wall: '#2a2a2a',
+  passage: 'transparent',
+  other: '#1e2a1e',
+};
+
+const DECORATIVE_LABELS: Record<string, string> = {
+  stage: 'Сцена',
+  bar: 'Бар',
+  wall: 'Стена',
+  passage: 'Проход',
+  other: 'Объект',
+};
 
 const MIN_SIZE_PERCENT = 2;
 const MAX_SIZE_PERCENT = 25;
@@ -212,6 +228,141 @@ function DraggableTable({
   );
 }
 
+function DraggableDecorativeObject({
+  table,
+  isSelected,
+  onSelect,
+  onTablesChange,
+  containerRef,
+}: {
+  table: TableModel;
+  isSelected: boolean;
+  onSelect: () => void;
+  onTablesChange: (updater: (prev: TableModel[]) => TableModel[]) => void;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const objType = (table.objectType ?? 'other') as string;
+  const bgColor = DECORATIVE_COLORS[objType] ?? '#2a2a2a';
+  const displayLabel = table.label || DECORATIVE_LABELS[objType] || 'Объект';
+  const isPassage = objType === 'passage';
+
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: table.id });
+
+  const resizeStateRef = useRef<{
+    handle: HandlePos;
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+    startCenterX: number;
+    startCenterY: number;
+  } | null>(null);
+
+  const handleResizeStart = useCallback(
+    (e: React.PointerEvent, handle: HandlePos) => {
+      e.stopPropagation();
+      e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      resizeStateRef.current = {
+        handle,
+        startX: e.clientX,
+        startY: e.clientY,
+        startWidth: table.widthPercent,
+        startHeight: table.heightPercent,
+        startCenterX: table.centerXPercent,
+        startCenterY: table.centerYPercent,
+      };
+
+      const onMove = (ev: PointerEvent) => {
+        const state = resizeStateRef.current;
+        if (!state || !containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+        const deltaXPercent = ((ev.clientX - state.startX) / rect.width) * 100;
+        const deltaYPercent = ((ev.clientY - state.startY) / rect.height) * 100;
+        const dw = { 'bottom-right': 1, 'bottom-left': -1, 'top-right': 1, 'top-left': -1 }[state.handle] * deltaXPercent;
+        const dh = { 'bottom-right': 1, 'bottom-left': 1, 'top-right': -1, 'top-left': -1 }[state.handle] * deltaYPercent;
+        const newW = Math.max(2, Math.min(60, state.startWidth + dw));
+        const newH = Math.max(2, Math.min(60, state.startHeight + dh));
+        const deltaCx = (state.handle === 'bottom-right' || state.handle === 'top-right' ? 1 : -1) * dw / 2;
+        const deltaCy = (state.handle === 'bottom-right' || state.handle === 'bottom-left' ? 1 : -1) * dh / 2;
+        onTablesChange((prev) =>
+          prev.map((t) => t.id !== table.id ? t : {
+            ...t, widthPercent: newW, heightPercent: newH,
+            centerXPercent: state.startCenterX + deltaCx,
+            centerYPercent: state.startCenterY + deltaCy,
+            centerX: state.startCenterX + deltaCx,
+            centerY: state.startCenterY + deltaCy,
+          })
+        );
+      };
+
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+        resizeStateRef.current = null;
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    },
+    [table, onTablesChange]
+  );
+
+  const wrapperStyle: React.CSSProperties = {
+    position: 'absolute',
+    left: `${table.centerXPercent}%`,
+    top: `${table.centerYPercent}%`,
+    width: `${table.widthPercent}%`,
+    height: `${table.heightPercent}%`,
+    transform: transform
+      ? `translate(calc(-50% + ${transform.x}px), calc(-50% + ${transform.y}px)) rotate(${table.rotationDeg}deg)`
+      : `translate(-50%, -50%) rotate(${table.rotationDeg}deg)`,
+    transformOrigin: 'center',
+    cursor: isDragging ? 'grabbing' : 'grab',
+    zIndex: isSelected ? 15 : 5,
+    pointerEvents: 'auto',
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      data-table-id={table.id}
+      style={wrapperStyle}
+      {...listeners}
+      {...attributes}
+      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+    >
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: bgColor,
+          border: isSelected ? '2px solid #C6A75E' : isPassage ? '1px dashed #555' : '1px solid #444',
+          borderRadius: table.shape === 'circle' ? '50%' : '4px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+        }}
+      >
+        <span style={{ fontSize: '10px', color: '#aaa', textAlign: 'center', padding: '2px', lineHeight: 1.2, userSelect: 'none' }}>
+          {displayLabel}
+        </span>
+      </div>
+      {isSelected && (
+        <>
+          <ResizeHandle position="bottom-right" onResizeStart={(e) => handleResizeStart(e, 'bottom-right')} />
+          <ResizeHandle position="bottom-left" onResizeStart={(e) => handleResizeStart(e, 'bottom-left')} />
+          <ResizeHandle position="top-right" onResizeStart={(e) => handleResizeStart(e, 'top-right')} />
+          <ResizeHandle position="top-left" onResizeStart={(e) => handleResizeStart(e, 'top-left')} />
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AdminTablesLayer({
   tables,
   ticketCategories,
@@ -270,17 +421,32 @@ export default function AdminTablesLayer({
       }}
     >
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        {sorted.map((table) => (
-          <DraggableTable
-            key={table.id}
-            table={table}
-            ticketCategories={ticketCategories}
-            isSelected={selectedTableId === table.id}
-            onSelect={() => onTableSelect(table.id)}
-            onTablesChange={onTablesChange}
-            containerRef={containerRef}
-          />
-        ))}
+        {sorted.map((table) => {
+          const isDecorative = table.objectType && table.objectType !== 'table';
+          if (isDecorative) {
+            return (
+              <DraggableDecorativeObject
+                key={table.id}
+                table={table}
+                isSelected={selectedTableId === table.id}
+                onSelect={() => onTableSelect(table.id)}
+                onTablesChange={onTablesChange}
+                containerRef={containerRef}
+              />
+            );
+          }
+          return (
+            <DraggableTable
+              key={table.id}
+              table={table}
+              ticketCategories={ticketCategories}
+              isSelected={selectedTableId === table.id}
+              onSelect={() => onTableSelect(table.id)}
+              onTablesChange={onTablesChange}
+              containerRef={containerRef}
+            />
+          );
+        })}
       </DndContext>
     </div>
   );

@@ -26,7 +26,7 @@ export default function UserAgreementScreen({ onBack }: Props) {
           <h2 className="text-white font-semibold">1. Общие положения</h2>
           <p>
             Настоящее Пользовательское соглашение (далее — Соглашение) регулирует условия использования
-            сервиса EventSeatBot (далее — Сервис), предоставляемого через мини-приложения ВКонтакте
+            сервиса НиктоНеКруче (далее — Сервис), предоставляемого через мини-приложения ВКонтакте
             и Telegram.
           </p>
           <p>
@@ -38,7 +38,7 @@ export default function UserAgreementScreen({ onBack }: Props) {
         <section className="space-y-2">
           <h2 className="text-white font-semibold">2. Описание Сервиса</h2>
           <p>
-            EventSeatBot — информационный сервис, позволяющий Пользователям просматривать сведения
+            НиктоНеКруче — информационный сервис, позволяющий Пользователям просматривать сведения
             о мероприятиях и бронировать места на схеме зала. Сервис является инструментом
             организационного взаимодействия между организатором мероприятия и его гостями.
           </p>
@@ -141,18 +141,19 @@ export default function UserAgreementScreen({ onBack }: Props) {
 
         <section className="space-y-2">
           <h2 className="text-white font-semibold">10. Контакты</h2>
-          <p>
-            По всем вопросам, связанным с использованием Сервиса, обращайтесь в Telegram:{' '}
-            <a
-              href="https://t.me/nikto_ne_kruche_bot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#C6A75E] underline"
-            >
-              @nikto_ne_kruche_bot
-            </a>
-            . Срок рассмотрения обращений — 30 дней с момента получения.
-          </p>
+          <p>По всем вопросам, связанным с использованием Сервиса, обращайтесь:</p>
+          <ul className="list-none space-y-1">
+            <li>Email:{' '}
+              <a href="mailto:joahnnsmiley@gmail.com" className="text-[#C6A75E] underline">joahnnsmiley@gmail.com</a>
+            </li>
+            <li>ВКонтакте:{' '}
+              <a href="https://vk.com/niktonekruchee" target="_blank" rel="noopener noreferrer" className="text-[#C6A75E] underline">vk.com/niktonekruchee</a>
+            </li>
+            <li>Telegram:{' '}
+              <a href="https://t.me/nikto_ne_kruche_bot" target="_blank" rel="noopener noreferrer" className="text-[#C6A75E] underline">@nikto_ne_kruche_bot</a>
+            </li>
+          </ul>
+          <p>Срок рассмотрения обращений — 30 дней с момента получения.</p>
         </section>
 
         <p className="text-xs text-white/40 pt-2">Дата актуализации: апрель 2025 г.</p>

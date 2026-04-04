@@ -26,6 +26,8 @@ export interface Seat {
 }
 
 /** Unified admin table model. Single source of truth for layout editing. */
+export type ObjectType = 'table' | 'stage' | 'bar' | 'wall' | 'passage' | 'other';
+
 export interface TableModel {
   id: string;
   number: number;
@@ -38,6 +40,8 @@ export interface TableModel {
   seatsCount: number;
   categoryId: string;
   isActive: boolean;
+  objectType?: ObjectType | string;
+  label?: string;
 }
 
 /** Legacy Table type for API/EventData compatibility. Use TableModel in admin. */

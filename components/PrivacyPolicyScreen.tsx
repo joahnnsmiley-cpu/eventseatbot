@@ -25,17 +25,22 @@ export default function PrivacyPolicyScreen({ onBack }: Props) {
         <section className="space-y-2">
           <h2 className="text-white font-semibold">1. Оператор персональных данных</h2>
           <p>
-            Оператором персональных данных является сервис EventSeatBot (далее — Разработчик). По всем
-            вопросам, связанным с обработкой персональных данных, обращайтесь в Telegram:{' '}
-            <a
-              href="https://t.me/nikto_ne_kruche_bot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#C6A75E] underline"
-            >
-              @nikto_ne_kruche_bot
-            </a>
-            . Разработчик обязуется рассмотреть и направить ответ на поступивший запрос в течение
+            Оператором персональных данных является сервис НиктоНеКруче (далее — Разработчик). По всем
+            вопросам, связанным с обработкой персональных данных, обращайтесь:
+          </p>
+          <ul className="list-none space-y-1">
+            <li>Email:{' '}
+              <a href="mailto:joahnnsmiley@gmail.com" className="text-[#C6A75E] underline">joahnnsmiley@gmail.com</a>
+            </li>
+            <li>ВКонтакте:{' '}
+              <a href="https://vk.com/niktonekruchee" target="_blank" rel="noopener noreferrer" className="text-[#C6A75E] underline">vk.com/niktonekruchee</a>
+            </li>
+            <li>Telegram:{' '}
+              <a href="https://t.me/nikto_ne_kruche_bot" target="_blank" rel="noopener noreferrer" className="text-[#C6A75E] underline">@nikto_ne_kruche_bot</a>
+            </li>
+          </ul>
+          <p>
+            Разработчик обязуется рассмотреть и направить ответ на поступивший запрос в течение
             30 дней с момента его получения.
           </p>
         </section>
@@ -94,16 +99,13 @@ export default function PrivacyPolicyScreen({ onBack }: Props) {
           <h2 className="text-white font-semibold">6. Прекращение обработки данных</h2>
           <p>
             Обработка персональных данных прекращается при достижении целей обработки или по
-            запросу Пользователя об отзыве согласия. Для отзыва согласия обратитесь к Разработчику
-            в Telegram:{' '}
-            <a
-              href="https://t.me/nikto_ne_kruche_bot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#C6A75E] underline"
-            >
-              @nikto_ne_kruche_bot
-            </a>
+            запросу Пользователя об отзыве согласия. Для отзыва согласия обратитесь к Разработчику:
+            Email{' '}
+            <a href="mailto:joahnnsmiley@gmail.com" className="text-[#C6A75E] underline">joahnnsmiley@gmail.com</a>
+            , ВКонтакте{' '}
+            <a href="https://vk.com/niktonekruchee" target="_blank" rel="noopener noreferrer" className="text-[#C6A75E] underline">vk.com/niktonekruchee</a>
+            {' '}или Telegram{' '}
+            <a href="https://t.me/nikto_ne_kruche_bot" target="_blank" rel="noopener noreferrer" className="text-[#C6A75E] underline">@nikto_ne_kruche_bot</a>
             .
           </p>
         </section>
@@ -128,15 +130,12 @@ export default function PrivacyPolicyScreen({ onBack }: Props) {
             </li>
           </ul>
           <p>
-            Запросы направляются в Telegram:{' '}
-            <a
-              href="https://t.me/nikto_ne_kruche_bot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#C6A75E] underline"
-            >
-              @nikto_ne_kruche_bot
-            </a>
+            Запросы направляются на Email{' '}
+            <a href="mailto:joahnnsmiley@gmail.com" className="text-[#C6A75E] underline">joahnnsmiley@gmail.com</a>
+            , ВКонтакте{' '}
+            <a href="https://vk.com/niktonekruchee" target="_blank" rel="noopener noreferrer" className="text-[#C6A75E] underline">vk.com/niktonekruchee</a>
+            {' '}или Telegram{' '}
+            <a href="https://t.me/nikto_ne_kruche_bot" target="_blank" rel="noopener noreferrer" className="text-[#C6A75E] underline">@nikto_ne_kruche_bot</a>
             . Срок ответа — 30 дней с момента получения запроса.
           </p>
         </section>

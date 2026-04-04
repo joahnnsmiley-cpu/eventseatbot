@@ -1,6 +1,15 @@
 import React from 'react';
-import type { TableModel, TicketCategory } from '../types';
+import type { TableModel, TicketCategory, ObjectType } from '../types';
 import { UI_TEXT } from '../constants/uiText';
+
+const OBJECT_TYPE_LABELS: Record<string, string> = {
+  table: 'Стол (бронируемый)',
+  stage: 'Сцена',
+  bar: 'Бар',
+  wall: 'Стена',
+  passage: 'Проход',
+  other: 'Прочее',
+};
 
 /** Legacy fields for SeatMap compatibility. */
 type TableWithLegacy = TableModel & {
@@ -24,6 +33,8 @@ type Props = {
 export default function TableEditPanel({ table, ticketCategories, onUpdate, onDelete, onClose }: Props) {
   if (!table) return null;
 
+  const objType = (table.objectType ?? 'table') as string;
+  const isDecorative = objType !== 'table';
   const category = ticketCategories.find((c) => c.id === table.categoryId);
   const price = category?.price ?? 0;
 
@@ -33,7 +44,7 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
-        <h3 className="font-semibold text-white">Редактирование стола</h3>
+        <h3 className="font-semibold text-white">{isDecorative ? 'Редактирование объекта' : 'Редактирование стола'}</h3>
         <button
           type="button"
           onClick={onClose}
@@ -45,59 +56,91 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div>
-          <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.tableNumber}</label>
-          <input
-            type="number"
-            min={1}
-            value={table.number ?? 1}
-            onChange={(e) => {
-              const val = Math.max(1, parseInt(e.target.value, 10) || 1);
-              onUpdate({ number: val });
-            }}
-            className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.seats}</label>
-          <input
-            type="number"
-            min={0}
-            value={table.seatsCount ?? table.seatsTotal ?? 4}
-            onChange={(e) => {
-              const val = Math.max(0, parseInt(e.target.value, 10) || 0);
-              onUpdate({ seatsCount: val, seatsTotal: val, seatsAvailable: val });
-            }}
-            className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-white/60 mb-1">Цена (₽)</label>
-          <input
-            type="text"
-            value={price > 0 ? `${price}` : '—'}
-            readOnly
-            className="w-full border border-white/10 rounded-lg px-3 py-2 bg-[#111] text-white/60"
-          />
-          <p className="text-[10px] text-white/40 mt-1">Цена задаётся в категории</p>
-        </div>
-        <div>
-          <label className="block text-xs text-white/60 mb-1">Категория</label>
+          <label className="block text-xs text-white/60 mb-1">Тип объекта</label>
           <select
-            value={table.ticketCategoryId ?? table.categoryId ?? ''}
-            onChange={(e) => {
-              const val = e.target.value || '';
-              onUpdate({ categoryId: val, ticketCategoryId: val });
-            }}
+            value={objType}
+            onChange={(e) => onUpdate({ objectType: e.target.value as ObjectType })}
             className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
           >
-            <option value="">—</option>
-            {ticketCategories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.price} ₽)
-              </option>
+            {Object.entries(OBJECT_TYPE_LABELS).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
             ))}
           </select>
         </div>
+        {isDecorative && (
+          <div>
+            <label className="block text-xs text-white/60 mb-1">Метка</label>
+            <input
+              type="text"
+              value={table.label ?? ''}
+              placeholder="Например: Сцена, Бар..."
+              onChange={(e) => onUpdate({ label: e.target.value || undefined })}
+              className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+            />
+          </div>
+        )}
+        {!isDecorative && (
+          <div>
+            <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.tableNumber}</label>
+            <input
+              type="number"
+              min={1}
+              value={table.number ?? 1}
+              onChange={(e) => {
+                const val = Math.max(1, parseInt(e.target.value, 10) || 1);
+                onUpdate({ number: val });
+              }}
+              className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+            />
+          </div>
+        )}
+        {!isDecorative && (
+          <div>
+            <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.seats}</label>
+            <input
+              type="number"
+              min={0}
+              value={table.seatsCount ?? table.seatsTotal ?? 4}
+              onChange={(e) => {
+                const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                onUpdate({ seatsCount: val, seatsTotal: val, seatsAvailable: val });
+              }}
+              className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+            />
+          </div>
+        )}
+        {!isDecorative && (
+          <div>
+            <label className="block text-xs text-white/60 mb-1">Цена (₽)</label>
+            <input
+              type="text"
+              value={price > 0 ? `${price}` : '—'}
+              readOnly
+              className="w-full border border-white/10 rounded-lg px-3 py-2 bg-[#111] text-white/60"
+            />
+            <p className="text-[10px] text-white/40 mt-1">Цена задаётся в категории</p>
+          </div>
+        )}
+        {!isDecorative && (
+          <div>
+            <label className="block text-xs text-white/60 mb-1">Категория</label>
+            <select
+              value={table.ticketCategoryId ?? table.categoryId ?? ''}
+              onChange={(e) => {
+                const val = e.target.value || '';
+                onUpdate({ categoryId: val, ticketCategoryId: val });
+              }}
+              className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+            >
+              <option value="">—</option>
+              {ticketCategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.price} ₽)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.shape}</label>
           <select
@@ -243,7 +286,7 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
           }}
           onClick={() => onDelete()}
         >
-          Удалить стол
+          {isDecorative ? 'Удалить объект' : 'Удалить стол'}
         </button>
       </div>
     </div>

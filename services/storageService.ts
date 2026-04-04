@@ -480,6 +480,38 @@ export const uploadLayoutImage = async (eventId: string, file: File): Promise<{ 
   return res.json();
 };
 
+export type DetectedObject = {
+  type: 'table' | 'stage' | 'bar' | 'wall' | 'passage' | 'other';
+  label?: string;
+  centerX: number;
+  centerY: number;
+  widthPercent: number;
+  heightPercent: number;
+  rotation?: number;
+  shape?: 'circle' | 'rect';
+  seatsTotal?: number;
+};
+
+export const detectLayout = async (file: File): Promise<DetectedObject[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${apiBaseUrl}/admin/detect-layout`, {
+    method: 'POST',
+    headers: AuthService.getAuthHeader(),
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'Detection failed');
+  }
+
+  const data = await res.json();
+  return data.objects ?? [];
+};
+
 export const updateAdminEvent = async (id: string, payload: Partial<EventData>): Promise<EventData> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(id)}`, {
