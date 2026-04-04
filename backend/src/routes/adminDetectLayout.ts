@@ -23,7 +23,7 @@ export type DetectedObject = {
   seatsTotal?: number;
 };
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-1.5-flash';
 
 const DETECT_PROMPT = `Это схема зала для мероприятия. Твоя задача — определить ВСЕ объекты на схеме.
 
