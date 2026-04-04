@@ -51,9 +51,9 @@ const router = Router();
 router.use(authMiddleware, adminOnly);
 
 router.post('/detect-layout', upload.single('file'), async (req: Request, res: Response) => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    return res.status(503).json({ error: 'GEMINI_API_KEY not configured' });
+    return res.status(503).json({ error: 'GROQ_API_KEY not configured' });
   }
 
   const file = (req as any).file;
@@ -69,43 +69,43 @@ router.post('/detect-layout', upload.single('file'), async (req: Request, res: R
   const mimeType = file.mimetype;
 
   const body = {
-    contents: [
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    messages: [
       {
-        parts: [
-          { text: DETECT_PROMPT },
+        role: 'user',
+        content: [
+          { type: 'text', text: DETECT_PROMPT },
           {
-            inline_data: {
-              mime_type: mimeType,
-              data: base64Image,
+            type: 'image_url',
+            image_url: {
+              url: `data:${mimeType};base64,${base64Image}`,
             },
           },
         ],
       },
     ],
-    generationConfig: {
-      temperature: 0.1,
-      maxOutputTokens: 4096,
-    },
+    max_tokens: 4096,
+    temperature: 0.1,
   };
 
   try {
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      }
-    );
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      console.error('[detect-layout] Gemini API error', geminiRes.status, errText);
-      return res.status(502).json({ error: 'Gemini API error', details: errText });
+    if (!groqRes.ok) {
+      const errText = await groqRes.text();
+      console.error('[detect-layout] Groq API error', groqRes.status, errText);
+      return res.status(502).json({ error: 'Groq API error', details: errText });
     }
 
-    const geminiData = await geminiRes.json() as any;
-    const rawText: string = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    const groqData = await groqRes.json() as any;
+    const rawText: string = groqData?.choices?.[0]?.message?.content ?? '';
 
     // Strip markdown code fences if present
     const jsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
@@ -114,8 +114,8 @@ router.post('/detect-layout', upload.single('file'), async (req: Request, res: R
     try {
       parsed = JSON.parse(jsonText);
     } catch (e) {
-      console.error('[detect-layout] Failed to parse Gemini response', rawText);
-      return res.status(502).json({ error: 'Failed to parse Gemini response', raw: rawText });
+      console.error('[detect-layout] Failed to parse Groq response', rawText);
+      return res.status(502).json({ error: 'Failed to parse Groq response', raw: rawText });
     }
 
     const objects: DetectedObject[] = (parsed.objects ?? []).map((obj: any) => {
