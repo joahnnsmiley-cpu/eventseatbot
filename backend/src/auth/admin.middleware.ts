@@ -23,6 +23,31 @@ export function organizerForEvent(getEventId: (req: AuthRequest) => string | und
   };
 }
 
+/**
+ * Allows full admins OR any authenticated user who is an organizer for at least one event.
+ * Used on endpoints that organizers need to access (event list, bookings, etc.).
+ */
+export function adminOrOrganizer(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) {
+  const telegramAdmins = (process.env.ADMINS_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+  const vkAdmins = (process.env.VK_ADMINS_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+  const adminIds = [...telegramAdmins, ...vkAdmins];
+  const userId = typeof req.user?.id === 'string' || typeof req.user?.id === 'number'
+    ? String(req.user?.id)
+    : '';
+
+  if (adminIds.includes(userId)) return next();
+  if ((req.user as any)?.role === 'admin') return next();
+
+  const orgIds: string[] = (req.user as any)?.organizerEventIds ?? [];
+  if (orgIds.length > 0) return next();
+
+  return res.status(403).json({ error: 'Forbidden' });
+}
+
 export function adminOnly(
   req: AuthRequest,
   res: Response,

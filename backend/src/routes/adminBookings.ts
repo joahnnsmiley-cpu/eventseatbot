@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuid } from 'uuid';
 import { authMiddleware } from '../auth/auth.middleware';
-import { adminOnly } from '../auth/admin.middleware';
+import { adminOrOrganizer } from '../auth/admin.middleware';
 import { db } from '../db';
 import { supabase } from '../supabaseClient';
 import { sendTelegramMessage, sendTelegramPhoto } from '../services/telegramService';
@@ -12,7 +12,7 @@ import type { Booking } from '../models';
 
 const router = Router();
 
-router.use(authMiddleware, adminOnly);
+router.use(authMiddleware, adminOrOrganizer);
 
 /** Format seats for ticket/card: seat_indices as "1, 2, 3" (human 1-based). Fallback to count for table-only. */
 function formatSeatsForTicket(booking: { seatIndices?: number[]; seatsBooked?: number; tableBookings?: { seats: number }[] }): string {

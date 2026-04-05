@@ -5,13 +5,13 @@
 
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../auth/auth.middleware';
-import { adminOnly } from '../auth/admin.middleware';
+import { adminOrOrganizer } from '../auth/admin.middleware';
 import { db } from '../db';
 import { findPaymentById, type PaymentIntent } from '../domain/payments';
 
 const router = Router();
 
-router.use(authMiddleware, adminOnly);
+router.use(authMiddleware, adminOrOrganizer);
 
 /**
  * POST /admin/payments/:id/confirm

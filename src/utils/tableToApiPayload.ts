@@ -17,6 +17,8 @@ export function tableToApiPayload(t: TableModel, index: number): Record<string, 
     ticketCategoryId: t.categoryId || null,
     isAvailable: t.isActive,
     shape: t.shape,
+    objectType: t.objectType ?? 'table',
+    label: t.label ?? null,
   };
   if (t.id && isUuid(t.id)) {
     payload.id = t.id;

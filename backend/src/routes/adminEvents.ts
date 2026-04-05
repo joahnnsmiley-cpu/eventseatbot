@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { v4 as uuid } from 'uuid';
 import { authMiddleware } from '../auth/auth.middleware';
-import { adminOnly } from '../auth/admin.middleware';
+import { adminOnly, adminOrOrganizer } from '../auth/admin.middleware';
 import type { AuthRequest } from '../auth/auth.middleware';
 import { db } from '../db';
 import type { EventData } from '../models';
@@ -48,8 +48,10 @@ export interface Event {
 
 const router = Router();
 
-// Protect all admin event routes
-router.use(authMiddleware, adminOnly);
+// Protect all admin event routes.
+// adminOrOrganizer: allows full admins AND event organizers (needed for them to manage their events).
+// Sensitive write-only endpoints (e.g. create event) additionally require adminOnly applied inline.
+router.use(authMiddleware, adminOrOrganizer);
 
 /** GET /admin/server-time — current UTC for timezone offset calculation */
 router.get('/server-time', (_req: Request, res: Response) => {
@@ -138,8 +140,8 @@ router.get('/events/:id', async (req: Request, res: Response) => {
   res.json(existing);
 });
 
-// POST /admin/events
-router.post('/events', async (req: Request, res: Response) => {
+// POST /admin/events — only full admins may create events
+router.post('/events', adminOnly, async (req: Request, res: Response) => {
   const id = uuid();
   const title = typeof req.body.title === 'string' ? req.body.title : '';
   const description = typeof req.body.description === 'string' ? req.body.description : '';

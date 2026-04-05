@@ -2361,7 +2361,7 @@ const AdminPanel: React.FC<{
                   setOrgPickerQuery('');
                   setOrgPickerSelectedUserId(null);
                   setOrgPickerManualId('');
-                  setOrgPickerEventId(events[0]?.id ?? '');
+                  setOrgPickerEventId(selectedEventId || events[0]?.id || '');
                   setOrgPickerPlatform('telegram');
                   setOrgPickerLabel('');
                 }}
