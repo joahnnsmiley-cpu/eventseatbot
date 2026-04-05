@@ -167,6 +167,7 @@ export const contactOrganizer = async (payload: {
   problemText: string;
   bookingId?: string;
   userTelegramId?: number;
+  userVkId?: number;
   userFirstName?: string;
   userLastName?: string;
   userUsername?: string;

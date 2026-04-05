@@ -806,6 +806,7 @@ router.post('/contact-organizer', async (req: Request, res: Response) => {
       problemText,
       bookingId,
       userTelegramId,
+      userVkId,
       userFirstName,
       userLastName,
       userUsername,
@@ -813,7 +814,9 @@ router.post('/contact-organizer', async (req: Request, res: Response) => {
 
     if (!eventId || typeof eventId !== 'string') return res.status(400).json({ error: 'eventId required' });
     if (!problemText || typeof problemText !== 'string') return res.status(400).json({ error: 'problemText required' });
-    const userId = typeof userTelegramId === 'number' ? userTelegramId : null;
+    const userId = typeof userTelegramId === 'number' ? userTelegramId
+      : typeof userVkId === 'number' ? userVkId
+      : null;
 
     const ev = (await db.findEventById(eventId)) as any;
     if (!ev) return res.status(404).json({ error: 'Event not found' });
@@ -886,7 +889,7 @@ router.post('/contact-organizer', async (req: Request, res: Response) => {
 
     forwardToAdminsAndOrganizer({
       userTelegramId: typeof userTelegramId === 'number' ? userTelegramId : null,
-      userVkId: null,
+      userVkId: typeof userVkId === 'number' ? userVkId : null,
       eventId: String(eventId),
       text: adminMsg,
     }).catch((err: any) => console.error('[contact-organizer] forwardToAdminsAndOrganizer failed:', err));

@@ -12,6 +12,7 @@ import { formatEventDateTime } from '../src/utils/formatDate';
 import { UI_TEXT } from '../constants/uiText';
 import * as StorageService from '../services/storageService';
 import { useToast } from '../src/ui/ToastContext';
+import { getPlatform } from '../src/utils/platform';
 
 type TgUser = { id?: number; first_name?: string; last_name?: string; username?: string };
 
@@ -139,11 +140,13 @@ const EventPage: React.FC<EventPageProps> = ({
     setContactSubmitting(true);
     setContactError(null);
     try {
+      const isVk = getPlatform() === 'vk';
       await StorageService.contactOrganizer({
         eventId: event.id,
         problemText: text,
         bookingId,
-        userTelegramId: typeof tgUser?.id === 'number' ? tgUser.id : undefined,
+        userTelegramId: !isVk && typeof tgUser?.id === 'number' ? tgUser.id : undefined,
+        userVkId: isVk && typeof tgUser?.id === 'number' ? tgUser.id : undefined,
         userFirstName: tgUser?.first_name,
         userLastName: tgUser?.last_name,
         userUsername: tgUser?.username,

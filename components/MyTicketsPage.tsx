@@ -500,12 +500,17 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
                   if (!text || !contactModal) return;
                   setContactSubmitting(true);
                   try {
+                    const isVk = getPlatform() === 'vk';
                     const tg = window.Telegram?.WebApp?.initDataUnsafe?.user;
+                    const vkUserId = isVk
+                      ? Number(new URLSearchParams(window.location.search).get('vk_user_id') || '0') || undefined
+                      : undefined;
                     await StorageService.contactOrganizer({
                       eventId: contactModal.eventId,
                       problemText: text,
                       bookingId: contactModal.bookingId,
-                      userTelegramId: tg?.id,
+                      userTelegramId: !isVk ? tg?.id : undefined,
+                      userVkId: vkUserId,
                       userFirstName: tg?.first_name,
                       userLastName: tg?.last_name,
                       userUsername: tg?.username,
