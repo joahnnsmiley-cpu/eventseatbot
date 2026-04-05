@@ -1,6 +1,13 @@
 const VK_TOKEN = process.env.VK_GROUP_TOKEN;
 const VK_API_VERSION = '5.131';
 
+/**
+ * Tracks the last "contact organizer" request per VK recipient (admin OR organizer).
+ * Key: VK recipient user ID → original sender info (TG or VK user).
+ * Used by VK Callback API webhook to route replies back to the original user.
+ */
+export const vkContactSessions = new Map<number, { tgUserId: number | null; vkUserId: number | null }>();
+
 /** Send a simple text message via VK Messages API */
 export async function sendVkMessage(userId: number | string, message: string): Promise<void> {
     if (!VK_TOKEN) {

@@ -17,6 +17,7 @@ import adminRolesRouter from './routes/adminRoles';
 import adminDetectLayoutRouter from './routes/adminDetectLayout';
 import controllerRouter from './routes/controllerRoutes';
 import debugRouter from './routes/debug-routes';
+import vkWebhookRouter from './routes/vkWebhook';
 import { notifyAllAdmins } from './services/notificationService';
 import { authMiddleware } from './auth/auth.middleware';
 import { adminOnly } from './auth/admin.middleware';
@@ -268,6 +269,7 @@ app.use('/controller', controllerRouter);
 app.use('/public', publicEventsRouter);
 app.use('/public', publicPaymentsRouter);
 app.use('/debug', debugRouter);
+app.use('/vk', vkWebhookRouter);
 
 // Temporary test: GET /test-admin-notify — calls notifyAdmins("Test message")
 app.get('/test-admin-notify', authMiddleware, adminOnly, async (_req, res) => {

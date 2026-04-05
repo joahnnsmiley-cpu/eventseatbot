@@ -1,7 +1,8 @@
 import { Telegraf, Markup } from 'telegraf';
 import { db } from './db';
 import { createPendingBookingFromWebAppPayload } from './webappBooking';
-import { notifyVkAdmins } from './services/vkService';
+import { notifyVkAdmins, sendVkMessage, vkContactSessions } from './services/vkService';
+import { getOrganizersByEvent } from './db-postgres';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:4000';
@@ -161,5 +162,71 @@ export const notifyUser = async (chatId: number, text: string) => {
     await bot.telegram.sendMessage(chatId, text);
   } catch (e) {
     console.error('Failed to notify user', chatId, e);
+  }
+};
+
+/**
+ * Forward a user message (from "contact-organizer") to ALL recipients:
+ * TG admins (env) + TG organizers for the event → via bot (with session tracking for reply)
+ * VK admins (env) + VK organizers for the event → via VK API (with vkContactSessions for reply)
+ */
+export const forwardToAdminsAndOrganizer = async (opts: {
+  userTelegramId: number | null;
+  userVkId?: number | null;
+  eventId: string;
+  text: string;
+}): Promise<void> => {
+  const { userTelegramId, userVkId, eventId, text } = opts;
+
+  // --- Collect organizers for this event ---
+  const organizers = await getOrganizersByEvent(eventId).catch(() => []);
+
+  // --- TG: admins (env) + TG organizers ---
+  const tgAdminIds = getTelegramAdminIds();
+  const tgOrganizerIds = organizers
+    .filter((o) => o.platform === 'telegram')
+    .map((o) => Number(o.userId))
+    .filter((n) => n > 0);
+  const tgRecipients = [...new Set([...tgAdminIds, ...tgOrganizerIds])];
+
+  // Send via Telegraf bot so we get message_id → register supportSession for reply
+  if (bot) {
+    const originUserId = userTelegramId ?? userVkId ?? null;
+    for (const recipientId of tgRecipients) {
+      try {
+        const sent = await bot.telegram.sendMessage(recipientId, text, { parse_mode: 'HTML' });
+        if (originUserId != null) {
+          supportSessions.set(`${recipientId}:${sent.message_id}`, originUserId);
+        }
+      } catch (e) {
+        console.error('[bot] forwardToAdminsAndOrganizer: TG send failed to', recipientId, e);
+      }
+    }
+  }
+
+  // --- VK: admins (env) + VK organizers — send + register vkContactSessions for reply ---
+  const vkOrganizerIds = organizers
+    .filter((o) => o.platform === 'vk')
+    .map((o) => Number(o.userId))
+    .filter((n) => n > 0);
+  const vkAdminIds = (process.env.VK_ADMINS_IDS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(Number)
+    .filter((n) => n > 0);
+  const vkRecipients = [...new Set([...vkAdminIds, ...vkOrganizerIds])];
+
+  for (const vkId of vkRecipients) {
+    try {
+      // Register session so VK reply can be routed back to original user
+      vkContactSessions.set(vkId, {
+        tgUserId: userTelegramId ?? null,
+        vkUserId: typeof userVkId === 'number' ? userVkId : null,
+      });
+      await sendVkMessage(vkId, text);
+    } catch (e) {
+      console.error('[bot] forwardToAdminsAndOrganizer: VK send failed to', vkId, e);
+    }
   }
 };

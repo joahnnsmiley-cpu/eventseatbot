@@ -6,7 +6,8 @@ import { supabase } from '../supabaseClient';
 import { emitBookingCreated, emitBookingCancelled, calculateBookingExpiration } from '../domain/bookings';
 import { getPriceForTable } from '../utils/getTablePrice';
 import { sendTelegramMessage, escapeHtml } from '../services/telegramService';
-import { notifyAllAdmins } from '../services/notificationService';
+import { notifyAllAdmins, notifyEventStakeholders } from '../services/notificationService';
+import { forwardToAdminsAndOrganizer } from '../bot';
 import { formatDateForNotification, parseEventToUtc } from '../utils/formatDate';
 
 const router = Router();
@@ -364,7 +365,7 @@ router.post('/bookings', bookingLimiter, async (req: Request, res: Response) => 
     const platformLabel = platform === 'vk' ? 'VK' : 'Telegram';
     const platformId = platform === 'vk' ? (vkUserId || '—') : '—';
     const adminMsg = `🆕 <b>Новая бронь</b>\n\n<b>${ev.title}</b>\nСтол ${tableNumber}\nМеста: ${seatIndices.length}\nСумма: ${totalAmount} ₽\n\n👤 ${platformLabel} ID: ${platformId}${extrasBlock}`;
-    notifyAllAdmins(adminMsg).catch((err) => console.error('Admin notify all:', err));
+    notifyEventStakeholders(String(eventId), adminMsg).catch((err) => console.error('Admin notify all:', err));
     res.status(201).json({ ok: true, id: booking.id });
   } catch (e) {
     console.error('BOOKINGS ERROR', e);
@@ -483,7 +484,7 @@ router.post('/bookings/table', bookingLimiter, async (req: Request, res: Respons
       const platformLabel = b.platform === 'vk' ? 'VK' : 'Telegram';
       const platformId = b.platform === 'vk' ? (b.user_vk_id || '—') : (b.userTelegramId || '—');
       const adminMsg = `🆕 <b>Новая бронь</b>\n\n<b>${ev?.title ?? '—'}</b>\nСтол ${tableNumber}\nМеста: ${b.seatsBooked ?? b.seats ?? 0}\nСумма: ${b.totalAmount ?? 0} ₽\n\n👤 ${platformLabel} ID: ${platformId}${extrasBlock}`;
-      notifyAllAdmins(adminMsg).catch((err) => console.error('Admin notify all:', err));
+      notifyEventStakeholders(String(b.eventId ?? ''), adminMsg).catch((err) => console.error('Admin notify all:', err));
     }
 
     return res.status(result.status).json(result.body);
@@ -669,7 +670,7 @@ router.post('/bookings/seats', bookingLimiter, async (req: Request, res: Respons
     const platformLabel = booking.platform === 'vk' ? 'VK' : 'Telegram';
     const platformId = booking.platform === 'vk' ? (booking.user_vk_id || '—') : (booking.user_telegram_id || '—');
     const adminMsg = `🆕 <b>Новая бронь</b>\n\n<b>${ev.title}</b>\nСтол ${tableNumber}\nМеста: ${indices.length}\nСумма: ${totalAmountVal} ₽\n\n👤 ${platformLabel} ID: ${platformId}${extrasBlock}`;
-    notifyAllAdmins(adminMsg).catch((err) => console.error('Admin notify all:', err));
+    notifyEventStakeholders(String((booking as any).event_id ?? (booking as any).eventId ?? ''), adminMsg).catch((err) => console.error('Admin notify all:', err));
 
     return res.status(201).json(booking);
   } catch (err) {
@@ -725,7 +726,7 @@ router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
   const extras = [phoneLine, commentLine].filter(Boolean);
   const extrasBlock = extras.length ? '\n' + extras.join('\n') : '';
   const adminMsg = `💳 <b>Пользователь сообщил об оплате</b>\n\n<b>${ev?.title ?? '—'}</b>\nСтол ${tableNumber}\nСумма: ${updated.totalAmount ?? 0} ₽\n\n👤 Telegram ID: ${userChatId || '—'}${extrasBlock}`;
-  notifyAllAdmins(adminMsg).catch((err) => console.error('Admin notify all:', err));
+  notifyEventStakeholders(String(booking.eventId ?? ''), adminMsg).catch((err) => console.error('Admin notify all:', err));
 
   return res.json({ ok: true, booking: updated });
 });
@@ -883,7 +884,12 @@ router.post('/contact-organizer', async (req: Request, res: Response) => {
       bookingInfo,
     ].join('\n');
 
-    notifyAllAdmins(adminMsg).catch((err: any) => console.error('Admin notify all (contact-organizer):', err));
+    forwardToAdminsAndOrganizer({
+      userTelegramId: typeof userTelegramId === 'number' ? userTelegramId : null,
+      userVkId: null,
+      eventId: String(eventId),
+      text: adminMsg,
+    }).catch((err: any) => console.error('[contact-organizer] forwardToAdminsAndOrganizer failed:', err));
     return res.json({ ok: true });
   } catch (err) {
     console.error('[contact-organizer]', err);

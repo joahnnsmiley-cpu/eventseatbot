@@ -839,6 +839,22 @@ export async function getOrganizers(): Promise<OrganizerEntry[]> {
   }));
 }
 
+export async function getOrganizersByEvent(eventId: string): Promise<OrganizerEntry[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('organizers')
+    .select('*')
+    .eq('event_id', eventId);
+  if (error) throw error;
+  return (data ?? []).map((r: any) => ({
+    userId: r.user_id,
+    eventId: r.event_id,
+    platform: r.platform,
+    label: r.label ?? null,
+    createdAt: r.created_at,
+  }));
+}
+
 export async function addOrganizer(
   userId: number | string,
   eventId: string,
