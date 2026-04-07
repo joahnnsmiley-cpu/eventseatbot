@@ -846,7 +846,7 @@ function App() {
   }
 
   if (view === 'profile') {
-    const currentUser = getCurrentUser(tgUser, isAdmin, selectedEvent);
+    const currentUser = getCurrentUser(tgUser, isAdmin, selectedEvent, organizerEventIds);
     return wrapWithLayout(
       <ProfileScreen
         userRole={currentUser.role}

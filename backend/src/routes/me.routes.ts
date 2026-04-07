@@ -5,7 +5,7 @@ import { bot } from '../bot';
 import { getPremiumUserInfo } from '../config/premium';
 import { formatEventDateRu, parseEventToIso } from '../utils/formatDate';
 import { getPriceForTable } from '../utils/getTablePrice';
-import { setPrivacyConsent, getPrivacyConsent } from '../db-postgres';
+import { setPrivacyConsent, getPrivacyConsent, getOrganizerEventIds } from '../db-postgres';
 
 const router = Router();
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:4000';
@@ -303,7 +303,13 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
     }
   }
   if (!event && events.length > 0) {
+    // Organizers table (new mechanism): fetch event IDs from DB
+    const orgEventIds = await getOrganizerEventIds(userId).catch(() => [] as string[]);
+
     const organizedEvents = events.filter((e: any) => {
+      // New: organizers table
+      if (orgEventIds.includes(String(e.id))) return true;
+      // Legacy: organizerId field on event
       const oid = (e as any).organizerId ?? (e as any).organizer_id;
       return oid != null && String(oid) === userId;
     });

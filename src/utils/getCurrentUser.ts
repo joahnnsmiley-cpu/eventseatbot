@@ -22,18 +22,23 @@ type TgUser = {
  * @param tgUser - From window.Telegram?.WebApp?.initDataUnsafe?.user
  * @param isAdmin - From JWT payload (user in admins list)
  * @param event - Optional event for per-event organizer check (when event.organizerId exists)
+ * @param organizerEventIds - From JWT payload: events the user is organizer for (organizers table)
  */
 export function getCurrentUser(
   tgUser: TgUser | null,
   isAdmin: boolean,
-  event?: { organizerId?: string | number | null } | null
+  event?: { organizerId?: string | number | null } | null,
+  organizerEventIds?: string[]
 ): CurrentUser {
   const id = typeof tgUser?.id === 'number' ? tgUser.id : null;
 
   // Admin (ADMINS_IDS) → always organizer, can manage any event
   if (isAdmin) return { id, role: 'organizer' };
 
-  // Per-event: user is organizer if their id matches event.organizer_id
+  // Organizers table (new mechanism): JWT contains list of event IDs
+  if (organizerEventIds && organizerEventIds.length > 0) return { id, role: 'organizer' };
+
+  // Per-event: user is organizer if their id matches event.organizer_id (legacy)
   const organizerId = event?.organizerId;
   if (id != null && organizerId != null) {
     const match = String(id) === String(organizerId);

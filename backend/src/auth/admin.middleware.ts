@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth.middleware';
+import { getOrganizerEventIds } from '../db-postgres';
 
 /**
  * Middleware factory: allows admins OR organizers assigned to the event in question.
@@ -26,6 +27,7 @@ export function organizerForEvent(getEventId: (req: AuthRequest) => string | und
 /**
  * Allows full admins OR any authenticated user who is an organizer for at least one event.
  * Used on endpoints that organizers need to access (event list, bookings, etc.).
+ * Falls back to a DB check when the JWT is stale (user was assigned organizer after last login).
  */
 export function adminOrOrganizer(
   req: AuthRequest,
@@ -42,10 +44,18 @@ export function adminOrOrganizer(
   if (adminIds.includes(userId)) return next();
   if ((req.user as any)?.role === 'admin') return next();
 
+  // Fast path: organizerEventIds already in JWT
   const orgIds: string[] = (req.user as any)?.organizerEventIds ?? [];
   if (orgIds.length > 0) return next();
 
-  return res.status(403).json({ error: 'Forbidden' });
+  // Slow path: JWT may be stale (organizer assigned after last login) — check DB
+  if (!userId) return res.status(403).json({ error: 'Forbidden' });
+  getOrganizerEventIds(userId)
+    .then((ids) => {
+      if (ids.length > 0) return next();
+      return res.status(403).json({ error: 'Forbidden' });
+    })
+    .catch(() => res.status(403).json({ error: 'Forbidden' }));
 }
 
 export function adminOnly(
