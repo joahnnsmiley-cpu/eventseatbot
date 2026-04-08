@@ -446,11 +446,15 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   try {
     await db.upsertEvent(existing, getAdminId(req));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const errObj = e as any;
+    const msg = e instanceof Error ? e.message : (errObj?.message ?? String(e));
+    console.error('[PUT EVENT] upsertEvent error:', msg, errObj?.details ?? '', errObj?.code ?? '');
     if (msg.includes('Cannot deactivate table with active bookings')) {
       return res.status(400).json({ error: 'Cannot deactivate table with active bookings' });
     }
-    throw e;
+    // Return the actual DB error message so the frontend can display it
+    const detail = errObj?.details ? ` (${errObj.details})` : '';
+    return res.status(500).json({ error: `Save failed: ${msg}${detail}` });
   }
   res.json(toEvent(existing));
 });

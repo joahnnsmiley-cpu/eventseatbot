@@ -96,8 +96,15 @@ router.get('/raw-bookings', async (req, res) => {
 
 // GET /admin/bookings
 router.get('/bookings', async (_req: Request, res: Response) => {
-  const bookings = await db.getBookings();
-  const events = await db.getEvents();
+  let bookings: Awaited<ReturnType<typeof db.getBookings>>;
+  let events: Awaited<ReturnType<typeof db.getEvents>>;
+  try {
+    bookings = await db.getBookings();
+    events = await db.getEvents();
+  } catch (e) {
+    console.error('[GET /admin/bookings] DB error:', e);
+    return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
 
   const result = bookings.map((b) => {
     const ev = events.find((e) => e.id === b.eventId);

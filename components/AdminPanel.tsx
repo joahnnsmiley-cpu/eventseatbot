@@ -481,6 +481,8 @@ const AdminPanel: React.FC<{
     if (raw.toLowerCase().includes('only reserved')) return UI_TEXT.common.errors.onlyReserved;
     if (raw.includes('Cannot delete table') || raw.includes('it has bookings')) return UI_TEXT.common.errors.deleteTableWithBookings;
     if (raw.includes('Cannot deactivate table with active bookings')) return UI_TEXT.common.errors.cannotDeactivateTableWithBookings;
+    // Pass through backend error details so admin can diagnose issues
+    if (raw.startsWith('Save failed:')) return raw;
     return UI_TEXT.common.errors.default;
   };
   const isExpired = (expiresAt?: string | number) => {
@@ -836,7 +838,8 @@ const AdminPanel: React.FC<{
       isAvailable: true,
     };
     setTables((prev) => {
-      const maxNumber = prev.length ? Math.max(...prev.map((t) => t.number ?? 0)) : 0;
+      const tableNums = prev.filter(t => !t.objectType || t.objectType === 'table').map(t => t.number ?? 0);
+      const maxNumber = tableNums.length ? Math.max(...tableNums) : 0;
       const nextNumber = maxNumber + 1;
       const withNumber = { ...newTable, number: nextNumber };
       const next = [...prev, withNumber];
@@ -2012,12 +2015,17 @@ const AdminPanel: React.FC<{
                                     // Convert detected objects to TableModel format and add to tables
                                     const existingTableNums = tables.filter(t => !t.objectType || t.objectType === 'table').map(t => t.number);
                                     let tableCounter = existingTableNums.length > 0 ? Math.max(...existingTableNums) : 0;
+                                    // Decorative objects get unique negative numbers (never conflict with positive table numbers;
+                                    // excluded from the uniqueness constraint on the DB side too)
+                                    const existingDecorNums = tables.filter(t => t.objectType && t.objectType !== 'table').map(t => t.number);
+                                    let decorCounter = existingDecorNums.length > 0 ? Math.min(...existingDecorNums) : 0;
                                     const newObjects: TableModel[] = objects.map((obj) => {
                                       const isTable = obj.type === 'table';
                                       if (isTable) tableCounter++;
+                                      else decorCounter--;
                                       return {
                                         id: crypto.randomUUID(),
-                                        number: isTable ? tableCounter : 0,
+                                        number: isTable ? tableCounter : decorCounter,
                                         centerXPercent: obj.centerX,
                                         centerYPercent: obj.centerY,
                                         shape: obj.shape === 'rect' ? 'rect' : 'circle',

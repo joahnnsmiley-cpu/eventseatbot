@@ -21,9 +21,7 @@ function basename(path: string): string {
 
 const router = Router();
 
-router.use(authMiddleware, adminOnly);
-
-router.post('/upload-layout', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/upload-layout', authMiddleware, adminOnly, upload.single('file'), async (req: Request, res: Response) => {
   if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
 
   const file = (req as any).file;

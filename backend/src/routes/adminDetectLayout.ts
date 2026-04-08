@@ -23,46 +23,54 @@ export type DetectedObject = {
   seatsTotal?: number;
 };
 
-const DETECT_PROMPT = `You are analyzing a venue seating chart image. Your task is to detect ALL objects visible in the image and return their positions as percentages of the image dimensions.
+const DETECT_PROMPT = `You are analyzing a venue seating chart image. Detect ALL objects and return their positions as percentages.
+
+IMPORTANT: Output ONLY the JSON object below. No explanation, no markdown, no text before or after. Start your response with { and end with }.
 
 COORDINATE SYSTEM:
-- centerX=0 means left edge, centerX=100 means right edge
-- centerY=0 means top edge, centerY=100 means bottom edge
-- widthPercent and heightPercent are sizes relative to image dimensions
-- Be precise: look carefully at each object's actual position
+- centerX: 0=left edge, 100=right edge
+- centerY: 0=top edge, 100=bottom edge
+- widthPercent, heightPercent: size as % of image dimensions
 
 OBJECT TYPES:
-- "table": a table where guests sit (usually circle or rectangle). Count approximate seats.
+- "table": guest seating table (circle or rect). Estimate seatsTotal.
 - "stage": stage, podium, performance area
 - "bar": bar, buffet, counter
-- "wall": wall, partition, room boundary
+- "wall": wall, partition, boundary
 - "passage": aisle, corridor, exit
 - "other": any other element
 
-RULES:
-- Detect EVERY object, including all individual tables
-- For each table: estimate center position very carefully
-- shape: "circle" for round objects, "rect" for rectangular ones
-- Return ONLY valid JSON, no markdown, no explanation
-
-JSON format:
+OUTPUT FORMAT (JSON only, nothing else):
 {"objects":[{"type":"table","centerX":25,"centerY":30,"widthPercent":8,"heightPercent":8,"shape":"circle","seatsTotal":4},{"type":"stage","label":"Stage","centerX":50,"centerY":10,"widthPercent":60,"heightPercent":15,"shape":"rect"}]}`;
 
-/** Extract first valid JSON object from text (handles markdown fences and extra text) */
+/** Extract first valid JSON object from text (handles markdown fences and extra surrounding text) */
 function extractJson(text: string): string {
   // Remove markdown fences
   let t = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
-  // Find first { and last }
+
+  // Find first opening brace
   const start = t.indexOf('{');
+  if (start === -1) return t;
+
+  // Use brace counter to find the matching closing brace (handles nested objects correctly)
+  let depth = 0;
+  for (let i = start; i < t.length; i++) {
+    if (t[i] === '{') depth++;
+    else if (t[i] === '}') {
+      depth--;
+      if (depth === 0) return t.slice(start, i + 1);
+    }
+  }
+
+  // Fallback: use last }
   const end = t.lastIndexOf('}');
-  if (start === -1 || end === -1 || end < start) return t;
+  if (end < start) return t;
   return t.slice(start, end + 1);
 }
 
 const router = Router();
-router.use(authMiddleware, adminOnly);
 
-router.post('/detect-layout', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/detect-layout', authMiddleware, adminOnly, upload.single('file'), async (req: Request, res: Response) => {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return res.status(503).json({ error: 'GROQ_API_KEY not configured' });
@@ -96,6 +104,7 @@ router.post('/detect-layout', upload.single('file'), async (req: Request, res: R
     ],
     max_tokens: 4096,
     temperature: 0.05,
+    response_format: { type: 'json_object' },
   };
 
   try {
@@ -124,12 +133,17 @@ router.post('/detect-layout', upload.single('file'), async (req: Request, res: R
     try {
       parsed = JSON.parse(jsonText);
     } catch (e) {
-      console.error('[detect-layout] Failed to parse response:', rawText);
-      return res.status(502).json({ error: 'Failed to parse response', raw: rawText.slice(0, 500) });
+      console.error('[detect-layout] Failed to parse JSON. Raw response:', rawText.slice(0, 800));
+      return res.status(502).json({
+        error: 'Не удалось распознать ответ модели. Попробуйте ещё раз или используйте другое изображение.',
+      });
     }
 
     if (!Array.isArray(parsed.objects)) {
-      return res.status(502).json({ error: 'Invalid response structure', raw: rawText.slice(0, 500) });
+      console.error('[detect-layout] Missing objects array. Parsed:', JSON.stringify(parsed).slice(0, 300));
+      return res.status(502).json({
+        error: 'Модель не вернула список объектов. Попробуйте ещё раз.',
+      });
     }
 
     const VALID_TYPES = ['table', 'stage', 'bar', 'wall', 'passage', 'other'];
