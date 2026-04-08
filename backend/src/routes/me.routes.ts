@@ -293,18 +293,21 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
   const adminIds = new Set(admins.map((a) => String(a.id)));
 
   let event: any = null;
+  // Fetch organizer event IDs once — used both for eventIdParam check and fallback search
+  const orgEventIds = await getOrganizerEventIds(userId).catch(() => [] as string[]);
+
   if (eventIdParam) {
     event = events.find((e: any) => e.id === eventIdParam);
     if (event) {
       const organizerId = (event as any).organizerId ?? (event as any).organizer_id;
-      const canAccess = organizerId != null && String(organizerId) === userId
+      const canAccess = (organizerId != null && String(organizerId) === userId)
+        || orgEventIds.includes(String(eventIdParam))
         || isAdmin || adminIds.has(userId);
       if (!canAccess) event = null;
     }
   }
   if (!event && events.length > 0) {
-    // Organizers table (new mechanism): fetch event IDs from DB
-    const orgEventIds = await getOrganizerEventIds(userId).catch(() => [] as string[]);
+    // orgEventIds already fetched above — reuse
 
     const organizedEvents = events.filter((e: any) => {
       // New: organizers table

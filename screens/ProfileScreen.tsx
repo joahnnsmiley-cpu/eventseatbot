@@ -32,6 +32,8 @@ export type ProfileScreenProps = {
   guestNameOverride?: string;
   /** Event ID for organizer profile (optional; backend picks first if omitted). */
   selectedEventId?: string | null;
+  /** Event IDs the user is organizer for (from JWT). Empty = global admin, sees all. */
+  organizerEventIds?: string[];
   onOpenAdmin?: () => void;
   onOpenMap?: () => void;
   /** Navigate to previous screen */
@@ -44,6 +46,7 @@ export default function ProfileScreen({
   isController: isControllerProp = false,
   guestNameOverride,
   selectedEventId,
+  organizerEventIds = [],
   onOpenAdmin,
   onOpenMap,
   onBack,
@@ -89,9 +92,13 @@ export default function ProfileScreen({
     if (authLoading || !AuthService.getToken() || role !== 'organizer') return;
     StorageService.getAdminEvents()
       .then((evts) => {
-        // Show only published events
-        const active = evts.filter((e: EventData) => e.published === true);
-        const list = active.length > 0 ? active : evts.filter((e: EventData) => (e as any).status !== 'archived'); // fallback if no published
+        // Organizer sees only their events (organizerEventIds non-empty).
+        // Global admin has organizerEventIds=[] and sees all events.
+        const scoped = organizerEventIds.length > 0
+          ? evts.filter((e: EventData) => organizerEventIds.includes(e.id))
+          : evts;
+        const active = scoped.filter((e: EventData) => e.published === true);
+        const list = active.length > 0 ? active : scoped.filter((e: EventData) => (e as any).status !== 'archived');
         setPublishedEvents(list);
         // Auto-select featured event if available, else first in list
         if (!statsEventId && list.length > 0) {

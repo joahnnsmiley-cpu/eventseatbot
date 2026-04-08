@@ -853,6 +853,7 @@ function App() {
         isController={isController}
         guestNameOverride={tgUser?.first_name}
         selectedEventId={selectedEventId}
+        organizerEventIds={organizerEventIds}
         onOpenAdmin={() => setView('admin')}
         onOpenMap={() => setView('events')}
         onBack={() => setView('events')}
