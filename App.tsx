@@ -81,8 +81,13 @@ function App() {
   const [tgAvailable, setTgAvailable] = useState(false);
   const [tgInitData, setTgInitData] = useState('');
   const [tgUser, setTgUser] = useState<TgUser | null>(null);
-  // for VK:
-  const [vkSignQuery, setVkSignQuery] = useState('');
+  // for VK: initialise synchronously from URL params — VK always puts them in the URL,
+  // so the Auth Gate opens immediately without waiting for VKWebAppGetLaunchParams.
+  const [vkSignQuery, setVkSignQuery] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    const search = window.location.search.replace(/^\?/, '');
+    return (search.includes('vk_sign') || search.includes('vk_user_id')) ? search : '';
+  });
   const [isAdmin, setIsAdmin] = useState(false);
   const [isController, setIsController] = useState(false);
   const [organizerEventIds, setOrganizerEventIds] = useState<string[]>([]);
@@ -261,23 +266,19 @@ function App() {
       setVkAvailable(true);
 
       const initVk = async () => {
+        // VKWebAppInit is already called in index.tsx — don't call it again.
+        // GetLaunchParams runs in background to refresh vkSignQuery if URL params differ.
         try {
-          // Sequential init is safer in some webview environments
-          await vkBridge.send('VKWebAppInit', {});
-          console.log('[DEBUG] VKWebAppInit success');
-
           const data = await vkBridge.send('VKWebAppGetLaunchParams', {});
-          console.log('[DEBUG] VKWebAppGetLaunchParams data received');
-
           if (data && (data as any).vk_sign) {
             const bridgeQuery = Object.entries(data)
               .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
               .join('&');
             setVkSignQuery(prev => prev.includes('vk_sign') ? prev : bridgeQuery);
-          } else {
-            console.warn('[DEBUG] VKWebAppGetLaunchParams: vk_sign missing in response');
           }
+        } catch { /* silent — URL params already used */ }
 
+        try {
           const info = await vkBridge.send('VKWebAppGetUserInfo', {});
           setTgUser((prev) => ({
             ...prev,
@@ -287,7 +288,7 @@ function App() {
             platform: 'vk',
           } as TgUser));
         } catch (err) {
-          console.warn('[DEBUG] VK Bridge sequence error:', err);
+          console.warn('[DEBUG] VKWebAppGetUserInfo error:', err);
         }
       };
 
