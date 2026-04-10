@@ -266,7 +266,11 @@ function App() {
       setVkAvailable(true);
 
       const initVk = async () => {
-        // VKWebAppInit is already called in index.tsx — don't call it again.
+        // VKWebAppInit must be called to dismiss VK's native loading overlay.
+        // The index.tsx call is conditional on VITE_PLATFORM=vk (not always set on Vercel),
+        // so we call it here unconditionally as the reliable fallback.
+        try { await vkBridge.send('VKWebAppInit', {}); } catch { }
+
         // GetLaunchParams runs in background to refresh vkSignQuery if URL params differ.
         try {
           const data = await vkBridge.send('VKWebAppGetLaunchParams', {});
