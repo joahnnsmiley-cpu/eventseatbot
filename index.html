@@ -41,7 +41,17 @@
     style="display:none;position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;font-size:12px;padding:8px;z-index:99999;white-space:pre-wrap;word-break:break-all;max-height:50vh;overflow:auto;">
   </div>
   <div id="root"></div>
-  <script async src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    // Load Telegram SDK only when NOT running inside VK Mini Apps.
+    // VK's webview cannot reach telegram.org — the request times out and
+    // triggers VK's "Ошибка загрузки" error screen.
+    if (!window.location.href.includes('vk_user_id') && !window.location.href.includes('vk_app_id')) {
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://telegram.org/js/telegram-web-app.js';
+      document.head.appendChild(s);
+    }
+  </script>
   <script type="module" src="/index.tsx"></script>
 </body>
 
