@@ -267,6 +267,22 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
           </>
         )}
         <div>
+          <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.labelFontSize}</label>
+          <input
+            type="number"
+            min={6}
+            max={48}
+            step={1}
+            placeholder="авто"
+            value={table.labelFontSize ?? ''}
+            onChange={(e) => {
+              const raw = e.target.value;
+              onUpdate({ labelFontSize: raw === '' ? undefined : Math.max(6, Math.min(48, parseInt(raw, 10))) });
+            }}
+            className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+          />
+        </div>
+        <div>
           <label className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
             <input
               type="checkbox"

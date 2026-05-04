@@ -367,7 +367,7 @@ const SeatMap: React.FC<SeatMapProps> = ({
                                   />
                                 )}
                                 <div className="table-label" style={getTableLabelStyle(palette ?? null)}>
-                                  <TableNumber number={table.number ?? 0} />
+                                  <TableNumber number={table.number ?? 0} fontSize={table.labelFontSize ? `${table.labelFontSize}px` : undefined} />
                                 </div>
                                 {isEditable && (
                                   <div

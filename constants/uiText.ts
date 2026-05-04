@@ -110,6 +110,7 @@ export const UI_TEXT = {
     shapeRect: 'Прямоугольник',
     widthPercent: 'Ширина (%)',
     heightPercent: 'Высота (%)',
+    labelFontSize: 'Размер текста (px)',
     rotationDeg: 'Поворот (°)',
     positionSection: 'Позиция',
     positionX: 'X (%)',

@@ -212,7 +212,7 @@ function DraggableTable({
       <div className={`table-shape table-shape-gold pointer-events-none ${isCircle ? 'table-shape-circle' : ''}`} style={shapeStyle}>
         <div className="table-overlay">
           <div className="table-label" style={getTableLabelStyle(palette ?? null)}>
-            <TableNumber number={table.number ?? 0} />
+            <TableNumber number={table.number ?? 0} fontSize={table.labelFontSize ? `${table.labelFontSize}px` : undefined} />
           </div>
         </div>
         {isSelected && (

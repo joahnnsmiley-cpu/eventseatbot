@@ -42,6 +42,7 @@ export interface TableModel {
   isActive: boolean;
   objectType?: ObjectType | string;
   label?: string;
+  labelFontSize?: number;
 }
 
 /** Legacy Table type for API/EventData compatibility. Use TableModel in admin. */
