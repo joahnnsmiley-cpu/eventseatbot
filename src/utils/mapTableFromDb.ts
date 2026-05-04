@@ -49,6 +49,7 @@ export function mapTableFromDb(raw: any): TableModel & {
     isActive,
     objectType: (raw.objectType ?? raw.object_type ?? 'table') as string,
     label: raw.label ?? undefined,
+    labelFontSize: typeof raw.labelFontSize === 'number' ? raw.labelFontSize : (typeof raw.label_font_size === 'number' ? raw.label_font_size : undefined),
     // Legacy fields for SeatMap (public view)
     centerX: Number(centerX) || 50,
     centerY: Number(centerY) || 50,
