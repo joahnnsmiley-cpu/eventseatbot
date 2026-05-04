@@ -19,6 +19,7 @@ export function tableToApiPayload(t: TableModel, index: number): Record<string, 
     shape: t.shape,
     objectType: t.objectType ?? 'table',
     label: t.label ?? null,
+    labelFontSize: t.labelFontSize ?? null,
   };
   if (t.id && isUuid(t.id)) {
     payload.id = t.id;
