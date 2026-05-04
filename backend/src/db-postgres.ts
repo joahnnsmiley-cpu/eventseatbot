@@ -63,6 +63,7 @@ type EventTablesRow = {
   ticket_category_id?: string | null;
   object_type?: string | null;
   label?: string | null;
+  label_font_size?: number | null;
   created_at?: string;
 };
 
@@ -152,6 +153,7 @@ function eventTablesRowToTable(row: EventTablesRow, bookedSeats?: number): Table
   if (row.ticket_category_id != null) t.ticketCategoryId = row.ticket_category_id;
   if (row.object_type != null) (t as any).objectType = row.object_type;
   if (row.label != null) (t as any).label = row.label;
+  if (row.label_font_size != null) (t as any).labelFontSize = row.label_font_size;
   return t;
 }
 
@@ -472,6 +474,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
           ticket_category_id: t.ticketCategoryId ?? null,
           object_type: (t as any).objectType ?? 'table',
           label: (t as any).label ?? null,
+          label_font_size: (t as any).labelFontSize ?? null,
         })
         .eq('id', tableId)
         .eq('event_id', event.id);
@@ -519,6 +522,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
         ticket_category_id: t.ticketCategoryId ?? null,
         object_type: (t as any).objectType ?? 'table',
         label: (t as any).label ?? null,
+        label_font_size: (t as any).labelFontSize ?? null,
       });
 
       if (insErr) {
