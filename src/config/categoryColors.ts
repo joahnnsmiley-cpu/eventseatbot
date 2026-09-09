@@ -14,6 +14,47 @@ export interface CategoryColorConfig {
   base: string;
 }
 
+/** App background behind category chips and badges. */
+const DARK_SURFACE = '#0B0B0B';
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : null;
+}
+
+/** WCAG relative luminance. */
+function luminance(hex: string): number {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 0;
+  const [r, g, b] = rgb.map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  }) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two hex colors. */
+export function contrastRatio(a: string, b: string): number {
+  const la = luminance(a);
+  const lb = luminance(b);
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/**
+ * Lighten a color until it reads on the dark app background.
+ * Category colors come from the admin as free hex — a dark custom color
+ * (Dancepole was a deep red) rendered as text on #0B0B0B was unreadable.
+ */
+export function readableOnDark(hex: string, minRatio = 4.5): string {
+  let out = hex.startsWith('#') ? hex : `#${hex}`;
+  if (!hexToRgb(out)) return out;
+  for (let i = 0; i < 20 && contrastRatio(out, DARK_SURFACE) < minRatio; i++) {
+    out = lightenHex(out, 0.12);
+  }
+  return out;
+}
+
 export const CATEGORY_COLORS: Record<CategoryColorKey, CategoryColorConfig> = {
   vip: {
     label: 'VIP',

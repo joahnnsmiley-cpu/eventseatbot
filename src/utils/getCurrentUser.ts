@@ -5,16 +5,11 @@
  * - Event organizer (organizer_id in DB) → organizer for that event.
  */
 
+import type { TgUser } from '../../types';
+
 export type CurrentUser = {
   id: number | null;
   role: 'guest' | 'organizer' | null;
-};
-
-type TgUser = {
-  id?: number;
-  username?: string;
-  first_name?: string;
-  last_name?: string;
 };
 
 /**

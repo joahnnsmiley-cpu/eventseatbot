@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, memo } from 'react';
 import { motion } from 'framer-motion';
 import ProfileSectionSkeleton from './ProfileSectionSkeleton';
 
-const APPLE_EASE = [0.22, 1, 0.36, 1];
+const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 const SECTION_LABEL = 'text-xs font-semibold text-yellow-500/90 uppercase tracking-[0.12em]';
 
 type Stats = {

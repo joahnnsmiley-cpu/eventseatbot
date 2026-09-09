@@ -1,38 +1,35 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>Бронирование мест</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>НиктоНеКруче — билеты</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600&display=swap"
     rel="stylesheet">
   <script>
-    // Debug overlay — shows JS errors in VK WebView where DevTools are unavailable
-    window.__dbg = function (msg) {
-      var el = document.getElementById('__dbg');
-      if (el) el.innerText += '\n' + msg;
-    };
-    window.onerror = function (msg, src, line, col, err) {
-      var el = document.getElementById('__dbg');
-      if (el) {
+    // Debug overlay — shows JS errors in VK WebView where DevTools are unavailable.
+    // Opt-in only: append ?debug=1 to the URL. Never shown to guests in production.
+    (function () {
+      if (!/[?&]debug=1(&|$)/.test(window.location.search)) return;
+      var write = function (text) {
+        var el = document.getElementById('__dbg');
+        if (!el) return;
         el.style.display = 'block';
-        el.innerText += '\nERROR: ' + msg + '\nat ' + src + ':' + line;
-      }
-    };
-    window.onunhandledrejection = function (e) {
-      var el = document.getElementById('__dbg');
-      if (el) {
-        el.style.display = 'block';
-        el.innerText += '\nPROMISE REJECT: ' + (e.reason || e);
-      }
-    };
-    window.__dbg('HTML loaded OK');
+        el.innerText += '\n' + text;
+      };
+      window.__dbg = write;
+      window.addEventListener('error', function (e) {
+        write('ERROR: ' + e.message + '\nat ' + e.filename + ':' + e.lineno);
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        write('PROMISE REJECT: ' + (e.reason || e));
+      });
+      write('HTML loaded OK');
+    })();
   </script>
 </head>
 
@@ -45,6 +42,9 @@
     // Load Telegram SDK only when NOT running inside VK Mini Apps.
     // VK's webview cannot reach telegram.org — the request times out and
     // triggers VK's "Ошибка загрузки" error screen.
+    //
+    // Stays async so VK is never blocked; index.tsx waits for window.Telegram
+    // (with a timeout) before the first render, so nothing reads a missing SDK.
     if (!window.location.href.includes('vk_user_id') && !window.location.href.includes('vk_app_id')) {
       var s = document.createElement('script');
       s.async = true;

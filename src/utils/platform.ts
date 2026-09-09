@@ -14,7 +14,11 @@ export const getPlatform = (): 'telegram' | 'vk' | 'web' => {
         const fullUrl = window.location.href;
         if (fullUrl.includes('vk_user_id') || fullUrl.includes('vk_app_id')) return 'vk';
         if ((window as any).Telegram?.WebApp?.initData) return 'telegram';
-        if (fullUrl.includes('tgWebAppStartParam')) return 'telegram';
+        // Telegram puts its launch params in the URL regardless of whether the SDK
+        // has loaded. Checking them keeps the platform gate correct even if
+        // telegram.org is slow or blocked. tgWebAppStartParam only appears when the
+        // bot link carried a start parameter, so it cannot be the only marker.
+        if (/tgWebApp(Data|Version|Platform|StartParam)=/.test(fullUrl)) return 'telegram';
     }
     // Fallback to env variable if set, otherwise web
     const envPlatform = (import.meta as any).env.VITE_PLATFORM;

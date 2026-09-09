@@ -513,7 +513,16 @@ export const detectLayout = async (file: File): Promise<DetectedObject[]> => {
   return data.objects ?? [];
 };
 
-export const updateAdminEvent = async (id: string, payload: Partial<EventData>): Promise<EventData> => {
+/**
+ * Wire shape for PUT /admin/events/:id. Not Partial<EventData>: tables are sent as
+ * API payloads (see src/utils/tableToApiPayload.ts), which is a different shape from
+ * the Table model the app renders.
+ */
+export type AdminEventPayload = Omit<Partial<EventData>, 'tables'> & {
+  tables?: Record<string, unknown>[];
+};
+
+export const updateAdminEvent = async (id: string, payload: AdminEventPayload): Promise<EventData> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/admin/events/${encodeURIComponent(id)}`, {
     method: 'PUT',

@@ -121,7 +121,13 @@ export interface Booking {
   seatIds: string[]; // "tableId-seatId"
   seatsCount?: number;
   totalAmount?: number;
-  status: 'reserved' | 'paid' | 'expired' | 'awaiting_confirmation';
+  /**
+   * Backend emits all of these (see backend/src/routes/adminBookings.ts transitions).
+   * Keep in sync with BookingStatus in backend/src/models.ts — today three separate
+   * unions disagree, and code branching on 'pending' / 'payment_submitted' only works
+   * because types are not enforced at runtime.
+   */
+  status: 'reserved' | 'pending' | 'paid' | 'expired' | 'awaiting_confirmation' | 'payment_submitted' | 'cancelled';
   createdAt: number;
   expiresAt?: string | number; // ISO string or millis
   tickets?: Array<{
@@ -137,3 +143,19 @@ export interface Booking {
 }
 
 export type ViewState = 'event-list' | 'event-details' | 'admin-dashboard' | 'admin-create' | 'booking-success' | 'my-tickets';
+
+/**
+ * Platform user as the app knows them. One declaration for all consumers —
+ * App, EventPage and getCurrentUser each used to declare their own incompatible copy.
+ *
+ * NOTE: `id` is `number | string` because VK ids arrive as strings from the URL,
+ * while Telegram gives numbers. getCurrentUser() currently drops non-numeric ids
+ * to null — worth revisiting when the platform layer is unified.
+ */
+export type TgUser = {
+  id?: number | string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  platform?: 'telegram' | 'vk';
+};

@@ -18,7 +18,6 @@ import { CSS } from '@dnd-kit/utilities';
 import * as StorageService from '../services/storageService';
 import { EventData, TableModel } from '../types';
 import { UI_TEXT } from '../constants/uiText';
-import { computeTableSizes } from '../src/ui/tableSizing';
 import { TableNumber } from './TableLabel';
 import PrimaryButton from '../src/ui/PrimaryButton';
 import SecondaryButton from '../src/ui/SecondaryButton';
@@ -47,8 +46,10 @@ type AdminBooking = {
   status?: string;
   created_at?: string;
   expires_at?: string | null;
-  event: { id: string; title?: string; date?: string };
+  event?: { id: string; title?: string; date?: string };
   seatIds?: string[];
+  user_vk_id?: number | string | null;
+  userPhone?: string;
   tableBookings?: Array<{ tableId: string; seats: number }>;
   userTelegramId?: number;
   totalAmount?: number;
@@ -667,7 +668,7 @@ const AdminPanel: React.FC<{
       setSuccessMessage(null);
     }
     try {
-      const payload: Partial<EventData> = {
+      const payload: StorageService.AdminEventPayload = {
         title: eventTitle.trim(),
         description: eventDescription.trim(),
         event_date: eventDate.trim() || null,
@@ -1660,7 +1661,7 @@ const AdminPanel: React.FC<{
                                   <DangerButton
                                     type="button"
                                     onClick={() => {
-                                      const isUsed = tables.some((t) => t.ticketCategoryId === cat.id);
+                                      const isUsed = tables.some((t) => t.categoryId === cat.id);
                                       if (isUsed) {
                                         alert('Нельзя отключить категорию, к которой привязаны столы.');
                                         return;
@@ -1815,7 +1816,7 @@ const AdminPanel: React.FC<{
                                 setError(null);
                                 setSuccessMessage(null);
                                 try {
-                                  const payload: Partial<EventData> = {
+                                  const payload: StorageService.AdminEventPayload = {
                                     status: 'published' as const,
                                     ticketCategories: selectedEvent?.ticketCategories ?? [],
                                     tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
@@ -1873,7 +1874,7 @@ const AdminPanel: React.FC<{
                                 setError(null);
                                 setSuccessMessage(null);
                                 try {
-                                  const payload: Partial<EventData> = {
+                                  const payload: StorageService.AdminEventPayload = {
                                     status: 'published' as const,
                                     ticketCategories: selectedEvent?.ticketCategories ?? [],
                                     tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
@@ -1959,7 +1960,7 @@ const AdminPanel: React.FC<{
                                 {UI_TEXT.tables.table} {t.number ?? idx + 1}
                               </span>
                               <span className="text-xs text-muted ml-2">
-                                {t.seatsTotal ?? 0} мест
+                                {t.seatsCount ?? 0} мест
                               </span>
                             </button>
                           ))}

@@ -39,7 +39,16 @@ export const getAuthHeader = (): Record<string, string> => {
   return t ? { Authorization: `Bearer ${t}` } : {};
 };
 
-export const decodeToken = (t: string | null) => {
+/** Claims this app puts into the JWT. Unknown extras stay allowed via the index signature. */
+export type TokenPayload = {
+  id?: string | number;
+  role?: string;
+  isController?: boolean;
+  organizerEventIds?: string[];
+  [key: string]: unknown;
+};
+
+export const decodeToken = (t: string | null): TokenPayload | null => {
   if (!t) return null;
   try {
     const parts = t.split('.');
@@ -52,7 +61,7 @@ export const decodeToken = (t: string | null) => {
         .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
         .join(''),
     );
-    return JSON.parse(json) as Record<string, unknown>;
+    return JSON.parse(json) as TokenPayload;
   } catch {
     return null;
   }

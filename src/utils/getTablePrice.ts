@@ -1,4 +1,4 @@
-import type { EventData, Table } from '../types';
+import type { EventData, Table } from '../../types';
 
 /**
  * Get price for a seat at the given table.

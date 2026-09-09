@@ -38,13 +38,36 @@ if (!rootElement) {
 
 const isWebAdmin = window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/');
 
+/**
+ * The Telegram SDK is injected asynchronously by index.html, but the app reads
+ * window.Telegram.WebApp once, without retrying: if it renders first, the platform
+ * gate flashes "only inside Telegram" and auth never starts. Wait for the SDK before
+ * the first render, with a timeout so a blocked telegram.org cannot hang the app.
+ */
+const isVkLaunch = /[?&#](vk_user_id|vk_app_id)=/.test(window.location.href);
+
+function waitForTelegramSdk(timeoutMs = 3000): Promise<void> {
+  if (isVkLaunch || (window as any).Telegram?.WebApp) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const startedAt = Date.now();
+    const tick = () => {
+      if ((window as any).Telegram?.WebApp || Date.now() - startedAt > timeoutMs) resolve();
+      else setTimeout(tick, 50);
+    };
+    tick();
+  });
+}
+
 const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <ToastProvider>
-        {isWebAdmin ? <WebAdminApp /> : <App />}
-      </ToastProvider>
-    </ErrorBoundary>
-  </React.StrictMode>
-);
+
+void waitForTelegramSdk().then(() => {
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <ToastProvider>
+          {isWebAdmin ? <WebAdminApp /> : <App />}
+        </ToastProvider>
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+});

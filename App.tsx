@@ -18,7 +18,7 @@ import SectionTitle from './src/ui/SectionTitle';
 import PremiumGreetingModal, { PREMIUM_HIDE_KEY } from './src/ui/PremiumGreetingModal';
 import PaymentReminderBanner, { type PendingBookingInfo } from './src/ui/PaymentReminderBanner';
 import PrimaryButton from './src/ui/PrimaryButton';
-import type { Booking, EventData, Table } from './types';
+import type { Booking, EventData, Table, TgUser } from './types';
 import { getPriceForTable } from './src/utils/getTablePrice';
 import { getCategoryColorFromCategory } from './src/config/categoryColors';
 import { getCurrentUser } from './src/utils/getCurrentUser';
@@ -45,18 +45,16 @@ declare global {
             last_name?: string;
           };
         };
+        HapticFeedback?: {
+          impactOccurred?: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
+          notificationOccurred?: (type: 'error' | 'success' | 'warning') => void;
+          selectionChanged?: () => void;
+        };
       };
     };
   }
 }
 
-type TgUser = {
-  id?: number | string;
-  username?: string;
-  first_name?: string;
-  last_name?: string;
-  platform?: 'telegram' | 'vk';
-};
 
 const getEventDisplayDate = (event: EventData): { day: number; date: string; time: string } | null => {
   const offset = (event as any).timezoneOffsetMinutes ?? 180;

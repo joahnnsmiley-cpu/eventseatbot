@@ -39,6 +39,15 @@ const PORT = process.env.PORT || 4000;
 
 app.use(helmet());
 
+// CORS before any route — including /health, which the Mini App calls on startup to
+// warm up the instance. Registered after the route it would not apply to it, and the
+// browser dropped the warmup response.
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 /**
  * ==============================
  * BOOTSTRAP: Initialize Infrastructure
@@ -87,12 +96,6 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, ts: Date.now() });
 });
 
-// CORS before any routes — required for Telegram WebApp cross-origin POST (e.g. /public/bookings)
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
 // JSON body parser for req.body (equivalent to express.json())
 app.use(bodyParser.json());
 app.use('/auth', authRoutes);

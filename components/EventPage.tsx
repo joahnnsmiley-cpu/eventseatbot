@@ -1,9 +1,9 @@
 import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, RefreshCw, Calendar, MapPin } from 'lucide-react';
-import type { EventData } from '../types';
+import type { EventData, TgUser } from '../types';
 import { getPriceForTable } from '../src/utils/getTablePrice';
-import { getCategoryColorFromCategory } from '../src/config/categoryColors';
+import { getCategoryColorFromCategory, readableOnDark } from '../src/config/categoryColors';
 import Card from '../src/ui/Card';
 import SectionTitle from '../src/ui/SectionTitle';
 import PrimaryButton from '../src/ui/PrimaryButton';
@@ -14,7 +14,6 @@ import * as StorageService from '../services/storageService';
 import { useToast } from '../src/ui/ToastContext';
 import { getPlatform } from '../src/utils/platform';
 
-type TgUser = { id?: number; first_name?: string; last_name?: string; username?: string };
 
 export interface EventPageProps {
   event: EventData;
@@ -290,6 +289,9 @@ const EventPage: React.FC<EventPageProps> = ({
                             overflow: 'hidden',
                           } : {}),
                           letterSpacing: '0.015em',
+                          // Admins write the description with line breaks; without this
+                          // the browser collapses them and sentences run together.
+                          whiteSpace: 'pre-line',
                         }}
                       >
                         {desc}
@@ -311,26 +313,32 @@ const EventPage: React.FC<EventPageProps> = ({
                 {/* Ticket categories */}
                 {categories.length > 0 && (
                   <div className="flex flex-wrap gap-2 pt-1">
-                    {categories.map((cat) => (
-                      <span
-                        key={cat.id}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-3 py-1.5"
-                        style={{
-                          background: `${getCategoryColorFromCategory(cat).base}1A`,
-                          border: `1px solid ${getCategoryColorFromCategory(cat).base}40`,
-                          color: getCategoryColorFromCategory(cat).base,
-                        }}
-                      >
+                    {categories.map((cat) => {
+                      const base = getCategoryColorFromCategory(cat).base;
+                      // Dot keeps the true category color; the label is lightened
+                      // until it reads on the dark background.
+                      const label = readableOnDark(base);
+                      return (
                         <span
+                          key={cat.id}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-3 py-1.5"
                           style={{
-                            width: 6, height: 6, borderRadius: '50%',
-                            background: getCategoryColorFromCategory(cat).base,
-                            flexShrink: 0, display: 'inline-block',
+                            background: `${base}1A`,
+                            border: `1px solid ${base}40`,
+                            color: label,
                           }}
-                        />
-                        {cat.name} · {cat.price.toLocaleString('ru-RU')} ₽
-                      </span>
-                    ))}
+                        >
+                          <span
+                            style={{
+                              width: 6, height: 6, borderRadius: '50%',
+                              background: base,
+                              flexShrink: 0, display: 'inline-block',
+                            }}
+                          />
+                          {cat.name} · {cat.price.toLocaleString('ru-RU')} ₽
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
 

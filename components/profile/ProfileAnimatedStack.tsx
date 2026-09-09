@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const APPLE_EASE = [0.22, 1, 0.36, 1];
+const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 const STAGGER_DELAY = 0.07;
 
 const itemVariants = {

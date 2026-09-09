@@ -5,7 +5,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import type { CategoryColorKey } from '../../src/config/categoryColors';
-import { CATEGORY_COLORS } from '../../src/config/categoryColors';
+import { CATEGORY_COLORS, readableOnDark } from '../../src/config/categoryColors';
 
 const BADGE_ICONS: Record<CategoryColorKey, React.ReactNode> = {
   vip: (
@@ -88,7 +88,7 @@ export default function CategoryBadge({ category, size = 56, className }: Catego
         height={size * 0.32}
         viewBox="0 0 24 24"
         fill="none"
-        style={{ color: config.base, filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.3))` }}
+        style={{ color: readableOnDark(config.base), filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.3))` }}
       >
         {icon}
       </svg>

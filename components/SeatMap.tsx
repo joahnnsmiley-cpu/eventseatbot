@@ -74,7 +74,9 @@ const SeatMap: React.FC<SeatMapProps> = ({
   const [controlsExpanded, setControlsExpanded] = useState(false);
   const selectedSeats = seatState?.selectedSeats ?? [];
   // When tables prop provided, use it (ensures fresh event.tables). Else: seatState.tables or event.tables
-  const rawTables = Array.isArray(tablesProp)
+  // Three possible sources with three different table shapes — mapTableFromDb
+  // normalizes them. Typed loosely on purpose until the table model is unified.
+  const rawTables: Array<Record<string, any>> = Array.isArray(tablesProp)
     ? tablesProp
     : Array.isArray(seatState?.tables)
       ? seatState.tables
