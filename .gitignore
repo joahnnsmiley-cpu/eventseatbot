@@ -29,3 +29,5 @@ dist-ssr
 backend/.env
 frontend/.env
 *.zip
+# Business/legal planning — repo is public, keep this local
+docs/payments-legal-brief.md
