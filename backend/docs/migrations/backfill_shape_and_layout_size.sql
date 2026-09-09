@@ -2,7 +2,19 @@
 -- the dimensions of the layout image a hall was drawn on.
 -- Run in Supabase SQL Editor. Safe to re-run.
 --
--- Read the whole file before running. Section 1 rewrites existing rows.
+-- Read the whole file before running. Section 1 can rewrite existing rows.
+--
+-- APPLIED to project wusmsvtciztfkynaufko on 2026-09-10.
+-- Counts before: 70 rows in event_tables — 0 with shape IS NULL, 34 circle,
+-- 36 rect, 0 other values. Both UPDATE statements matched nothing, so no data
+-- was rewritten; only the constraints and the two new columns landed.
+-- Counts after: identical (0 NULL, 34 circle, 36 rect), shape NOT NULL with
+-- default 'circle', CHECK constraint present, events.layout_width and
+-- events.layout_height created and NULL for the three existing events.
+--
+-- The three decorative objects were checked by hand first: "Танцпол" (bar,
+-- 16x12) and an unnamed bar (25.9x7.2) were already rect; "Сцена" is a genuine
+-- 25x25 circle and correctly stayed one.
 
 -- ---------------------------------------------------------------------------
 -- 1. event_tables.shape must never be NULL
