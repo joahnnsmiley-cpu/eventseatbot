@@ -60,6 +60,10 @@ function mapEventToPublic(e: any) {
     coverImageUrl: e.imageUrl || e.schemaImageUrl || null,
     schemaImageUrl: e.schemaImageUrl || e.imageUrl || null,
     layoutImageUrl: typeof e.layoutImageUrl === 'undefined' ? null : e.layoutImageUrl,
+    // Table positions are percentages of this image; the map needs its
+    // proportions before the image itself has loaded.
+    layoutWidth: e.layoutWidth ?? null,
+    layoutHeight: e.layoutHeight ?? null,
     tables: filterTablesByVisibility(Array.isArray(e.tables) ? e.tables : []),
     isFeatured: (e as { isFeatured?: boolean }).isFeatured ?? false,
     organizerId: (e as { organizerId?: number | null }).organizerId ?? null,
@@ -99,6 +103,8 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     coverImageUrl: ev.imageUrl || ev.schemaImageUrl || null,
     schemaImageUrl: ev.schemaImageUrl || ev.imageUrl || null,
     layoutImageUrl: typeof ev.layoutImageUrl === 'undefined' ? null : ev.layoutImageUrl,
+    layoutWidth: ev.layoutWidth ?? null,
+    layoutHeight: ev.layoutHeight ?? null,
     tables: filterTablesByVisibility(Array.isArray(ev.tables) ? ev.tables : []),
     ticketCategories: ev.ticketCategories ?? [],
     paymentPhone: ev.paymentPhone ?? ev.organizer_phone ?? '',

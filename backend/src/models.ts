@@ -81,6 +81,13 @@ export interface EventData {
   published?: boolean;
   /** layoutImageUrl — подложка зала (seating map background). */
   layoutImageUrl?: string | null;
+  /**
+   * Natural pixel size of the layout image. Table coordinates are percentages
+   * of it, so the map needs the proportions before the image has loaded, and
+   * the admin needs to be told when a new plan changes them.
+   */
+  layoutWidth?: number | null;
+  layoutHeight?: number | null;
   /** ticketTemplateUrl — public URL of ticket template image for ticket generation. */
   ticketTemplateUrl?: string | null;
   schemaImageUrl?: string | null;

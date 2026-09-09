@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
+import sharp from 'sharp';
 import { authMiddleware } from '../auth/auth.middleware';
 import { adminOnly } from '../auth/admin.middleware';
 import { supabase } from '../supabaseClient';
@@ -41,7 +42,7 @@ router.post('/upload-layout', authMiddleware, adminOnly, upload.single('file'), 
   try {
     const { data: eventRow, error: fetchErr } = await supabase
       .from('events')
-      .select('id, layout_image_path, layout_image_version')
+      .select('id, layout_image_path, layout_image_version, layout_width, layout_height')
       .eq('id', eventId)
       .maybeSingle();
 
@@ -54,6 +55,30 @@ router.post('/upload-layout', authMiddleware, adminOnly, upload.single('file'), 
 
     const currentPath = eventRow.layout_image_path ?? null;
     const prevVersion = Number(eventRow.layout_image_version) || 0;
+
+    // Table coordinates are percentages of the layout image. Nothing used to
+    // record which image they were measured against, so replacing a plan with
+    // one of different proportions silently moved every table. Measure the new
+    // one and compare with what the tables were drawn on.
+    let width: number | null = null;
+    let height: number | null = null;
+    try {
+      const meta = await sharp(file.buffer).metadata();
+      width = meta.width ?? null;
+      height = meta.height ?? null;
+    } catch (e) {
+      console.error('[admin.uploadLayout] could not read image size', e);
+    }
+
+    const prevWidth = Number(eventRow.layout_width) || null;
+    const prevHeight = Number(eventRow.layout_height) || null;
+    const prevRatio = prevWidth && prevHeight ? prevWidth / prevHeight : null;
+    const nextRatio = width && height ? width / height : null;
+    // 1% is below what anyone notices; beyond that tables visibly drift.
+    const aspectChanged =
+      prevRatio !== null && nextRatio !== null
+        ? Math.abs(prevRatio - nextRatio) / prevRatio > 0.01
+        : false;
 
     if (currentPath) {
       const { count, error: countErr } = await supabase
@@ -105,6 +130,8 @@ router.post('/upload-layout', authMiddleware, adminOnly, upload.single('file'), 
         layout_image_url: publicUrl,
         layout_image_path: newPath,
         layout_image_version: newVersion,
+        layout_width: width,
+        layout_height: height,
       })
       .eq('id', eventId);
 
@@ -113,7 +140,18 @@ router.post('/upload-layout', authMiddleware, adminOnly, upload.single('file'), 
       return res.status(500).json({ error: 'Failed to update event' });
     }
 
-    return res.json({ url: publicUrl, version: newVersion });
+    return res.json({
+      url: publicUrl,
+      version: newVersion,
+      width,
+      height,
+      // The caller decides what to tell the admin; the tables are left alone
+      // either way — silently moving someone's seating plan is worse than
+      // asking them to look at it.
+      aspectChanged,
+      previousWidth: prevWidth,
+      previousHeight: prevHeight,
+    });
   } catch (e) {
     console.error('[admin.uploadLayout]', e);
     return res.status(500).json({ error: 'Upload failed' });

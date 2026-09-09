@@ -48,7 +48,13 @@ const SeatMap: React.FC<SeatMapProps> = ({
     return sorted.map(tableFromApi);
   }, [tablesProp, event?.tables]);
   const layoutImageUrl = (event?.layout_image_url ?? event?.layoutImageUrl ?? '').trim();
-  const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
+  // The backend records the plan's pixel size on upload, so the container can be
+  // shaped correctly on the first frame. Measuring the image ourselves is only a
+  // fallback for events uploaded before that existed.
+  const storedAspectRatio =
+    event?.layoutWidth && event?.layoutHeight ? event.layoutWidth / event.layoutHeight : null;
+  const [measuredAspectRatio, setMeasuredAspectRatio] = useState<number | null>(null);
+  const layoutAspectRatio = storedAspectRatio ?? measuredAspectRatio;
   const [layoutRef] = useContainerWidth<HTMLDivElement>();
   const zoomApiRef = useRef<{ zoomToElement?: (el: HTMLElement | string, scale?: number, time?: number, easing?: string) => void; centerView?: (scale?: number, time?: number, easing?: string) => void }>({});
   const hasAutoZoomedRef = useRef(false);
@@ -59,19 +65,21 @@ const SeatMap: React.FC<SeatMapProps> = ({
     : null;
 
   useEffect(() => {
+    if (storedAspectRatio !== null) return;
     if (!layoutImageUrl) {
-      setLayoutAspectRatio(null);
+      setMeasuredAspectRatio(null);
       return;
     }
+    let cancelled = false;
     const img = new Image();
     img.onload = () => {
-      const w = img.naturalWidth || 1;
-      const h = img.naturalHeight || 1;
-      setLayoutAspectRatio(w / h);
+      if (cancelled) return;
+      setMeasuredAspectRatio((img.naturalWidth || 1) / (img.naturalHeight || 1));
     };
-    img.onerror = () => setLayoutAspectRatio(null);
+    img.onerror = () => { if (!cancelled) setMeasuredAspectRatio(null); };
     img.src = layoutImageUrl;
-  }, [layoutImageUrl]);
+    return () => { cancelled = true; };
+  }, [layoutImageUrl, storedAspectRatio]);
 
   useEffect(() => {
     if (totalSeats === 0) hasAutoZoomedRef.current = false;
@@ -157,7 +165,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
                           inset: 0,
                           width: '100%',
                           height: '100%',
-                          objectFit: 'cover',
+                          // Not 'cover': cropping the plan while table
+                          // coordinates still address the uncropped image is
+                          // exactly how the seating silently drifts.
+                          objectFit: 'contain',
                           pointerEvents: 'none',
                           zIndex: 0,
                         }}

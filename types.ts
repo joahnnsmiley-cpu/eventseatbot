@@ -94,6 +94,13 @@ export interface EventData {
   imageUrl?: string | null;
   /** layoutImageUrl — подложка зала (seating map background). */
   layoutImageUrl?: string | null;
+  /**
+   * Natural pixel size of the layout image. Table positions are percentages of
+   * it. Knowing them up front lets the map size itself before the image loads,
+   * instead of guessing 16:9 and then jumping.
+   */
+  layoutWidth?: number | null;
+  layoutHeight?: number | null;
   /** ticketTemplateUrl — ticket template image for ticket generation. */
   ticketTemplateUrl?: string | null;
   /** layout_image_url — snake_case alias from API. */

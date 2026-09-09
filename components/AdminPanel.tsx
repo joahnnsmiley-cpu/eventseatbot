@@ -302,6 +302,8 @@ const AdminPanel: React.FC<{
   const [layoutUploadLoading, setLayoutUploadLoading] = useState(false);
   const [layoutUploadError, setLayoutUploadError] = useState<string | null>(null);
   const [layoutUploadVersion, setLayoutUploadVersion] = useState<number | null>(null);
+  /** Set when a newly uploaded plan has different proportions than the one the tables were placed on. */
+  const [layoutAspectWarning, setLayoutAspectWarning] = useState<string | null>(null);
   const [detectLoading, setDetectLoading] = useState(false);
   const [detectError, setDetectError] = useState<string | null>(null);
   const [eventTablesMap, setEventTablesMap] = useState<Record<string, TableModel[]>>({});
@@ -1972,10 +1974,20 @@ const AdminPanel: React.FC<{
                               if (!file || !selectedEvent?.id) return;
                               setLayoutUploadLoading(true);
                               setLayoutUploadError(null);
+                              setLayoutAspectWarning(null);
                               try {
-                                const { url, version } = await StorageService.uploadLayoutImage(selectedEvent.id, file);
-                                setLayoutUrl(url);
-                                setLayoutUploadVersion(version ?? null);
+                                const res = await StorageService.uploadLayoutImage(selectedEvent.id, file);
+                                setLayoutUrl(res.url);
+                                setLayoutUploadVersion(res.version ?? null);
+                                if (res.aspectChanged && res.previousWidth && res.previousHeight && res.width && res.height) {
+                                  const before = `${res.previousWidth}×${res.previousHeight}`;
+                                  const after = `${res.width}×${res.height}`;
+                                  setLayoutAspectWarning(
+                                    `Пропорции плана изменились: было ${before}, стало ${after}. ` +
+                                    `Столы остались на прежних координатах, но относительно нового рисунка они сместятся. ` +
+                                    `Проверьте расстановку ниже и поправьте, что уехало.`
+                                  );
+                                }
                               } catch (err) {
                                 setLayoutUploadError(err instanceof Error ? err.message : 'Upload failed');
                               } finally {
@@ -2056,10 +2068,18 @@ const AdminPanel: React.FC<{
                           </div>
                           {layoutUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
                           {layoutUploadError && <div className="text-xs text-[#6E6A64] mt-1">{layoutUploadError}</div>}
+                          {layoutAspectWarning && (
+                            <div
+                              role="alert"
+                              className="mt-2 rounded-lg border border-[#E0A94A]/40 bg-[#E0A94A]/10 px-3 py-2 text-xs leading-relaxed text-[#E0A94A]"
+                            >
+                              {layoutAspectWarning}
+                            </div>
+                          )}
                           <input
                             type="text"
                             value={layoutUrl}
-                            onChange={(e) => { setLayoutUrl(e.target.value); setLayoutUploadError(null); setLayoutUploadVersion(null); }}
+                            onChange={(e) => { setLayoutUrl(e.target.value); setLayoutUploadError(null); setLayoutUploadVersion(null); setLayoutAspectWarning(null); }}
                             placeholder={UI_TEXT.tables.layoutImagePlaceholder}
                             className="w-full max-w-full border rounded px-3 py-2 text-sm box-border mt-2"
                           />
@@ -2078,7 +2098,7 @@ const AdminPanel: React.FC<{
                           )}
                           <div className="mt-3">
                             <SecondaryButton
-                              onClick={() => { setLayoutUrl(selectedEvent?.layoutImageUrl || ''); setLayoutUploadVersion(null); }}
+                              onClick={() => { setLayoutUrl(selectedEvent?.layoutImageUrl || ''); setLayoutUploadVersion(null); setLayoutAspectWarning(null); }}
                               className="w-full md:w-auto"
                             >
                               {UI_TEXT.common.reset}

@@ -96,3 +96,16 @@ SELECT
   count(*) FILTER (WHERE shape = 'circle')   AS circles,
   count(*)                                   AS total
 FROM event_tables;
+
+-- ---------------------------------------------------------------------------
+-- 4. Backfill of layout_width / layout_height (applied 2026-09-10)
+-- ---------------------------------------------------------------------------
+-- The three existing events had their plans measured with sharp and the values
+-- written in. Cross-checked against the browser's naturalWidth/naturalHeight
+-- for the live event: 1456x1080 both ways.
+--
+-- UPDATE events SET layout_width = 1456, layout_height = 1080 WHERE id = '19e2439b-c655-4acb-9322-572a15e99c11';  -- НиктоНеКруче|Карина Лубнина, 1.348
+-- UPDATE events SET layout_width = 1536, layout_height = 1024 WHERE id = '092527e2-37da-4ec8-b9c2-ec9f4de92f13';  -- тестовое, 1.500
+-- UPDATE events SET layout_width = 1280, layout_height =  713 WHERE id = '83c3a71e-bf44-440f-8860-d616ae066512';  -- апрельское, 1.795
+--
+-- New uploads fill these in automatically; see backend/src/routes/admin.uploadLayout.ts.

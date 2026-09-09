@@ -462,7 +462,19 @@ export const uploadTicketTemplateImage = async (eventId: string, file: File): Pr
 };
 
 /** POST /admin/upload-layout — upload layout image to Supabase, returns { url, version } */
-export const uploadLayoutImage = async (eventId: string, file: File): Promise<{ url: string; version?: number }> => {
+export type LayoutUploadResult = {
+  url: string;
+  version?: number;
+  /** Natural pixel size of the uploaded plan. */
+  width?: number | null;
+  height?: number | null;
+  /** True when the new plan's proportions differ from the one the tables were placed on. */
+  aspectChanged?: boolean;
+  previousWidth?: number | null;
+  previousHeight?: number | null;
+};
+
+export const uploadLayoutImage = async (eventId: string, file: File): Promise<LayoutUploadResult> => {
   const apiBaseUrl = getApiBaseUrl();
   const formData = new FormData();
   formData.append('file', file);

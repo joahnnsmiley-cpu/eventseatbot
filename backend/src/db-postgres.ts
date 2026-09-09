@@ -29,6 +29,8 @@ type EventsRow = {
   poster_image_version?: number | null;
   /** layout_image_url — seating map only (рассадка); not for poster/cover. */
   layout_image_url: string | null;
+  layout_width?: number | null;
+  layout_height?: number | null;
   /** ticket_template_url — public URL of ticket template image in storage. */
   ticket_template_url?: string | null;
   organizer_phone: string | null;
@@ -112,6 +114,8 @@ function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
     imageUrl,
     // layout_image_url → layoutImageUrl: seating only (рассадка)
     layoutImageUrl: row.layout_image_url ?? null,
+    layoutWidth: row.layout_width ?? null,
+    layoutHeight: row.layout_height ?? null,
     ticketTemplateUrl: row.ticket_template_url ?? null,
     schemaImageUrl: null,
     paymentPhone: row.organizer_phone ?? '',
