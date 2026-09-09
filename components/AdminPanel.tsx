@@ -25,8 +25,7 @@ import DangerButton from '../src/ui/DangerButton';
 import EventCard, { EventCardSkeleton } from './EventCard';
 import AdminCard from '../src/ui/AdminCard';
 import { formatEventDate, formatEventDateTime, formatDateTimeRu } from '../src/utils/formatDate';
-import { mapTableFromDb } from '../src/utils/mapTableFromDb';
-import { tableToApiPayload } from '../src/utils/tableToApiPayload';
+import { tableFromApi, tableToApi } from '../src/model/table';
 import { deepClone } from '../src/utils/deepEqual';
 import { DEFAULT_TICKET_CATEGORIES } from '../constants/ticketStyles';
 import AdminTablesLayer from './AdminTablesLayer';
@@ -70,7 +69,7 @@ function toDatetimeLocal(iso: string | null | undefined): string {
 
 /** Convert TableModel to API payload format. */
 function tableForBackend(t: TableModel, index: number): Record<string, unknown> {
-  return tableToApiPayload(t, index);
+  return tableToApi(t, index);
 }
 
 /** Normalize tables for dirty comparison (stable order, only relevant fields). */
@@ -393,7 +392,7 @@ const AdminPanel: React.FC<{
   useEffect(() => {
     if (!selectedEvent?.tables) return;
     if (hasInitializedRef.current) return;
-    const mapped = (selectedEvent.tables ?? []).map(mapTableFromDb);
+    const mapped = (selectedEvent.tables ?? []).map(tableFromApi);
     setTables(mapped);
     hasInitializedRef.current = true;
   }, [selectedEvent?.id]);
@@ -507,7 +506,7 @@ const AdminPanel: React.FC<{
       for (const eventId of eventIds) {
         try {
           const ev = await StorageService.getAdminEvent(eventId);
-          map[eventId] = Array.isArray(ev?.tables) ? ev.tables.map(mapTableFromDb) : [];
+          map[eventId] = Array.isArray(ev?.tables) ? ev.tables.map(tableFromApi) : [];
           if (ev) detailsMap[eventId] = ev;
         } catch {
           map[eventId] = [];
@@ -562,7 +561,7 @@ const AdminPanel: React.FC<{
       return;
     }
     const ticketCategories = fresh.ticketCategories?.length ? fresh.ticketCategories : DEFAULT_TICKET_CATEGORIES;
-    const mappedTables = (fresh.tables ?? []).map(mapTableFromDb);
+    const mappedTables = (fresh.tables ?? []).map(tableFromApi);
     const mapped = { ...fresh, ticketCategories, tables: mappedTables };
     setSelectedEvent(mapped);
     setTables(mappedTables);
@@ -823,20 +822,14 @@ const AdminPanel: React.FC<{
       id: crypto.randomUUID(),
       centerXPercent: percentX,
       centerYPercent: percentY,
-      centerX: percentX,
-      centerY: percentY,
       widthPercent: 8,
       heightPercent: 8,
-      sizePercent: 8,
       shape: 'circle' as const,
       rotationDeg: 0,
       seatsCount: 4,
-      seatsTotal: 4,
       seatsAvailable: 4,
       categoryId: defaultCategoryId,
-      ticketCategoryId: defaultCategoryId,
       isActive: true,
-      isAvailable: true,
     };
     setTables((prev) => {
       const tableNums = prev.filter(t => !t.objectType || t.objectType === 'table').map(t => t.number ?? 0);
@@ -2024,21 +2017,27 @@ const AdminPanel: React.FC<{
                                       const isTable = obj.type === 'table';
                                       if (isTable) tableCounter++;
                                       else decorCounter--;
-                                      return {
+                                      const seats = obj.seatsTotal ?? 4;
+                                      const isCircle = obj.shape !== 'rect';
+                                      const table: TableModel = {
                                         id: crypto.randomUUID(),
                                         number: isTable ? tableCounter : decorCounter,
                                         centerXPercent: obj.centerX,
                                         centerYPercent: obj.centerY,
-                                        shape: obj.shape === 'rect' ? 'rect' : 'circle',
+                                        shape: isCircle ? 'circle' : 'rect',
                                         widthPercent: obj.widthPercent,
-                                        heightPercent: obj.heightPercent,
+                                        // A circle is square; keep the model consistent
+                                        // instead of storing a height it will never use.
+                                        heightPercent: isCircle ? obj.widthPercent : obj.heightPercent,
                                         rotationDeg: obj.rotation ?? 0,
-                                        seatsCount: obj.seatsTotal ?? 4,
+                                        seatsCount: seats,
+                                        seatsAvailable: seats,
                                         categoryId: '',
                                         isActive: true,
                                         objectType: obj.type,
                                         label: obj.label,
-                                      } as TableModel;
+                                      };
+                                      return table;
                                     });
                                     setTables((prev) => [...prev, ...newObjects]);
                                   } catch (err) {

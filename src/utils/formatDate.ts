@@ -13,12 +13,12 @@ export function parseEventToUtc(
 ): number | null {
   if (!dateStr || !timeStr) return null;
   const parts = String(timeStr).match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-  if (!parts) return null;
+  if (!parts || !parts[1] || !parts[2]) return null;
   const hh = parseInt(parts[1], 10);
   const mm = parseInt(parts[2], 10);
   const ss = parseInt(parts[3] ?? '0', 10);
   const dateParts = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!dateParts) return null;
+  if (!dateParts || !dateParts[1] || !dateParts[2] || !dateParts[3]) return null;
   const y = parseInt(dateParts[1], 10);
   const m = parseInt(dateParts[2], 10) - 1;
   const d = parseInt(dateParts[3], 10);

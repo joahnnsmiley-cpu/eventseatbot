@@ -1,6 +1,12 @@
 /**
  * Date/time formatting using event's timezone offset (minutes ahead of UTC).
  * Offset is set by admin via "current time" reference in event card.
+ *
+ * parseEventToUtc and parseEventToIso are duplicated in src/utils/formatDate.ts
+ * on the frontend and must stay behaviourally identical — they decide when a
+ * booking expires and what the ticket says. The formatting functions below are
+ * backend-only (notifications) and have no frontend counterpart.
+ * See the note in the frontend file for why this is not a shared module yet.
  */
 
 /** Parse event_date + event_time in event timezone → UTC timestamp (ms) */

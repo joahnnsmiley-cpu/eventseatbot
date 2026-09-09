@@ -149,8 +149,6 @@ function DraggableTable({
                 heightPercent: newH,
                 centerXPercent: newCx,
                 centerYPercent: newCy,
-                centerX: newCx,
-                centerY: newCy,
               };
             })
           );
@@ -160,7 +158,8 @@ function DraggableTable({
           onTablesChange((prev) =>
             prev.map((t) => {
               if (t.id !== table.id) return t;
-              return { ...t, widthPercent: newWidth, sizePercent: newWidth };
+              // A circle is square: one dimension drives both.
+              return { ...t, widthPercent: newWidth, heightPercent: newWidth };
             })
           );
         }
@@ -291,8 +290,6 @@ function DraggableDecorativeObject({
             ...t, widthPercent: newW, heightPercent: newH,
             centerXPercent: state.startCenterX + deltaCx,
             centerYPercent: state.startCenterY + deltaCy,
-            centerX: state.startCenterX + deltaCx,
-            centerY: state.startCenterY + deltaCy,
           })
         );
       };
@@ -401,8 +398,6 @@ export default function AdminTablesLayer({
           ...t,
           centerXPercent: newX,
           centerYPercent: newY,
-          centerX: newX,
-          centerY: newY,
         };
       })
     );

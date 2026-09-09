@@ -11,21 +11,10 @@ const OBJECT_TYPE_LABELS: Record<string, string> = {
   other: 'Прочее',
 };
 
-/** Legacy fields for SeatMap compatibility. */
-type TableWithLegacy = TableModel & {
-  centerX?: number;
-  centerY?: number;
-  ticketCategoryId?: string;
-  seatsTotal?: number;
-  seatsAvailable?: number;
-  isAvailable?: boolean;
-  sizePercent?: number;
-};
-
 type Props = {
-  table: TableWithLegacy | null;
+  table: TableModel | null;
   ticketCategories: TicketCategory[];
-  onUpdate: (updates: Partial<TableWithLegacy>) => void;
+  onUpdate: (updates: Partial<TableModel>) => void;
   onDelete: () => void;
   onClose: () => void;
 };
@@ -108,10 +97,10 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
             <input
               type="number"
               min={0}
-              value={table.seatsCount ?? table.seatsTotal ?? 4}
+              value={table.seatsCount}
               onChange={(e) => {
                 const val = Math.max(0, parseInt(e.target.value, 10) || 0);
-                onUpdate({ seatsCount: val, seatsTotal: val, seatsAvailable: val });
+                onUpdate({ seatsCount: val, seatsAvailable: val });
               }}
               className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
             />
@@ -133,10 +122,10 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
           <div>
             <label className="block text-xs text-white/60 mb-1">Категория</label>
             <select
-              value={table.ticketCategoryId ?? table.categoryId ?? ''}
+              value={table.categoryId}
               onChange={(e) => {
                 const val = e.target.value || '';
-                onUpdate({ categoryId: val, ticketCategoryId: val });
+                onUpdate({ categoryId: val });
               }}
               className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
             >
@@ -156,9 +145,7 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
             onChange={(e) => {
               const newShape = e.target.value as 'circle' | 'rect';
               const size = table.shape === 'circle' ? table.widthPercent : Math.min(table.widthPercent, table.heightPercent);
-              const updates: Partial<TableWithLegacy> = { shape: newShape, widthPercent: size, heightPercent: size };
-              if (newShape === 'circle') updates.sizePercent = size;
-              onUpdate(updates);
+              onUpdate({ shape: newShape, widthPercent: size, heightPercent: size });
             }}
             className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
           >
@@ -176,10 +163,10 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
                 min={0}
                 max={100}
                 step={0.1}
-                value={table.centerXPercent ?? table.centerX ?? 50}
+                value={table.centerXPercent}
                 onChange={(e) => {
                   const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 50));
-                  onUpdate({ centerXPercent: val, centerX: val });
+                  onUpdate({ centerXPercent: val });
                 }}
                 className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
               />
@@ -191,10 +178,10 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
                 min={0}
                 max={100}
                 step={0.1}
-                value={table.centerYPercent ?? table.centerY ?? 50}
+                value={table.centerYPercent}
                 onChange={(e) => {
                   const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 50));
-                  onUpdate({ centerYPercent: val, centerY: val });
+                  onUpdate({ centerYPercent: val });
                 }}
                 className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
               />
@@ -227,7 +214,7 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
               value={table.widthPercent}
               onChange={(e) => {
                 const val = Math.max(2, Math.min(25, parseFloat(e.target.value) || 6));
-                onUpdate({ widthPercent: val, heightPercent: val, sizePercent: val });
+                onUpdate({ widthPercent: val, heightPercent: val });
               }}
               className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
             />
@@ -286,10 +273,10 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
           <label className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
             <input
               type="checkbox"
-              checked={table.isActive ?? table.isAvailable ?? true}
+              checked={table.isActive}
               onChange={(e) => {
               const checked = e.target.checked;
-              onUpdate({ isActive: checked, isAvailable: checked });
+              onUpdate({ isActive: checked });
             }}
               className="rounded border-white/30"
             />

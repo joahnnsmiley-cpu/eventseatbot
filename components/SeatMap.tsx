@@ -4,43 +4,12 @@ import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
 import { getCategoryColorFromCategory } from '../src/config/categoryColors';
 import { useContainerWidth } from '../src/hooks/useContainerWidth';
-import { mapTableFromDb } from '../src/utils/mapTableFromDb';
+import { tableFromApi } from '../src/model/table';
 import { getTableShapeStyle, getTableLabelStyle } from '../src/utils/tableShapeStyles';
 import { TableNumber } from './TableLabel';
 import { TableSeatDots } from './TableSeatDots';
 
 const ArrowIcon = () => <span style={{ color: '#C6A75E', fontSize: '1.2em' }}>›</span>;
-
-type SeatStatus = 'available' | 'reserved' | 'sold';
-
-export type SeatModel = {
-  id: string;
-  tableId: string;
-  number: number;
-  price: number;
-  status: SeatStatus;
-};
-
-export type TableModel = {
-  id: string;
-  number: number;
-  seatsTotal: number;
-  seatsAvailable: number;
-  /** When absent, treat as false. */
-  isAvailable?: boolean;
-  x?: number;
-  y?: number;
-  centerX: number;
-  centerY: number;
-  shape?: string;
-};
-
-export type SeatSelectionState = {
-  tables: TableModel[];
-  seats: SeatModel[];
-  selectedSeats: string[]; // Array of "tableId-seatId"
-  activeTableId?: string | null;
-};
 
 /** selectedSeatsByTable[tableId] = selected seat indices. Main map displays only; panel SeatPicker toggles. */
 interface SeatMapProps {
@@ -48,11 +17,8 @@ interface SeatMapProps {
   /** When provided, use these tables instead of deriving from event/seatState. Ensures fresh render. */
   tables?: EventData['tables'];
   isEditable?: boolean; // For Admin
-  seatState?: SeatSelectionState;
   selectedSeatsByTable?: Record<string, number[]>;
   selectedTableId?: string | null;
-  onSeatToggle?: (seat: SeatModel) => void;
-  onSelectedSeatsChange?: (selectedSeats: string[]) => void;
   onTableAdd?: (x: number, y: number) => void;
   onTableDelete?: (tableId: string) => void;
   onTableSelect?: (tableId: string) => void;
@@ -62,34 +28,25 @@ const SeatMap: React.FC<SeatMapProps> = ({
   event,
   tables: tablesProp,
   isEditable = false,
-  seatState,
   selectedTableId = null,
-  onSeatToggle,
-  onSelectedSeatsChange,
   onTableAdd,
   onTableDelete,
   onTableSelect,
   selectedSeatsByTable,
 }) => {
   const [controlsExpanded, setControlsExpanded] = useState(false);
-  const selectedSeats = seatState?.selectedSeats ?? [];
-  // When tables prop provided, use it (ensures fresh event.tables). Else: seatState.tables or event.tables
-  // Three possible sources with three different table shapes — mapTableFromDb
-  // normalizes them. Typed loosely on purpose until the table model is unified.
+  // Wire shapes differ between the list and detail endpoints; tableFromApi
+  // normalizes both into TableModel.
   const rawTables: Array<Record<string, any>> = Array.isArray(tablesProp)
     ? tablesProp
-    : Array.isArray(seatState?.tables)
-      ? seatState.tables
-      : Array.isArray(event?.tables)
-        ? event.tables
-        : [];
+    : Array.isArray(event?.tables)
+      ? event.tables
+      : [];
   const mappedTables = useMemo(() => {
     const filtered = rawTables.filter((t: { is_active?: boolean }) => t.is_active !== false);
     const sorted = [...filtered].sort((a: { number?: number }, b: { number?: number }) => (a.number ?? Infinity) - (b.number ?? Infinity));
-    return sorted.map(mapTableFromDb);
-  }, [tablesProp, seatState?.tables, event?.tables]);
-  const seats = seatState?.seats ?? [];
-  const selectedSet = new Set(selectedSeats);
+    return sorted.map(tableFromApi);
+  }, [tablesProp, event?.tables]);
   const layoutImageUrl = (event?.layout_image_url ?? event?.layoutImageUrl ?? '').trim();
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number | null>(null);
   const [layoutRef] = useContainerWidth<HTMLDivElement>();
@@ -130,18 +87,6 @@ const SeatMap: React.FC<SeatMapProps> = ({
       zoomToElement(el, 1.6, 300, 'easeOut');
     }
   }, [lastSelectedTableId]);
-
-  const canSelectSeat = (seat: SeatModel) => seat.status === 'available';
-
-  const toggleSeat = (seat: SeatModel) => {
-    if (!canSelectSeat(seat)) return;
-    const key = `${seat.tableId}-${seat.id}`;
-    const next = selectedSet.has(key)
-      ? selectedSeats.filter((id) => id !== key)
-      : [...selectedSeats, key];
-    onSelectedSeatsChange?.(next);
-    onSeatToggle?.(seat);
-  };
 
   const handleMapPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isEditable || !onTableAdd) return;
@@ -286,15 +231,13 @@ const SeatMap: React.FC<SeatMapProps> = ({
                         </div>
                       )}
                       {mappedTables.map((table) => {
-                        const isAvailableForSale = table.isAvailable === true;
                         const isSoldOut = !isEditable && table.seatsAvailable === 0;
-                        const isTableDisabled = !isEditable && (!isAvailableForSale || isSoldOut);
+                        const isTableDisabled = !isEditable && (!table.isActive || isSoldOut);
                         const isSelected = selectedTableId === table.id;
                         const isCircle = table.shape === 'circle';
-                        const circleSize = `${table.widthPercent ?? table.sizePercent ?? 6}%`;
-                        const widthPct = isCircle ? circleSize : (table.widthPercent ? `${table.widthPercent}%` : `${table.sizePercent ?? 6}%`);
-                        const heightPct = isCircle ? circleSize : (table.heightPercent ? `${table.heightPercent}%` : `${table.sizePercent ?? 6}%`);
-                        const category = event?.ticketCategories?.find((c) => c.id === table.ticketCategoryId);
+                        const widthPct = `${table.widthPercent}%`;
+                        const heightPct = `${table.heightPercent}%`;
+                        const category = event?.ticketCategories?.find((c) => c.id === table.categoryId);
                         const palette = category ? getCategoryColorFromCategory(category) : null;
                         const shapeStyle = getTableShapeStyle(palette, isCircle);
                         const hasSelectedSeats = (selectedSeatsByTable?.[table.id]?.length ?? 0) > 0;
@@ -316,8 +259,8 @@ const SeatMap: React.FC<SeatMapProps> = ({
                         };
                         const wrapperStyle: React.CSSProperties = {
                           position: 'absolute',
-                          left: `${table.centerX}%`,
-                          top: `${table.centerY}%`,
+                          left: `${table.centerXPercent}%`,
+                          top: `${table.centerYPercent}%`,
                           width: widthPct,
                           ...(isCircle ? { aspectRatio: '1 / 1' } : { height: heightPct }),
                           transform: `translate(-50%, -50%) rotate(${table.rotationDeg ?? 0}deg)`,
@@ -357,10 +300,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
                               }}
                             >
                               <div className="table-overlay">
-                                {!isEditable && table.seatsTotal > 0 && (
+                                {!isEditable && table.seatsCount > 0 && (
                                   <TableSeatDots
-                                    seatsTotal={table.seatsTotal}
-                                    seatsAvailable={table.seatsAvailable ?? table.seatsTotal}
+                                    seatsTotal={table.seatsCount}
+                                    seatsAvailable={table.seatsAvailable}
                                     selectedIndices={selectedSeatsByTable?.[table.id]}
                                     accentColor={palette?.base ?? '#FFC107'}
                                     tableShape={isCircle ? 'circle' : 'rect'}
@@ -416,45 +359,6 @@ const SeatMap: React.FC<SeatMapProps> = ({
                         );
                       })}
 
-                      {!isEditable && seats.length > 0 && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-[#0B0B0B] border-t border-white/10 p-4">
-                          <div className="text-xs uppercase tracking-widest text-muted-light mb-3">{UI_TEXT.seatMap.seats}</div>
-                          <div className="grid grid-cols-6 gap-3">
-                            {seats.map((seat) => {
-                              const key = `${seat.tableId}-${seat.id}`;
-                              const isSelected = selectedSet.has(key);
-                              const isDisabled = seat.status !== 'available';
-                              const baseClass = 'w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 ease-out';
-                              const statusClass = isSelected
-                                ? 'bg-[#FFC107] text-black shadow-[0_0_15px_rgba(255,193,7,0.6)] scale-105'
-                                : seat.status === 'available'
-                                  ? 'bg-[#1a1a1a] border border-white/10 text-white hover:border-[#FFC107] hover:scale-105'
-                                  : 'bg-[#111] text-muted opacity-40 cursor-not-allowed';
-
-                              return (
-                                <button
-                                  key={key}
-                                  type="button"
-                                  onClick={() => toggleSeat(seat)}
-                                  disabled={isDisabled && !isSelected}
-                                  className={`${baseClass} ${statusClass}`}
-                                  aria-pressed={isSelected}
-                                  aria-disabled={isDisabled && !isSelected}
-                                  title={`${UI_TEXT.tables.seat} ${seat.number}`}
-                                  aria-label={`${UI_TEXT.tables.seat} ${seat.number}`}
-                                >
-                                  {seat.number}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-muted">
-                            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[#1a1a1a] border border-white/10 inline-block" />{UI_TEXT.seatMap.available}</span>
-                            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[#FFC107] inline-block" />{UI_TEXT.seatMap.selected}</span>
-                            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[#111] opacity-40 inline-block" />{UI_TEXT.seatMap.sold}</span>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </TransformComponent>

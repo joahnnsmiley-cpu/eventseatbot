@@ -25,7 +25,13 @@ export interface Seat {
   ticketImagePath?: string; // Path or URL to ticket image
 }
 
-/** Unified admin table model. Single source of truth for layout editing. */
+/**
+ * Canonical venue object (table, stage, bar…). One name per field.
+ *
+ * Convert to and from the API only through src/model/table.ts — nothing else
+ * should know about `center_x`, `centerX`, `size_percent` and the other aliases.
+ * Positions and sizes are percentages of the layout image.
+ */
 export type ObjectType = 'table' | 'stage' | 'bar' | 'wall' | 'passage' | 'other';
 
 export interface TableModel {
@@ -35,9 +41,12 @@ export interface TableModel {
   centerYPercent: number;
   shape: 'circle' | 'rect';
   widthPercent: number;
+  /** Equals widthPercent for circles — a circle is square. */
   heightPercent: number;
   rotationDeg: number;
   seatsCount: number;
+  /** Seats not yet booked. Derived by the backend; equals seatsCount when unknown. */
+  seatsAvailable: number;
   categoryId: string;
   isActive: boolean;
   objectType?: ObjectType | string;
