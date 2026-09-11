@@ -413,7 +413,7 @@ const EventPage: React.FC<EventPageProps> = ({
         <div className="relative w-full -mx-4">
           <SectionTitle title="Выбор столов" className="px-4" />
           <SeatMap
-            key={`seatmap-${event?.id}-${(event?.tables ?? []).map((t) => t.id).join('-')}`}
+            key={event?.id}
             event={event}
             tables={event?.tables ?? []}
             selectedSeatsByTable={selectedSeatsByTable}

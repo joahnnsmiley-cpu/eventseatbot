@@ -460,8 +460,11 @@ body.tg-dark .shadow-lg {
   box-shadow: 0 0 0 1px rgba(201, 162, 39, 0.35), 0 4px 24px rgba(198, 167, 94, 0.3) !important;
 }
 
+/* Availability is drawn by a single filter on .table-shape (see SeatMap).
+   This rule used to also set opacity: 0.35, which never applied — an inline
+   opacity always won — while that inline value meant something else entirely
+   (dimming other tables while seats are being picked). One state, one visual. */
 .table-wrapper.table-disabled {
-  opacity: 0.35;
   cursor: not-allowed;
 }
 
@@ -525,7 +528,8 @@ body.tg-dark .shadow-lg {
   left: 50%;
   transform: translate(-50%, -50%);
   width: 45%;
-  min-width: 10px;
+  /* No min-width: on a 13.7px table a 10px minimum made the number badge fill
+     almost the whole table. docs/table-rendering.md says this in its first line. */
   max-width: 56px;
   padding: 0;
   aspect-ratio: 1 / 1;

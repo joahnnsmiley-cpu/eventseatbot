@@ -3,7 +3,7 @@ import { TransformWrapper, TransformComponent, MiniMap } from 'react-zoom-pan-pi
 import { EventData } from '../types';
 import { UI_TEXT } from '../constants/uiText';
 import { getCategoryColorFromCategory } from '../src/config/categoryColors';
-import { useContainerWidth } from '../src/hooks/useContainerWidth';
+import { useElementSize, fitInside } from '../src/hooks/useElementSize';
 import { tableFromApi } from '../src/model/table';
 import { getTableShapeStyle, getTableLabelStyle } from '../src/utils/tableShapeStyles';
 import { TableNumber } from './TableLabel';
@@ -55,7 +55,12 @@ const SeatMap: React.FC<SeatMapProps> = ({
     event?.layoutWidth && event?.layoutHeight ? event.layoutWidth / event.layoutHeight : null;
   const [measuredAspectRatio, setMeasuredAspectRatio] = useState<number | null>(null);
   const layoutAspectRatio = storedAspectRatio ?? measuredAspectRatio;
-  const [layoutRef] = useContainerWidth<HTMLDivElement>();
+  const [viewportRef, viewportSize] = useElementSize<HTMLDivElement>();
+  // The plan is drawn on a "stage" sized to its own aspect ratio and centred in
+  // the viewport. Table positions are percentages of the plan, so they have to
+  // be percentages of this box — not of the viewport, which is taller than the
+  // plan and would put every table off the drawing.
+  const stage = fitInside(viewportSize.width, viewportSize.height, layoutAspectRatio ?? 16 / 9);
   const zoomApiRef = useRef<{ zoomToElement?: (el: HTMLElement | string, scale?: number, time?: number, easing?: string) => void; centerView?: (scale?: number, time?: number, easing?: string) => void }>({});
   const hasAutoZoomedRef = useRef(false);
 
@@ -108,41 +113,57 @@ const SeatMap: React.FC<SeatMapProps> = ({
 
   return (
     <div
-      ref={layoutRef}
+      ref={viewportRef}
       className="relative w-full overflow-hidden rounded-2xl"
       style={{
         position: 'relative',
         width: '100%',
-        maxWidth: 420,
+        // Height follows the plan's aspect ratio. Making the viewport taller
+        // was measured and does not help: a landscape plan on a portrait phone
+        // is width-bound, so the extra height became empty black. Bigger targets
+        // have to come from zoom, not from the box.
         aspectRatio: layoutAspectRatio ?? 16 / 9,
         minHeight: layoutAspectRatio == null ? '12rem' : undefined,
+        maxWidth: 420,
         margin: '0 auto',
         overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         boxShadow: 'inset 0 0 60px rgba(0,0,0,0.8), 0 4px 24px rgba(0,0,0,0.4)',
       }}
     >
       <div
-        className="layout-wrapper absolute inset-0 min-w-0 min-h-0"
-        style={{ transform: 'translateZ(0)', willChange: 'transform' }}
+        className="layout-wrapper min-w-0 min-h-0"
+        style={{
+          position: 'relative',
+          width: stage.width || '100%',
+          height: stage.height || '100%',
+          transform: 'translateZ(0)',
+          willChange: 'transform',
+        }}
       >
+        {/*
+          The content is exactly the size of the viewport (children are absolute
+          with inset 0), so there is no slack to pan into. The previous config
+          was written for a map larger than its window: minScale 0.8 allowed
+          zooming out past the frame, alignmentAnimation let the view drift 200px
+          and spring back, and panning inertia carried it further. Together that
+          is the "карта уезжает и возвращается" behaviour. At scale 1 there is
+          nothing to pan, so the only honest settings are: never smaller than the
+          frame, no overscroll, no inertia.
+        */}
         <TransformWrapper
-          minScale={0.8}
-          maxScale={3}
+          minScale={1}
+          maxScale={4}
           initialScale={1}
           limitToBounds={true}
           centerOnInit={true}
           wheel={{ step: 0.08 }}
           pinch={{ step: 5 }}
           doubleClick={{ disabled: true }}
-          panning={{ velocityDisabled: false }}
-          alignmentAnimation={{
-            sizeX: 200,
-            sizeY: 200,
-          }}
-          velocityAnimation={{
-            sensitivity: 1,
-            animationTime: 200,
-          }}
+          panning={{ velocityDisabled: true }}
+          alignmentAnimation={{ sizeX: 0, sizeY: 0, animationTime: 0 }}
         >
           {({ resetTransform, zoomToElement, centerView }) => {
             zoomApiRef.current = { zoomToElement, centerView };
@@ -165,9 +186,12 @@ const SeatMap: React.FC<SeatMapProps> = ({
                           inset: 0,
                           width: '100%',
                           height: '100%',
-                          // Not 'cover': cropping the plan while table
-                          // coordinates still address the uncropped image is
-                          // exactly how the seating silently drifts.
+                          // The stage already has the plan's aspect ratio, so
+                          // this fills it exactly. 'contain' rather than 'cover'
+                          // so that a stale stored size shows letterboxing —
+                          // visible and correctable — instead of cropping the
+                          // plan while table percentages address the uncropped
+                          // image, which drifts silently.
                           objectFit: 'contain',
                           pointerEvents: 'none',
                           zIndex: 0,
@@ -301,8 +325,10 @@ const SeatMap: React.FC<SeatMapProps> = ({
                               className={`table-shape table-shape-gold ${isCircle ? 'table-shape-circle' : ''}`}
                               style={{
                                 ...shapeStyle,
-                                // Apple-style: desaturate + dim instead of overlaying
-                                ...(isTableDisabled && !isEditable ? {
+                                // Desaturate rather than overlay. Sold out reads
+                                // slightly lighter than "not on sale" so the two
+                                // are distinguishable at a glance.
+                                ...(isTableDisabled ? {
                                   filter: isSoldOut
                                     ? 'grayscale(0.85) brightness(0.38)'
                                     : 'grayscale(0.95) brightness(0.28)',
@@ -339,33 +365,18 @@ const SeatMap: React.FC<SeatMapProps> = ({
                                 )}
                               </div>
 
-                              {/* Sold-out micro-badge — only when fully booked, no emoji */}
-                              {!isEditable && isSoldOut && (
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    bottom: '-10px',
-                                    left: '50%',
-                                    transform: 'translateX(-50%)',
-                                    zIndex: 8,
-                                    pointerEvents: 'none',
-                                    whiteSpace: 'nowrap',
-                                    padding: '1px 5px',
-                                    borderRadius: 4,
-                                    fontSize: '0.52em',
-                                    fontWeight: 600,
-                                    letterSpacing: '0.04em',
-                                    color: 'rgba(255,255,255,0.45)',
-                                    background: 'rgba(0,0,0,0.55)',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    backdropFilter: 'blur(4px)',
-                                    WebkitBackdropFilter: 'blur(4px)',
-                                  }}
-                                >
-                                  Занято
-                                </div>
-                              )}
                             </div>
+
+                            {/*
+                              A "Занято" badge used to live inside .table-shape,
+                              where overflow:hidden clipped it away — it never
+                              rendered. Unclipping it showed why that was a
+                              mercy: with 18 of 35 tables sold out, rotated
+                              badges cover the plan and it stops being readable.
+                              Sold out is already carried by the desaturation
+                              filter on the shape, which scales to any number of
+                              tables. Dropping the badge rather than restoring it.
+                            */}
                           </div>
                         );
                       })}
