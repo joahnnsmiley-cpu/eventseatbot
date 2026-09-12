@@ -15,6 +15,7 @@ import adminPaymentsRouter from './routes/adminPayments';
 import adminControllersRouter from './routes/adminControllers';
 import adminRolesRouter from './routes/adminRoles';
 import adminDetectLayoutRouter from './routes/adminDetectLayout';
+import adminVenuesRouter from './routes/adminVenues';
 import controllerRouter from './routes/controllerRoutes';
 import debugRouter from './routes/debug-routes';
 import vkWebhookRouter from './routes/vkWebhook';
@@ -267,6 +268,7 @@ app.use('/admin', adminPaymentsRouter);
 app.use('/admin', adminControllersRouter);
 app.use('/admin', adminRolesRouter);
 app.use('/admin', adminDetectLayoutRouter);
+app.use('/admin', adminVenuesRouter);
 app.use('/controller', controllerRouter);
 // Public read-only event views and JSON endpoints
 app.use('/public', publicEventsRouter);

@@ -1,4 +1,4 @@
-import { EventData, Booking } from '../types';
+import { EventData, Booking, TicketCategory } from '../types';
 import AuthService from './authService';
 import { getApiBaseUrl } from '@/config/api';
 
@@ -707,4 +707,69 @@ export const recordPrivacyConsent = async (): Promise<void> => {
     headers: AuthService.getAuthHeader(),
   });
   if (!res.ok) await handleAuthError(res, 'Failed to record consent');
+};
+/* ------------------------------------------------------------------ */
+/* Venue library                                                       */
+/* ------------------------------------------------------------------ */
+
+/** A hall saved once and reused: the plan, the objects on it, the categories. */
+export type SavedVenue = {
+  id: string;
+  name: string;
+  layoutImageUrl: string | null;
+  layoutWidth: number | null;
+  layoutHeight: number | null;
+  tableCount: number;
+  seatCount: number;
+  updatedAt: string | null;
+};
+
+/** What a venue turns into when applied to the event being edited. */
+export type VenueApplyPayload = {
+  name: string;
+  layoutImageUrl: string | null;
+  layoutWidth: number | null;
+  layoutHeight: number | null;
+  ticketCategories: TicketCategory[];
+  tables: Array<Record<string, unknown>>;
+};
+
+export const listVenues = async (): Promise<SavedVenue[]> => {
+  const res = await fetch(`${getApiBaseUrl()}/admin/venues`, {
+    method: 'GET',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) await handleAuthError(res, 'Не удалось загрузить залы');
+  return res.json();
+};
+
+/** Snapshot the hall of an event under a name. */
+export const saveVenue = async (name: string, fromEventId: string): Promise<{ id: string; tableCount: number }> => {
+  const res = await fetch(`${getApiBaseUrl()}/admin/venues`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
+    body: JSON.stringify({ name, fromEventId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'Не удалось сохранить зал');
+  }
+  return res.json();
+};
+
+export const getVenueApplyPayload = async (venueId: string): Promise<VenueApplyPayload> => {
+  const res = await fetch(`${getApiBaseUrl()}/admin/venues/${encodeURIComponent(venueId)}/apply-payload`, {
+    method: 'GET',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) await handleAuthError(res, 'Не удалось загрузить зал');
+  return res.json();
+};
+
+export const deleteVenue = async (venueId: string): Promise<void> => {
+  const res = await fetch(`${getApiBaseUrl()}/admin/venues/${encodeURIComponent(venueId)}`, {
+    method: 'DELETE',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) await handleAuthError(res, 'Не удалось удалить зал');
 };

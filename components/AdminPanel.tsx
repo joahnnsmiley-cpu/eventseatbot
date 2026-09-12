@@ -304,6 +304,84 @@ const AdminPanel: React.FC<{
   const [layoutUploadVersion, setLayoutUploadVersion] = useState<number | null>(null);
   /** Set when a newly uploaded plan has different proportions than the one the tables were placed on. */
   const [layoutAspectWarning, setLayoutAspectWarning] = useState<string | null>(null);
+
+  /** Venue library: a hall is arranged once and copied into later events. */
+  const [venues, setVenues] = useState<StorageService.SavedVenue[]>([]);
+  const [venuesOpen, setVenuesOpen] = useState(false);
+  const [venueBusy, setVenueBusy] = useState(false);
+  const [venueError, setVenueError] = useState<string | null>(null);
+  const [venueNotice, setVenueNotice] = useState<string | null>(null);
+
+  const loadVenues = React.useCallback(async () => {
+    setVenueError(null);
+    try {
+      setVenues(await StorageService.listVenues());
+    } catch (err) {
+      setVenueError(err instanceof Error ? err.message : 'Не удалось загрузить залы');
+    }
+  }, []);
+
+  const handleSaveVenue = async () => {
+    if (!selectedEvent?.id) return;
+    const suggested = (selectedEvent.venue || selectedEvent.title || '').trim();
+    const name = window.prompt('Название зала', suggested);
+    if (!name || !name.trim()) return;
+    setVenueBusy(true);
+    setVenueError(null);
+    setVenueNotice(null);
+    try {
+      const saved = await StorageService.saveVenue(name.trim(), selectedEvent.id);
+      setVenueNotice(`Зал «${name.trim()}» сохранён — ${saved.tableCount} объектов`);
+      await loadVenues();
+    } catch (err) {
+      setVenueError(err instanceof Error ? err.message : 'Не удалось сохранить зал');
+    } finally {
+      setVenueBusy(false);
+    }
+  };
+
+  /**
+   * Applying a venue replaces the hall in the editor, not in the database: the
+   * admin still reviews it and presses save, so it goes through the same
+   * validation and publish lock as any other layout change.
+   */
+  const handleApplyVenue = async (venue: StorageService.SavedVenue) => {
+    const hasTables = tables.length > 0;
+    if (hasTables && !window.confirm(
+      `Заменить текущую расстановку залом «${venue.name}»? Столов сейчас: ${tables.length}.`
+    )) return;
+    setVenueBusy(true);
+    setVenueError(null);
+    setVenueNotice(null);
+    try {
+      const payload = await StorageService.getVenueApplyPayload(venue.id);
+      setTables(payload.tables.map(tableFromApi));
+      if (payload.layoutImageUrl) setLayoutUrl(payload.layoutImageUrl);
+      if (Array.isArray(payload.ticketCategories) && payload.ticketCategories.length > 0) {
+        setSelectedEvent((prev) => (prev ? { ...prev, ticketCategories: payload.ticketCategories } : prev));
+      }
+      setSelectedTableId(null);
+      setVenuesOpen(false);
+      setVenueNotice(`Зал «${venue.name}» загружен. Проверьте расстановку и сохраните.`);
+    } catch (err) {
+      setVenueError(err instanceof Error ? err.message : 'Не удалось загрузить зал');
+    } finally {
+      setVenueBusy(false);
+    }
+  };
+
+  const handleDeleteVenue = async (venue: StorageService.SavedVenue) => {
+    if (!window.confirm(`Удалить зал «${venue.name}» из библиотеки? События, созданные из него, не изменятся.`)) return;
+    setVenueBusy(true);
+    try {
+      await StorageService.deleteVenue(venue.id);
+      await loadVenues();
+    } catch (err) {
+      setVenueError(err instanceof Error ? err.message : 'Не удалось удалить зал');
+    } finally {
+      setVenueBusy(false);
+    }
+  };
   const [detectLoading, setDetectLoading] = useState(false);
   const [detectError, setDetectError] = useState<string | null>(null);
   const [eventTablesMap, setEventTablesMap] = useState<Record<string, TableModel[]>>({});
@@ -2064,6 +2142,73 @@ const AdminPanel: React.FC<{
                             </label>
                             {detectError && (
                               <span className="text-xs text-red-400">{detectError}</span>
+                            )}
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-white/10">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={venueBusy || !selectedEvent?.id || tables.length === 0}
+                                onClick={handleSaveVenue}
+                                className="px-3 py-2 rounded-lg text-xs border border-[#C6A75E]/40 text-[#C6A75E] disabled:opacity-40"
+                              >
+                                Сохранить зал в библиотеку
+                              </button>
+                              <button
+                                type="button"
+                                disabled={venueBusy}
+                                onClick={() => {
+                                  const next = !venuesOpen;
+                                  setVenuesOpen(next);
+                                  if (next) void loadVenues();
+                                }}
+                                className="px-3 py-2 rounded-lg text-xs border border-white/20 text-white/80 disabled:opacity-40"
+                              >
+                                {venuesOpen ? 'Скрыть библиотеку' : 'Загрузить зал из библиотеки'}
+                              </button>
+                            </div>
+
+                            {venueNotice && <div className="text-xs text-[#7ED6A5] mt-2">{venueNotice}</div>}
+                            {venueError && <div className="text-xs text-red-400 mt-2">{venueError}</div>}
+
+                            {venuesOpen && (
+                              <div className="mt-2 space-y-1">
+                                {venues.length === 0 && (
+                                  <div className="text-xs text-muted">
+                                    Библиотека пуста. Расставьте зал и сохраните его — в следующий раз он подставится готовым.
+                                  </div>
+                                )}
+                                {venues.map((v) => (
+                                  <div
+                                    key={v.id}
+                                    className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2"
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <div className="text-sm text-white truncate">{v.name}</div>
+                                      <div className="text-[11px] text-muted">
+                                        {v.tableCount} столов · {v.seatCount} мест
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      disabled={venueBusy}
+                                      onClick={() => handleApplyVenue(v)}
+                                      className="px-2 py-1 rounded text-xs border border-[#C6A75E]/40 text-[#C6A75E] disabled:opacity-40"
+                                    >
+                                      Загрузить
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={venueBusy}
+                                      onClick={() => handleDeleteVenue(v)}
+                                      aria-label={`Удалить зал ${v.name}`}
+                                      className="px-2 py-1 rounded text-xs text-white/40 disabled:opacity-40"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </div>
                           {layoutUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
