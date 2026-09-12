@@ -123,12 +123,10 @@ router.get('/bookings', authMiddleware, async (req: AuthRequest, res) => {
   if (!user || typeof user.id === 'undefined') return res.status(401).json({ error: 'Unauthorized' });
   const userId = String(user.id);
   const events = await db.getEvents();
-  const all = await db.getBookings();
-  const userBookings = all.filter(
-    (b: any) => {
-      const isOwner = (b.platform === 'vk' && String(b.user_vk_id) === userId) || (String(b.userTelegramId ?? '') === userId);
-      return isOwner && (b.status === 'reserved' || b.status === 'paid');
-    }
+  // Owner filtering happens in Postgres now; this used to select every
+  // booking ever made and match on two id columns in JavaScript.
+  const userBookings = (await db.getBookingsByOwner(userId)).filter(
+    (b: any) => b.status === 'reserved' || b.status === 'paid'
   );
 
   res.json(userBookings.map((b: any) => mapBooking(b, events)));
@@ -142,11 +140,9 @@ router.get('/tickets', authMiddleware, async (req: AuthRequest, res) => {
   if (!user || typeof user.id === 'undefined') return res.status(401).json({ error: 'Unauthorized' });
   const userId = String(user.id);
   const events = await db.getEvents();
-  const all = await db.getBookings();
-  const tickets = all.filter((b: any) => {
-    const isOwner = (b.platform === 'vk' && String(b.user_vk_id) === userId) || (String(b.userTelegramId ?? '') === userId);
-    return isOwner && b.status === 'paid';
-  });
+  const tickets = (await db.getBookingsByOwner(userId)).filter(
+    (b: any) => b.status === 'paid'
+  );
 
   res.json(tickets.map((b: any) => mapBooking(b, events)));
 });
@@ -162,12 +158,10 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
   const userId = String(user.id);
 
   const events = await db.getEvents();
-  const allBookings = await db.getBookings();
-  const userBookings = allBookings.filter(
-    (b: any) => {
-      const isOwner = (b.platform === 'vk' && String(b.user_vk_id) === userId) || (String(b.userTelegramId ?? '') === userId);
-      return isOwner && (b.status === 'reserved' || b.status === 'paid');
-    }
+  // Owner filtering happens in Postgres now; this used to select every
+  // booking ever made and match on two id columns in JavaScript.
+  const userBookings = (await db.getBookingsByOwner(userId)).filter(
+    (b: any) => b.status === 'reserved' || b.status === 'paid'
   );
 
   if (userBookings.length === 0) {
@@ -192,8 +186,10 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
   const categories = (event as any).ticketCategories ?? [];
   const category = Array.isArray(categories) ? categories.find((c: any) => c.id === categoryId) : null;
 
-  const tableBookings = allBookings.filter(
-    (b: any) => b.eventId === eventId && b.tableId === tableId && (b.status === 'reserved' || b.status === 'paid')
+  // Neighbours are other people's bookings, so the owner query above cannot
+  // serve them. One event's bookings, not the whole table.
+  const tableBookings = (await db.getBookingsByEvent(String(eventId))).filter(
+    (b: any) => b.tableId === tableId && (b.status === 'reserved' || b.status === 'paid')
   );
   const neighborBookings = tableBookings.filter((b: any) => {
     const isOwner = (b.platform === 'vk' && String(b.user_vk_id) === userId) || (String(b.userTelegramId ?? '') === userId);
@@ -288,7 +284,6 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
   const onlyAvailable = req.query?.onlyAvailable === 'true';
 
   const events = await db.getEvents();
-  const allBookings = await db.getBookings();
   const admins = await db.getAdmins();
   const adminIds = new Set(admins.map((a) => String(a.id)));
 
@@ -318,27 +313,21 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
     });
     if (organizedEvents.length > 0) {
       const validStatusesForCount = ['reserved', 'paid', 'awaiting_confirmation', 'payment_submitted', 'confirmed', 'pending'];
-      const withCount = organizedEvents.map((e: any) => ({
-        event: e,
-        count: allBookings.filter((b: any) => {
-          const eid = b.eventId ?? b.event_id;
-          const st = String(b.status ?? '').toLowerCase();
-          return String(eid) === String(e.id) && validStatusesForCount.includes(st);
-        }).length,
-      }));
+      const counts = await db.getBookingCountsByEvent(
+        organizedEvents.map((e: any) => String(e.id)),
+        validStatusesForCount
+      );
+      const withCount = organizedEvents.map((e: any) => ({ event: e, count: counts[String(e.id)] ?? 0 }));
       withCount.sort((a, b) => b.count - a.count);
       event = withCount[0]!.event;
     } else if (isAdmin || adminIds.has(userId)) {
       const validStatuses = ['reserved', 'paid', 'awaiting_confirmation', 'payment_submitted', 'confirmed'];
+      const adminCounts = await db.getBookingCountsByEvent(
+        events.map((e: any) => String(e.id)),
+        validStatuses
+      );
       const withBookings = events
-        .map((e: any) => ({
-          event: e,
-          count: allBookings.filter((b: any) => {
-            const eid = b.eventId ?? b.event_id;
-            const st = String(b.status ?? '').toLowerCase();
-            return String(eid) === String(e.id) && validStatuses.includes(st);
-          }).length,
-        }))
+        .map((e: any) => ({ event: e, count: adminCounts[String(e.id)] ?? 0 }))
         .filter((x) => x.count > 0)
         .sort((a, b) => b.count - a.count);
       event = withBookings.length > 0 ? withBookings[0]!.event : (events.find((e: any) => (e as any).isFeatured) ?? events[0]!);
@@ -357,12 +346,8 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
     : allTables;
   const validStatuses = ['reserved', 'paid', 'awaiting_confirmation', 'payment_submitted', 'confirmed', 'pending'];
   const eventIdStr = String(eventId);
-  const eventBookings = allBookings.filter(
-    (b: any) => {
-      const eid = b.eventId ?? b.event_id;
-      const st = String(b.status ?? '').toLowerCase();
-      return String(eid) === eventIdStr && validStatuses.includes(st);
-    }
+  const eventBookings = (await db.getBookingsByEvent(eventIdStr)).filter(
+    (b: any) => validStatuses.includes(String(b.status ?? '').toLowerCase())
   );
 
   const getSeatCount = (b: any): number => {

@@ -600,6 +600,79 @@ export async function getBookings(): Promise<Booking[]> {
   return (data ?? []).map((r) => bookingsRowToBooking(r as BookingsRow));
 }
 
+/**
+ * One booking by id.
+ *
+ * Everything used to go through getBookings(), which selects the whole table
+ * and then finds the row in JavaScript — on 50 call sites, including the public
+ * event list, the profile screens and ticket verification at the door. That
+ * cost grows with every ticket ever sold, for a request that needs one row.
+ */
+export async function getBookingById(id: string): Promise<Booking | null> {
+  if (!supabase || !id) return null;
+  const { data, error } = await supabase.from('bookings').select('*').eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data ? bookingsRowToBooking(data as BookingsRow) : null;
+}
+
+/**
+ * Bookings belonging to one person, across both platforms.
+ *
+ * Telegram and VK ids live in separate columns, so the profile screens matched
+ * on either one in JavaScript. Postgres can do that with an OR — both columns
+ * are numeric, and the value is checked before it reaches the filter string.
+ */
+export async function getBookingsByOwner(userId: string | number): Promise<Booking[]> {
+  if (!supabase) return [];
+  const numeric = Number(userId);
+  if (!Number.isFinite(numeric)) return [];
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .or(`user_telegram_id.eq.${numeric},user_vk_id.eq.${numeric}`)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r) => bookingsRowToBooking(r as BookingsRow));
+}
+
+/**
+ * How many bookings each event has, for the given statuses.
+ *
+ * The organizer dashboard picks the busiest event, which needs counts across
+ * several events but not the bookings themselves. Selecting two columns beats
+ * selecting every row of every booking ever made.
+ */
+export async function getBookingCountsByEvent(
+  eventIds: string[],
+  statuses: string[]
+): Promise<Record<string, number>> {
+  if (!supabase || eventIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('event_id')
+    .in('event_id', eventIds)
+    .in('status', statuses);
+  if (error) throw error;
+  const out: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const id = (row as { event_id?: string }).event_id;
+    if (id) out[id] = (out[id] ?? 0) + 1;
+  }
+  return out;
+}
+
+/** Bookings for one event. */
+export async function getBookingsByEvent(eventId: string): Promise<Booking[]> {
+  if (!supabase || !eventId) return [];
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r) => bookingsRowToBooking(r as BookingsRow));
+}
+
 export async function addBooking(booking: Booking): Promise<void> {
   if (!supabase) return;
   const expiresAt = booking.expiresAt != null

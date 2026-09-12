@@ -132,15 +132,15 @@ app.get('/verify-ticket/:token', async (req, res) => {
   if (!payload) return res.json({ valid: false });
 
   try {
-    const bookings = await db.getBookings();
-    const booking = bookings.find((b: any) => b.id === payload.bookingId);
+    // Scanning a ticket at the door needs one booking and one event, not the
+    // whole history of both.
+    const booking = await db.getBookingById(payload.bookingId);
     if (!booking) return res.json({ valid: false });
 
     if (booking.status !== 'paid') return res.json({ valid: false });
     if (booking.isUsed === true) return res.json({ valid: false, is_used: true });
 
-    const events = await db.getEvents();
-    const ev = events.find((e: any) => e.id === booking.eventId);
+    const ev = await db.findEventById(booking.eventId, true);
     const tbl = ev?.tables?.find((t: any) => t.id === booking.tableId);
     const tableNumber = tbl?.number ?? payload.tableNumber ?? booking.tableId;
     const seats = booking.seatsBooked ?? payload.seats ?? 0;

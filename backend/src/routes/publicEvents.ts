@@ -36,8 +36,7 @@ router.get('/ticket/:id', async (req: Request, res: Response) => {
   const bookingId = String(req.params.id);
   if (!bookingId) return res.status(400).json({ error: 'Booking id required' });
   try {
-    const bookings = await db.getBookings();
-    const b = bookings.find((x: any) => x.id === bookingId);
+    const b = await db.getBookingById(bookingId);
     const url = (b as any)?.ticketFileUrl ?? (b as any)?.ticket_file_url;
     if (url) return res.redirect(302, url);
     return res.status(404).json({ error: 'Ticket not found' });
