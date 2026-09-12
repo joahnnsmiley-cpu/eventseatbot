@@ -92,9 +92,28 @@ void (async () => {
   }
 })();
 
-// Health check — used by UptimeRobot to prevent Render.com free-tier sleep
+// Health check — used by UptimeRobot to prevent Render.com free-tier sleep.
+//
+// It also reports which commit is running. Without that there is no way to tell
+// from outside whether a deploy has landed: every /admin path answers 401 before
+// routing, so probing a new endpoint proves nothing, and nothing else on the
+// public surface changes between most releases.
+//
+// RENDER_GIT_COMMIT is injected by Render; the fallbacks cover other hosts.
+const BUILD_COMMIT =
+  process.env.RENDER_GIT_COMMIT ||
+  process.env.SOURCE_VERSION ||
+  process.env.GIT_COMMIT ||
+  'unknown';
+const STARTED_AT = new Date().toISOString();
+
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, ts: Date.now() });
+  res.json({
+    ok: true,
+    ts: Date.now(),
+    commit: BUILD_COMMIT.slice(0, 7),
+    startedAt: STARTED_AT,
+  });
 });
 
 // JSON body parser for req.body (equivalent to express.json())
