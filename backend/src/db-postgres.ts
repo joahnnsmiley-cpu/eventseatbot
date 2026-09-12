@@ -247,6 +247,25 @@ export async function reassignFeaturedIfNeeded(): Promise<void> {
 }
 
 // ---- Events ----
+/**
+ * Events without their halls, for the list screen.
+ *
+ * getEvents() loads every row of event_tables — for all events, unfiltered —
+ * and then aggregates booked seats across all of them. The list screen shows a
+ * poster, a title, a date and a venue per event and touches none of that: on
+ * the live data the tables were 89% of the response and were thrown away.
+ * The hall is loaded when an event is opened.
+ */
+export async function getEventsSummary(): Promise<EventData[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row) => eventsRowToEvent(row as EventsRow, []));
+}
+
 export async function getEvents(): Promise<EventData[]> {
   if (!supabase) return [];
   const { data: eventsRows, error: eventsErr } = await supabase.from('events').select('*').order('created_at', { ascending: false });

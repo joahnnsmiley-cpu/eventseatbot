@@ -73,7 +73,9 @@ function mapEventToPublic(e: any) {
 router.get('/events', async (_req: Request, res: Response) => {
   try {
     await db.reassignFeaturedIfNeeded();
-    const all = (await db.getEvents()).filter((e: any) => (e as any).published === true || (e as any).status === 'published');
+    // Summary: no halls. The cards do not render tables, and loading them meant
+    // reading every event_tables row in the database on every app open.
+    const all = (await db.getEventsSummary()).filter((e: any) => (e as any).published === true || (e as any).status === 'published');
     const mapped = all.map((e: any) => mapEventToPublic(e));
     const featured = mapped.find((e: any) => e.isFeatured === true) ?? null;
     const events = mapped.filter((e: any) => e.id !== featured?.id);
