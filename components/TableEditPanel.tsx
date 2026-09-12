@@ -19,8 +19,16 @@ type Props = {
   onClose: () => void;
 };
 
+const FIELD = 'w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white';
+const LABEL = 'block text-xs text-white/60 mb-1';
+
+/** How far one tap of the nudge pad moves the object, in percent of the plan. */
+const NUDGE_STEPS = [0.2, 1, 5] as const;
+
 export default function TableEditPanel({ table, ticketCategories, onUpdate, onDelete, onClose }: Props) {
-  // Close panel on Escape key
+  const [showMore, setShowMore] = React.useState(false);
+  const [step, setStep] = React.useState<number>(1);
+
   React.useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handleKey);
@@ -34,13 +42,21 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
   const category = ticketCategories.find((c) => c.id === table.categoryId);
   const price = category?.price ?? 0;
 
+  const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v * 100) / 100));
+  const nudge = (dx: number, dy: number) => {
+    onUpdate({
+      centerXPercent: clamp(table.centerXPercent + dx * step),
+      centerYPercent: clamp(table.centerYPercent + dy * step),
+    });
+  };
+
   return (
     <div
       className="fixed right-0 top-0 h-full w-[300px] bg-[#0f0f0f] border-l border-[#C6A75E]/30 shadow-[-8px_0_24px_rgba(0,0,0,0.5)] z-40 flex flex-col animate-slide-in-right"
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}
     >
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
-        <h3 className="font-semibold text-white">{isDecorative ? 'Редактирование объекта' : 'Редактирование стола'}</h3>
+        <h3 className="font-semibold text-white">{isDecorative ? 'Объект' : `Стол ${table.number}`}</h3>
         <button
           type="button"
           onClick={onClose}
@@ -51,251 +67,262 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
           ×
         </button>
       </div>
+
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* ---- Position ------------------------------------------------ */}
+        {/*
+          The hall is arranged on a phone, inside Telegram. A finger cannot drag
+          a 14px table to a tenth of a percent, but it can tap a button. The pad
+          is the primary way to correct what detection got almost right; the
+          numbers below stay for anyone who knows exactly where a table belongs.
+        */}
         <div>
-          <label className="block text-xs text-white/60 mb-1">Тип объекта</label>
-          <select
-            value={objType}
-            onChange={(e) => onUpdate({ objectType: e.target.value as ObjectType })}
-            className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-          >
-            {Object.entries(OBJECT_TYPE_LABELS).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
-          </select>
+          <div className="flex items-baseline justify-between mb-2">
+            <span className="text-xs font-medium text-white/80">{UI_TEXT.tables.positionSection}</span>
+            <span className="text-[11px] text-white/40 tabular-nums">
+              {table.centerXPercent.toFixed(1)} · {table.centerYPercent.toFixed(1)}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="grid grid-cols-3 grid-rows-3 gap-1 w-[132px] shrink-0">
+              <span />
+              <button type="button" aria-label="Вверх" onClick={() => nudge(0, -1)} className="h-11 rounded-lg border border-white/15 text-white/80 active:bg-white/10">↑</button>
+              <span />
+              <button type="button" aria-label="Влево" onClick={() => nudge(-1, 0)} className="h-11 rounded-lg border border-white/15 text-white/80 active:bg-white/10">←</button>
+              <span className="h-11 rounded-lg bg-white/5 flex items-center justify-center text-[10px] text-white/40">{step}%</span>
+              <button type="button" aria-label="Вправо" onClick={() => nudge(1, 0)} className="h-11 rounded-lg border border-white/15 text-white/80 active:bg-white/10">→</button>
+              <span />
+              <button type="button" aria-label="Вниз" onClick={() => nudge(0, 1)} className="h-11 rounded-lg border border-white/15 text-white/80 active:bg-white/10">↓</button>
+              <span />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-white/40">Шаг</span>
+              {NUDGE_STEPS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStep(s)}
+                  aria-pressed={step === s}
+                  className={`px-2 py-1.5 rounded-lg text-xs border ${
+                    step === s ? 'border-[#C6A75E] text-[#C6A75E]' : 'border-white/15 text-white/60'
+                  }`}
+                >
+                  {s}%
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-        {isDecorative && (
+
+        {/* ---- The three things that actually change per event ---------- */}
+        {isDecorative ? (
           <div>
-            <label className="block text-xs text-white/60 mb-1">Метка</label>
+            <label className={LABEL}>Метка</label>
             <input
               type="text"
               value={table.label ?? ''}
               placeholder="Например: Сцена, Бар..."
               onChange={(e) => onUpdate({ label: e.target.value || undefined })}
-              className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-            />
-          </div>
-        )}
-        {!isDecorative && (
-          <div>
-            <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.tableNumber}</label>
-            <input
-              type="number"
-              min={1}
-              value={table.number ?? 1}
-              onChange={(e) => {
-                const val = Math.max(1, parseInt(e.target.value, 10) || 1);
-                onUpdate({ number: val });
-              }}
-              className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-            />
-          </div>
-        )}
-        {!isDecorative && (
-          <div>
-            <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.seats}</label>
-            <input
-              type="number"
-              min={0}
-              value={table.seatsCount}
-              onChange={(e) => {
-                const val = Math.max(0, parseInt(e.target.value, 10) || 0);
-                onUpdate({ seatsCount: val, seatsAvailable: val });
-              }}
-              className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-            />
-          </div>
-        )}
-        {!isDecorative && (
-          <div>
-            <label className="block text-xs text-white/60 mb-1">Цена (₽)</label>
-            <input
-              type="text"
-              value={price > 0 ? `${price}` : '—'}
-              readOnly
-              className="w-full border border-white/10 rounded-lg px-3 py-2 bg-[#111] text-white/60"
-            />
-            <p className="text-[10px] text-white/40 mt-1">Цена задаётся в категории</p>
-          </div>
-        )}
-        {!isDecorative && (
-          <div>
-            <label className="block text-xs text-white/60 mb-1">Категория</label>
-            <select
-              value={table.categoryId}
-              onChange={(e) => {
-                const val = e.target.value || '';
-                onUpdate({ categoryId: val });
-              }}
-              className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-            >
-              <option value="">—</option>
-              {ticketCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.price} ₽)
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        <div>
-          <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.shape}</label>
-          <select
-            value={table.shape}
-            onChange={(e) => {
-              const newShape = e.target.value as 'circle' | 'rect';
-              const size = table.shape === 'circle' ? table.widthPercent : Math.min(table.widthPercent, table.heightPercent);
-              onUpdate({ shape: newShape, widthPercent: size, heightPercent: size });
-            }}
-            className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-          >
-            <option value="circle">{UI_TEXT.tables.shapeCircle}</option>
-            <option value="rect">{UI_TEXT.tables.shapeRect}</option>
-          </select>
-        </div>
-        <div className="pt-1 border-t border-white/10">
-          <p className="text-xs font-medium text-white/80 mb-2">{UI_TEXT.tables.positionSection}</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.positionX}</label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={0.1}
-                value={table.centerXPercent}
-                onChange={(e) => {
-                  const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 50));
-                  onUpdate({ centerXPercent: val });
-                }}
-                className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.positionY}</label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={0.1}
-                value={table.centerYPercent}
-                onChange={(e) => {
-                  const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 50));
-                  onUpdate({ centerYPercent: val });
-                }}
-                className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-              />
-            </div>
-          </div>
-          <p className="text-[10px] text-white/40 mt-1">{UI_TEXT.tables.positionHint}</p>
-        </div>
-        <div>
-          <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.rotationDeg}</label>
-          <input
-            type="number"
-            min={-180}
-            max={180}
-            value={table.rotationDeg}
-            onChange={(e) => {
-              const val = Math.max(-180, Math.min(180, parseInt(e.target.value, 10) || 0));
-              onUpdate({ rotationDeg: val });
-            }}
-            className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-          />
-        </div>
-        {table.shape === 'circle' ? (
-          <div>
-            <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.sizePercent}</label>
-            <input
-              type="number"
-              min={2}
-              max={25}
-              step={0.5}
-              value={table.widthPercent}
-              onChange={(e) => {
-                const val = Math.max(2, Math.min(25, parseFloat(e.target.value) || 6));
-                onUpdate({ widthPercent: val, heightPercent: val });
-              }}
-              className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
+              className={FIELD}
             />
           </div>
         ) : (
           <>
-            <div>
-              <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.widthPercent}</label>
-              <input
-                type="number"
-                min={2}
-                max={25}
-                step={0.5}
-                value={table.widthPercent}
-                onChange={(e) => {
-                  const val = Math.max(2, Math.min(25, parseFloat(e.target.value) || 6));
-                  onUpdate({ widthPercent: val });
-                }}
-                className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>{UI_TEXT.tables.tableNumber}</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={table.number ?? 1}
+                  onChange={(e) => onUpdate({ number: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                  className={FIELD}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>{UI_TEXT.tables.seats}</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={table.seatsCount}
+                  onChange={(e) => {
+                    const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                    onUpdate({ seatsCount: val, seatsAvailable: val });
+                  }}
+                  className={FIELD}
+                />
+              </div>
             </div>
+
             <div>
-              <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.heightPercent}</label>
-              <input
-                type="number"
-                min={2}
-                max={25}
-                step={0.5}
-                value={table.heightPercent}
-                onChange={(e) => {
-                  const val = Math.max(2, Math.min(25, parseFloat(e.target.value) || 6));
-                  onUpdate({ heightPercent: val });
-                }}
-                className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-              />
+              <label className={LABEL}>Категория</label>
+              <select
+                value={table.categoryId}
+                onChange={(e) => onUpdate({ categoryId: e.target.value || '' })}
+                className={FIELD}
+              >
+                <option value="">—</option>
+                {ticketCategories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name} ({c.price} ₽)</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-white/40 mt-1">
+                {price > 0 ? `Цена ${price} ₽ — из категории` : 'Цена задаётся в категории'}
+              </p>
             </div>
           </>
         )}
-        <div>
-          <label className="block text-xs text-white/60 mb-1">{UI_TEXT.tables.labelFontSize}</label>
-          <input
-            type="number"
-            min={6}
-            max={48}
-            step={1}
-            placeholder="авто"
-            value={table.labelFontSize ?? ''}
-            onChange={(e) => {
-              const raw = e.target.value;
-              onUpdate({ labelFontSize: raw === '' ? undefined : Math.max(6, Math.min(48, parseInt(raw, 10))) });
-            }}
-            className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white"
-          />
-        </div>
-        <div>
-          <label className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={table.isActive}
-              onChange={(e) => {
-              const checked = e.target.checked;
-              onUpdate({ isActive: checked });
-            }}
-              className="rounded border-white/30"
-            />
-            {UI_TEXT.tables.available}
-          </label>
-        </div>
+
+        {/* ---- Everything set once when the hall is built --------------- */}
+        <button
+          type="button"
+          onClick={() => setShowMore((v) => !v)}
+          aria-expanded={showMore}
+          className="w-full text-left text-xs text-white/50 hover:text-white/80 py-2 border-t border-white/10"
+        >
+          {showMore ? '− Свернуть' : '+ Ещё'} — форма, размер, поворот, видимость
+        </button>
+
+        {showMore && (
+          <div className="space-y-4">
+            <div>
+              <label className={LABEL}>Тип объекта</label>
+              <select
+                value={objType}
+                onChange={(e) => onUpdate({ objectType: e.target.value as ObjectType })}
+                className={FIELD}
+              >
+                {Object.entries(OBJECT_TYPE_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className={LABEL}>{UI_TEXT.tables.shape}</label>
+              <select
+                value={table.shape}
+                onChange={(e) => {
+                  const newShape = e.target.value as 'circle' | 'rect';
+                  const size = table.shape === 'circle'
+                    ? table.widthPercent
+                    : Math.min(table.widthPercent, table.heightPercent);
+                  onUpdate({ shape: newShape, widthPercent: size, heightPercent: size });
+                }}
+                className={FIELD}
+              >
+                <option value="circle">{UI_TEXT.tables.shapeCircle}</option>
+                <option value="rect">{UI_TEXT.tables.shapeRect}</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>{UI_TEXT.tables.widthPercent}</label>
+                <input
+                  type="number"
+                  min={2}
+                  max={25}
+                  step={0.5}
+                  value={table.widthPercent}
+                  onChange={(e) => {
+                    const val = Math.max(2, Math.min(25, parseFloat(e.target.value) || 6));
+                    // A circle is square; an ellipse needs the height field below.
+                    onUpdate(table.shape === 'circle'
+                      ? { widthPercent: val, heightPercent: val }
+                      : { widthPercent: val });
+                  }}
+                  className={FIELD}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>{UI_TEXT.tables.heightPercent}</label>
+                <input
+                  type="number"
+                  min={2}
+                  max={25}
+                  step={0.5}
+                  value={table.heightPercent}
+                  disabled={table.shape === 'circle'}
+                  onChange={(e) => {
+                    const val = Math.max(2, Math.min(25, parseFloat(e.target.value) || 6));
+                    onUpdate({ heightPercent: val });
+                  }}
+                  className={`${FIELD} disabled:opacity-40`}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>{UI_TEXT.tables.positionX}</label>
+                <input
+                  type="number" min={0} max={100} step={0.1}
+                  value={table.centerXPercent}
+                  onChange={(e) => onUpdate({ centerXPercent: clamp(parseFloat(e.target.value) || 50) })}
+                  className={FIELD}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>{UI_TEXT.tables.positionY}</label>
+                <input
+                  type="number" min={0} max={100} step={0.1}
+                  value={table.centerYPercent}
+                  onChange={(e) => onUpdate({ centerYPercent: clamp(parseFloat(e.target.value) || 50) })}
+                  className={FIELD}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>{UI_TEXT.tables.rotationDeg}</label>
+                <input
+                  type="number" min={-180} max={180}
+                  value={table.rotationDeg}
+                  onChange={(e) => onUpdate({
+                    rotationDeg: Math.max(-180, Math.min(180, parseInt(e.target.value, 10) || 0)),
+                  })}
+                  className={FIELD}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>{UI_TEXT.tables.labelFontSize}</label>
+                <input
+                  type="number" min={6} max={48} step={1} placeholder="авто"
+                  value={table.labelFontSize ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    onUpdate({
+                      labelFontSize: raw === '' ? undefined : Math.max(6, Math.min(48, parseInt(raw, 10))),
+                    });
+                  }}
+                  className={FIELD}
+                />
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={table.isActive}
+                onChange={(e) => onUpdate({ isActive: e.target.checked })}
+                className="rounded border-white/30"
+              />
+              {UI_TEXT.tables.available}
+            </label>
+          </div>
+        )}
       </div>
+
       <div className="p-4 border-t border-white/10">
         <button
           type="button"
-          style={{
-            background: '#ff3b30',
-            color: 'white',
-            padding: '12px',
-            borderRadius: '12px',
-            marginTop: '16px',
-            width: '100%',
-          }}
           onClick={() => onDelete()}
+          className="w-full rounded-xl py-3 text-white"
+          style={{ background: '#ff3b30' }}
         >
           {isDecorative ? 'Удалить объект' : 'Удалить стол'}
         </button>
