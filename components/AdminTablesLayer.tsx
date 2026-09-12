@@ -39,6 +39,8 @@ type Props = {
   tables: TableModel[];
   ticketCategories: { id: string; name?: string; price?: number; color_key?: string; styleKey?: string; custom_color?: string }[];
   selectedTableId: string | null;
+  /** Ids picked for a bulk action. Highlighted like a selection, but without the resize handles. */
+  bulkIds?: string[];
   onTableSelect: (id: string) => void;
   onTablesChange: (updater: (prev: TableModel[]) => TableModel[]) => void;
 };
@@ -364,9 +366,11 @@ export default function AdminTablesLayer({
   tables,
   ticketCategories,
   selectedTableId,
+  bulkIds,
   onTableSelect,
   onTablesChange,
 }: Props) {
+  const bulkSet = React.useMemo(() => new Set(bulkIds ?? []), [bulkIds]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -423,7 +427,7 @@ export default function AdminTablesLayer({
               <DraggableDecorativeObject
                 key={table.id}
                 table={table}
-                isSelected={selectedTableId === table.id}
+                isSelected={selectedTableId === table.id || bulkSet.has(table.id)}
                 onSelect={() => onTableSelect(table.id)}
                 onTablesChange={onTablesChange}
                 containerRef={containerRef}
@@ -435,7 +439,7 @@ export default function AdminTablesLayer({
               key={table.id}
               table={table}
               ticketCategories={ticketCategories}
-              isSelected={selectedTableId === table.id}
+              isSelected={selectedTableId === table.id || bulkSet.has(table.id)}
               onSelect={() => onTableSelect(table.id)}
               onTablesChange={onTablesChange}
               containerRef={containerRef}

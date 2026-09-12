@@ -412,6 +412,39 @@ const AdminPanel: React.FC<{
   const [orgPickerSelectedUserId, setOrgPickerSelectedUserId] = useState<number | null>(null);
   const [tables, setTables] = useState<TableModel[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+  /**
+   * Bulk selection. Assigning a category is the second most repetitive job in
+   * setting up a hall after placing the tables: eight VIP tables means opening
+   * eight panels and picking the same value eight times. In bulk mode a tap
+   * adds a table to the set instead of opening its panel.
+   */
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkIds, setBulkIds] = useState<string[]>([]);
+
+  const bookableTables = React.useMemo(
+    () => tables.filter((t) => (t.objectType ?? 'table') === 'table'),
+    [tables]
+  );
+
+  const exitBulkMode = () => { setBulkMode(false); setBulkIds([]); };
+
+  const toggleBulk = (id: string) => {
+    setBulkIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const applyToBulk = (updates: Partial<TableModel>) => {
+    if (bulkIds.length === 0) return;
+    const ids = new Set(bulkIds);
+    setTables((prev) => prev.map((t) => (ids.has(t.id) ? { ...t, ...updates } : t)));
+  };
+
+  const deleteBulk = () => {
+    if (bulkIds.length === 0) return;
+    if (!window.confirm(`Удалить выбранные столы (${bulkIds.length})?`)) return;
+    const ids = new Set(bulkIds);
+    setTables((prev) => prev.filter((t) => !ids.has(t.id)));
+    setBulkIds([]);
+  };
   const initialTablesRef = useRef<TableModel[]>([]);
   const hasInitializedRef = useRef(false);
 
@@ -1412,7 +1445,7 @@ const AdminPanel: React.FC<{
 
           {selectedEvent && (
             <>
-              {selectedTableId && (
+              {selectedTableId && !bulkMode && (
                 <TableEditPanel
                   table={tables.find((t) => t.id === selectedTableId) ?? null}
                   ticketCategories={(selectedEvent?.ticketCategories ?? []) as import('../types').TicketCategory[]}
@@ -2148,6 +2181,112 @@ const AdminPanel: React.FC<{
                             <div className="flex flex-wrap items-center gap-2">
                               <button
                                 type="button"
+                                disabled={tables.length === 0}
+                                onClick={() => {
+                                  if (bulkMode) exitBulkMode();
+                                  else { setBulkMode(true); setSelectedTableId(null); }
+                                }}
+                                className={`px-3 py-2 rounded-lg text-xs border disabled:opacity-40 ${
+                                  bulkMode ? 'border-[#C6A75E] text-[#C6A75E]' : 'border-white/20 text-white/80'
+                                }`}
+                              >
+                                {bulkMode ? 'Выйти из выбора' : 'Выбрать несколько'}
+                              </button>
+                              {bulkMode && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => setBulkIds(bookableTables.map((t) => t.id))}
+                                    className="px-3 py-2 rounded-lg text-xs border border-white/20 text-white/70"
+                                  >
+                                    Все столы ({bookableTables.length})
+                                  </button>
+                                  {bulkIds.length > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setBulkIds([])}
+                                      className="px-3 py-2 rounded-lg text-xs border border-white/20 text-white/50"
+                                    >
+                                      Снять
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+
+                            {bulkMode && (
+                              <div className="mt-2 rounded-xl border border-[#C6A75E]/30 bg-[#C6A75E]/5 p-3 space-y-3">
+                                {bulkIds.length === 0 ? (
+                                  <p className="text-xs text-white/60">
+                                    Нажимайте на столы на плане, чтобы выбрать их. Потом задайте категорию сразу всем.
+                                  </p>
+                                ) : (
+                                  <>
+                                    <p className="text-xs text-[#C6A75E]">Выбрано столов: {bulkIds.length}</p>
+
+                                    <div>
+                                      <label className="block text-xs text-white/60 mb-1">Категория для всех</label>
+                                      <select
+                                        defaultValue=""
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          if (val === '') return;
+                                          applyToBulk({ categoryId: val === '__none__' ? '' : val });
+                                          e.target.value = '';
+                                        }}
+                                        className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white text-sm"
+                                      >
+                                        <option value="">Выберите категорию…</option>
+                                        <option value="__none__">Без категории</option>
+                                        {(selectedEvent?.ticketCategories ?? []).map((c) => (
+                                          <option key={c.id} value={c.id}>{c.name} ({c.price} ₽)</option>
+                                        ))}
+                                      </select>
+                                    </div>
+
+                                    <div className="flex items-end gap-2">
+                                      <div className="flex-1">
+                                        <label className="block text-xs text-white/60 mb-1">Мест за столом</label>
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          placeholder="—"
+                                          onKeyDown={(e) => {
+                                            if (e.key !== 'Enter') return;
+                                            const raw = (e.target as HTMLInputElement).value;
+                                            if (raw === '') return;
+                                            const val = Math.max(0, parseInt(raw, 10) || 0);
+                                            applyToBulk({ seatsCount: val, seatsAvailable: val });
+                                            (e.target as HTMLInputElement).value = '';
+                                          }}
+                                          onBlur={(e) => {
+                                            const raw = e.target.value;
+                                            if (raw === '') return;
+                                            const val = Math.max(0, parseInt(raw, 10) || 0);
+                                            applyToBulk({ seatsCount: val, seatsAvailable: val });
+                                            e.target.value = '';
+                                          }}
+                                          className="w-full border border-white/20 rounded-lg px-3 py-2 bg-[#1a1a1a] text-white text-sm"
+                                        />
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={deleteBulk}
+                                        className="px-3 py-2 rounded-lg text-xs border border-red-500/40 text-red-400"
+                                      >
+                                        Удалить
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-3 pt-3 border-t border-white/10">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
                                 disabled={venueBusy || !selectedEvent?.id || tables.length === 0}
                                 onClick={handleSaveVenue}
                                 className="px-3 py-2 rounded-lg text-xs border border-[#C6A75E]/40 text-[#C6A75E] disabled:opacity-40"
@@ -2332,8 +2471,12 @@ const AdminPanel: React.FC<{
                                         <AdminTablesLayer
                                           tables={tables}
                                           ticketCategories={selectedEvent?.ticketCategories ?? []}
-                                          selectedTableId={selectedTableId}
-                                          onTableSelect={(id) => setSelectedTableId(id)}
+                                          selectedTableId={bulkMode ? null : selectedTableId}
+                                          bulkIds={bulkMode ? bulkIds : undefined}
+                                          onTableSelect={(id) => {
+                                            if (bulkMode) toggleBulk(id);
+                                            else setSelectedTableId(id);
+                                          }}
                                           onTablesChange={(updater) => setTables(updater)}
                                         />
                                       </div>
