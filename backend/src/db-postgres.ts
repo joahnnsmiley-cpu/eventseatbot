@@ -196,9 +196,28 @@ function adminRowToAdmin(row: AdminsRow): Admin {
   return { id: row.id };
 }
 
-/** Reassign featured event: only published future events are eligible. */
-export async function reassignFeaturedIfNeeded(): Promise<void> {
+/**
+ * Reassign featured event: only published future events are eligible.
+ *
+ * Featured reassignment runs on every /public/events request — two selects per
+ * app open — but what it watches changes at most a few times a day: an event's
+ * date passing, or one being published. Throttled to once a minute, with an
+ * explicit reset for the admin paths that do change those things, so a newly
+ * published event becomes featured immediately rather than up to a minute later.
+ */
+const FEATURED_RECHECK_MS = 60_000;
+let featuredCheckedAt = 0;
+
+/** Call after anything that could change which event should be featured. */
+export function invalidateFeaturedCache(): void {
+  featuredCheckedAt = 0;
+}
+
+export async function reassignFeaturedIfNeeded(force = false): Promise<void> {
   if (!supabase) return;
+  const now = Date.now();
+  if (!force && now - featuredCheckedAt < FEATURED_RECHECK_MS) return;
+  featuredCheckedAt = now;
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
   const { data: featuredRow, error: featErr } = await supabase
@@ -412,6 +431,8 @@ function logLayoutChange(
 }
 
 export async function upsertEvent(event: EventData, adminId?: number): Promise<void> {
+  // Publishing, unpublishing or moving a date changes who should be featured.
+  invalidateFeaturedCache();
   if (!supabase) return;
   // image_url — poster (event banner / cover image); layout_image_url — seating only (рассадка)
   const isFeatured = (event as { isFeatured?: boolean }).isFeatured === true;
@@ -605,6 +626,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
 
 /** Delete event by id. Cascades to event_tables and bookings via FK. */
 export async function deleteEvent(id: string): Promise<boolean> {
+  invalidateFeaturedCache();
   if (!supabase) return false;
   const { error } = await supabase.from('events').delete().eq('id', id);
   if (error) throw error;

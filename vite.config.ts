@@ -13,6 +13,17 @@ export default defineConfig(() => {
       build: {
         target: 'es2015',
         modulePreload: false,
+        rollupOptions: {
+          output: {
+            // Keep the libraries in their own chunks so a change to app code
+            // does not force everyone to re-download React and friends.
+            manualChunks: {
+              react: ['react', 'react-dom'],
+              motion: ['framer-motion'],
+              zoom: ['react-zoom-pan-pinch'],
+            },
+          },
+        },
       },
       plugins: [
         tailwindcss(),

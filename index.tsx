@@ -4,7 +4,8 @@ import './index.css';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './src/ui/ToastContext';
-import WebAdminApp from './src/pages/WebAdminApp';
+// Only reachable at /admin; the Mini App should not carry it.
+const WebAdminApp = React.lazy(() => import('./src/pages/WebAdminApp'));
 
 // Call VKWebAppInit as early as possible so VK removes its loading overlay
 // This must happen before React renders, not inside a useEffect
@@ -65,7 +66,9 @@ void waitForTelegramSdk().then(() => {
     <React.StrictMode>
       <ErrorBoundary>
         <ToastProvider>
-          {isWebAdmin ? <WebAdminApp /> : <App />}
+          {isWebAdmin
+          ? <React.Suspense fallback={null}><WebAdminApp /></React.Suspense>
+          : <App />}
         </ToastProvider>
       </ErrorBoundary>
     </React.StrictMode>

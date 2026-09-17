@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import vkBridge from '@vkontakte/vk-bridge';
 import * as StorageService from './services/storageService';
-import AdminPanel from './components/AdminPanel';
 import AuthService from './services/authService';
 import SeatMap from './components/SeatMap';
 import SeatPicker from './components/SeatPicker';
@@ -10,7 +9,6 @@ import BookingSuccessView from './components/BookingSuccessView';
 import ErrorBoundary from './components/ErrorBoundary';
 import EventPage from './components/EventPage';
 import MyTicketsPage from './components/MyTicketsPage';
-import ProfileScreen from './screens/ProfileScreen';
 import AppLayout from './src/layout/AppLayout';
 import BottomNav, { type BottomNavTab } from './src/layout/BottomNav';
 import Card from './src/ui/Card';
@@ -29,6 +27,24 @@ import { useToast } from './src/ui/ToastContext';
 import { getPlatform, getPlatformUserId, extractParam } from './src/utils/platform';
 import PrivacyConsentModal, { PRIVACY_CONSENT_KEY } from './components/PrivacyConsentModal';
 import { warmupBackend } from './config/api';
+
+/**
+ * Loaded on demand rather than bundled into the first paint.
+ *
+ * A guest who opens the app to buy a ticket was downloading the whole admin
+ * panel and the QR scanner with it: AdminPanel is 2700 lines and brings
+ * @dnd-kit, and ControllerScannerScreen — reachable only through the profile —
+ * brings jsqr. Neither is on the path from "open the app" to "pick a seat".
+ */
+const AdminPanel = React.lazy(() => import('./components/AdminPanel'));
+const ProfileScreen = React.lazy(() => import('./screens/ProfileScreen'));
+
+/** Holds the space a lazy screen is about to fill, so nothing jumps. */
+const ScreenFallback = () => (
+  <div className="min-h-[60vh] flex items-center justify-center text-sm text-muted">
+    {UI_TEXT.common.loading}
+  </div>
+);
 
 declare global {
   interface Window {
@@ -577,14 +593,74 @@ function App() {
     }
   };
 
+  /**
+   * Keep seat availability fresh while the hall is open.
+   *
+   * This used to re-fetch the whole event every 8 seconds and replace
+   * selectedEvent with a new object, so all 35 tables were rebuilt and
+   * re-rendered — while the guest was picking a seat. The event itself does not
+   * change during a booking; only occupancy does, and that is a 1.5 KB response
+   * against the event's 13 KB.
+   *
+   * It also kept polling while the app was in the background, and never
+   * cancelled a request it had replaced.
+   */
   useEffect(() => {
     if (!selectedEventId) return;
     if (view !== 'layout' && view !== 'seats') return;
+
+    // Load the event once on entry; after that only occupancy is refreshed.
     loadEvent(selectedEventId, true);
-    const id = window.setInterval(() => {
-      loadEvent(selectedEventId, true);
-    }, 8000);
-    return () => window.clearInterval(id);
+
+    let cancelled = false;
+    let controller: AbortController | null = null;
+    let timer = 0;
+
+    const refreshOccupancy = async () => {
+      if (cancelled || document.hidden) return;
+      controller?.abort();
+      controller = new AbortController();
+      try {
+        const occupied = await StorageService.getOccupiedSeats(selectedEventId, controller.signal);
+        if (cancelled) return;
+        const map: Record<string, Set<number>> = {};
+        for (const row of occupied) {
+          if (row.table_id && Array.isArray(row.seat_indices)) {
+            map[row.table_id] = new Set(row.seat_indices.map(Number));
+          }
+        }
+        setOccupiedMap(map);
+      } catch {
+        // A refresh that fails leaves the previous map in place; the next tick
+        // tries again. Aborted requests land here too and are not errors.
+      }
+    };
+
+    const start = () => {
+      if (timer) return;
+      timer = window.setInterval(refreshOccupancy, 8000);
+    };
+    const stop = () => {
+      if (!timer) return;
+      window.clearInterval(timer);
+      timer = 0;
+    };
+    const onVisibility = () => {
+      if (document.hidden) { stop(); return; }
+      // Coming back from the background: catch up immediately, then resume.
+      void refreshOccupancy();
+      start();
+    };
+
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      cancelled = true;
+      stop();
+      controller?.abort();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [selectedEventId, view]);
 
   const selectedTable: Table | null = useMemo(() => {
@@ -827,17 +903,19 @@ function App() {
 
   if ((isAdmin || isOrganizer) && view === 'admin') {
     return wrapWithLayout(
-      <AdminPanel
-        isAdmin={isAdmin}
-        organizerEventIds={organizerEventIds}
-        onBack={() => setView('events')}
-        onViewAsUser={(eventId) => {
-          setSelectedEventId(eventId);
-          setLayoutInitialMode('preview');
-          loadEvent(eventId);
-          setView('layout');
-        }}
-      />
+      <React.Suspense fallback={<ScreenFallback />}>
+        <AdminPanel
+          isAdmin={isAdmin}
+          organizerEventIds={organizerEventIds}
+          onBack={() => setView('events')}
+          onViewAsUser={(eventId) => {
+            setSelectedEventId(eventId);
+            setLayoutInitialMode('preview');
+            loadEvent(eventId);
+            setView('layout');
+          }}
+        />
+      </React.Suspense>
     );
   }
 
@@ -851,17 +929,19 @@ function App() {
   if (view === 'profile') {
     const currentUser = getCurrentUser(tgUser, isAdmin, selectedEvent, organizerEventIds);
     return wrapWithLayout(
-      <ProfileScreen
-        userRole={currentUser.role}
-        isController={isController}
-        guestNameOverride={tgUser?.first_name}
-        selectedEventId={selectedEventId}
-        organizerEventIds={organizerEventIds}
-        onOpenAdmin={() => setView('admin')}
-        onOpenMap={() => setView('events')}
-        onBack={() => setView('events')}
-        authLoading={authLoading}
-      />
+      <React.Suspense fallback={<ScreenFallback />}>
+        <ProfileScreen
+          userRole={currentUser.role}
+          isController={isController}
+          guestNameOverride={tgUser?.first_name}
+          selectedEventId={selectedEventId}
+          organizerEventIds={organizerEventIds}
+          onOpenAdmin={() => setView('admin')}
+          onOpenMap={() => setView('events')}
+          onBack={() => setView('events')}
+          authLoading={authLoading}
+        />
+      </React.Suspense>
     );
   }
 

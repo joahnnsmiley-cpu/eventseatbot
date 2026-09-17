@@ -78,10 +78,14 @@ export const getMyBookingsPublic = async (userId: number | string): Promise<{
 };
 
 /** GET /public/events/:eventId/occupied-seats — returns [{ table_id, seat_indices }] */
-export const getOccupiedSeats = async (eventId: string): Promise<{ table_id: string; seat_indices: number[] }[]> => {
+export const getOccupiedSeats = async (
+  eventId: string,
+  /** Lets a caller that polls drop a request it has already replaced. */
+  signal?: AbortSignal
+): Promise<{ table_id: string; seat_indices: number[] }[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const url = `${apiBaseUrl}/public/events/${eventId}/occupied-seats`;
-  const res = await fetch(url);
+  const res = await fetch(url, signal ? { signal } : undefined);
   if (!res.ok) throw new Error('Failed to load occupied seats');
   const data = await res.json();
   return Array.isArray(data) ? data : [];
