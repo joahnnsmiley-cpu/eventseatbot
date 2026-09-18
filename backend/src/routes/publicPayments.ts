@@ -27,8 +27,7 @@ router.post('/payments', async (req: Request, res: Response) => {
   }
 
   // Validate booking exists
-  const bookings = await db.getBookings();
-  const booking = bookings.find((b: any) => b.id === bookingId);
+  const booking = await db.getBookingById(String(bookingId));
   if (!booking) {
     return res.status(404).json({ error: 'Booking not found' });
   }

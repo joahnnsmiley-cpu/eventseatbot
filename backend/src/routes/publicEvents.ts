@@ -454,13 +454,6 @@ router.post('/bookings/table', bookingLimiter, async (req: Request, res: Respons
       console.log('[POST BOOKING] inserting booking id:', booking.id);
       try {
         await db.addBooking(booking);
-        console.log('[POST BOOKING] booking inserted successfully');
-        // RAW
-        const { data: rawData } = await supabase!.from('bookings').select('*');
-        console.log('[RAW COUNT]', rawData?.length);
-        // VIA DB
-        const viaDb = await db.getBookings();
-        console.log('[DB COUNT]', viaDb.length);
       } catch (err) {
         console.error('Failed to insert booking:', err);
         return { status: 500, body: { error: 'Failed to save booking' } };
@@ -693,24 +686,14 @@ router.post('/bookings/seats', bookingLimiter, async (req: Request, res: Respons
 // PATCH /public/bookings/:id/status
 // Allow user to set booking status to awaiting_confirmation (e.g. after "Я оплатил").
 router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
-  console.log('[PATCH] param id:', req.params.id);
-
   const bookingId = String(req.params.id);
-  console.log('[PATCH] normalized id:', bookingId);
-
   if (!bookingId) return res.status(400).json({ error: 'bookingId is required' });
   const { status } = req.body || {};
   if (status !== 'awaiting_confirmation') return res.status(400).json({ error: 'Allowed status: awaiting_confirmation' });
 
-  const { data } = await supabase!.from('bookings').select('*');
-  console.log('[PATCH RAW COUNT]', data?.length);
-
-  const bookings = await db.getBookings();
-  console.log('[PATCH] bookings count:', bookings.length);
-  console.log('[PATCH] ids in db:', bookings.map(b => b.id));
-
-  const booking = bookings.find((b: any) => b.id === bookingId);
-  console.log('[PATCH] found?', !!booking);
+  // This is the "Я оплатил" button. It used to read the bookings table twice in
+  // full and write every booking id in the database to the log on each press.
+  const booking = await db.getBookingById(bookingId);
 
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
   if (booking.status !== 'reserved' && booking.status !== 'pending') {
@@ -764,15 +747,16 @@ router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
 
   try {
     // Need to find booking to get eventId
-    const all = await db.getBookings();
-    const bk = all.find((b: any) => b.id === bookingId);
+    // Read once to learn which event to lock on...
+    const bk = await db.getBookingById(bookingId);
     if (!bk) return res.status(404).json({ error: 'Booking not found' });
     const eventId = bk.eventId;
 
     const result = await runWithLock(eventId, async () => {
       // re-read fresh state
-      const bookings = await db.getBookings();
-      const booking = bookings.find((b: any) => b.id === bookingId);
+      // ...and again inside it, so the status check sees the current row rather
+      // than whatever it was before another request took the lock.
+      const booking = await db.getBookingById(bookingId);
       if (!booking) return { status: 404, body: { error: 'Booking not found' } };
       if (booking.status !== 'reserved') return { status: 409, body: { error: 'Booking is not reserved or already expired' } };
 
@@ -828,16 +812,16 @@ router.post('/contact-organizer', async (req: Request, res: Response) => {
     const ev = (await db.findEventById(eventId)) as any;
     if (!ev) return res.status(404).json({ error: 'Event not found' });
 
-    const bookings = await db.getBookings();
     let booking: any = null;
     if (bookingId && typeof bookingId === 'string') {
-      booking = bookings.find((b: any) => b.id === bookingId && b.eventId === eventId);
+      const b = await db.getBookingById(bookingId);
+      if (b && b.eventId === eventId) booking = b;
     }
     if (!booking && userId != null) {
-      const userBookings = bookings.filter(
-        (b: any) => b.eventId === eventId && (b.userTelegramId === userId || b.user_telegram_id === userId)
-      );
-      booking = userBookings[0] ?? null;
+      // Same event, same person — across both platforms, which the old filter
+      // missed: it only compared Telegram ids, so a VK user's booking was never
+      // attached to their message.
+      booking = (await db.getBookingsByOwner(userId)).find((b: any) => b.eventId === eventId) ?? null;
     }
 
     const fio = [userFirstName, userLastName].filter(Boolean).join(' ').trim() || '—';
