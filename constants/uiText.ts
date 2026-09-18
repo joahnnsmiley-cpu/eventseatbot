@@ -14,12 +14,16 @@ export const UI_TEXT = {
     profile: 'ПРОФИЛЬ',
   },
   admin: {
-    title: 'Центр управления',
+    title: 'Управление',
     subtitle: 'Управление мероприятием',
     exit: 'Выход',
     reload: 'Обновить',
-    bookings: 'Бронирования',
+    bookings: 'Брони',
     venueLayout: 'План зала',
+    /** Tab holding the list of events and the event editor. Was labelled "План зала". */
+    eventsTab: 'События',
+    /** Controllers and organizers — who can do what. Was two tabs, "Контролеры" and "Роли". */
+    team: 'Команда',
     selectEvent: 'Выберите событие',
     chooseEvent: '— Выберите событие —',
     createEvent: 'Создать событие',

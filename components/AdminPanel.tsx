@@ -198,37 +198,16 @@ function SortableSectionInner({
   sectionRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
   isDirty: boolean;
 }) {
-  const {
-    setNodeRef,
-    setActivatorNodeRef,
-    listeners,
-    attributes,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+  // Sections used to be draggable. The order was never saved, so dragging
+  // gave nothing — and on a phone the ☰ handle was easy to catch while
+  // scrolling and shuffle the form mid-edit. Fixed order: the order of work.
+  void id;
   return (
-    <div ref={setNodeRef} style={style} className={isDragging ? 'opacity-50' : ''}>
+    <div>
       <AccordionSection
         title={title}
         sectionKey={sectionKey}
         dirtyIndicator={dirtyIndicator}
-        dragHandle={
-          <span
-            ref={setActivatorNodeRef}
-            {...listeners}
-            {...attributes}
-            className="cursor-grab active:cursor-grabbing text-[#6E6A64] text-lg px-1 select-none"
-            title="Перетащить"
-            onClick={(e) => e.stopPropagation()}
-          >
-            ☰
-          </span>
-        }
         openSections={openSections}
         toggleSection={toggleSection}
         sectionRefs={sectionRefs}
@@ -261,6 +240,7 @@ const AdminPanel: React.FC<{
   organizerEventIds?: string[];
 }> = ({ onBack, onViewAsUser, isAdmin = false, organizerEventIds = [] }) => {
   const [mode, setMode] = useState<'bookings' | 'layout' | 'controllers' | 'roles'>('bookings');
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -297,7 +277,7 @@ const AdminPanel: React.FC<{
   const [openSections, setOpenSections] = useState<string[]>(['basic']);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [sectionOrder, setSectionOrder] = useState(['basic', 'layout', 'tables', 'categories', 'publish']);
-  const [exitConfirmPending, setExitConfirmPending] = useState<{ type: 'back' } | { type: 'switchMode'; mode: 'bookings' | 'layout' } | { type: 'switchEvent'; eventId: string } | null>(null);
+  const [exitConfirmPending, setExitConfirmPending] = useState<{ type: 'back' } | { type: 'switchMode'; mode: 'bookings' | 'layout' | 'controllers' | 'roles' } | { type: 'switchEvent'; eventId: string } | null>(null);
   const [resyncLoading, setResyncLoading] = useState(false);
   const [layoutUploadLoading, setLayoutUploadLoading] = useState(false);
   const [layoutUploadError, setLayoutUploadError] = useState<string | null>(null);
@@ -1121,7 +1101,6 @@ const AdminPanel: React.FC<{
             <h1 className="text-2xl font-semibold tracking-wide bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">
               {UI_TEXT.admin.title}
             </h1>
-            <span className="text-xs text-white/40 mt-1">{UI_TEXT.admin.subtitle}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             {isDirty && (
@@ -1150,7 +1129,10 @@ const AdminPanel: React.FC<{
               {UI_TEXT.admin.exit}
             </button>
           )}
-          <PrimaryButton
+          {/* Refresh is a utility, not the main action of the screen: it was the
+              biggest gold button on entry. Now a quiet icon. */}
+          <button
+            type="button"
             onClick={() => {
               if (mode === 'bookings') load();
               if (mode === 'layout') loadEvents();
@@ -1158,17 +1140,56 @@ const AdminPanel: React.FC<{
               if (mode === 'roles') { loadOrganizers(); loadAppUsers(); }
             }}
             disabled={loading || eventsLoading}
-            className="h-10 px-4 py-2.5 rounded-xl text-sm whitespace-nowrap min-w-fit"
+            aria-label={UI_TEXT.admin.reload}
+            title={UI_TEXT.admin.reload}
+            className="h-10 w-10 rounded-xl border border-white/10 text-white/70 text-lg flex items-center justify-center disabled:opacity-40"
           >
-            {UI_TEXT.admin.reload}
-          </PrimaryButton>
-          <SecondaryButton
-            onClick={handleResyncSeats}
-            disabled={resyncLoading || loading || eventsLoading}
-            className="h-10 px-4 py-2.5 rounded-xl text-sm whitespace-nowrap min-w-fit bg-[#ECE6DD] text-[#1C1C1C] hover:bg-[#DDD6CC] border-0"
-          >
-            {resyncLoading ? UI_TEXT.common.loading : UI_TEXT.admin.resyncSeats}
-          </SecondaryButton>
+            ↻
+          </button>
+          {/* "Пересчитать места" is a repair tool. It sat on the first screen,
+              sounded alarming and meant nothing to anyone who had not written it.
+              It lives in the ⋯ menu now. */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMoreMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={moreMenuOpen}
+              aria-label="Ещё"
+              className="h-10 w-10 rounded-xl border border-white/10 text-white/70 text-lg flex items-center justify-center"
+            >
+              ⋯
+            </button>
+            {moreMenuOpen && (
+              // Tap anywhere else to close — the usual way a menu goes away on a phone.
+              <button
+                type="button"
+                aria-hidden
+                tabIndex={-1}
+                onClick={() => setMoreMenuOpen(false)}
+                className="fixed inset-0 z-40 cursor-default"
+              />
+            )}
+            {moreMenuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-12 z-50 min-w-[220px] rounded-xl border border-white/10 bg-[#141414] p-1 shadow-xl"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => { setMoreMenuOpen(false); void handleResyncSeats(); }}
+                  disabled={resyncLoading || loading || eventsLoading}
+                  className="w-full text-left rounded-lg px-3 py-2.5 text-sm text-white/85 hover:bg-white/5 disabled:opacity-40"
+                >
+                  {resyncLoading ? UI_TEXT.common.loading : UI_TEXT.admin.resyncSeats}
+                  <span className="block text-[11px] text-white/40 mt-0.5">
+                    Если свободных мест показывается не столько, сколько на самом деле
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1189,26 +1210,26 @@ const AdminPanel: React.FC<{
           }}
           className={`px-3 py-2 rounded-lg text-sm ${mode === 'layout' ? 'bg-[#C6A75E] text-black' : 'bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A]'}`}
         >
-          {UI_TEXT.admin.venueLayout}
+          {UI_TEXT.admin.eventsTab}
         </button>
+        {/*
+          One "Команда" tab instead of "Контролеры" plus "Роли". The roles view
+          already contained the same controllers list — same state, same fields —
+          so admins were shown one thing in two places. Admins get the full view
+          (controllers and organizers); an organizer, who never had "Роли", gets
+          the controllers list exactly as before.
+        */}
         <button
-          onClick={() => setMode('controllers')}
-          className={`px-3 py-2 rounded-lg text-sm ${mode === 'controllers' ? 'bg-[#C6A75E] text-black' : 'bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A]'}`}
+          onClick={() => {
+            const target = isAdmin ? 'roles' : 'controllers';
+            if (isDirty && selectedEvent) { setExitConfirmPending({ type: 'switchMode', mode: target }); return; }
+            setMode(target);
+            if (isAdmin) { loadOrganizers(); loadAppUsers(); }
+          }}
+          className={`px-3 py-2 rounded-lg text-sm ${mode === 'controllers' || mode === 'roles' ? 'bg-[#C6A75E] text-black' : 'bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A]'}`}
         >
-          Контролеры
+          {UI_TEXT.admin.team}
         </button>
-        {isAdmin && (
-          <button
-            onClick={() => {
-              setMode('roles');
-              loadOrganizers();
-              loadAppUsers();
-            }}
-            className={`px-3 py-2 rounded-lg text-sm ${mode === 'roles' ? 'bg-[#C6A75E] text-black' : 'bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A]'}`}
-          >
-            Роли
-          </button>
-        )}
       </div>
 
       {loading && <div className="text-sm text-muted">{UI_TEXT.admin.loadingBookings}</div>}
@@ -1341,16 +1362,9 @@ const AdminPanel: React.FC<{
           <div className="admin-card p-4 mb-4">
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <button
-                onClick={loadEvents}
-                disabled={eventsLoading || creatingEvent}
-                className="px-3 py-2 text-sm border rounded"
-              >
-                {UI_TEXT.admin.refresh}
-              </button>
-              <button
                 onClick={createEvent}
                 disabled={eventsLoading || creatingEvent}
-                className="px-3 py-2 text-sm border rounded"
+                className="px-4 py-2.5 text-sm rounded-xl bg-[#C6A75E] text-black font-medium disabled:opacity-40"
               >
                 {creatingEvent ? UI_TEXT.admin.creatingEvent : UI_TEXT.admin.createEvent}
               </button>
@@ -2512,7 +2526,7 @@ const AdminPanel: React.FC<{
         </div>
       )}
 
-      {selectedEvent && (
+      {selectedEvent && mode === 'layout' && (
         <div
           className="fixed bottom-0 left-0 right-0 z-50 max-w-[420px] mx-auto bg-black/95 border-t border-white/10 p-4"
           style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
