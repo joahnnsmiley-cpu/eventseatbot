@@ -764,12 +764,12 @@ function App() {
           onRefresh={loadPendingBookingsForBanner}
         />
       )}
-      <BottomNav
+      {view !== 'admin' && <BottomNav
         activeTab={bottomNavActiveTab}
         onEventsClick={() => { setView('events'); setSelectedEventId(null); setSelectedEvent(null); setSelectedTableId(null); }}
         onMyTicketsClick={() => { setView('my-tickets'); window.location.hash = ''; }}
         onProfileClick={() => setView('profile')}
-      />
+      />}
       {showPremiumModal && premiumMessage && (
         <PremiumGreetingModal
           message={premiumMessage}

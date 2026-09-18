@@ -91,7 +91,10 @@ const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = 
         e.preventDefault();
         onDelete(event.id);
       }}
-      className="absolute bottom-3 right-3 z-10 px-4 py-2 text-sm rounded-xl text-red-400 border border-red-400/30 hover:bg-red-500/10 transition-colors"
+      // Below the card, not on it. It used to sit over the poster: red text on
+      // a busy image, in the part of the card a thumb lands on first. Deleting
+      // an event should take a deliberate reach, not a slip.
+      className="mt-2 ml-auto block px-2 py-1 text-xs text-red-400/80 hover:text-red-400 transition-colors"
     >
       {UI_TEXT.admin.deleteEvent}
     </button>

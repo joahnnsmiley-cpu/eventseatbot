@@ -418,6 +418,14 @@ const AdminPanel: React.FC<{
    * eight panels and picking the same value eight times. In bulk mode a tap
    * adds a table to the set instead of opening its panel.
    */
+  useEffect(() => {
+    if (!selectedTableId) return;
+    // Narrow screens only: there the panel is a bottom sheet over the lower
+    // half, and the plan has to sit above it to be of any use.
+    if (typeof window === 'undefined' || window.innerWidth >= 640) return;
+    layoutPreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [selectedTableId]);
+
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkIds, setBulkIds] = useState<string[]>([]);
 
@@ -1508,7 +1516,7 @@ const AdminPanel: React.FC<{
                                 value={eventDate}
                                 onChange={(e) => { setEventDate(e.target.value); }}
                                 placeholder={UI_TEXT.event.eventDatePlaceholder}
-                                className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                                className="w-full max-w-full min-w-0 appearance-none border rounded px-3 py-2 text-sm box-border"
                               />
                             </div>
                             <div>
@@ -1518,7 +1526,7 @@ const AdminPanel: React.FC<{
                                 value={eventTime}
                                 onChange={(e) => { setEventTime(e.target.value); }}
                                 placeholder={UI_TEXT.event.eventTimePlaceholder}
-                                className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
+                                className="w-full max-w-full min-w-0 appearance-none border rounded px-3 py-2 text-sm box-border"
                               />
                             </div>
                           </div>
@@ -2370,15 +2378,10 @@ const AdminPanel: React.FC<{
                           <div className="text-xs text-muted mt-1">
                             {UI_TEXT.tables.layoutImageHint}
                           </div>
-                          {layoutUrl && (
-                            <div className="mt-2">
-                              <div className="rounded border overflow-hidden bg-surface max-h-32">
-                                <img src={layoutUrl} alt="" className="w-full h-auto max-h-32 object-contain" onError={() => { }} />
-                              </div>
-                              {layoutUploadVersion != null && (
-                                <div className="text-xs text-muted mt-1">v{layoutUploadVersion}</div>
-                              )}
-                            </div>
+                          {/* No thumbnail here: the preview right below shows the same plan
+                              larger, and on a phone the duplicate cost a screen of scrolling. */}
+                          {layoutUrl && layoutUploadVersion != null && (
+                            <div className="text-xs text-muted mt-1">Версия плана: {layoutUploadVersion}</div>
                           )}
                           <div className="mt-3">
                             <SecondaryButton
@@ -2509,18 +2512,6 @@ const AdminPanel: React.FC<{
         </div>
       )}
 
-      {selectedEvent && mode === 'layout' && layoutUrl && (
-        <button
-          type="button"
-          onClick={() => setIsAddTableMode((prev) => !prev)}
-          className="fixed bottom-28 right-4 z-40 w-14 h-14 rounded-full bg-[#C6A75E] text-black font-bold shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-          aria-label={UI_TEXT.tables.addTable}
-          title={UI_TEXT.tables.addTable}
-        >
-          +
-        </button>
-      )}
       {selectedEvent && (
         <div
           className="fixed bottom-0 left-0 right-0 z-50 max-w-[420px] mx-auto bg-black/95 border-t border-white/10 p-4"

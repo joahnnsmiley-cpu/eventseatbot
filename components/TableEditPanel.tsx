@@ -52,10 +52,29 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
 
   return (
     <div
-      className="fixed right-0 top-0 h-full w-[300px] bg-[#0f0f0f] border-l border-[#C6A75E]/30 shadow-[-8px_0_24px_rgba(0,0,0,0.5)] z-40 flex flex-col animate-slide-in-right"
-      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}
+      /*
+        A phone and a desktop need different containers for the same contents.
+
+        On a phone this used to be a 300px drawer from the right: three quarters
+        of the screen, covering the plan — so the nudge arrows moved a table you
+        could not see. Now it is a bottom sheet over the lower half, and the
+        admin scrolls the plan to the top when a table is selected.
+
+        From 640px up it stays a side panel, where there is room beside the plan.
+      */
+      className={[
+        'fixed z-[60] flex flex-col bg-[#0f0f0f] shadow-[0_-8px_24px_rgba(0,0,0,0.5)]',
+        'inset-x-0 bottom-0 max-h-[48vh] rounded-t-2xl border-t border-[#C6A75E]/30',
+        'sm:inset-x-auto sm:right-0 sm:top-0 sm:bottom-0 sm:max-h-none sm:w-[320px]',
+        'sm:rounded-none sm:border-t-0 sm:border-l sm:shadow-[-8px_0_24px_rgba(0,0,0,0.5)]',
+      ].join(' ')}
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <div className="p-4 border-b border-white/10 flex items-center justify-between">
+      {/* Grab handle: says "this is a sheet" on a phone. */}
+      <div className="sm:hidden flex justify-center pt-2" aria-hidden>
+        <span className="h-1 w-10 rounded-full bg-white/20" />
+      </div>
+      <div className="px-4 py-2 sm:p-4 border-b border-white/10 flex items-center justify-between">
         <h3 className="font-semibold text-white">{isDecorative ? 'Объект' : `Стол ${table.number}`}</h3>
         <button
           type="button"
@@ -317,12 +336,11 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
         )}
       </div>
 
-      <div className="p-4 border-t border-white/10">
+      <div className="px-4 py-3 border-t border-white/10">
         <button
           type="button"
           onClick={() => onDelete()}
-          className="w-full rounded-xl py-3 text-white"
-          style={{ background: '#ff3b30' }}
+          className="w-full rounded-xl py-2.5 text-sm text-[#ff6b61] border border-[#ff3b30]/40"
         >
           {isDecorative ? 'Удалить объект' : 'Удалить стол'}
         </button>
