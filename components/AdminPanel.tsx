@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
   closestCenter,
@@ -22,7 +21,7 @@ import { TableNumber } from './TableLabel';
 import PrimaryButton from '../src/ui/PrimaryButton';
 import SecondaryButton from '../src/ui/SecondaryButton';
 import DangerButton from '../src/ui/DangerButton';
-import EventCard, { EventCardSkeleton } from './EventCard';
+import { EventCardSkeleton } from './EventCard';
 import AdminCard from '../src/ui/AdminCard';
 import { formatEventDate, formatEventDateTime, formatDateTimeRu } from '../src/utils/formatDate';
 import { tableFromApi, tableToApi } from '../src/model/table';
@@ -109,72 +108,181 @@ function validateTableNumbers(tables: TableModel[]): string | null {
   return null;
 }
 
-/** Accordion section — defined outside AdminPanel to avoid remount on parent re-render (fixes scroll jump). */
-const AccordionSection = React.memo(function AccordionSection({
-  title,
-  sectionKey,
-  children,
-  dirtyIndicator,
-  dragHandle,
-  openSections,
-  toggleSection,
-  sectionRefs,
-  isDirty,
-}: {
-  title: string;
-  sectionKey: string;
-  children: React.ReactNode;
-  dirtyIndicator?: boolean;
-  dragHandle?: React.ReactNode;
-  openSections: string[];
-  toggleSection: (key: string) => void;
-  sectionRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
-  isDirty: boolean;
-}) {
-  const isOpen = openSections.includes(sectionKey);
+/** Inline stroke icons for the admin chrome — no emoji, they render differently on every phone. */
+function AdminIcon({ d, size = 22, sw = 1.9 }: { d: string; size?: number; sw?: number }) {
   return (
-    <div
-      ref={(el) => { sectionRefs.current[sectionKey] = el; }}
-      className="relative border border-white/10 rounded-2xl mb-4 bg-[#121212] overflow-hidden"
-    >
-      <div className="sticky top-0 z-20 bg-[#121212] border-b border-white/5">
-        <button
-          type="button"
-          onClick={() => toggleSection(sectionKey)}
-          className="w-full flex items-center justify-between px-4 py-4 text-left hover:bg-white/5 transition"
-        >
-          <span className="font-semibold text-white flex items-center gap-2">
-            {dragHandle}
-            {title}
-            {dirtyIndicator && isDirty && (
-              <span className="ml-2 text-xs text-[#FFC107]">●</span>
-            )}
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={d} />
+    </svg>
+  );
+}
+const ICON = {
+  back: 'M15 5l-7 7 7 7',
+  next: 'M5 12h14M12.5 5.5L19 12l-6.5 6.5',
+  check: 'M5 12.5l4.5 4.5L19 7.5',
+  plus: 'M12 5v14M5 12h14',
+  more: 'M5.5 12h.01M12 12h.01M18.5 12h.01',
+  cal: 'M3.5 7.5A2.5 2.5 0 0 1 6 5h12a2.5 2.5 0 0 1 2.5 2.5v10A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5zM3.5 10h17M8 3v4M16 3v4',
+  ticket: 'M3 8.5v-2A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5v2a2.5 2.5 0 0 0 0 5v2a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 15.5v-2a2.5 2.5 0 0 0 0-5zM14.5 5.5v13',
+  users: 'M9 11.7a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zM3.5 19c.6-3.2 2.9-5 5.5-5s4.9 1.8 5.5 5M17 11.9a2.4 2.4 0 1 0 0-4.8M16.6 14.2c2.1.2 3.6 1.8 3.9 4.3',
+  eye: 'M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+};
+
+/**
+ * An event is filled in four steps, in the order the work is actually done.
+ * Each step shows only its own sections — the old screen showed all five
+ * accordions at once, and after a few months nobody remembered which was which.
+ */
+type EventStep = 1 | 2 | 3 | 4;
+const EVENT_STEPS: ReadonlyArray<{ n: EventStep; label: string; sections: string[] }> = [
+  { n: 1, label: 'Концерт', sections: ['basic'] },
+  { n: 2, label: 'Зал', sections: ['layout', 'tables'] },
+  { n: 3, label: 'Цены', sections: ['categories'] },
+  { n: 4, label: 'Продажи', sections: ['publish'] },
+];
+
+function EventStepper({ step, done, onStep }: { step: EventStep; done: boolean[]; onStep: (n: EventStep) => void }) {
+  return (
+    <nav aria-label="Шаги события" className="flex items-start px-1 pt-3 pb-4">
+      {EVENT_STEPS.map((s, i) => {
+        const current = s.n === step;
+        const isDone = done[i] && !current;
+        return (
+          <React.Fragment key={s.n}>
+            {i > 0 && <span aria-hidden className={`flex-[0.6] h-[1.5px] mt-[13px] ${done[i - 1] ? 'bg-[#57C79B]/45' : 'bg-white/10'}`} />}
+            <button
+              type="button"
+              onClick={() => onStep(s.n)}
+              aria-current={current ? 'step' : undefined}
+              className="flex-1 basis-0 flex flex-col items-center gap-1.5 min-h-[44px]"
+            >
+              <span
+                className={`w-[26px] h-[26px] rounded-full flex items-center justify-center text-[13px] font-bold ${current
+                  ? 'bg-[#C6A75E] text-[#16130D]'
+                  : isDone
+                    ? 'border-[1.5px] border-[#57C79B] text-[#57C79B]'
+                    : 'border-[1.5px] border-white/20 text-white/50'
+                  }`}
+              >
+                {isDone ? <AdminIcon d={ICON.check} size={14} sw={2.4} /> : s.n}
+              </span>
+              <span className={`text-xs ${current ? 'font-semibold text-[#C6A75E]' : 'text-white/65'}`}>{s.label}</span>
+            </button>
+          </React.Fragment>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** An event in the admin list: the poster, what and when, and how full the hall is. */
+function AdminEventCard({ ev, onOpen, onDelete }: { ev: EventData; onOpen: () => void; onDelete: () => void }) {
+  const status = ev.status ?? (ev.published ? 'published' : 'draft');
+  const poster = (ev.imageUrl ?? (ev as { coverImageUrl?: string | null }).coverImageUrl ?? '').trim();
+  const tables = (ev.tables ?? []) as Array<{ seatsTotal?: number; seatsCount?: number; seatsAvailable?: number }>;
+  const total = tables.reduce((n, t) => n + (t.seatsTotal ?? t.seatsCount ?? 0), 0);
+  const free = tables.reduce((n, t) => n + (t.seatsAvailable ?? t.seatsTotal ?? t.seatsCount ?? 0), 0);
+  const taken = Math.max(0, total - free);
+  const when = (() => {
+    const parts: string[] = [];
+    if (ev.event_date) {
+      const d = new Date(`${ev.event_date}T00:00:00`);
+      parts.push(Number.isNaN(d.getTime()) ? ev.event_date : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }));
+    }
+    if (ev.event_time) parts.push(String(ev.event_time).slice(0, 5));
+    if (ev.venue) parts.push(ev.venue);
+    return parts.join(' · ');
+  })();
+  const chip = status === 'published'
+    ? { text: 'Продажи открыты', cls: 'text-[#57C79B]' }
+    : status === 'archived'
+      ? { text: 'В архиве', cls: 'text-white/60' }
+      : { text: 'Черновик', cls: 'text-[#E8B04B]' };
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="w-full text-left flex flex-col rounded-[20px] overflow-hidden bg-[#161412] border border-[#2B2723] active:scale-[0.99] transition-transform"
+      >
+        <div className="relative h-[190px] bg-[#1F1C19]">
+          {poster && <img src={poster} alt="" className="w-full h-full object-cover block" loading="lazy" />}
+          <span className={`absolute top-3 left-3 h-[26px] px-2.5 flex items-center gap-1.5 rounded-full bg-[#0C0B0A]/80 text-xs font-semibold ${chip.cls}`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+            {chip.text}
           </span>
-          <motion.span
-            animate={{ rotate: isOpen ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-            className="text-[#C6A75E]"
-          >
-            ▼
-          </motion.span>
-        </button>
-      </div>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-4">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+        <div className="flex flex-col gap-3 px-4 pt-4 pb-[18px]">
+          <div className="flex flex-col gap-1">
+            <div className="admin-display text-[30px] leading-[0.95]">{ev.title || 'Без названия'}</div>
+            {when && <div className="text-[13.5px] text-[#BDB5A8]">{when}</div>}
+          </div>
+          {total > 0 && (
+            <div className="flex flex-col gap-[7px]">
+              <div className="flex justify-between text-[12.5px]">
+                <span className="text-[#8C8477]">Занято мест</span>
+                <span className="font-semibold">{taken} из {total}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[#1F1C19] overflow-hidden">
+                <div className="h-full rounded-full bg-[#C6A75E]" style={{ width: `${Math.round((taken / total) * 100)}%` }} />
+              </div>
+            </div>
+          )}
+        </div>
+      </button>
+      <button type="button" onClick={onDelete} className="self-end h-9 px-2 text-[12.5px] text-white/40">
+        Удалить событие
+      </button>
     </div>
   );
-});
+}
+
+function AdminTabBar({
+  active,
+  waiting,
+  onEvents,
+  onBookings,
+  onTeam,
+}: {
+  active: 'events' | 'bookings' | 'team';
+  waiting: number;
+  onEvents: () => void;
+  onBookings: () => void;
+  onTeam: () => void;
+}) {
+  const item = (key: typeof active, label: string, icon: string, onClick: () => void, badge = 0) => {
+    const on = key === active;
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-current={on ? 'page' : undefined}
+        className={`flex-1 flex flex-col items-center gap-1 pt-2.5 min-h-[56px] ${on ? 'text-[#C6A75E]' : 'text-[#8C8477]'}`}
+      >
+        <span className="relative flex">
+          <AdminIcon d={icon} size={24} sw={1.7} />
+          {badge > 0 && (
+            <span className="absolute -top-1 left-[15px] min-w-[18px] h-[18px] px-[5px] rounded-full bg-[#FF5A2C] text-[#1C0A04] text-[11px] font-bold leading-[18px] text-center">
+              {badge}
+            </span>
+          )}
+        </span>
+        <span className={`text-[11.5px] tracking-[0.02em] ${on ? 'font-semibold' : 'font-medium'}`}>{label}</span>
+      </button>
+    );
+  };
+  return (
+    <nav
+      aria-label="Разделы админки"
+      className="fixed bottom-0 left-0 right-0 z-40 max-w-[420px] mx-auto flex px-3 bg-[#0C0B0A]/95 border-t border-[#2B2723] backdrop-blur"
+      style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+    >
+      {item('events', 'События', ICON.cal, onEvents)}
+      {item('bookings', 'Брони', ICON.ticket, onBookings, waiting)}
+      {item('team', 'Команда', ICON.users, onTeam)}
+    </nav>
+  );
+}
 
 /** Sortable section wrapper — defined outside AdminPanel to avoid remount on parent re-render. */
 function SortableSectionInner({
@@ -201,21 +309,13 @@ function SortableSectionInner({
   // Sections used to be draggable. The order was never saved, so dragging
   // gave nothing — and on a phone the ☰ handle was easy to catch while
   // scrolling and shuffle the form mid-edit. Fixed order: the order of work.
-  void id;
+  // Inside a step every section is open — folding them was how things got lost.
+  void id; void dirtyIndicator; void openSections; void toggleSection; void isDirty;
   return (
-    <div>
-      <AccordionSection
-        title={title}
-        sectionKey={sectionKey}
-        dirtyIndicator={dirtyIndicator}
-        openSections={openSections}
-        toggleSection={toggleSection}
-        sectionRefs={sectionRefs}
-        isDirty={isDirty}
-      >
-        {children}
-      </AccordionSection>
-    </div>
+    <section ref={(el) => { sectionRefs.current[sectionKey] = el as HTMLDivElement | null; }} className="mb-7">
+      <h2 className="text-[12px] font-semibold tracking-[0.08em] uppercase text-[#8C8477] mb-3">{title}</h2>
+      {children}
+    </section>
   );
 }
 
@@ -241,6 +341,19 @@ const AdminPanel: React.FC<{
 }> = ({ onBack, onViewAsUser, isAdmin = false, organizerEventIds = [] }) => {
   const [mode, setMode] = useState<'bookings' | 'layout' | 'controllers' | 'roles'>('bookings');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [eventStep, setEventStep] = useState<EventStep>(1);
+  const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
+
+  // The admin's display and text faces load only when the admin opens —
+  // guests never download them.
+  useEffect(() => {
+    if (document.getElementById('admin-fonts')) return;
+    const link = document.createElement('link');
+    link.id = 'admin-fonts';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Alumni+Sans:wght@700;800&family=Golos+Text:wght@400;500;600;700&display=swap';
+    document.head.appendChild(link);
+  }, []);
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -277,7 +390,7 @@ const AdminPanel: React.FC<{
   const [openSections, setOpenSections] = useState<string[]>(['basic']);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [sectionOrder, setSectionOrder] = useState(['basic', 'layout', 'tables', 'categories', 'publish']);
-  const [exitConfirmPending, setExitConfirmPending] = useState<{ type: 'back' } | { type: 'switchMode'; mode: 'bookings' | 'layout' | 'controllers' | 'roles' } | { type: 'switchEvent'; eventId: string } | null>(null);
+  const [exitConfirmPending, setExitConfirmPending] = useState<{ type: 'back' } | { type: 'closeEvent' } | { type: 'switchMode'; mode: 'bookings' | 'layout' | 'controllers' | 'roles' } | { type: 'switchEvent'; eventId: string } | null>(null);
   const [resyncLoading, setResyncLoading] = useState(false);
   const [layoutUploadLoading, setLayoutUploadLoading] = useState(false);
   const [layoutUploadError, setLayoutUploadError] = useState<string | null>(null);
@@ -1050,9 +1163,25 @@ const AdminPanel: React.FC<{
     ).length;
   }, [bookings]);
 
+  /** Back from an event to the list. Unsaved table edits are dropped with it. */
+  const closeEvent = useCallback(() => {
+    setSelectedEventId('');
+    setSelectedEvent(null);
+    setSelectedTableId(null);
+    setBulkMode(false);
+    setBulkIds([]);
+    setTables([]);
+    initialTablesRef.current = [];
+    setEventStep(1);
+    setError(null);
+    setSuccessMessage(null);
+    window.scrollTo({ top: 0 });
+  }, []);
+
   const executeExitAction = useCallback((pending: NonNullable<typeof exitConfirmPending>) => {
     setExitConfirmPending(null);
     if (pending.type === 'back') onBack?.();
+    else if (pending.type === 'closeEvent') closeEvent();
     else if (pending.type === 'switchMode') setMode(pending.mode);
     else if (pending.type === 'switchEvent') {
       setSelectedEventId(pending.eventId);
@@ -1061,7 +1190,55 @@ const AdminPanel: React.FC<{
       setSuccessMessage(null);
       loadEvent(pending.eventId);
     }
-  }, [onBack]);
+  }, [onBack, closeEvent]);
+
+  const inEvent = mode === 'layout' && !!selectedEventId;
+  const requestCloseEvent = () => {
+    if (isDirty) setExitConfirmPending({ type: 'closeEvent' });
+    else closeEvent();
+  };
+  const goStep = (n: EventStep) => {
+    setEventStep(n);
+    if (n !== 2) setSelectedTableId(null);
+    window.scrollTo({ top: 0 });
+  };
+  // A step counts as done when the guest-facing essentials are there.
+  const stepsDone = [
+    eventTitle.trim() !== '' && eventDate.trim() !== '',
+    !!layoutUrl && tables.length > 0,
+    (selectedEvent?.ticketCategories?.length ?? 0) > 0 &&
+      (selectedEvent?.ticketCategories ?? []).every((c) => Number(c.price) > 0),
+    selectedEvent?.status === 'published',
+  ];
+  const waitingCount = bookings.filter((b) => {
+    const st = String(b.status ?? '');
+    return st === 'awaiting_confirmation' || st === 'payment_submitted';
+  }).length;
+  const eventSubtitle = (() => {
+    const parts: string[] = [];
+    if (eventDate) {
+      const d = new Date(`${eventDate}T00:00:00`);
+      parts.push(Number.isNaN(d.getTime()) ? eventDate : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }));
+    }
+    if (eventTime) parts.push(eventTime.slice(0, 5));
+    if (venue.trim()) parts.push(venue.trim());
+    return parts.join(' · ');
+  })();
+  const goEvents = () => {
+    if (isDirty && selectedEvent) setExitConfirmPending({ type: 'switchMode', mode: 'layout' });
+    else setMode('layout');
+  };
+  const goBookings = () => {
+    if (isDirty && selectedEvent) setExitConfirmPending({ type: 'switchMode', mode: 'bookings' });
+    else setMode('bookings');
+  };
+  const goTeam = () => {
+    const target = isAdmin ? 'roles' : 'controllers';
+    if (isDirty && selectedEvent) { setExitConfirmPending({ type: 'switchMode', mode: target }); return; }
+    setMode(target);
+    if (isAdmin) { loadOrganizers(); loadAppUsers(); }
+  };
+  const screenTitle = mode === 'bookings' ? UI_TEXT.admin.bookings : mode === 'layout' ? UI_TEXT.admin.eventsTab : UI_TEXT.admin.team;
 
   const handleSaveAndExit = useCallback(async () => {
     const pending = exitConfirmPending;
@@ -1094,147 +1271,106 @@ const AdminPanel: React.FC<{
   }, [deleteConfirmEvent, selectedEventId, loadEvents]);
 
   return (
-    <div className="admin-root min-h-screen p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div className="flex items-center gap-4 min-w-0">
-          <div className="flex flex-col">
-            <h1 className="text-2xl font-semibold tracking-wide bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">
-              {UI_TEXT.admin.title}
-            </h1>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            {isDirty && (
-              <span className="text-[#FFC107]">Есть изменения</span>
-            )}
-            {saveStatus === 'saving' && (
-              <span className="text-white">Сохранение...</span>
-            )}
+    <div className="admin-root min-h-screen px-4 pt-5 pb-36">
+      {!inEvent && (
+        <header className="flex items-end justify-between gap-3 mb-5">
+          <div className="flex flex-col gap-1 min-w-0">
+            <h1 className="admin-display text-[46px]">{screenTitle}</h1>
             {saveStatus === 'saved' && (
-              <span className="text-green-400 flex items-center gap-1">
-                ✓ Сохранено
-              </span>
+              <span className="text-xs text-[#57C79B]">Сохранено</span>
             )}
           </div>
-        </div>
-        <div className="flex gap-2 items-center flex-shrink-0">
-          {onBack && (
-            <button
-              onClick={() => {
-                if (isDirty) setExitConfirmPending({ type: 'back' });
-                else onBack();
-              }}
-              disabled={loading || eventsLoading || savingLayout || confirmingId !== null || cancellingId !== null}
-              className="h-10 px-4 py-2.5 rounded-xl text-sm text-[#6E6A64] whitespace-nowrap min-w-fit"
-            >
-              {UI_TEXT.admin.exit}
-            </button>
-          )}
-          {/* Refresh is a utility, not the main action of the screen: it was the
-              biggest gold button on entry. Now a quiet icon. */}
-          <button
-            type="button"
-            onClick={() => {
-              if (mode === 'bookings') load();
-              if (mode === 'layout') loadEvents();
-              if (mode === 'controllers') loadControllers();
-              if (mode === 'roles') { loadOrganizers(); loadAppUsers(); }
-            }}
-            disabled={loading || eventsLoading}
-            aria-label={UI_TEXT.admin.reload}
-            title={UI_TEXT.admin.reload}
-            className="h-10 w-10 rounded-xl border border-white/10 text-white/70 text-lg flex items-center justify-center disabled:opacity-40"
-          >
-            ↻
-          </button>
-          {/* "Пересчитать места" is a repair tool. It sat on the first screen,
-              sounded alarming and meant nothing to anyone who had not written it.
-              It lives in the ⋯ menu now. */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setMoreMenuOpen((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={moreMenuOpen}
-              aria-label="Ещё"
-              className="h-10 w-10 rounded-xl border border-white/10 text-white/70 text-lg flex items-center justify-center"
-            >
-              ⋯
-            </button>
-            {moreMenuOpen && (
-              // Tap anywhere else to close — the usual way a menu goes away on a phone.
+          <div className="flex gap-2 items-center flex-shrink-0">
+            {mode === 'layout' && (
               <button
                 type="button"
-                aria-hidden
-                tabIndex={-1}
-                onClick={() => setMoreMenuOpen(false)}
-                className="fixed inset-0 z-40 cursor-default"
-              />
-            )}
-            {moreMenuOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 top-12 z-50 min-w-[220px] rounded-xl border border-white/10 bg-[#141414] p-1 shadow-xl"
+                onClick={createEvent}
+                disabled={eventsLoading || creatingEvent}
+                className="admin-cta h-11 pl-3.5 pr-4"
               >
+                <AdminIcon d={ICON.plus} size={20} sw={2.2} />
+                {creatingEvent ? UI_TEXT.admin.creatingEvent : 'Создать'}
+              </button>
+            )}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMoreMenuOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={moreMenuOpen}
+                aria-label="Ещё"
+                className="admin-icon-btn"
+              >
+                <AdminIcon d={ICON.more} size={22} sw={3} />
+              </button>
+              {moreMenuOpen && (
+                // Tap anywhere else to close — the usual way a menu goes away on a phone.
                 <button
                   type="button"
-                  role="menuitem"
-                  onClick={() => { setMoreMenuOpen(false); void handleResyncSeats(); }}
-                  disabled={resyncLoading || loading || eventsLoading}
-                  className="w-full text-left rounded-lg px-3 py-2.5 text-sm text-white/85 hover:bg-white/5 disabled:opacity-40"
+                  aria-hidden
+                  tabIndex={-1}
+                  onClick={() => setMoreMenuOpen(false)}
+                  className="fixed inset-0 z-40 cursor-default"
+                />
+              )}
+              {moreMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-12 z-50 min-w-[240px] rounded-2xl border border-[#2B2723] bg-[#161412] p-1 shadow-xl"
                 >
-                  {resyncLoading ? UI_TEXT.common.loading : UI_TEXT.admin.resyncSeats}
-                  <span className="block text-[11px] text-white/40 mt-0.5">
-                    Если свободных мест показывается не столько, сколько на самом деле
-                  </span>
-                </button>
-              </div>
-            )}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMoreMenuOpen(false);
+                      if (mode === 'bookings') load();
+                      if (mode === 'layout') loadEvents();
+                      if (mode === 'controllers') loadControllers();
+                      if (mode === 'roles') { loadOrganizers(); loadAppUsers(); }
+                    }}
+                    disabled={loading || eventsLoading}
+                    className="w-full text-left rounded-xl px-3 py-2.5 text-sm text-white/85 hover:bg-white/5 disabled:opacity-40"
+                  >
+                    {UI_TEXT.admin.reload}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setMoreMenuOpen(false); void handleResyncSeats(); }}
+                    disabled={resyncLoading || loading || eventsLoading}
+                    className="w-full text-left rounded-xl px-3 py-2.5 text-sm text-white/85 hover:bg-white/5 disabled:opacity-40"
+                  >
+                    {resyncLoading ? UI_TEXT.common.loading : UI_TEXT.admin.resyncSeats}
+                    <span className="block text-[11px] text-white/45 mt-0.5">
+                      Если свободных мест показывается не столько, сколько на самом деле
+                    </span>
+                  </button>
+                  {onBack && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMoreMenuOpen(false);
+                        if (isDirty) setExitConfirmPending({ type: 'back' });
+                        else onBack();
+                      }}
+                      disabled={loading || eventsLoading || savingLayout || confirmingId !== null || cancellingId !== null}
+                      className="w-full text-left rounded-xl px-3 py-2.5 text-sm text-white/85 hover:bg-white/5 disabled:opacity-40"
+                    >
+                      {UI_TEXT.admin.exit}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        </header>
+      )}
 
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => {
-            if (isDirty && selectedEvent) setExitConfirmPending({ type: 'switchMode', mode: 'bookings' });
-            else setMode('bookings');
-          }}
-          className={`px-3 py-2 rounded-lg text-sm ${mode === 'bookings' ? 'bg-[#C6A75E] text-black' : 'bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A]'}`}
-        >
-          {UI_TEXT.admin.bookings}
-        </button>
-        <button
-          onClick={() => {
-            if (isDirty && selectedEvent) setExitConfirmPending({ type: 'switchMode', mode: 'layout' });
-            else setMode('layout');
-          }}
-          className={`px-3 py-2 rounded-lg text-sm ${mode === 'layout' ? 'bg-[#C6A75E] text-black' : 'bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A]'}`}
-        >
-          {UI_TEXT.admin.eventsTab}
-        </button>
-        {/*
-          One "Команда" tab instead of "Контролеры" plus "Роли". The roles view
-          already contained the same controllers list — same state, same fields —
-          so admins were shown one thing in two places. Admins get the full view
-          (controllers and organizers); an organizer, who never had "Роли", gets
-          the controllers list exactly as before.
-        */}
-        <button
-          onClick={() => {
-            const target = isAdmin ? 'roles' : 'controllers';
-            if (isDirty && selectedEvent) { setExitConfirmPending({ type: 'switchMode', mode: target }); return; }
-            setMode(target);
-            if (isAdmin) { loadOrganizers(); loadAppUsers(); }
-          }}
-          className={`px-3 py-2 rounded-lg text-sm ${mode === 'controllers' || mode === 'roles' ? 'bg-[#C6A75E] text-black' : 'bg-[#1A1A1A] text-[#EAE6DD] border border-[#2A2A2A]'}`}
-        >
-          {UI_TEXT.admin.team}
-        </button>
-      </div>
 
-      {loading && <div className="text-sm text-muted">{UI_TEXT.admin.loadingBookings}</div>}
-      {error && <div className="text-sm text-[#6E6A64] mb-4">{error}</div>}
-      {successMessage && <div className="text-sm text-green-700 mb-4">{successMessage}</div>}
+      {loading && !inEvent && <div className="text-sm text-muted">{UI_TEXT.admin.loadingBookings}</div>}
+      {error && !inEvent && <div className="admin-notice admin-notice-error mb-4">{error}</div>}
+      {successMessage && !inEvent && <div className="admin-notice admin-notice-ok mb-4">{successMessage}</div>}
 
       {mode === 'bookings' && (
         <>
@@ -1359,16 +1495,8 @@ const AdminPanel: React.FC<{
 
       {mode === 'layout' && (
         <div className="grid grid-cols-1 gap-4">
-          <div className="admin-card p-4 mb-4">
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              <button
-                onClick={createEvent}
-                disabled={eventsLoading || creatingEvent}
-                className="px-4 py-2.5 text-sm rounded-xl bg-[#C6A75E] text-black font-medium disabled:opacity-40"
-              >
-                {creatingEvent ? UI_TEXT.admin.creatingEvent : UI_TEXT.admin.createEvent}
-              </button>
-            </div>
+          {!inEvent && (
+          <div>
             {eventsLoading && (
               <div className="space-y-3 mt-2" aria-label={UI_TEXT.admin.loadingEvents}>
                 <EventCardSkeleton />
@@ -1378,48 +1506,25 @@ const AdminPanel: React.FC<{
               </div>
             )}
             {!eventsLoading && hasEvents && (
-              <div className="relative mb-4">
-                <div ref={eventTabsScrollRef} className="overflow-x-auto no-scrollbar scroll-smooth">
-                  <div className="relative flex gap-2 min-w-max px-2">
-                    <motion.div
-                      animate={{ left: activeTabLeft, width: activeTabWidth }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                      className="absolute top-0 h-full bg-[#FFC107] rounded-xl z-0 pointer-events-none"
-                    />
-                    {[
-                      { key: 'published' as const, label: 'Опубликованные', count: eventCounts.published },
-                      { key: 'draft' as const, label: 'Черновики', count: eventCounts.draft },
-                      { key: 'archived' as const, label: 'Архив', count: eventCounts.archived },
-                      { key: 'deleted' as const, label: 'Удалённые', count: eventCounts.deleted },
-                    ].map((tab) => (
-                      <button
-                        key={tab.key}
-                        ref={(el) => { eventTabRefs.current[tab.key] = el; }}
-                        data-active={eventStatusFilter === tab.key ? 'true' : undefined}
-                        type="button"
-                        onClick={() => setEventStatusFilter(tab.key)}
-                        className={`relative z-10 shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${eventStatusFilter !== tab.key ? 'border border-white/10 hover:border-white/20' : 'border border-transparent'
-                          }`}
-                        style={{
-                          color: eventStatusFilter === tab.key ? '#000' : '#fff',
-                          backgroundColor: eventStatusFilter === tab.key ? 'transparent' : '#1A1A1A',
-                        }}
-                      >
-                        <span className="relative z-10 flex items-center gap-2">
-                          {tab.label}
-                          <span
-                            className={`text-xs px-2 py-[2px] rounded-full ${eventStatusFilter === tab.key
-                              ? 'bg-black/20 text-black'
-                              : 'bg-[#FFC107]/20 text-[#FFC107]'
-                              }`}
-                          >
-                            {tab.count}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              <div ref={eventTabsScrollRef} role="tablist" aria-label="Фильтр событий" className="admin-segmented mb-4">
+                {[
+                  { key: 'published' as const, label: 'Активные', count: eventCounts.published },
+                  { key: 'draft' as const, label: 'Черновики', count: eventCounts.draft },
+                  { key: 'archived' as const, label: 'Архив', count: eventCounts.archived },
+                  { key: 'deleted' as const, label: 'Корзина', count: eventCounts.deleted },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    ref={(el) => { eventTabRefs.current[tab.key] = el; }}
+                    type="button"
+                    role="tab"
+                    aria-selected={eventStatusFilter === tab.key}
+                    onClick={() => setEventStatusFilter(tab.key)}
+                  >
+                    {tab.label}
+                    {tab.count > 0 && <span className="admin-segmented-count">{tab.count}</span>}
+                  </button>
+                ))}
               </div>
             )}
             {!eventsLoading && !hasEvents && (
@@ -1442,19 +1547,19 @@ const AdminPanel: React.FC<{
             {!eventsLoading && hasEvents && filteredEvents.length > 0 && (
               <div className="space-y-3">
                 {filteredEvents.map((ev) => (
-                  <EventCard
+                  <AdminEventCard
                     key={ev.id}
-                    event={ev}
-                    mode="admin"
-                    selected={ev.id === selectedEventId}
-                    onClick={() => {
+                    ev={ev}
+                    onOpen={() => {
                       if (isDirty && selectedEventId && ev.id !== selectedEventId) {
                         setExitConfirmPending({ type: 'switchEvent', eventId: ev.id });
                       } else {
                         setSelectedEventId(ev.id);
                         setSelectedEvent(null);
+                        setEventStep(1);
                         setError(null);
                         setSuccessMessage(null);
+                        window.scrollTo({ top: 0 });
                         loadEvent(ev.id);
                       }
                     }}
@@ -1464,10 +1569,36 @@ const AdminPanel: React.FC<{
               </div>
             )}
           </div>
+          )}
+
+          {inEvent && (
+            <div className="-mx-4 -mt-5 mb-1 sticky top-0 z-30 bg-[#0C0B0A]/95 backdrop-blur border-b border-[#2B2723]">
+              <header className="flex items-center gap-2.5 pl-2.5 pr-4 pt-3.5 pb-1">
+                <button
+                  type="button"
+                  onClick={requestCloseEvent}
+                  aria-label="К списку событий"
+                  className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl text-white/75"
+                >
+                  <AdminIcon d={ICON.back} size={22} sw={2} />
+                </button>
+                <div className="min-w-0 flex-1 flex flex-col gap-0.5">
+                  <div className="admin-display text-[23px] truncate">{eventTitle.trim() || selectedEvent?.title || 'Новое событие'}</div>
+                  {eventSubtitle && <div className="text-[12.5px] text-[#8C8477] truncate">{eventSubtitle}</div>}
+                </div>
+              </header>
+              <EventStepper step={eventStep} done={stepsDone} onStep={goStep} />
+            </div>
+          )}
+          {inEvent && error && <div className="admin-notice admin-notice-error">{error}</div>}
+          {inEvent && successMessage && <div className="admin-notice admin-notice-ok">{successMessage}</div>}
+          {inEvent && !selectedEvent && (
+            <div className="py-10 text-center text-sm text-[#8C8477]">{UI_TEXT.common.loading}</div>
+          )}
 
           {selectedEvent && (
             <>
-              {selectedTableId && !bulkMode && (
+              {selectedTableId && !bulkMode && eventStep === 2 && (
                 <TableEditPanel
                   table={tables.find((t) => t.id === selectedTableId) ?? null}
                   ticketCategories={(selectedEvent?.ticketCategories ?? []) as import('../types').TicketCategory[]}
@@ -1480,27 +1611,12 @@ const AdminPanel: React.FC<{
                   onClose={() => setSelectedTableId(null)}
                 />
               )}
-              <div className="flex justify-end gap-2 mb-3">
-                <button
-                  type="button"
-                  onClick={() => setOpenSections([])}
-                  className="text-xs text-muted hover:text-[#C6A75E] transition"
-                >
-                  Свернуть всё
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOpenSections([...sectionOrder])}
-                  className="text-xs text-muted hover:text-[#C6A75E] transition"
-                >
-                  Развернуть всё
-                </button>
-              </div>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
                   {sectionOrder.map((key) => {
+                    if (!EVENT_STEPS[eventStep - 1].sections.includes(key)) return null;
                     if (key === 'basic') return (
-                      <SortableSectionInner key="basic" id="basic" title="Основная информация" sectionKey="basic" dirtyIndicator openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
+                      <SortableSectionInner key="basic" id="basic" title="О концерте" sectionKey="basic" dirtyIndicator openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
                         <div className="space-y-4">
                           <div>
                             <div className="text-sm font-semibold mb-1">{UI_TEXT.event.title}</div>
@@ -1617,16 +1733,6 @@ const AdminPanel: React.FC<{
                             />
                           </div>
                           <div>
-                            <div className="text-sm font-semibold mb-1">{UI_TEXT.event.organizerPhone}</div>
-                            <input
-                              type="text"
-                              value={eventPhone}
-                              onChange={(e) => { setEventPhone(e.target.value); }}
-                              placeholder={UI_TEXT.event.phonePlaceholder}
-                              className="w-full max-w-full border rounded px-3 py-2 text-sm box-border"
-                            />
-                          </div>
-                          <div>
                             <div className="text-sm font-semibold mb-1">{UI_TEXT.event.posterSectionLabel}</div>
                             {eventPosterUrl ? (
                               <div className="space-y-2">
@@ -1720,13 +1826,32 @@ const AdminPanel: React.FC<{
                       </SortableSectionInner>
                     );
                     if (key === 'categories') return (
-                      <SortableSectionInner key="categories" id="categories" title={`Категории (${selectedEvent?.ticketCategories?.length ?? 0})`} sectionKey="categories" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
-                        <div className="text-sm font-semibold mb-3">Категории билетов</div>
-                        <div className="space-y-4">
+                      <SortableSectionInner key="categories" id="categories" title="Категории и цены" sectionKey="categories" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
+                        <div className="flex flex-col gap-2.5">
                           {(selectedEvent?.ticketCategories ?? []).map((cat) => {
                             const colorConfig = getCategoryColorFromCategory(cat);
+                            const catTables = tables.filter((t) => t.categoryId === cat.id && (!t.objectType || t.objectType === 'table'));
+                            const catSeats = catTables.reduce((n, t) => n + (t.seatsCount ?? 0), 0);
+                            const open = openCategoryId === cat.id;
                             return (
-                              <div key={cat.id} className="p-3 rounded-lg border border-[#2A2A2A] bg-[#141414] space-y-3">
+                              <div key={cat.id} className={`rounded-2xl bg-[#161412] border ${open ? 'border-[#C6A75E]/40' : 'border-transparent'} ${cat.isActive ? '' : 'opacity-60'}`}>
+                                <button
+                                  type="button"
+                                  onClick={() => setOpenCategoryId(open ? null : cat.id)}
+                                  aria-expanded={open}
+                                  className="w-full flex items-center gap-3.5 px-4 py-3.5 text-left"
+                                >
+                                  <span className="w-3.5 h-3.5 rounded-full shrink-0 ring-[1.5px] ring-white/20" style={{ background: colorConfig.gradient }} />
+                                  <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+                                    <span className="text-base font-semibold text-white truncate">{cat.name || 'Без названия'}</span>
+                                    <span className="text-[12.5px] text-[#8C8477]">
+                                      {cat.isActive ? (catTables.length > 0 ? `${catTables.length} ${catTables.length === 1 ? 'стол' : catTables.length < 5 ? 'стола' : 'столов'} · ${catSeats} мест` : 'Столов пока нет') : 'Не продаётся'}
+                                    </span>
+                                  </span>
+                                  <span className="admin-display text-[30px] leading-none">{Number(cat.price || 0).toLocaleString('ru-RU')}&nbsp;₽</span>
+                                </button>
+                                {open && (
+                                <div className="px-4 pb-4 space-y-3 border-t border-[#2B2723] pt-3">
                                 <div className="flex items-center gap-2">
                                   <label className="relative w-6 h-6 rounded border border-[#2A2A2A] shrink-0 cursor-pointer block" style={{ background: colorConfig.gradient }} title={`${colorConfig.label}. Клик — выбрать цвет из палитры`}>
                                     <input
@@ -1767,49 +1892,6 @@ const AdminPanel: React.FC<{
                                     placeholder="Название"
                                     className="flex-1 border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
                                   />
-                                  <label className="flex items-center gap-1 text-xs text-[#6E6A64]">
-                                    <input
-                                      type="checkbox"
-                                      checked={cat.isActive}
-                                      onChange={(e) => {
-                                        setSelectedEvent((prev) =>
-                                          prev
-                                            ? {
-                                              ...prev,
-                                              ticketCategories: (prev.ticketCategories ?? []).map((c) =>
-                                                c.id === cat.id ? { ...c, isActive: e.target.checked } : c
-                                              ),
-                                            }
-                                            : null
-                                        );
-                                      }}
-                                    />
-                                    Активна
-                                  </label>
-                                  <DangerButton
-                                    type="button"
-                                    onClick={() => {
-                                      const isUsed = tables.some((t) => t.categoryId === cat.id);
-                                      if (isUsed) {
-                                        alert('Нельзя отключить категорию, к которой привязаны столы.');
-                                        return;
-                                      }
-                                      setSelectedEvent((prev) =>
-                                        prev
-                                          ? {
-                                            ...prev,
-                                            ticketCategories: (prev.ticketCategories ?? []).map((c) =>
-                                              c.id === cat.id ? { ...c, isActive: false } : c
-                                            ),
-                                          }
-                                          : null
-                                      );
-                                    }}
-                                    className="px-2 py-1 text-xs"
-                                    title="Отключить (soft delete)"
-                                  >
-                                    ✕
-                                  </DangerButton>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                   <div>
@@ -1892,11 +1974,40 @@ const AdminPanel: React.FC<{
                                     className="w-full border rounded px-2 py-1 text-sm bg-[#0F0F0F] border-[#2A2A2A] text-[#EAE6DD]"
                                   />
                                 </div>
+                                <label className="flex items-center gap-3 pt-1">
+                                  <span className="flex-1 text-sm text-white">Продаётся</span>
+                                  <input
+                                    type="checkbox"
+                                    role="switch"
+                                    className="admin-switch"
+                                    checked={cat.isActive}
+                                    onChange={(e) => {
+                                      const next = e.target.checked;
+                                      // Same guard the old ✕ button had: a category tables still use cannot be switched off.
+                                      if (!next && tables.some((t) => t.categoryId === cat.id)) {
+                                        alert('Нельзя отключить категорию, к которой привязаны столы.');
+                                        return;
+                                      }
+                                      setSelectedEvent((prev) =>
+                                        prev
+                                          ? {
+                                            ...prev,
+                                            ticketCategories: (prev.ticketCategories ?? []).map((c) =>
+                                              c.id === cat.id ? { ...c, isActive: next } : c
+                                            ),
+                                          }
+                                          : null
+                                      );
+                                    }}
+                                  />
+                                </label>
+                                </div>
+                                )}
                               </div>
                             );
                           })}
                         </div>
-                        <PrimaryButton
+                        <button
                           type="button"
                           onClick={() => {
                             const newCat: TicketCategory = {
@@ -1916,78 +2027,41 @@ const AdminPanel: React.FC<{
                                 }
                                 : null
                             );
+                            setOpenCategoryId(newCat.id);
                           }}
-                          className="mt-3"
+                          className="mt-2.5 w-full h-12 rounded-2xl border border-dashed border-[#2B2723] text-[#BDB5A8] text-sm"
                         >
                           + Добавить категорию
-                        </PrimaryButton>
+                        </button>
+                        {(() => {
+                          const cats = selectedEvent?.ticketCategories ?? [];
+                          const priceOf = (id: string) => Number(cats.find((c) => c.id === id)?.price ?? 0);
+                          const bookable = tables.filter((t) => !t.objectType || t.objectType === 'table');
+                          const seats = bookable.reduce((n, t) => n + (t.seatsCount ?? 0), 0);
+                          const full = bookable.reduce((n, t) => n + (t.seatsCount ?? 0) * priceOf(t.categoryId), 0);
+                          if (!seats) return null;
+                          return (
+                            <div className="flex justify-between items-baseline px-1 pt-4 text-[13px]">
+                              <span className="text-[#8C8477]">Полный зал, {seats} мест</span>
+                              <span className="text-[15px] font-semibold text-[#C6A75E]">{full.toLocaleString('ru-RU')}&nbsp;₽</span>
+                            </div>
+                          );
+                        })()}
                       </SortableSectionInner>
                     );
                     if (key === 'publish') return (
-                      <SortableSectionInner key="publish" id="publish" title="Публикация" sectionKey="publish" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm text-[#6E6A64]">{UI_TEXT.admin.statusLabel}</span>
-                          <span className="px-2 py-1 text-xs rounded-md bg-[#1A1A1A] text-[#C6A75E] border border-[#2A2A2A]">
-                            {selectedEvent?.status === 'published' ? UI_TEXT.admin.published : selectedEvent?.status === 'archived' ? UI_TEXT.admin.archived : UI_TEXT.admin.draft}
-                          </span>
-                          {selectedEvent?.status === 'draft' && (
-                            <PrimaryButton
-                              type="button"
-                              onClick={async () => {
-                                if (!selectedEventId || !selectedEvent) return;
-                                const rawTables = tables;
-                                const numErr = validateTableNumbers(rawTables);
-                                if (numErr) { setError(numErr); return; }
-                                const rectErr = validateRectTables(rawTables);
-                                if (rectErr) { setError(rectErr); return; }
-                                setStatusActionLoading(true);
-                                setError(null);
-                                setSuccessMessage(null);
-                                try {
-                                  const payload: StorageService.AdminEventPayload = {
-                                    status: 'published' as const,
-                                    ticketCategories: selectedEvent?.ticketCategories ?? [],
-                                    tables: rawTables.map((t, idx) => tableForBackend(t, idx)),
-                                  };
-                                  await StorageService.updateAdminEvent(selectedEvent.id, payload);
-                                  setSuccessMessage(UI_TEXT.admin.eventPublished);
-                                  await loadEvent(selectedEventId);
-                                } catch (e) {
-                                  setError(toFriendlyError(e));
-                                } finally {
-                                  setStatusActionLoading(false);
-                                }
-                              }}
-                              disabled={statusActionLoading}
-                              className="px-3 py-1.5 text-sm disabled:opacity-50"
-                            >
-                              {statusActionLoading ? '…' : UI_TEXT.admin.publishEvent}
-                            </PrimaryButton>
-                          )}
-                          {selectedEvent?.status === 'published' && (
-                            <DangerButton
-                              type="button"
-                              onClick={async () => {
-                                if (!selectedEventId) return;
-                                setStatusActionLoading(true);
-                                setError(null);
-                                setSuccessMessage(null);
-                                try {
-                                  await StorageService.archiveAdminEvent(selectedEventId);
-                                  setSuccessMessage(UI_TEXT.admin.eventArchived);
-                                  await loadEvent(selectedEventId);
-                                } catch (e) {
-                                  setError(toFriendlyError(e));
-                                } finally {
-                                  setStatusActionLoading(false);
-                                }
-                              }}
-                              disabled={statusActionLoading}
-                              className="px-4 py-2 rounded-xl disabled:opacity-50"
-                            >
-                              {statusActionLoading ? '…' : UI_TEXT.admin.archiveEvent}
-                            </DangerButton>
-                          )}
+                      <SortableSectionInner key="publish" id="publish" title="Продажи" sectionKey="publish" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
+                        {(() => {
+                          const st = selectedEvent?.status;
+                          const live = st === 'published';
+                          return (
+                            <div className={`rounded-[20px] p-[18px] mb-3 bg-[#161412] border ${live ? 'border-[#57C79B]/35' : 'border-[#2B2723]'}`}>
+                              <div className={`admin-display text-[34px] ${live ? 'text-[#57C79B]' : st === 'archived' ? 'text-white/55' : 'text-[#F3EEE6]'}`}>
+                                {live ? 'Продажи открыты' : st === 'archived' ? UI_TEXT.admin.archived : UI_TEXT.admin.draft}
+                              </div>
+                              <p className="text-[13px] text-[#BDB5A8] mt-1">
+                                {live ? 'Гости видят событие и бронируют места' : st === 'archived' ? 'Событие в архиве' : 'Черновик — доступен только вам'}
+                              </p>
                           {selectedEvent?.status === 'archived' && (
                             <PrimaryButton
                               type="button"
@@ -2017,123 +2091,157 @@ const AdminPanel: React.FC<{
                                 }
                               }}
                               disabled={statusActionLoading}
-                              className="disabled:opacity-50"
+                              className="mt-3 disabled:opacity-50"
                             >
                               {statusActionLoading ? '…' : UI_TEXT.admin.publishAgain}
                             </PrimaryButton>
                           )}
-                        </div>
-                        <div className="flex flex-wrap gap-4 mt-3">
-                          <label className="flex items-center gap-2 text-sm">
+                            </div>
+                          );
+                        })()}
+                        <div className="flex flex-col gap-2">
+                          <label className="admin-switch-row">
+                            <span className="flex-1 flex flex-col gap-0.5">
+                              <span className="text-[15px] font-semibold text-white">Продажи открыты</span>
+                              <span className="text-[12.5px] text-[#8C8477]">
+                                {eventPublished !== (selectedEvent?.published === true) ? 'Включится после «Сохранить»' : 'Событие видно в афише'}
+                              </span>
+                            </span>
                             <input
                               type="checkbox"
+                              role="switch"
+                              className="admin-switch"
                               checked={eventPublished}
                               onChange={(e) => { setEventPublished(e.target.checked); }}
                             />
-                            {UI_TEXT.admin.publishedCheckbox}
                           </label>
-                          <label className="flex items-center gap-2 text-sm">
+                          <label className="admin-switch-row">
+                            <span className="flex-1 flex flex-col gap-0.5">
+                              <span className="text-[15px] font-semibold text-white">{UI_TEXT.admin.featuredCheckbox}</span>
+                              <span className="text-[12.5px] text-[#8C8477]">Первым на главном экране</span>
+                            </span>
                             <input
                               type="checkbox"
+                              role="switch"
+                              className="admin-switch"
                               checked={eventFeatured}
                               onChange={(e) => { setEventFeatured(e.target.checked); }}
                             />
-                            {UI_TEXT.admin.featuredCheckbox}
                           </label>
+                          <div className="rounded-2xl bg-[#161412] px-4 py-3.5 flex flex-col gap-2">
+                            <label htmlFor="admin-payment-phone" className="text-[15px] font-semibold text-white">Телефон для оплаты по СБП</label>
+                            <input
+                              id="admin-payment-phone"
+                              type="tel"
+                              inputMode="tel"
+                              value={eventPhone}
+                              onChange={(e) => { setEventPhone(e.target.value); }}
+                              placeholder={UI_TEXT.event.phonePlaceholder}
+                              className="w-full"
+                            />
+                          </div>
                         </div>
                         {selectedEvent?.id && (
-                          <div className="mt-4 space-y-2">
-                            {selectedEvent?.status !== 'published' && (
-                              <p className="text-xs text-[#6E6A64]">Черновик — доступен только вам</p>
-                            )}
-                            <button
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const id = selectedEvent?.id;
+                              if (!id) return;
+                              if (onViewAsUser) {
+                                onViewAsUser(id);
+                              } else {
+                                window.open(`${window.location.origin}/#/event/${id}`, '_blank');
+                              }
+                            }}
+                            className="mt-3 w-full h-12 flex items-center justify-center gap-2 rounded-2xl border border-[#C6A75E] text-[#C6A75E] text-[15px] font-semibold"
+                          >
+                            <AdminIcon d={ICON.eye} size={20} />
+                            Посмотреть как гость
+                          </button>
+                        )}
+                          {selectedEvent?.status === 'published' && (
+                            <DangerButton
                               type="button"
-                              onClick={() => {
-                                const id = selectedEvent?.id;
-                                if (!id) return;
-                                if (onViewAsUser) {
-                                  onViewAsUser(id);
-                                } else {
-                                  window.open(`${window.location.origin}/#/event/${id}`, '_blank');
+                              onClick={async () => {
+                                if (!selectedEventId) return;
+                                setStatusActionLoading(true);
+                                setError(null);
+                                setSuccessMessage(null);
+                                try {
+                                  await StorageService.archiveAdminEvent(selectedEventId);
+                                  setSuccessMessage(UI_TEXT.admin.eventArchived);
+                                  await loadEvent(selectedEventId);
+                                } catch (e) {
+                                  setError(toFriendlyError(e));
+                                } finally {
+                                  setStatusActionLoading(false);
                                 }
                               }}
-                              className="bg-[#1A1A1A] border border-white/10 text-white px-4 py-2 rounded-xl text-sm hover:border-white/20 transition"
+                              disabled={statusActionLoading}
+                              className="w-full h-11 rounded-xl text-sm text-white/60 bg-transparent border-0 disabled:opacity-50"
                             >
-                              👁 Просмотреть как пользователь
-                            </button>
-                          </div>
-                        )}
+                              {statusActionLoading ? '…' : UI_TEXT.admin.archiveEvent}
+                            </DangerButton>
+                          )}
                       </SortableSectionInner>
                     );
                     if (key === 'tables') return (
-                      <SortableSectionInner key="tables" id="tables" title={`Столы (${tables.length})`} sectionKey="tables" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
+                      <SortableSectionInner key="tables" id="tables" title={`Все столы · ${tables.length}`} sectionKey="tables" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
                         <div className="space-y-3">
-                          <p className="text-xs text-muted">
-                            Кликните на плане зала для добавления. Выберите стол для редактирования.
-                          </p>
+                          <p className="text-xs text-[#8C8477]">Нажмите номер, чтобы открыть стол.</p>
                           {tables.length === 0 && (
                             <div className="text-xs text-muted">{UI_TEXT.tables.noTablesYet}</div>
                           )}
+                          <div className="grid grid-cols-5 gap-2">
                           {tables.map((t, idx) => (
                             <button
                               key={t.id}
                               type="button"
-                              onClick={() => setSelectedTableId(t.id)}
-                              className={`w-full text-left px-3 py-2 rounded-lg border transition ${selectedTableId === t.id
-                                ? 'border-[#C6A75E] bg-[#C6A75E]/10'
-                                : 'border-white/10 hover:border-white/20'
+                              onClick={() => { setBulkMode(false); setSelectedTableId(t.id); }}
+                              aria-label={`${UI_TEXT.tables.table} ${t.number ?? idx + 1}, мест: ${t.seatsCount ?? 0}`}
+                              className={`h-12 rounded-xl flex flex-col items-center justify-center leading-none border transition ${selectedTableId === t.id
+                                ? 'border-[#C6A75E] bg-[#C6A75E]/10 text-[#C6A75E]'
+                                : 'border-[#2B2723] bg-[#161412] text-white'
                                 }`}
                             >
-                              <span className="text-sm font-medium text-white">
-                                {UI_TEXT.tables.table} {t.number ?? idx + 1}
-                              </span>
-                              <span className="text-xs text-muted ml-2">
-                                {t.seatsCount ?? 0} мест
-                              </span>
+                              <span className="text-[15px] font-semibold">{t.number ?? idx + 1}</span>
+                              <span className="text-[10.5px] text-[#8C8477] mt-1">{t.seatsCount ?? 0} мест</span>
                             </button>
                           ))}
+                          </div>
                         </div>
                       </SortableSectionInner>
                     );
                     if (key === 'layout') return (
                       <SortableSectionInner key="layout" id="layout" title="План зала" sectionKey="layout" openSections={openSections} toggleSection={toggleSection} sectionRefs={sectionRefs} isDirty={isDirty}>
-                        <div>
-                          <div className="text-sm font-semibold mb-1">{UI_TEXT.tables.layoutImageUrl}</div>
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp"
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (!file || !selectedEvent?.id) return;
-                              setLayoutUploadLoading(true);
-                              setLayoutUploadError(null);
-                              setLayoutAspectWarning(null);
-                              try {
-                                const res = await StorageService.uploadLayoutImage(selectedEvent.id, file);
-                                setLayoutUrl(res.url);
-                                setLayoutUploadVersion(res.version ?? null);
-                                if (res.aspectChanged && res.previousWidth && res.previousHeight && res.width && res.height) {
-                                  const before = `${res.previousWidth}×${res.previousHeight}`;
-                                  const after = `${res.width}×${res.height}`;
-                                  setLayoutAspectWarning(
-                                    `Пропорции плана изменились: было ${before}, стало ${after}. ` +
-                                    `Столы остались на прежних координатах, но относительно нового рисунка они сместятся. ` +
-                                    `Проверьте расстановку ниже и поправьте, что уехало.`
-                                  );
-                                }
-                              } catch (err) {
-                                setLayoutUploadError(err instanceof Error ? err.message : 'Upload failed');
-                              } finally {
-                                setLayoutUploadLoading(false);
-                                e.target.value = '';
-                              }
-                            }}
-                            disabled={layoutUploadLoading || !selectedEvent?.id}
-                            className="w-full max-w-full border rounded px-3 py-2 text-sm box-border file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-surface file:cursor-pointer"
-                          />
-                          <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        <div className="flex flex-col gap-3">
+                          {/* Tools in one row; the plan comes right after — it is what this step is about. */}
+                          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-0.5">
+                              <button
+                                type="button"
+                                disabled={venueBusy}
+                                onClick={() => {
+                                  const next = !venuesOpen;
+                                  setVenuesOpen(next);
+                                  if (next) void loadVenues();
+                                }}
+                                className={`admin-chip ${venuesOpen ? 'admin-chip-on' : ''}`}
+                              >
+                                Библиотека залов
+                              </button>
+                              <button
+                                type="button"
+                                disabled={tables.length === 0}
+                                onClick={() => {
+                                  if (bulkMode) exitBulkMode();
+                                  else { setBulkMode(true); setSelectedTableId(null); }
+                                }}
+                                className={`admin-chip ${bulkMode ? 'admin-chip-on' : ''}`}
+                              >
+                                {bulkMode ? 'Выйти из выбора' : 'Выбрать несколько'}
+                              </button>
                             <label
-                              className={`flex items-center gap-2 px-3 py-2 text-sm rounded border border-[#C6A75E]/50 text-[#C6A75E] cursor-pointer hover:bg-[#C6A75E]/10 transition ${detectLoading || !selectedEvent?.id ? 'opacity-50 pointer-events-none' : ''}`}
+                              className={`admin-chip cursor-pointer ${detectLoading || !selectedEvent?.id ? 'opacity-50 pointer-events-none' : ''}`}
                             >
                               <input
                                 type="file"
@@ -2193,33 +2301,20 @@ const AdminPanel: React.FC<{
                                   }
                                 }}
                               />
-                              {detectLoading ? 'Распознаю...' : '✦ Распознать из схемы'}
+                              {detectLoading ? 'Распознаю…' : 'Распознать столы'}
                             </label>
-                            {detectError && (
-                              <span className="text-xs text-red-400">{detectError}</span>
-                            )}
                           </div>
-                          <div className="mt-3 pt-3 border-t border-white/10">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <button
-                                type="button"
-                                disabled={tables.length === 0}
-                                onClick={() => {
-                                  if (bulkMode) exitBulkMode();
-                                  else { setBulkMode(true); setSelectedTableId(null); }
-                                }}
-                                className={`px-3 py-2 rounded-lg text-xs border disabled:opacity-40 ${
-                                  bulkMode ? 'border-[#C6A75E] text-[#C6A75E]' : 'border-white/20 text-white/80'
-                                }`}
-                              >
-                                {bulkMode ? 'Выйти из выбора' : 'Выбрать несколько'}
-                              </button>
+                            {detectError && (
+                              <span className="block text-xs text-[#FF9C7F]">{detectError}</span>
+                            )}
+                          {bulkMode && (
+                            <div className="flex gap-2">
                               {bulkMode && (
                                 <>
                                   <button
                                     type="button"
                                     onClick={() => setBulkIds(bookableTables.map((t) => t.id))}
-                                    className="px-3 py-2 rounded-lg text-xs border border-white/20 text-white/70"
+                                    className="admin-chip"
                                   >
                                     Все столы ({bookableTables.length})
                                   </button>
@@ -2227,7 +2322,7 @@ const AdminPanel: React.FC<{
                                     <button
                                       type="button"
                                       onClick={() => setBulkIds([])}
-                                      className="px-3 py-2 rounded-lg text-xs border border-white/20 text-white/50"
+                                      className="admin-chip"
                                     >
                                       Снять
                                     </button>
@@ -2235,7 +2330,7 @@ const AdminPanel: React.FC<{
                                 </>
                               )}
                             </div>
-
+                          )}
                             {bulkMode && (
                               <div className="mt-2 rounded-xl border border-[#C6A75E]/30 bg-[#C6A75E]/5 p-3 space-y-3">
                                 {bulkIds.length === 0 ? (
@@ -2303,36 +2398,19 @@ const AdminPanel: React.FC<{
                                 )}
                               </div>
                             )}
-                          </div>
-
-                          <div className="mt-3 pt-3 border-t border-white/10">
-                            <div className="flex flex-wrap items-center gap-2">
+                            {venueNotice && <div className="text-xs text-[#7ED6A5] mt-2">{venueNotice}</div>}
+                            {venueError && <div className="text-xs text-red-400 mt-2">{venueError}</div>}
+                          {venuesOpen && (
+                            <div className="rounded-2xl bg-[#161412] p-3 flex flex-col gap-2">
                               <button
                                 type="button"
                                 disabled={venueBusy || !selectedEvent?.id || tables.length === 0}
                                 onClick={handleSaveVenue}
-                                className="px-3 py-2 rounded-lg text-xs border border-[#C6A75E]/40 text-[#C6A75E] disabled:opacity-40"
+                                className="w-full h-11 rounded-xl border border-[#C6A75E]/50 text-[#C6A75E] text-sm disabled:opacity-40"
                               >
-                                Сохранить зал в библиотеку
+                                Сохранить эту расстановку в библиотеку
                               </button>
-                              <button
-                                type="button"
-                                disabled={venueBusy}
-                                onClick={() => {
-                                  const next = !venuesOpen;
-                                  setVenuesOpen(next);
-                                  if (next) void loadVenues();
-                                }}
-                                className="px-3 py-2 rounded-lg text-xs border border-white/20 text-white/80 disabled:opacity-40"
-                              >
-                                {venuesOpen ? 'Скрыть библиотеку' : 'Загрузить зал из библиотеки'}
-                              </button>
-                            </div>
-
-                            {venueNotice && <div className="text-xs text-[#7ED6A5] mt-2">{venueNotice}</div>}
-                            {venueError && <div className="text-xs text-red-400 mt-2">{venueError}</div>}
-
-                            {venuesOpen && (
+                            {(
                               <div className="mt-2 space-y-1">
                                 {venues.length === 0 && (
                                   <div className="text-xs text-muted">
@@ -2371,7 +2449,8 @@ const AdminPanel: React.FC<{
                                 ))}
                               </div>
                             )}
-                          </div>
+                            </div>
+                          )}
                           {layoutUploadLoading && <div className="text-xs text-muted mt-1">{UI_TEXT.common.loading}</div>}
                           {layoutUploadError && <div className="text-xs text-[#6E6A64] mt-1">{layoutUploadError}</div>}
                           {layoutAspectWarning && (
@@ -2382,31 +2461,6 @@ const AdminPanel: React.FC<{
                               {layoutAspectWarning}
                             </div>
                           )}
-                          <input
-                            type="text"
-                            value={layoutUrl}
-                            onChange={(e) => { setLayoutUrl(e.target.value); setLayoutUploadError(null); setLayoutUploadVersion(null); setLayoutAspectWarning(null); }}
-                            placeholder={UI_TEXT.tables.layoutImagePlaceholder}
-                            className="w-full max-w-full border rounded px-3 py-2 text-sm box-border mt-2"
-                          />
-                          <div className="text-xs text-muted mt-1">
-                            {UI_TEXT.tables.layoutImageHint}
-                          </div>
-                          {/* No thumbnail here: the preview right below shows the same plan
-                              larger, and on a phone the duplicate cost a screen of scrolling. */}
-                          {layoutUrl && layoutUploadVersion != null && (
-                            <div className="text-xs text-muted mt-1">Версия плана: {layoutUploadVersion}</div>
-                          )}
-                          <div className="mt-3">
-                            <SecondaryButton
-                              onClick={() => { setLayoutUrl(selectedEvent?.layoutImageUrl || ''); setLayoutUploadVersion(null); setLayoutAspectWarning(null); }}
-                              className="w-full md:w-auto"
-                            >
-                              {UI_TEXT.common.reset}
-                            </SecondaryButton>
-                          </div>
-                        </div>
-
                         <div>
                           <div className="text-sm font-semibold mb-2 flex items-center justify-between gap-2">
                             <span>{UI_TEXT.tables.layoutPreview}</span>
@@ -2515,6 +2569,68 @@ const AdminPanel: React.FC<{
                             </PrimaryButton>
                           </div>
                         </div>
+                          <details className="rounded-2xl bg-[#161412] px-4 py-1">
+                            <summary className="min-h-[44px] flex items-center text-sm text-[#BDB5A8] cursor-pointer">Заменить картинку плана</summary>
+                            <div className="pb-4">
+                          <div className="text-sm font-semibold mb-1">{UI_TEXT.tables.layoutImageUrl}</div>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file || !selectedEvent?.id) return;
+                              setLayoutUploadLoading(true);
+                              setLayoutUploadError(null);
+                              setLayoutAspectWarning(null);
+                              try {
+                                const res = await StorageService.uploadLayoutImage(selectedEvent.id, file);
+                                setLayoutUrl(res.url);
+                                setLayoutUploadVersion(res.version ?? null);
+                                if (res.aspectChanged && res.previousWidth && res.previousHeight && res.width && res.height) {
+                                  const before = `${res.previousWidth}×${res.previousHeight}`;
+                                  const after = `${res.width}×${res.height}`;
+                                  setLayoutAspectWarning(
+                                    `Пропорции плана изменились: было ${before}, стало ${after}. ` +
+                                    `Столы остались на прежних координатах, но относительно нового рисунка они сместятся. ` +
+                                    `Проверьте расстановку ниже и поправьте, что уехало.`
+                                  );
+                                }
+                              } catch (err) {
+                                setLayoutUploadError(err instanceof Error ? err.message : 'Upload failed');
+                              } finally {
+                                setLayoutUploadLoading(false);
+                                e.target.value = '';
+                              }
+                            }}
+                            disabled={layoutUploadLoading || !selectedEvent?.id}
+                            className="w-full max-w-full border rounded px-3 py-2 text-sm box-border file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-surface file:cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={layoutUrl}
+                            onChange={(e) => { setLayoutUrl(e.target.value); setLayoutUploadError(null); setLayoutUploadVersion(null); setLayoutAspectWarning(null); }}
+                            placeholder={UI_TEXT.tables.layoutImagePlaceholder}
+                            className="w-full max-w-full border rounded px-3 py-2 text-sm box-border mt-2"
+                          />
+                          <div className="text-xs text-muted mt-1">
+                            {UI_TEXT.tables.layoutImageHint}
+                          </div>
+                          {/* No thumbnail here: the preview right below shows the same plan
+                              larger, and on a phone the duplicate cost a screen of scrolling. */}
+                          {layoutUrl && layoutUploadVersion != null && (
+                            <div className="text-xs text-muted mt-1">Версия плана: {layoutUploadVersion}</div>
+                          )}
+                          <div className="mt-3">
+                            <SecondaryButton
+                              onClick={() => { setLayoutUrl(selectedEvent?.layoutImageUrl || ''); setLayoutUploadVersion(null); setLayoutAspectWarning(null); }}
+                              className="w-full md:w-auto"
+                            >
+                              {UI_TEXT.common.reset}
+                            </SecondaryButton>
+                          </div>
+                            </div>
+                          </details>
+                        </div>
                       </SortableSectionInner>
                     );
                     return null;
@@ -2526,20 +2642,59 @@ const AdminPanel: React.FC<{
         </div>
       )}
 
-      {selectedEvent && mode === 'layout' && (
+      {inEvent && selectedEvent && !(eventStep === 2 && selectedTableId && !bulkMode) && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-50 max-w-[420px] mx-auto bg-black/95 border-t border-white/10 p-4"
+          className="fixed bottom-0 left-0 right-0 z-50 max-w-[420px] mx-auto bg-[#0C0B0A]/95 backdrop-blur border-t border-[#2B2723] px-4 pt-3.5 flex items-center gap-3"
           style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
         >
-          <button
-            type="button"
-            onClick={() => handleSave(false)}
-            disabled={!isDirty || savingLayout}
-            className="w-full py-3 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-500 text-black font-semibold shadow-lg shadow-yellow-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {savingLayout ? UI_TEXT.common.saving : UI_TEXT.common.save}
-          </button>
+          <span className="flex-1 min-w-0 flex items-center gap-1.5 text-[12.5px]">
+            {savingLayout ? (
+              <span className="text-white/60">{UI_TEXT.common.saving}</span>
+            ) : isDirty ? (
+              <span className="text-[#E8B04B]">Не сохранено</span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-[#8C8477] whitespace-nowrap">
+                <span className="text-[#57C79B] flex"><AdminIcon d={ICON.check} size={16} sw={2.2} /></span>
+                Всё сохранено
+              </span>
+            )}
+          </span>
+          {isDirty && (
+            <button
+              type="button"
+              onClick={() => handleSave(false)}
+              disabled={savingLayout}
+              className="admin-cta h-12 px-5"
+            >
+              {UI_TEXT.common.save}
+            </button>
+          )}
+          {eventStep < 4 ? (
+            <button
+              type="button"
+              onClick={() => goStep((eventStep + 1) as EventStep)}
+              aria-label={`Дальше: ${EVENT_STEPS[eventStep].label}`}
+              className={isDirty ? 'admin-icon-btn h-12 w-12' : 'admin-cta h-12 pl-5 pr-4'}
+            >
+              {!isDirty && <>Дальше: {EVENT_STEPS[eventStep].label.toLowerCase()}</>}
+              <AdminIcon d={ICON.next} size={18} sw={2.2} />
+            </button>
+          ) : !isDirty && (
+            <button type="button" onClick={requestCloseEvent} className="admin-icon-btn h-12 px-4 w-auto text-sm">
+              К событиям
+            </button>
+          )}
         </div>
+      )}
+
+      {!inEvent && (
+        <AdminTabBar
+          active={mode === 'bookings' ? 'bookings' : mode === 'layout' ? 'events' : 'team'}
+          waiting={waitingCount}
+          onEvents={goEvents}
+          onBookings={goBookings}
+          onTeam={goTeam}
+        />
       )}
 
       {exitConfirmPending && (

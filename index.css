@@ -691,3 +691,156 @@ body.tg-dark .shadow-lg {
     opacity: 1;
   }
 }
+/* ------------------------------------------------------------------------
+   Admin, redesign: black ground, gold for the one main action, ember only
+   for "waiting on you". Display face for screen titles, like the posters.
+   ------------------------------------------------------------------------ */
+.admin-root {
+  background: #0C0B0A;
+  color: #F3EEE6;
+  font-family: 'Golos Text', -apple-system, 'Segoe UI', system-ui, sans-serif;
+}
+.admin-display {
+  font-family: 'Alumni Sans', 'Arial Narrow', sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: 0.9;
+  letter-spacing: 0.01em;
+  color: #F3EEE6;
+}
+.admin-root .admin-card {
+  background: #161412;
+  border: 1px solid #2B2723;
+  border-radius: 18px;
+}
+.admin-root input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='color']):not([type='range']),
+.admin-root textarea,
+.admin-root select {
+  background: #161412;
+  border: 1px solid #2B2723;
+  border-radius: 12px;
+  color: #F3EEE6;
+  font-size: 16px; /* under 16px iOS zooms the page on focus */
+  padding: 10px 14px;
+}
+/* Components sit in a layer so a utility class on the element (h-12, w-auto…) still wins. */
+@layer components {
+  .admin-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 14px;
+    background: #C6A75E;
+    color: #16130D;
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .admin-cta:disabled { opacity: 0.45; }
+  .admin-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: 14px;
+    border: 1px solid #2B2723;
+    background: #161412;
+    color: #BDB5A8;
+  }
+  .admin-icon-btn:disabled { opacity: 0.4; }
+  .admin-segmented {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 14px;
+    background: #161412;
+  }
+  .admin-segmented > button {
+    flex: 1 1 0;
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #8C8477;
+    white-space: nowrap;
+  }
+  .admin-segmented > button[aria-selected='true'] {
+    background: #1F1C19;
+    color: #F3EEE6;
+    font-weight: 600;
+  }
+  .admin-segmented-count {
+    font-size: 11px;
+    color: #8C8477;
+  }
+  .admin-notice {
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+  }
+  .admin-notice-error { background: rgba(255, 90, 44, 0.1); color: #FF9C7F; }
+  .admin-notice-ok { background: rgba(87, 199, 155, 0.1); color: #7FD9B4; }
+  .admin-switch-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: #161412;
+  }
+  .admin-switch {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    width: 50px;
+    height: 31px;
+    flex-shrink: 0;
+    border-radius: 16px;
+    background: #2B2723;
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  .admin-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    transition: transform 0.2s;
+  }
+  .admin-switch:checked { background: #57C79B; }
+  .admin-switch:checked::after { transform: translateX(19px); }
+  .admin-switch:focus-visible { outline: 2px solid #C6A75E; outline-offset: 2px; }
+  .admin-chip {
+    height: 36px;
+    padding: 0 14px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 18px;
+    border: 1px solid #2B2723;
+    background: #161412;
+    color: #BDB5A8;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .admin-chip:disabled { opacity: 0.4; }
+  .admin-chip-on { border-color: #C6A75E; color: #C6A75E; background: rgba(198, 167, 94, 0.1); }
+}
+
+/* The older ".admin-root input" rule is unlayered and would paint the switch track. */
+.admin-root input.admin-switch { background: #2B2723; border: 0; padding: 0; }
+.admin-root input.admin-switch:checked { background: #57C79B; }
