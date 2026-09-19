@@ -627,6 +627,48 @@ export const removeAdminController = async (id: number): Promise<void> => {
   if (!res.ok) await handleAuthError(res, 'Failed to remove controller');
 };
 
+// ---- Admin: Team invites (one-time links into the bot) ----
+
+export type TeamInvite = {
+  token: string;
+  role: 'controller' | 'organizer';
+  eventId: string | null;
+  label: string | null;
+  createdAt: string;
+  expiresAt: string;
+  link: string | null;
+};
+
+export const createTeamInvite = async (
+  role: TeamInvite['role'],
+  opts: { eventId?: string; label?: string } = {},
+): Promise<TeamInvite> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/invites`, {
+    method: 'POST',
+    headers: { ...(AuthService.getAuthHeader() as Record<string, string>), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role, eventId: opts.eventId, label: opts.label }),
+  });
+  if (!res.ok) await handleAuthError(res, 'Failed to create invite');
+  return res.json();
+};
+
+export const getTeamInvites = async (): Promise<TeamInvite[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/invites`, { headers: AuthService.getAuthHeader() });
+  if (!res.ok) await handleAuthError(res, 'Failed to load invites');
+  return res.json();
+};
+
+export const revokeTeamInvite = async (token: string): Promise<void> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/invites/${encodeURIComponent(token)}`, {
+    method: 'DELETE',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) await handleAuthError(res, 'Failed to revoke invite');
+};
+
 // ---- App Users ----
 
 export type AppUser = {

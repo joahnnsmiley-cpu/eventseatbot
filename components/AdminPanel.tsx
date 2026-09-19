@@ -29,6 +29,7 @@ import { deepClone } from '../src/utils/deepEqual';
 import { DEFAULT_TICKET_CATEGORIES } from '../constants/ticketStyles';
 import AdminTablesLayer from './AdminTablesLayer';
 import TableEditPanel from './TableEditPanel';
+import TeamInviteCard from './TeamInviteCard';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { CATEGORY_COLORS, CATEGORY_COLOR_KEYS, getCategoryColorFromCategory } from '../src/config/categoryColors';
 import type { TicketCategory } from '../types';
@@ -128,6 +129,15 @@ const ICON = {
   eye: 'M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
 };
 
+/** UTC+3, UTC+7, UTC+5:30 — minutes east of UTC, as people read it. */
+function formatUtcOffset(minutes: number): string {
+  const sign = minutes < 0 ? '−' : '+';
+  const abs = Math.abs(Math.round(minutes));
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  return `UTC${sign}${h}${m ? `:${String(m).padStart(2, '0')}` : ''}`;
+}
+
 /** The customer pressed "Я оплатил" — these wait for a person to check the money. */
 const WAITING_STATUSES = ['awaiting_confirmation', 'payment_submitted'];
 
@@ -182,10 +192,15 @@ function EventStepper({ step, done, onStep }: { step: EventStep; done: boolean[]
 function AdminEventCard({ ev, onOpen, onDelete }: { ev: EventData; onOpen: () => void; onDelete: () => void }) {
   const status = ev.status ?? (ev.published ? 'published' : 'draft');
   const poster = (ev.imageUrl ?? (ev as { coverImageUrl?: string | null }).coverImageUrl ?? '').trim();
-  const tables = (ev.tables ?? []) as Array<{ seatsTotal?: number; seatsCount?: number; seatsAvailable?: number }>;
-  const total = tables.reduce((n, t) => n + (t.seatsTotal ?? t.seatsCount ?? 0), 0);
-  const free = tables.reduce((n, t) => n + (t.seatsAvailable ?? t.seatsTotal ?? t.seatsCount ?? 0), 0);
-  const taken = Math.max(0, total - free);
+  type RawTable = { seatsTotal?: number; seatsCount?: number; seatsAvailable?: number; isAvailable?: boolean; is_active?: boolean };
+  const all = ((ev.tables ?? []) as RawTable[]).filter((t) => t.is_active !== false);
+  const seatsOf = (t: RawTable) => t.seatsTotal ?? t.seatsCount ?? 0;
+  // Only tables on sale count toward "how full": a table closed from sale is
+  // neither free nor taken. Seats booked on a table closed later still count.
+  const onSale = all.filter((t) => t.isAvailable !== false);
+  const closedSeats = all.filter((t) => t.isAvailable === false).reduce((n, t) => n + seatsOf(t), 0);
+  const total = onSale.reduce((n, t) => n + seatsOf(t), 0);
+  const taken = all.reduce((n, t) => n + Math.max(0, seatsOf(t) - (t.seatsAvailable ?? seatsOf(t))), 0);
   const when = (() => {
     const parts: string[] = [];
     if (ev.event_date) {
@@ -223,12 +238,15 @@ function AdminEventCard({ ev, onOpen, onDelete }: { ev: EventData; onOpen: () =>
           {total > 0 && (
             <div className="flex flex-col gap-[7px]">
               <div className="flex justify-between text-[12.5px]">
-                <span className="text-[#8C8477]">Занято мест</span>
+                <span className="text-[#8C8477]">Продано мест</span>
                 <span className="font-semibold">{taken} из {total}</span>
               </div>
               <div className="h-1.5 rounded-full bg-[#1F1C19] overflow-hidden">
-                <div className="h-full rounded-full bg-[#C6A75E]" style={{ width: `${Math.round((taken / total) * 100)}%` }} />
+                <div className="h-full rounded-full bg-[#C6A75E]" style={{ width: `${Math.min(100, Math.round((taken / total) * 100))}%` }} />
               </div>
+              {closedSeats > 0 && (
+                <span className="text-[11.5px] text-[#8C8477]">Ещё {closedSeats} мест закрыты от продажи</span>
+              )}
             </div>
           )}
         </div>
@@ -378,8 +396,6 @@ const AdminPanel: React.FC<{
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
   const [timezoneOffsetMinutes, setTimezoneOffsetMinutes] = useState<number>(180);
-  const [timezoneRefDialog, setTimezoneRefDialog] = useState(false);
-  const [adminLocalNow, setAdminLocalNow] = useState('');
   const [venue, setVenue] = useState('');
   const [eventPhone, setEventPhone] = useState('');
   const [eventPublished, setEventPublished] = useState(false);
@@ -1244,6 +1260,8 @@ const AdminPanel: React.FC<{
     if (isDirty && selectedEvent) { setExitConfirmPending({ type: 'switchMode', mode: target }); return; }
     setMode(target);
     if (isAdmin) { loadOrganizers(); loadAppUsers(); }
+    // Organizer invites pick an event from this list.
+    if (isAdmin && events.length === 0) void loadEvents();
   };
   const screenTitle = mode === 'bookings' ? UI_TEXT.admin.bookings : mode === 'layout' ? UI_TEXT.admin.eventsTab : UI_TEXT.admin.team;
 
@@ -1458,6 +1476,12 @@ const AdminPanel: React.FC<{
                       </div>
                     </div>
 
+                    {!tableId && (
+                      <div className="rounded-xl bg-[#FF5A2C]/10 px-3 py-2.5 text-[12.5px] text-[#FF9C7F]">
+                        У брони нет стола: его удалили из плана после покупки. Посадите гостя вручную.
+                      </div>
+                    )}
+
                     {comment && typeof comment === 'string' && comment.trim() !== '' && (
                       <div className="rounded-xl bg-[#1F1C19] px-3 py-2.5 text-sm text-white/80">
                         <div className="text-[11px] text-[#8C8477] mb-0.5">Комментарий</div>
@@ -1669,65 +1693,19 @@ const AdminPanel: React.FC<{
                           <div>
                             <div className="text-sm font-semibold mb-1">{UI_TEXT.event.timezoneRef}</div>
                             <p className="text-xs text-muted mb-2">{UI_TEXT.event.timezoneRefHint}</p>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-muted">
-                                UTC{timezoneOffsetMinutes >= 0 ? '+' : ''}{timezoneOffsetMinutes / 60}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  const now = new Date();
-                                  const pad = (n: number) => String(n).padStart(2, '0');
-                                  setAdminLocalNow(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`);
-                                  setTimezoneRefDialog(true);
-                                }}
-                                className="text-xs px-3 py-1.5 rounded border border-white/20 hover:bg-white/5"
-                              >
-                                {UI_TEXT.event.timezoneSetNow}
-                              </button>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm text-white">{formatUtcOffset(timezoneOffsetMinutes)}</span>
+                              {timezoneOffsetMinutes !== -new Date().getTimezoneOffset() && (
+                                <button
+                                  type="button"
+                                  onClick={() => setTimezoneOffsetMinutes(-new Date().getTimezoneOffset())}
+                                  className="admin-chip"
+                                >
+                                  Как на этом телефоне: {formatUtcOffset(-new Date().getTimezoneOffset())}
+                                </button>
+                              )}
                             </div>
                           </div>
-                          {timezoneRefDialog && (
-                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-                              <div className="bg-[#1A1A1A] rounded-xl p-6 max-w-sm w-full border border-white/10">
-                                <p className="text-sm font-medium mb-2">Укажите ваше текущее время</p>
-                                <input
-                                  type="datetime-local"
-                                  value={adminLocalNow}
-                                  onChange={(e) => setAdminLocalNow(e.target.value)}
-                                  className="w-full border rounded px-3 py-2 text-sm mb-4"
-                                  step="60"
-                                />
-                                <div className="flex gap-2 justify-end">
-                                  <button
-                                    type="button"
-                                    onClick={() => setTimezoneRefDialog(false)}
-                                    className="px-4 py-2 text-sm rounded border border-white/20"
-                                  >
-                                    Отмена
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      try {
-                                        const { utc } = await StorageService.getAdminServerTime();
-                                        const serverTs = new Date(utc).getTime();
-                                        const adminTs = new Date(adminLocalNow).getTime();
-                                        const offset = Math.round((adminTs - serverTs) / 60000);
-                                        setTimezoneOffsetMinutes(Math.max(-720, Math.min(720, offset)));
-                                        setTimezoneRefDialog(false);
-                                      } catch (e) {
-                                        console.error('Timezone calc failed', e);
-                                      }
-                                    }}
-                                    className="px-4 py-2 text-sm rounded bg-[#C6A75E] text-black font-medium"
-                                  >
-                                    Применить
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          )}
                           <div>
                             <div className="text-sm font-semibold mb-1">{UI_TEXT.event.venue}</div>
                             <input
@@ -1836,7 +1814,7 @@ const AdminPanel: React.FC<{
                         <div className="flex flex-col gap-2.5">
                           {(selectedEvent?.ticketCategories ?? []).map((cat) => {
                             const colorConfig = getCategoryColorFromCategory(cat);
-                            const catTables = tables.filter((t) => t.categoryId === cat.id && (!t.objectType || t.objectType === 'table'));
+                            const catTables = tables.filter((t) => t.categoryId === cat.id && t.isActive && (!t.objectType || t.objectType === 'table'));
                             const catSeats = catTables.reduce((n, t) => n + (t.seatsCount ?? 0), 0);
                             const open = openCategoryId === cat.id;
                             return (
@@ -2043,13 +2021,25 @@ const AdminPanel: React.FC<{
                           const cats = selectedEvent?.ticketCategories ?? [];
                           const priceOf = (id: string) => Number(cats.find((c) => c.id === id)?.price ?? 0);
                           const bookable = tables.filter((t) => !t.objectType || t.objectType === 'table');
-                          const seats = bookable.reduce((n, t) => n + (t.seatsCount ?? 0), 0);
-                          const full = bookable.reduce((n, t) => n + (t.seatsCount ?? 0) * priceOf(t.categoryId), 0);
+                          // TableModel.isActive = not deleted AND on sale (see src/model/table.ts).
+                          const onSale = bookable.filter((t) => t.isActive);
+                          const seats = onSale.reduce((n, t) => n + (t.seatsCount ?? 0), 0);
+                          const full = onSale.reduce((n, t) => n + (t.seatsCount ?? 0) * priceOf(t.categoryId), 0);
+                          const closed = bookable.filter((t) => !t.isActive).reduce((n, t) => n + (t.seatsCount ?? 0), 0);
+                          const noCategory = onSale.filter((t) => !cats.some((c) => c.id === t.categoryId)).length;
                           if (!seats) return null;
                           return (
-                            <div className="flex justify-between items-baseline px-1 pt-4 text-[13px]">
-                              <span className="text-[#8C8477]">Полный зал, {seats} мест</span>
-                              <span className="text-[15px] font-semibold text-[#C6A75E]">{full.toLocaleString('ru-RU')}&nbsp;₽</span>
+                            <div className="flex flex-col gap-1 px-1 pt-4 text-[13px]">
+                              <div className="flex justify-between items-baseline">
+                                <span className="text-[#8C8477]">Если продать всё, {seats} мест</span>
+                                <span className="text-[15px] font-semibold text-[#C6A75E]">{full.toLocaleString('ru-RU')}&nbsp;₽</span>
+                              </div>
+                              {closed > 0 && <span className="text-[12px] text-[#8C8477]">Не считая {closed} мест, закрытых от продажи</span>}
+                              {noCategory > 0 && (
+                                <span className="text-[12px] text-[#FF9C7F]">
+                                  {noCategory} {noCategory === 1 ? 'стол' : noCategory < 5 ? 'стола' : 'столов'} без категории — у них нет цены
+                                </span>
+                              )}
                             </div>
                           );
                         })()}
@@ -2745,6 +2735,7 @@ const AdminPanel: React.FC<{
       {/* Roles section */}
       {mode === 'roles' && isAdmin && (
         <div className="mt-2 space-y-4">
+          <TeamInviteCard events={events} />
           {/* Sub-tabs */}
           <div className="flex gap-2">
             <button

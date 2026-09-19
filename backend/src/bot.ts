@@ -3,6 +3,8 @@ import { db } from './db';
 import { createPendingBookingFromWebAppPayload } from './webappBooking';
 import { notifyVkAdmins, sendVkMessage, vkContactSessions } from './services/vkService';
 import { getOrganizersByEvent } from './db-postgres';
+import { claimTeamInvite } from './domain/team/claimInvite';
+import { INVITE_PREFIX } from './routes/adminInvites';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:4000';
@@ -50,6 +52,33 @@ if (bot) {
     const keyboard = Markup.keyboard([
       [Markup.button.webApp('🎟 Выбрать место', WEBAPP_URL)],
     ]).resize();
+
+    // Team invite link: t.me/<bot>?start=inv_<token>
+    const payload = String((ctx as any).payload ?? (ctx as any).startPayload ?? '');
+    if (payload.startsWith(INVITE_PREFIX)) {
+      const from = ctx.from;
+      const name = [from.first_name, from.last_name].filter(Boolean).join(' ') || (from.username ? `@${from.username}` : String(from.id));
+      const result = await claimTeamInvite(payload.slice(INVITE_PREFIX.length), { id: from.id, platform: 'telegram', name });
+      if (!result.ok) {
+        await ctx.reply(
+          result.reason === 'invalid'
+            ? 'Эта ссылка-приглашение уже использована или истекла. Попросите новую.'
+            : 'Не получилось принять приглашение. Попробуйте открыть ссылку ещё раз.',
+          keyboard,
+        );
+        return;
+      }
+      const roleText = result.role === 'controller'
+        ? 'Вы в команде: проверяете билеты на входе. Откройте приложение — там появится сканер.'
+        : `Вы в команде организаторов${result.eventTitle ? ` события «${result.eventTitle}»` : ''}. Откройте приложение — там появится админка.`;
+      await ctx.reply(roleText, keyboard);
+      if (result.createdBy && result.createdBy !== from.id) {
+        const who = from.username ? `${name} (@${from.username})` : name;
+        const what = result.role === 'controller' ? 'контролёр' : 'организатор';
+        ctx.telegram.sendMessage(result.createdBy, `✅ ${who} принял приглашение: ${what}.`).catch(() => { /* creator may be a VK admin */ });
+      }
+      return;
+    }
 
     await ctx.reply('Привет! Нажмите кнопку ниже, чтобы открыть WebApp.', keyboard);
   });

@@ -415,7 +415,10 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   }
   if (typeof req.body.published === 'boolean') {
     existing.published = req.body.published;
-    existing.status = req.body.published ? 'published' : 'draft';
+    // Saving an archived event sends published:false with everything else;
+    // that must not quietly turn it back into a draft.
+    if (req.body.published) existing.status = 'published';
+    else if (existing.status !== 'archived') existing.status = 'draft';
   }
   const requestedStatusPut = typeof req.body.status === 'string' && (req.body.status === 'draft' || req.body.status === 'published' || req.body.status === 'archived') ? req.body.status : undefined;
   if (requestedStatusPut !== undefined) {

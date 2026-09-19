@@ -36,6 +36,8 @@ type EventsRow = {
   organizer_phone: string | null;
   organizer_id?: number | null;
   published: boolean | null;
+  /** Archived is its own flag: `published` alone could only say published or draft. */
+  archived?: boolean | null;
   is_featured?: boolean | null;
   ticket_categories?: any | null;
   created_at?: string;
@@ -121,7 +123,7 @@ function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
     paymentPhone: row.organizer_phone ?? '',
     maxSeatsPerBooking: 4,
     tables,
-    status: row.published ? 'published' : 'draft',
+    status: row.archived ? 'archived' : row.published ? 'published' : 'draft',
     published: row.published ?? false,
     isFeatured: row.is_featured ?? false,
     ticketCategories: row.ticket_categories ?? undefined,
@@ -296,6 +298,7 @@ export async function getEvents(): Promise<EventData[]> {
     .from('event_tables')
     .select('*')
     .eq('object_type', 'table')
+    .eq('is_active', true)
     .order('event_id', { ascending: true })
     .order('number', { ascending: true });
   if (tablesErr) throw tablesErr;
@@ -460,6 +463,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
     organizer_phone: event.paymentPhone || null,
     organizer_id: organizerId,
     published: event.published ?? false,
+    archived: event.status === 'archived',
     is_featured: isFeatured,
     ticket_categories: event.ticketCategories ?? null,
   };
