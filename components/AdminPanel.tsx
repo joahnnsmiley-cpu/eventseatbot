@@ -128,6 +128,9 @@ const ICON = {
   eye: 'M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
 };
 
+/** The customer pressed "Я оплатил" — these wait for a person to check the money. */
+const WAITING_STATUSES = ['awaiting_confirmation', 'payment_submitted'];
+
 /**
  * An event is filled in four steps, in the order the work is actually done.
  * Each step shows only its own sections — the old screen showed all five
@@ -385,7 +388,7 @@ const AdminPanel: React.FC<{
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [statusActionLoading, setStatusActionLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('waiting');
   const [eventStatusFilter, setEventStatusFilter] = useState<'published' | 'draft' | 'archived' | 'deleted'>('published');
   const [openSections, setOpenSections] = useState<string[]>(['basic']);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -1115,6 +1118,7 @@ const AdminPanel: React.FC<{
   );
 
   useEffect(() => {
+    if (statusFilter === 'waiting' || statusFilter === 'paid') return;
     if (bookings.length && statusFilter && !uniqueBookingStatuses.includes(statusFilter)) {
       setStatusFilter('');
     }
@@ -1127,6 +1131,9 @@ const AdminPanel: React.FC<{
       result = result.filter((b) => organizerEventIds.includes(b.event?.id ?? b.event_id ?? ''));
     }
     if (!statusFilter) return result;
+    if (statusFilter === 'waiting') {
+      return result.filter((b) => WAITING_STATUSES.includes(String(b.status ?? '')));
+    }
     return result.filter((b) => String(b.status ?? '') === statusFilter);
   }, [bookings, statusFilter, isAdmin, organizerEventIds]);
 
@@ -1374,118 +1381,117 @@ const AdminPanel: React.FC<{
 
       {mode === 'bookings' && (
         <>
-          {!loading && hasBookings && (
-            <div className="flex flex-wrap gap-2 bg-[#141414] border border-white/10 rounded-xl p-1 mb-4">
-              <button
-                type="button"
-                onClick={() => setStatusFilter('')}
-                className={`px-3 py-2 text-sm rounded-lg transition-all ${!statusFilter
-                  ? 'bg-white/10 text-white border border-white/20'
-                  : 'text-white/50 hover:text-white'
-                  }`}
-              >
-                {UI_TEXT.booking.statusFilterAll}
-              </button>
-              {uniqueBookingStatuses.map((s) => (
+          {hasBookings && (
+            <div role="tablist" aria-label="Статус брони" className="admin-segmented mb-4">
+              {[
+                { key: 'waiting', label: 'Ждут оплаты', count: waitingCount },
+                { key: 'paid', label: 'Оплачено', count: 0 },
+                { key: '', label: 'Все', count: 0 },
+              ].map((f) => (
                 <button
-                  key={s}
+                  key={f.key || 'all'}
                   type="button"
-                  onClick={() => setStatusFilter(s)}
-                  className={`px-3 py-2 text-sm rounded-lg transition-all ${statusFilter === s
-                    ? 'bg-white/10 text-white border border-white/20'
-                    : 'text-white/50 hover:text-white'
-                    }`}
+                  role="tab"
+                  aria-selected={statusFilter === f.key}
+                  onClick={() => setStatusFilter(f.key)}
                 >
-                  {UI_TEXT.booking.adminStatusLabels[s] ?? UI_TEXT.booking.statusLabels[s] ?? s}
+                  {f.label}
+                  {f.count > 0 && (
+                    <span className="min-w-[18px] h-[18px] px-[5px] rounded-full bg-[#FF5A2C] text-[#1C0A04] text-[11px] font-bold leading-[18px] text-center">
+                      {f.count}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
           )}
 
           {!loading && !hasBookings && (
-            <div className="text-sm text-[#6E6A64]">{UI_TEXT.admin.noBookings}</div>
+            <div className="py-10 text-center text-sm text-[#8C8477]">{UI_TEXT.admin.noBookings}</div>
           )}
 
           {!loading && hasBookings && filteredBookings.length === 0 && (
-            <div className="text-sm text-[#6E6A64]">{UI_TEXT.booking.noBookingsForFilter}</div>
+            <div className="py-10 text-center text-sm text-[#8C8477]">
+              {statusFilter === 'waiting' ? 'Никто не ждёт подтверждения. Всё разобрано.' : UI_TEXT.booking.noBookingsForFilter}
+            </div>
           )}
 
           {!loading && hasBookings && filteredBookings.length > 0 && (
-            <div className="grid grid-cols-1 gap-4">
+            <div className="flex flex-col gap-3">
               {filteredBookings.map((b) => {
                 const status = String(b.status ?? '');
                 const canConfirm = status === 'reserved' || status === 'pending' || status === 'awaiting_confirmation' || status === 'payment_submitted' || status === 'expired';
+                const waiting = WAITING_STATUSES.includes(status);
                 const telegramId = b.user_telegram_id ?? b.userTelegramId;
                 const userPhone = b.user_phone ?? b.userPhone;
                 const eventId = b.event_id ?? b.event?.id ?? '';
                 const eventDetails = eventDetailsMap[eventId];
+                const tableLabel = getAdminTableLabel(b);
+                const tableNum = tableLabel.startsWith('Стол ') && tableLabel !== 'Стол удалён' ? tableLabel.slice(5) : null;
+                const tablesForEvent = eventId === selectedEventId ? tables : (eventTablesMap[eventId] ?? []);
+                const tableId = b.table_id ?? b.tableBookings?.[0]?.tableId;
+                const catId = tablesForEvent.find((t) => t.id === tableId)?.categoryId;
+                const cat = catId ? eventDetails?.ticketCategories?.find((c) => c.id === catId) : undefined;
+                const amount = Number(b.totalAmount ?? b.total_amount ?? 0);
+                const comment = b.user_comment ?? b.userComment;
+                const statusColor = waiting ? 'text-[#FF8A63]' : status === 'paid' ? 'text-[#57C79B]' : status === 'cancelled' || status === 'expired' ? 'text-white/45' : 'text-[#BDB5A8]';
 
                 return (
-                  <div key={b.id} className="rounded-2xl bg-white/5 border border-white/10 p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="text-lg font-bold text-white">{b.event?.title || UI_TEXT.event.eventFallback}</h3>
-                        <div className="text-sm text-white/60 mt-0.5">{formatEventDateDisplay(eventDetails) || formatAdminDate(b.event?.date)}</div>
+                  <article key={b.id} className={`flex flex-col gap-3.5 p-4 rounded-[18px] bg-[#161412] border ${waiting ? 'border-[#FF5A2C]/30' : 'border-[#2B2723]'}`}>
+                    <div className="flex items-start gap-3">
+                      <div className="w-[50px] h-[50px] shrink-0 rounded-[14px] bg-[#1F1C19] flex flex-col items-center justify-center gap-px">
+                        <span className="text-[10px] text-[#8C8477]">стол</span>
+                        <span className="admin-display text-[26px] leading-[0.85]">{tableNum ?? '—'}</span>
                       </div>
-                      <span
-                        className={`shrink-0 px-3 py-1 text-xs rounded-full font-medium ${status === 'awaiting_confirmation' || status === 'payment_submitted'
-                          ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                          : status === 'paid'
-                            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                            : status === 'expired'
-                              ? 'bg-red-500/15 text-red-300 border border-red-500/30'
-                              : status === 'cancelled'
-                                ? 'bg-white/5 text-white/40 border border-white/10'
-                                : 'bg-white/10 text-white border border-white/20'
-                          }`}
-                      >
-                        {UI_TEXT.booking.adminStatusLabels[status] ?? status ?? '—'}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1 text-sm text-white/80">
-                      <div>{getAdminTableLabel(b)}</div>
-                      <div>{formatAdminSeatLabel(b)}</div>
-                      <div>Категория: {getAdminCategoryLabel(b)}</div>
-                      <div>Сумма: {(b.totalAmount ?? b.total_amount ?? 0) > 0 ? `${b.totalAmount ?? b.total_amount} ₽` : '—'}</div>
-                    </div>
-
-                    <div className="border-t border-white/10 pt-3 space-y-1 text-xs text-white/60">
-                      <div>Покупатель: {userPhone || '—'}</div>
-                      <div>ID ({b.user_vk_id ? 'VK' : 'TG'}): {b.user_vk_id || telegramId || '—'}</div>
-                      <div>Создано: {formatAdminDate(b.created_at)}</div>
-                    </div>
-
-                    {(() => {
-                      const comment = b.user_comment ?? b.userComment;
-                      if (!comment || typeof comment !== 'string' || comment.trim() === '') return null;
-                      return (
-                        <div className="mt-3 bg-[#1c1c1c] border border-white/10 rounded-xl p-3 text-sm text-white/80 italic">
-                          <div className="text-white/50 text-xs mb-1">Комментарий пользователя</div>
-                          {comment}
+                      <div className="flex-1 min-w-0 flex flex-col gap-[3px]">
+                        <div className="flex justify-between items-baseline gap-2">
+                          <span className="text-base font-semibold truncate">{userPhone || 'Гость'}</span>
+                          {amount > 0 && <span className="admin-display text-[24px] leading-none shrink-0">{amount.toLocaleString('ru-RU')}&nbsp;₽</span>}
                         </div>
-                      );
-                    })()}
+                        <span className="flex items-center gap-1.5 text-[12.5px] text-[#BDB5A8]">
+                          {cat && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: getCategoryColorFromCategory(cat).gradient }} />}
+                          {[cat?.name, formatAdminSeatLabel(b)].filter((x) => x && x !== '—').join(' · ')}
+                        </span>
+                        <span className={`text-xs ${statusColor}`}>
+                          {UI_TEXT.booking.adminStatusLabels[status] ?? status ?? '—'} · {formatAdminDate(b.created_at)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {comment && typeof comment === 'string' && comment.trim() !== '' && (
+                      <div className="rounded-xl bg-[#1F1C19] px-3 py-2.5 text-sm text-white/80">
+                        <div className="text-[11px] text-[#8C8477] mb-0.5">Комментарий</div>
+                        {comment}
+                      </div>
+                    )}
+
+                    <div className="text-[11.5px] text-[#8C8477] leading-relaxed">
+                      {b.event?.title || UI_TEXT.event.eventFallback} · {formatEventDateDisplay(eventDetails) || formatAdminDate(b.event?.date)}
+                      <br />
+                      {b.user_vk_id ? 'VK' : 'TG'} ID: {b.user_vk_id || telegramId || '—'}
+                    </div>
 
                     {canConfirm && (
-                      <div className="flex gap-2 pt-2">
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
                         <button
+                          type="button"
                           onClick={() => confirmBooking(b.id)}
                           disabled={confirmingId !== null || cancellingId !== null}
-                          className="px-4 py-2 rounded-xl text-sm font-medium bg-[#C6A75E] text-black hover:bg-[#D4B86A] disabled:opacity-50 disabled:cursor-not-allowed transition"
+                          className="admin-cta h-11"
                         >
                           {confirmingId === b.id ? UI_TEXT.booking.confirming : 'Подтвердить оплату'}
                         </button>
                         <button
+                          type="button"
                           onClick={() => cancelBookingAction(b.id)}
                           disabled={confirmingId !== null || cancellingId !== null}
-                          className="px-4 py-2 rounded-xl text-sm font-medium bg-white/5 text-white border border-white/20 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                          className="h-11 px-4 rounded-xl border border-[#2B2723] text-sm text-[#BDB5A8] disabled:opacity-50"
                         >
                           {cancellingId === b.id ? 'Отмена…' : 'Отменить'}
                         </button>
                       </div>
                     )}
-                  </div>
+                  </article>
                 );
               })}
             </div>
