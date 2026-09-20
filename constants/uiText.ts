@@ -245,7 +245,7 @@ export const UI_TEXT = {
     selectAtLeastOneSeat: 'Выберите хотя бы одно место.',
     openInTelegramToBook: 'Откройте в Telegram для бронирования.',
     bookingSent: 'Бронирование отправлено. Проверьте Telegram.',
-    continueBook: 'Продолжить / Забронировать',
+    continueBook: 'Забронировать',
     booking: 'Бронируем…',
     submitting: 'Отправка…',
     tableNotFound: 'Стол не найден. Вернитесь и выберите другой.',

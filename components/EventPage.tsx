@@ -60,6 +60,35 @@ const EventPage: React.FC<EventPageProps> = ({
     return ts != null && ts <= Date.now();
   }, [eventDate, eventTime, offset]);
 
+  /**
+   * Tables still on sale, with their free seats and price. On the plan a table
+   * is 11–24 px across: too small for a thumb, and nothing tells you which are
+   * free. This list is the same choice, in a row you can hit.
+   */
+  const freeTables = useMemo(() => {
+    const cats = event?.ticketCategories ?? [];
+    const fallback = cats.find((c) => c.isActive)?.price ?? 0;
+    return (event?.tables ?? [])
+      .filter((t: any) => (t.objectType ?? 'table') === 'table')
+      .filter((t: any) => t.isAvailable === true && t.is_active !== false)
+      .map((t: any) => {
+        const free = Number(t.seatsAvailable ?? 0);
+        const cat = cats.find((c) => c.id === t.ticketCategoryId);
+        return { table: t, free, cat, price: getPriceForTable(event, t, fallback) };
+      })
+      .filter((r) => r.free > 0)
+      .sort((a, b) => Number(a.table.number) - Number(b.table.number));
+  }, [event]);
+
+  const hallSeats = useMemo(() => {
+    const onSale = (event?.tables ?? []).filter(
+      (t: any) => (t.objectType ?? 'table') === 'table' && t.isAvailable === true && t.is_active !== false
+    );
+    const total = onSale.reduce((n: number, t: any) => n + (Number(t.seatsTotal) || 0), 0);
+    const free = onSale.reduce((n: number, t: any) => n + (Number(t.seatsAvailable) || 0), 0);
+    return { total, free };
+  }, [event]);
+
   const totalAmount = useMemo(() => {
     if (!event) return 0;
     return Object.entries(selectedSeatsByTable).reduce((sum, [tableId, seats]) => {
@@ -171,7 +200,7 @@ const EventPage: React.FC<EventPageProps> = ({
   // ─── PREVIEW MODE (Premium horizontal layout) ────────────────────────────────
   if (mode === 'preview') {
     return (
-      <div className="event-details-premium min-h-[100dvh] relative overflow-hidden -mx-4 w-[calc(100%+2rem)] bg-[#080808] flex flex-col">
+      <div className="event-details-premium min-h-[100dvh] relative overflow-hidden bg-[#080808] flex flex-col">
         {/* Animated ambient background */}
         <div
           className="absolute inset-0 pointer-events-none"
@@ -422,16 +451,61 @@ const EventPage: React.FC<EventPageProps> = ({
           </div>
         )}
 
-        <div className="relative w-full -mx-4">
-          <SectionTitle title="Выбор столов" className="px-4" />
-          <SeatMap
-            key={event?.id}
-            event={event}
-            tables={event?.tables ?? []}
-            selectedSeatsByTable={selectedSeatsByTable}
-            onTableSelect={onTableSelect}
-          />
+        <div className="relative w-full">
+          <div className="flex items-baseline justify-between">
+            <SectionTitle title="План зала" />
+            {hallSeats.total > 0 && (
+              <span className="text-xs text-white/50">
+                свободно {hallSeats.free} из {hallSeats.total} мест
+              </span>
+            )}
+          </div>
+          <div className="-mx-4">
+            <SeatMap
+              key={event?.id}
+              event={event}
+              tables={event?.tables ?? []}
+              selectedSeatsByTable={selectedSeatsByTable}
+              onTableSelect={onTableSelect}
+            />
+          </div>
         </div>
+
+        {freeTables.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-baseline justify-between">
+              <SectionTitle title="Свободные столы" />
+              <span className="text-[11.5px] text-white/40">нажмите на плане или здесь</span>
+            </div>
+            {freeTables.map(({ table, free, cat, price }) => {
+              const palette = getCategoryColorFromCategory(cat);
+              const word = free === 1 ? 'место' : free < 5 ? 'места' : 'мест';
+              return (
+                <button
+                  key={table.id}
+                  type="button"
+                  onClick={() => onTableSelect(table.id)}
+                  className="flex items-center gap-3 h-[60px] px-3.5 rounded-2xl bg-white/5 border border-white/10 text-left active:scale-[0.99] transition-transform"
+                >
+                  <span className="w-10 h-10 shrink-0 rounded-xl bg-white/5 flex items-center justify-center text-[19px] font-bold text-white">
+                    {table.number}
+                  </span>
+                  <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+                    <span className="flex items-center gap-1.5 text-[14.5px] font-semibold text-white">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: palette.base }} />
+                      {cat?.name ?? palette.label}
+                    </span>
+                    <span className="text-xs text-white/45">свободно {free} {word}</span>
+                  </span>
+                  <span className="flex flex-col items-end leading-tight">
+                    <span className="text-[19px] font-bold text-white">{price.toLocaleString('ru-RU')} ₽</span>
+                    <span className="text-[10.5px] text-white/40">за место</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <div className="p-4 rounded-2xl border border-white/10 bg-white/5 space-y-3">
           <p className="text-base font-medium text-white">{UI_TEXT.event.contactOrganizer}</p>

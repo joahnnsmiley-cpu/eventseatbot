@@ -4,7 +4,7 @@ import vkBridge from '@vkontakte/vk-bridge';
 import * as StorageService from './services/storageService';
 import AuthService from './services/authService';
 import SeatMap from './components/SeatMap';
-import SeatPicker from './components/SeatPicker';
+import SeatChoice from './components/SeatChoice';
 import BookingSuccessView from './components/BookingSuccessView';
 import ErrorBoundary from './components/ErrorBoundary';
 import EventPage from './components/EventPage';
@@ -764,7 +764,7 @@ function App() {
           onRefresh={loadPendingBookingsForBanner}
         />
       )}
-      {view !== 'admin' && <BottomNav
+      {view !== 'admin' && view !== 'seats' && <BottomNav
         activeTab={bottomNavActiveTab}
         onEventsClick={() => { setView('events'); setSelectedEventId(null); setSelectedEvent(null); setSelectedTableId(null); }}
         onMyTicketsClick={() => { setView('my-tickets'); window.location.hash = ''; }}
@@ -1136,8 +1136,8 @@ function App() {
               )}
 
               <Card>
-                <div className="text-sm font-semibold text-white mb-2">{UI_TEXT.app.selectSeats}</div>
-                <SeatPicker
+                <div className="text-sm font-semibold text-white mb-3">{UI_TEXT.app.selectSeats}</div>
+                <SeatChoice
                   table={selectedTable}
                   selectedIndices={selectedSeatsByTable[selectedTableId!] ?? []}
                   tableDisabled={selectedTable.isAvailable !== true}
@@ -1156,89 +1156,11 @@ function App() {
                     });
                   }}
                 />
-              </Card>
-
-              <Card>
-                <div className="text-sm uppercase tracking-widest text-muted-light">
-                  {UI_TEXT.app.numberOfSeats}
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <button
-                    type="button"
-                    className="px-3 py-2 rounded text-sm transition-colors"
-                    style={{ border: `1px solid ${activePalette.base}40`, color: activePalette.base }}
-                    onClick={() => {
-                      if (!selectedTableId) return;
-                      const selected = selectedSeatsByTable[selectedTableId] ?? [];
-                      if (selected.length === 0) return;
-                      const sorted = [...selected].sort((a, b) => a - b);
-                      setSelectedSeatsByTable((prev) => ({
-                        ...prev,
-                        [selectedTableId]: sorted.slice(0, -1),
-                      }));
-                    }}
-                    disabled={(selectedSeatsByTable[selectedTableId] ?? []).length === 0 || selectedTable.isAvailable !== true}
-                  >
-                    -
-                  </button>
-                  <input
-                    type="number"
-                    readOnly
-                    min={0}
-                    max={selectedTable.seatsTotal}
-                    value={(selectedSeatsByTable[selectedTableId] ?? []).length}
-                    className="w-20 text-center rounded px-2 py-2 text-sm bg-[#111] text-white"
-                    style={{ border: `1px solid ${activePalette.base}40` }}
-                    tabIndex={-1}
-                    aria-label={UI_TEXT.app.selectedSeatCount}
-                  />
-                  <button
-                    type="button"
-                    className="px-3 py-2 rounded text-sm transition-colors"
-                    style={{ border: `1px solid ${activePalette.base}40`, color: activePalette.base }}
-                    onClick={() => {
-                      if (!selectedTableId) return;
-                      const selected = selectedSeatsByTable[selectedTableId] ?? [];
-                      const total = selectedTable.seatsTotal;
-                      const occupied = occupiedMap[selectedTableId] ?? new Set();
-                      const set = new Set(selected);
-                      let freeIndex = 0;
-                      while ((set.has(freeIndex) || occupied.has(freeIndex)) && freeIndex < total) freeIndex++;
-                      if (freeIndex >= total) return;
-                      setSelectedSeatsByTable((prev) => ({
-                        ...prev,
-                        [selectedTableId]: [...selected, freeIndex].sort((a, b) => Number(a) - Number(b)),
-                      }));
-                    }}
-                    disabled={
-                      (selectedSeatsByTable[selectedTableId] ?? []).length >= selectedTable.seatsTotal ||
-                      selectedTable.seatsAvailable === 0 ||
-                      selectedTable.isAvailable !== true ||
-                      (() => {
-                        const total = selectedTable.seatsTotal;
-                        const occupied = occupiedMap[selectedTableId] ?? new Set();
-                        const selected = selectedSeatsByTable[selectedTableId] ?? [];
-                        const set = new Set(selected);
-                        for (let i = 0; i < total; i++) {
-                          if (!set.has(i) && !occupied.has(i)) return false;
-                        }
-                        return true;
-                      })()
-                    }
-                  >
-                    +
-                  </button>
-                  <span className="text-xs text-muted-light">/ {selectedTable.seatsTotal}</span>
-                </div>
                 {selectedTable.seatsAvailable === 0 && (
-                  <div className="text-xs text-muted-light mt-2">
-                    {UI_TEXT.app.tableFullyBooked}
-                  </div>
+                  <div className="text-xs text-muted-light mt-3">{UI_TEXT.app.tableFullyBooked}</div>
                 )}
                 {selectionAdjusted && (
-                  <div className="text-xs text-amber-400 mt-2">
-                    {UI_TEXT.app.selectionAdjusted}
-                  </div>
+                  <div className="text-xs text-amber-400 mt-3">{UI_TEXT.app.selectionAdjusted}</div>
                 )}
               </Card>
 
@@ -1278,31 +1200,27 @@ function App() {
                 <div className="text-sm text-red-400">{bookingError}</div>
               )}
 
-              {(() => {
-                const seatCount = (selectedSeatsByTable[selectedTableId!] ?? []).length;
-                const seatPriceFallback = selectedEvent?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
-                const price = getPriceForTable(selectedEvent, selectedTable, seatPriceFallback);
-                const total = seatCount * price;
-                return seatCount > 0 ? (
-                  <Card>
-                    <div className="text-sm font-semibold text-white">
-                      {UI_TEXT.app.total} {total.toLocaleString('ru-RU')} ₽
+              <div
+                className="fixed bottom-0 left-0 right-0 z-40 max-w-[420px] mx-auto flex items-center gap-4 px-4 pt-3 bg-[#0C0B0A]/96 border-t border-[#2B2723]"
+                style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+              >
+                {(() => {
+                  const seatCount = (selectedSeatsByTable[selectedTableId!] ?? []).length;
+                  const seatPriceFallback = selectedEvent?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
+                  const price = getPriceForTable(selectedEvent, selectedTable, seatPriceFallback);
+                  return (
+                    <div className="flex flex-col leading-tight">
+                      <span className="text-[11.5px] text-[#8C8477] whitespace-nowrap">
+                        {seatCount > 0 ? `${seatCount} × ${price.toLocaleString('ru-RU')} ₽` : 'Выберите места'}
+                      </span>
+                      <span className="text-[26px] font-bold text-white">
+                        {(seatCount * price).toLocaleString('ru-RU')} ₽
+                      </span>
                     </div>
-                    <div className="text-xs text-muted-light mt-1">
-                      {seatCount} × {price.toLocaleString('ru-RU')} ₽
-                    </div>
-                  </Card>
-                ) : null;
-              })()}
-
-              <Card>
-                <div className="text-xs text-muted-light">
-                  {UI_TEXT.app.availabilityRefreshes}
-                </div>
-              </Card>
-
+                  );
+                })()}
               <PrimaryButton
-                className="w-full disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                className="flex-1 h-[54px] rounded-2xl disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                 style={{
                   background: `linear-gradient(135deg, ${activePalette.base}, ${activePalette.base}dd)`,
                   boxShadow: `0 4px 20px ${activePalette.glow}`,
@@ -1422,9 +1340,7 @@ function App() {
               >
                 {bookingLoading ? UI_TEXT.app.booking : UI_TEXT.app.continueBook}
               </PrimaryButton>
-              {bookingLoading && (
-                <div className="text-xs text-muted-light mt-2">{UI_TEXT.app.submitting}</div>
-              )}
+              </div>
             </div>
           ) : (
             <Card>
