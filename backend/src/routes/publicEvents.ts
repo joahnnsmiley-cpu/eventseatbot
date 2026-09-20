@@ -9,6 +9,8 @@ import { sendTelegramMessage, escapeHtml } from '../services/telegramService';
 import { notifyAllAdmins, notifyEventStakeholders } from '../services/notificationService';
 import { forwardToAdminsAndOrganizer } from '../bot';
 import { formatDateForNotification, parseEventToUtc } from '../utils/formatDate';
+import { requireUser, identityOf, ownsBooking } from '../auth/user.middleware';
+import type { AuthRequest } from '../auth/auth.middleware';
 
 const router = Router();
 
@@ -69,13 +71,26 @@ function mapEventToPublic(e: any) {
   };
 }
 
+/**
+ * Has the concert started? Selling a seat afterwards means taking money for a
+ * night that already happened, so the booking routes refuse it and the poster
+ * stops listing it.
+ */
+function hasStarted(ev: any): boolean {
+  const ts = parseEventToUtc(ev?.event_date, ev?.event_time, (ev?.timezoneOffsetMinutes ?? 180));
+  if (ts == null) return false; // no date set yet — a draft-ish event, leave it alone
+  return ts <= Date.now();
+}
+
 // Return published events: { featured: Event | null, events: Event[] }
 router.get('/events', async (_req: Request, res: Response) => {
   try {
     await db.reassignFeaturedIfNeeded();
     // Summary: no halls. The cards do not render tables, and loading them meant
     // reading every event_tables row in the database on every app open.
-    const all = (await db.getEventsSummary()).filter((e: any) => (e as any).published === true || (e as any).status === 'published');
+    const all = (await db.getEventsSummary())
+      .filter((e: any) => (e as any).published === true || (e as any).status === 'published')
+      .filter((e: any) => !hasStarted(e));
     const mapped = all.map((e: any) => mapEventToPublic(e));
     const featured = mapped.find((e: any) => e.isFeatured === true) ?? null;
     const events = mapped.filter((e: any) => e.id !== featured?.id);
@@ -149,7 +164,9 @@ router.get('/events/:eventId/occupied-seats', async (req: Request, res: Response
       .from('bookings')
       .select('table_id, seat_indices')
       .eq('event_id', eventId)
-      .in('status', ['reserved', 'awaiting_confirmation', 'paid']);
+      // payment_submitted belongs here: a seat whose buyer already pressed
+      // "Я оплатил" was shown as free and could be sold a second time.
+      .in('status', ['reserved', 'awaiting_confirmation', 'payment_submitted', 'paid']);
 
     if (error) {
       console.error('[occupied-seats]', error);
@@ -300,10 +317,12 @@ router.get('/view/:id', (req: Request, res: Response) => {
 
 // POST /public/bookings — create pending booking (no payment, no seat blocking)
 // Body: { eventId, tableId, seats: number[], phone }
-router.post('/bookings', bookingLimiter, async (req: Request, res: Response) => {
-  console.log('BOOKINGS HIT', req.body);
+router.post('/bookings', bookingLimiter, requireUser, async (req: Request, res: Response) => {
   try {
-    const { eventId, tableId, seats, phone, platform, vkUserId } = req.body || {};
+    const me = identityOf(req as AuthRequest)!;
+    const { eventId, tableId, seats, phone } = req.body || {};
+    const platform = me.platform;
+    const vkUserId = me.vkUserId;
     if (!eventId || !tableId) {
       res.status(400).json({ error: 'eventId and tableId are required' });
       return;
@@ -322,6 +341,10 @@ router.post('/bookings', bookingLimiter, async (req: Request, res: Response) => 
     const ev = (await db.findEventById(String(eventId))) as any;
     if (!ev || (ev.published !== true && ev.status !== 'published')) {
       res.status(404).json({ error: 'Event not found' });
+      return;
+    }
+    if (hasStarted(ev)) {
+      res.status(409).json({ error: 'Event has already started' });
       return;
     }
     const tbl = Array.isArray(ev.tables) ? ev.tables.find((t: any) => t.id === tableId) : null;
@@ -383,8 +406,11 @@ router.post('/bookings', bookingLimiter, async (req: Request, res: Response) => 
 // POST /public/bookings/table
 // Create a reserved booking for a table (public read-only booking endpoint)
 // Body: { eventId, tableId, seatsRequested, platform, vkUserId }
-router.post('/bookings/table', bookingLimiter, async (req: Request, res: Response) => {
-  const { eventId, tableId, seatsRequested, userPhone, userComment, platform, vkUserId } = req.body || {};
+router.post('/bookings/table', bookingLimiter, requireUser, async (req: Request, res: Response) => {
+  const me = identityOf(req as AuthRequest)!;
+  const { eventId, tableId, seatsRequested, userPhone, userComment } = req.body || {};
+  const platform = me.platform;
+  const vkUserId = me.vkUserId;
   if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
   const normalizedUserPhone = typeof userPhone === 'string' ? userPhone.trim() : '';
   if (!normalizedUserPhone) return res.status(400).json({ error: 'userPhone is required' });
@@ -416,6 +442,7 @@ router.post('/bookings/table', bookingLimiter, async (req: Request, res: Respons
       const ev = events.find((e: any) => e.id === eventId);
       if (!ev) return { status: 404, body: { error: 'Event not found' } };
       if (ev.status !== 'published') return { status: 403, body: { error: 'Event is not published' } };
+      if (hasStarted(ev)) return { status: 409, body: { error: 'Event has already started' } };
       const tbl = Array.isArray(ev.tables) ? ev.tables.find((t: any) => t.id === tableId) : null;
       if (!tbl) return { status: 400, body: { error: 'Table not found' } };
       if (!isTableVisible(tbl)) return { status: 403, body: { error: 'Table is not visible for booking' } };
@@ -494,13 +521,12 @@ router.post('/bookings/table', bookingLimiter, async (req: Request, res: Respons
 });
 
 // GET /public/bookings/my
-router.get('/bookings/my', async (req: Request, res: Response) => {
-  const telegramId = req.query.telegramId ? Number(req.query.telegramId) : null;
-  const vkUserId = req.query.vkUserId ? Number(req.query.vkUserId) : null;
-
-  if (!telegramId && !vkUserId) {
-    return res.status(400).json({ error: 'telegramId or vkUserId query param is required' });
-  }
+router.get('/bookings/my', requireUser, async (req: Request, res: Response) => {
+  // This used to take the id from the query string, so anyone who knew a
+  // Telegram id could read that person's bookings — and their ticket QR.
+  const me = identityOf(req as AuthRequest)!;
+  const telegramId = me.telegramId;
+  const vkUserId = me.vkUserId;
   if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
 
   try {
@@ -540,14 +566,17 @@ router.get('/bookings/my', async (req: Request, res: Response) => {
 });
 
 // POST /public/bookings/seats
-router.post('/bookings/seats', bookingLimiter, async (req: Request, res: Response) => {
-  const { eventId, tableId, seatIndices, userPhone, telegramId, userComment, platform, vkUserId } = req.body || {};
+router.post('/bookings/seats', bookingLimiter, requireUser, async (req: Request, res: Response) => {
+  // The booker used to name themselves in the body: anyone could book in
+  // someone else's name, or hold the whole hall from a script.
+  const me = identityOf(req as AuthRequest)!;
+  const { eventId, tableId, seatIndices, userPhone, userComment } = req.body || {};
+  const platform = me.platform;
+  const vkUserId = me.vkUserId;
+  const tgId = me.telegramId ?? 0;
   if (!eventId || !tableId) return res.status(400).json({ error: 'eventId and tableId are required' });
   const normalizedPhone = typeof userPhone === 'string' ? userPhone.trim() : '';
   if (!normalizedPhone) return res.status(400).json({ error: 'userPhone is required' });
-  // For VK, telegramId might be 0 or omitted
-  const tgId = Number(telegramId) || 0;
-  if (platform !== 'vk' && !tgId) return res.status(400).json({ error: 'telegramId is required for TG' });
 
   const indices = Array.isArray(seatIndices) ? seatIndices.filter((s: number) => Number.isInteger(s)) : [];
   if (indices.length === 0) return res.status(400).json({ error: 'seatIndices must be non-empty array' });
@@ -590,7 +619,9 @@ router.post('/bookings/seats', bookingLimiter, async (req: Request, res: Respons
       .select('seat_indices')
       .eq('event_id', eventId)
       .eq('table_id', tableId)
-      .in('status', ['reserved', 'awaiting_confirmation', 'paid']);
+      // payment_submitted belongs here: a seat whose buyer already pressed
+      // "Я оплатил" was shown as free and could be sold a second time.
+      .in('status', ['reserved', 'awaiting_confirmation', 'payment_submitted', 'paid']);
 
     const occupied = new Set<number>();
     for (const row of existing ?? []) {
@@ -685,7 +716,7 @@ router.post('/bookings/seats', bookingLimiter, async (req: Request, res: Respons
 
 // PATCH /public/bookings/:id/status
 // Allow user to set booking status to awaiting_confirmation (e.g. after "Я оплатил").
-router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
+router.patch('/bookings/:id/status', requireUser, async (req: Request, res: Response) => {
   const bookingId = String(req.params.id);
   if (!bookingId) return res.status(400).json({ error: 'bookingId is required' });
   const { status } = req.body || {};
@@ -696,6 +727,7 @@ router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
   const booking = await db.getBookingById(bookingId);
 
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  if (!ownsBooking(req as AuthRequest, booking as any)) return res.status(403).json({ error: 'Forbidden' });
   if (booking.status !== 'reserved' && booking.status !== 'pending') {
     return res.status(409).json({ error: 'Only reserved or pending bookings can be updated' });
   }
@@ -723,7 +755,7 @@ router.patch('/bookings/:id/status', async (req: Request, res: Response) => {
 
 // POST /public/bookings/:id/cancel
 // Cancel a reserved booking and restore seatsAvailable on the related table.
-router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
+router.post('/bookings/:id/cancel', requireUser, async (req: Request, res: Response) => {
   const bookingId = String(req.params.id);
   if (!bookingId) return res.status(400).json({ error: 'bookingId is required' });
 
@@ -750,6 +782,8 @@ router.post('/bookings/:id/cancel', async (req: Request, res: Response) => {
     // Read once to learn which event to lock on...
     const bk = await db.getBookingById(bookingId);
     if (!bk) return res.status(404).json({ error: 'Booking not found' });
+    // Cancelling was open to anyone who knew a booking id.
+    if (!ownsBooking(req as AuthRequest, bk as any)) return res.status(403).json({ error: 'Forbidden' });
     const eventId = bk.eventId;
 
     const result = await runWithLock(eventId, async () => {

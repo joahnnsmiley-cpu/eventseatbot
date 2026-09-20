@@ -8,7 +8,7 @@ import Card from '../src/ui/Card';
 import SectionTitle from '../src/ui/SectionTitle';
 import PrimaryButton from '../src/ui/PrimaryButton';
 import SeatMap from './SeatMap';
-import { formatEventDateTime } from '../src/utils/formatDate';
+import { formatEventDateTime, parseEventToUtc } from '../src/utils/formatDate';
 import { UI_TEXT } from '../constants/uiText';
 import * as StorageService from '../services/storageService';
 import { useToast } from '../src/ui/ToastContext';
@@ -53,6 +53,12 @@ const EventPage: React.FC<EventPageProps> = ({
   const dateShort = displayDateTime.replace(' · ', ' в ').replace(/ \d{4} г\./, '');
   const showDateTime = Boolean(eventDate && eventTime);
   const showVenue = Boolean(venue && String(venue).trim());
+  // A concert that has started is not for sale. The server refuses such a
+  // booking; the screen should not offer it either.
+  const hasStarted = useMemo(() => {
+    const ts = parseEventToUtc(eventDate ?? undefined, eventTime ?? undefined, offset);
+    return ts != null && ts <= Date.now();
+  }, [eventDate, eventTime, offset]);
 
   const totalAmount = useMemo(() => {
     if (!event) return 0;
@@ -344,19 +350,25 @@ const EventPage: React.FC<EventPageProps> = ({
 
                 <div className="pt-2">
                   {/* CTA */}
-                  <motion.button
-                    type="button"
-                    onClick={() => setMode('seatmap')}
-                    whileTap={{ scale: 0.97 }}
-                    className="w-full py-4 rounded-2xl text-base font-semibold text-black transition-all"
-                    style={{
-                      background: 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 50%, #C9A227 100%)',
-                      boxShadow: '0 4px 28px rgba(212,175,55,0.25)',
-                      letterSpacing: '0.01em',
-                    }}
-                  >
-                    Выбрать место
-                  </motion.button>
+                  {hasStarted ? (
+                    <div className="w-full py-4 rounded-2xl text-center text-base font-semibold text-white/60 border border-white/10">
+                      Концерт прошёл
+                    </div>
+                  ) : (
+                    <motion.button
+                      type="button"
+                      onClick={() => setMode('seatmap')}
+                      whileTap={{ scale: 0.97 }}
+                      className="w-full py-4 rounded-2xl text-base font-semibold text-black transition-all"
+                      style={{
+                        background: 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 50%, #C9A227 100%)',
+                        boxShadow: '0 4px 28px rgba(212,175,55,0.25)',
+                        letterSpacing: '0.01em',
+                      }}
+                    >
+                      Выбрать место
+                    </motion.button>
+                  )}
                 </div>
               </motion.div>
             </div>

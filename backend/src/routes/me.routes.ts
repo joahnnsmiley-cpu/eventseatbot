@@ -358,12 +358,6 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
     return 1;
   };
 
-  const totalGuests = eventBookings.reduce((sum: number, b: any) => sum + getSeatCount(b), 0);
-
-  const totalSeats = tables.reduce((s: number, t: any) => s + (Number(t.seatsTotal) || 0), 0);
-  const seatsFree = Math.max(0, totalSeats - totalGuests);
-  const occupancyPercent = totalSeats > 0 ? Math.round((totalGuests / totalSeats) * 100) : 0;
-
   const bookedByTable: Record<string, number> = {};
   for (const b of eventBookings) {
     const tid = b.tableId ?? (b as any).table_id;
@@ -380,6 +374,20 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
       }
     }
   }
+
+  // Guests are counted on the same tables the seats are counted on. Before, the
+  // total included bookings on tables closed from sale and bookings whose table
+  // was deleted, while the seat total did not: the screen said 36 seats free
+  // when 46 were.
+  const countedTableIds = new Set(tables.map((t: any) => String(t.id)));
+  const totalGuests = Object.entries(bookedByTable)
+    .filter(([tid]) => countedTableIds.has(String(tid)))
+    .reduce((sum, [, n]) => sum + Number(n || 0), 0);
+  const guestsOffPlan = eventBookings.reduce((sum: number, b: any) => sum + getSeatCount(b), 0) - totalGuests;
+
+  const totalSeats = tables.reduce((s: number, t: any) => s + (Number(t.seatsTotal) || 0), 0);
+  const seatsFree = Math.max(0, totalSeats - totalGuests);
+  const occupancyPercent = totalSeats > 0 ? Math.round((totalGuests / totalSeats) * 100) : 0;
 
   let fullTables = 0;
   let partialTables = 0;
@@ -516,6 +524,9 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
       fillPercent: occupancyPercent,
       ticketsSold: totalGuests,
       seatsFree,
+      // Bookings on tables that are closed from sale or no longer on the plan.
+      // They are real people and real money, but they are not "seats sold" here.
+      guestsOffPlan: Math.max(0, guestsOffPlan),
       revenueExpected,
       revenueCurrent,
       revenueReserved,

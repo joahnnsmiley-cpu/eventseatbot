@@ -55,7 +55,7 @@ export const getEvent = async (eventId: string): Promise<EventData> => {
   return { ...data, imageUrl, tables } as EventData;
 };
 
-/** GET /public/bookings/my?telegramId=... — returns user bookings (no auth). */
+/** GET /public/bookings/my — the signed-in person's own bookings. */
 export const getMyBookingsPublic = async (userId: number | string): Promise<{
   id: string;
   event_id: string;
@@ -69,9 +69,11 @@ export const getMyBookingsPublic = async (userId: number | string): Promise<{
   ticket_file_url?: string | null;
 }[]> => {
   const apiBaseUrl = getApiBaseUrl();
-  const platform = (import.meta as any).env.VITE_PLATFORM;
-  const paramName = platform === 'vk' ? 'vkUserId' : 'telegramId';
-  const res = await fetch(`${apiBaseUrl}/public/bookings/my?${paramName}=${encodeURIComponent(userId)}`);
+  // The id in the query string used to be enough to read anyone's bookings.
+  // The server reads it from the signed token now; userId stays for the caller's
+  // own bookkeeping.
+  void userId;
+  const res = await fetch(`${apiBaseUrl}/public/bookings/my`, { headers: AuthService.getAuthHeader() });
   if (!res.ok) throw new Error('Failed to load bookings');
   const data = await res.json();
   return Array.isArray(data) ? data : [];
@@ -102,7 +104,7 @@ export const createTableBooking = async (payload: {
   const url = `${apiBaseUrl}/public/bookings/table`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...(AuthService.getAuthHeader() as Record<string, string>), 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -129,7 +131,7 @@ export const createSeatsBooking = async (payload: {
   const url = `${apiBaseUrl}/public/bookings/seats`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...(AuthService.getAuthHeader() as Record<string, string>), 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -155,7 +157,7 @@ export const updateBookingStatus = async (bookingId: string, status: 'awaiting_c
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/public/bookings/${encodeURIComponent(bookingId)}/status`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...(AuthService.getAuthHeader() as Record<string, string>), 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
   });
   if (!res.ok) {
@@ -204,6 +206,7 @@ export const createPendingBooking = async (payload: {
       method: 'POST',
       mode: 'cors',
       headers: {
+        ...(AuthService.getAuthHeader() as Record<string, string>),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),

@@ -166,10 +166,23 @@ app.get('/verify-ticket/:token', async (req, res) => {
  * Telegram будет слать POST сюда
  */
 app.post('/telegram/webhook', (req, res) => {
+  // Telegram signs its calls with a secret we choose and it echoes back in this
+  // header. Without the check anyone could post updates here pretending to be
+  // any user. Set TELEGRAM_WEBHOOK_SECRET and register the webhook with it.
+  const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (expected) {
+    const got = req.header('X-Telegram-Bot-Api-Secret-Token');
+    if (got !== expected) {
+      console.warn('[telegram/webhook] rejected: bad or missing secret token');
+      return res.sendStatus(401);
+    }
+  } else {
+    console.warn('[telegram/webhook] TELEGRAM_WEBHOOK_SECRET is not set — the webhook accepts anyone');
+  }
   if (bot) {
     bot.handleUpdate(req.body);
   }
-  res.sendStatus(200);
+  return res.sendStatus(200);
 });
 
 /**
@@ -317,4 +330,19 @@ app.get('/test-admin-notify', authMiddleware, adminOnly, async (_req, res) => {
 app.listen(PORT, () => {
   console.log(`Backend API listening on http://localhost:${PORT}`);
   startBookingExpirationJob();
+
+  // Re-register the webhook with the secret this server checks for. Without
+  // this, turning the secret on would make the server reject every real
+  // Telegram call until someone called setWebhook by hand.
+  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const publicUrl = process.env.PUBLIC_API_URL || process.env.API_BASE_URL;
+  if (bot && webhookSecret && publicUrl) {
+    const url = `${publicUrl.replace(/\/+$/, '')}/telegram/webhook`;
+    bot.telegram
+      .setWebhook(url, { secret_token: webhookSecret })
+      .then(() => console.log('[telegram] webhook registered with a secret:', url))
+      .catch((e) => console.error('[telegram] setWebhook failed', e));
+  } else if (bot && webhookSecret) {
+    console.warn('[telegram] TELEGRAM_WEBHOOK_SECRET is set but PUBLIC_API_URL/API_BASE_URL is not — register the webhook manually');
+  }
 });
