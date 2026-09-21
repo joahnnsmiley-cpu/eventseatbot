@@ -20,7 +20,7 @@ import type { Booking, EventData, Table, TgUser } from './types';
 import { getPriceForTable } from './src/utils/getTablePrice';
 import { getCategoryColorFromCategory } from './src/config/categoryColors';
 import { getCurrentUser } from './src/utils/getCurrentUser';
-import { getEventDisplayParts, getEventDisplayPartsFromIso } from './src/utils/formatDate';
+import { getEventDisplayParts, getEventDisplayPartsFromIso, parseEventToUtc } from './src/utils/formatDate';
 import { RefreshCw, Settings } from 'lucide-react';
 import { UI_TEXT } from './constants/uiText';
 import { useToast } from './src/ui/ToastContext';
@@ -1589,8 +1589,19 @@ function App() {
             </div>
           )}
           {!loading && hasAnyEvents && (() => {
-            const featured = featuredEvent;
+            const isOver = (e: EventData | null | undefined): boolean => {
+              if (!e) return false;
+              const ts = parseEventToUtc(
+                (e as { event_date?: string | null }).event_date ?? undefined,
+                (e as { event_time?: string | null }).event_time ?? undefined,
+                (e as { timezoneOffsetMinutes?: number }).timezoneOffsetMinutes ?? 180
+              );
+              return ts != null && ts <= Date.now();
+            };
+            const featured = featuredEvent && !isOver(featuredEvent) ? featuredEvent : null;
             const fmt = featured ? getEventDisplayDate(featured) : null;
+            const upcoming = events.filter((e) => !isOver(e) && e.id !== featured?.id);
+            const past = events.filter((e) => isOver(e) && e.id !== featured?.id);
             return (
               <>
                 {featured && (() => {
@@ -1654,13 +1665,13 @@ function App() {
                   );
                 })()}
 
-                {events.length > 0 && (
+                {upcoming.length > 0 && (
                   <div>
                     <p className="text-muted-light text-xs tracking-widest uppercase mb-2 text-center">
-                      ВСЕ СОБЫТИЯ
+                      ДРУГИЕ КОНЦЕРТЫ
                     </p>
                     <div className="space-y-2">
-                      {events.map((evt) => {
+                      {upcoming.map((evt) => {
                         const evtFmt = getEventDisplayDate(evt);
                         return (
                           <motion.div
@@ -1685,6 +1696,41 @@ function App() {
                               <span className="text-xs text-[#C6A75E] font-medium shrink-0 ml-2">Выбрать →</span>
                             </div>
                           </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {past.length > 0 && (
+                  <div>
+                    <p className="text-muted-light text-xs tracking-widest uppercase mb-2 text-center">
+                      УЖЕ ПРОШЛИ
+                    </p>
+                    <div className="space-y-2">
+                      {past.map((evt) => {
+                        const evtFmt = getEventDisplayDate(evt);
+                        return (
+                          <div
+                            key={evt.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => handleEventSelect(evt.id)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleEventSelect(evt.id)}
+                            className="flex rounded-xl overflow-hidden border border-white/5 bg-white/[0.03] opacity-70"
+                          >
+                            <div className="w-[70px] shrink-0 bg-white/5 text-white/50 flex flex-col items-center justify-center font-bold">
+                              {evtFmt ? evtFmt.day : '—'}
+                            </div>
+                            <div className="flex-1 p-4 flex items-center justify-between min-w-0">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-white/70 truncate">{evt.title?.trim() || UI_TEXT.event.eventFallback}</p>
+                                <p className="text-white/35 text-sm truncate">
+                                  {evtFmt ? `${evtFmt.date} · ` : ''}концерт прошёл
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         );
                       })}
                     </div>

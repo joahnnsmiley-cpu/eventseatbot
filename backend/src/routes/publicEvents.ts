@@ -90,11 +90,13 @@ router.get('/events', async (_req: Request, res: Response) => {
     await db.reassignFeaturedIfNeeded();
     // Summary: no halls. The cards do not render tables, and loading them meant
     // reading every event_tables row in the database on every app open.
+    // Started events stay in the list — the app shows them as "уже прошли",
+    // and the booking routes refuse them. Hiding them made the poster screen
+    // look empty between concerts.
     const all = (await db.getEventsSummary())
-      .filter((e: any) => (e as any).published === true || (e as any).status === 'published')
-      .filter((e: any) => !hasStarted(e));
+      .filter((e: any) => (e as any).published === true || (e as any).status === 'published');
     const mapped = all.map((e: any) => mapEventToPublic(e));
-    const featured = mapped.find((e: any) => e.isFeatured === true) ?? null;
+    const featured = mapped.find((e: any) => e.isFeatured === true && !hasStarted(e)) ?? null;
     const events = mapped.filter((e: any) => e.id !== featured?.id);
     return res.json({ featured, events });
   } catch (err) {
