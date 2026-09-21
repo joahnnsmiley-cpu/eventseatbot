@@ -181,40 +181,9 @@ export default function ProfileGuestScreen({
           </div>
         </div>
 
-        {/* 4️⃣ Neighbors / Info — minimal, no border */}
-        <div className="space-y-2">
-          <p className="text-[15px] text-white/70 leading-relaxed m-0">{UI_TEXT.profile.neighborsCaption}</p>
-          {neighbors.length === 0 ? (
-            <p className="text-sm text-white/50 leading-relaxed m-0">{UI_TEXT.profile.neighborsEmpty}</p>
-          ) : (
-            <div className="flex flex-wrap gap-4 items-center pt-2">
-              {neighbors.map((n, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 border border-white/15 shrink-0">
-                    <img
-                      src={
-                        n.avatar?.startsWith('http')
-                          ? n.avatar
-                          : n.avatar
-                            ? `${window.location.origin}${n.avatar.startsWith('/') ? '' : '/'}${n.avatar}`
-                            : getDefaultAvatarUrl()
-                      }
-                      alt=""
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const img = e.target as HTMLImageElement;
-                        if (img.dataset.fallback === 'done') return;
-                        img.dataset.fallback = 'done';
-                        img.src = getDefaultAvatarUrl();
-                      }}
-                    />
-                  </div>
-                  <span className="text-[15px] font-medium text-white">{n.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Neighbours used to be listed here by name. Showing one guest's name
+            to another is their personal data, and nobody agreed to that when
+            they booked. Removed until it is asked for properly. */}
 
         {/* 5️⃣ Privileges */}
         {privileges.length > 0 && (

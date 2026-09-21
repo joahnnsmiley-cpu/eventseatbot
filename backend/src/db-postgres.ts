@@ -856,15 +856,37 @@ export async function markBookingAsUsed(bookingId: string): Promise<{ booking: B
     return { booking: current, wasAlreadyUsed: true };
   }
 
-  // Mark as used unconditionally
+  // Only the scan that finds the ticket unused may mark it. Reading first and
+  // writing after let two doors both see "not used yet" and both say welcome.
   const { data, error } = await supabase
     .from('bookings')
     .update({ is_used: true })
     .eq('id', bookingId)
+    .or('is_used.is.null,is_used.eq.false')
     .select()
-    .single();
+    .maybeSingle();
   if (error) throw error;
+  if (!data) {
+    // Someone else got there first, between our read and our write.
+    return { booking: current, wasAlreadyUsed: true };
+  }
   return { booking: bookingsRowToBooking(data as BookingsRow), wasAlreadyUsed: false };
+}
+
+/**
+ * Paid bookings whose id starts with these four characters — the short code a
+ * guest is asked to put in the payment message and can read out at the door.
+ */
+export async function findPaidBookingsByCode(prefix: string): Promise<Booking[]> {
+  if (!supabase) return [];
+  if (!/^[a-z0-9]{4}$/i.test(prefix)) return [];
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('status', 'paid')
+    .ilike('id', `${prefix}%`);
+  if (error) throw error;
+  return (data ?? []).map((r) => bookingsRowToBooking(r as BookingsRow));
 }
 
 // ---- App Users ----

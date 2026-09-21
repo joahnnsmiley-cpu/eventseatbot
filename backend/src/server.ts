@@ -21,6 +21,7 @@ import controllerRouter from './routes/controllerRoutes';
 import debugRouter from './routes/debug-routes';
 import vkWebhookRouter from './routes/vkWebhook';
 import { notifyAllAdmins } from './services/notificationService';
+import { parseEventToUtc } from './utils/formatDate';
 import { authMiddleware } from './auth/auth.middleware';
 import { adminOnly } from './auth/admin.middleware';
 import 'dotenv/config';
@@ -142,6 +143,19 @@ app.get('/verify-ticket/:token', async (req, res) => {
     if (booking.isUsed === true) return res.json({ valid: false, is_used: true });
 
     const ev = await db.findEventById(booking.eventId, true);
+    // A paid ticket from a concert months ago stayed green forever: the check
+    // only asked "paid and not used yet". It is valid around its own night.
+    const startTs = parseEventToUtc(
+      (ev as any)?.event_date,
+      (ev as any)?.event_time,
+      (ev as any)?.timezoneOffsetMinutes ?? 180,
+    );
+    if (startTs != null) {
+      const HOURS = 60 * 60 * 1000;
+      if (Date.now() < startTs - 12 * HOURS || Date.now() > startTs + 12 * HOURS) {
+        return res.json({ valid: false, wrong_date: true, eventTitle: ev?.title ?? '' });
+      }
+    }
     const tbl = ev?.tables?.find((t: any) => t.id === booking.tableId);
     const tableNumber = tbl?.number ?? payload.tableNumber ?? booking.tableId;
     const seats = booking.seatsBooked ?? payload.seats ?? 0;

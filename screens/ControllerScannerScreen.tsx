@@ -10,6 +10,9 @@ type ScanResult =
   | { state: 'success'; eventTitle: string; tableNumber: number | string; seats: number | string }
   | { state: 'already_used' }
   | { state: 'invalid' }
+  | { state: 'wrong_date'; eventTitle: string }
+  /** Found by code: shown before letting the guest in, so the door decides. */
+  | { state: 'found'; bookingId: string; eventTitle: string; tableNumber: number | string; seats: number | string; phone: string }
   | { state: 'error'; message: string };
 
 function decodeTokenPayload(token: string): { bookingId?: string } | null {
@@ -27,7 +30,7 @@ async function verifyAndMarkUsed(rawToken: string): Promise<ScanResult> {
 
   const apiBase = getApiBaseUrl();
 
-  let verifyData: { valid?: boolean; is_used?: boolean; eventTitle?: string; tableNumber?: number | string; seats?: number | string; bookingId?: string };
+  let verifyData: { valid?: boolean; is_used?: boolean; wrong_date?: boolean; eventTitle?: string; tableNumber?: number | string; seats?: number | string; bookingId?: string };
   try {
     const r = await fetch(`${apiBase}/verify-ticket/${encodeURIComponent(token)}`);
     verifyData = await r.json();
@@ -36,7 +39,9 @@ async function verifyAndMarkUsed(rawToken: string): Promise<ScanResult> {
   }
 
   if (!verifyData.valid) {
-    return verifyData.is_used ? { state: 'already_used' } : { state: 'invalid' };
+    if (verifyData.is_used) return { state: 'already_used' };
+    if (verifyData.wrong_date) return { state: 'wrong_date', eventTitle: verifyData.eventTitle ?? '' };
+    return { state: 'invalid' };
   }
 
   const bookingId = verifyData.bookingId ?? decodeTokenPayload(token)?.bookingId;
@@ -64,9 +69,63 @@ async function verifyAndMarkUsed(rawToken: string): Promise<ScanResult> {
   };
 }
 
+/** Mark a found booking as used — the same call the QR path makes. */
+type MarkResult = { ok: boolean; alreadyUsed?: boolean; message?: string };
+
+async function markUsed(bookingId: string): Promise<MarkResult> {
+  try {
+    const r = await fetch(`${getApiBaseUrl()}/controller/bookings/${bookingId}/mark-used`, {
+      method: 'PATCH',
+      headers: { ...(AuthService.getAuthHeader() as Record<string, string>), 'Content-Type': 'application/json' },
+    });
+    if (r.status === 409) return { ok: false, alreadyUsed: true };
+    if (!r.ok) {
+      const b = await r.json().catch(() => ({}));
+      return { ok: false, message: (b as any)?.error ?? 'Не удалось отметить билет' };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, message: 'Нет соединения с сервером' };
+  }
+}
+
+/** Find tonight's booking by the four-character code the guest was given. */
+async function findByCode(code: string): Promise<ScanResult> {
+  try {
+    const r = await fetch(`${getApiBaseUrl()}/controller/bookings/by-code`, {
+      method: 'POST',
+      headers: { ...(AuthService.getAuthHeader() as Record<string, string>), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (r.status === 404) {
+      const b = await r.json().catch(() => ({}));
+      return (b as any)?.error === 'wrong_date'
+        ? { state: 'wrong_date', eventTitle: '' }
+        : { state: 'invalid' };
+    }
+    if (!r.ok) return { state: 'error', message: 'Не удалось проверить код' };
+    const data = await r.json();
+    const first = Array.isArray(data?.bookings) ? data.bookings[0] : null;
+    if (!first) return { state: 'invalid' };
+    if (first.isUsed) return { state: 'already_used' };
+    return {
+      state: 'found',
+      bookingId: first.id,
+      eventTitle: first.eventTitle ?? '',
+      tableNumber: first.tableNumber ?? '',
+      seats: first.seats ?? '',
+      phone: first.phone ?? '',
+    };
+  } catch {
+    return { state: 'error', message: 'Нет соединения с сервером' };
+  }
+}
+
 export default function ControllerScannerScreen() {
   const [result, setResult] = useState<ScanResult>({ state: 'idle' });
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [codeBusy, setCodeBusy] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -217,66 +276,132 @@ export default function ControllerScannerScreen() {
         )}
       </div>
 
+      {/* When the QR will not scan: the guest reads out their code. */}
+      {isIdle && (
+        <form
+          className="px-5 pt-4 flex items-center gap-2"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const clean = code.replace(/[^a-z0-9]/gi, '');
+            if (clean.length < 4 || codeBusy) return;
+            setCodeBusy(true);
+            stopCamera();
+            setResult({ state: 'loading' });
+            const r = await findByCode(clean.slice(0, 4));
+            setResult(r);
+            setCodeBusy(false);
+            setCode('');
+          }}
+        >
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 4))}
+            placeholder="КОД"
+            aria-label="Код брони"
+            inputMode="text"
+            autoCapitalize="characters"
+            className="flex-1 h-12 px-4 rounded-2xl bg-white/5 border border-white/10 text-white text-[17px] tracking-[0.18em] placeholder:text-white/25 focus:outline-none focus:border-[#C6A75E]"
+          />
+          <button
+            type="submit"
+            disabled={code.replace(/[^a-z0-9]/gi, '').length < 4 || codeBusy}
+            className="h-12 px-4 rounded-2xl bg-white/10 border border-white/10 text-white text-sm font-medium disabled:opacity-40"
+          >
+            Проверить
+          </button>
+        </form>
+      )}
+
       {/* Result cards */}
       <div className="px-5 py-5 flex flex-col gap-4">
         {result.state === 'loading' && (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-            <p className="text-white/50 text-sm">Проверка...</p>
+            <p className="text-white/50 text-sm">Проверяем…</p>
           </div>
         )}
 
         {result.state === 'success' && (
-          <div className="rounded-2xl border border-green-500/40 bg-green-500/10 p-5 flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">✅</span>
-              <span className="text-green-400 text-xl font-bold">Билет принят</span>
-            </div>
+          <div className="rounded-2xl border border-[#57C79B]/40 bg-[#57C79B]/10 p-5 flex flex-col gap-3">
+            <span className="text-[#57C79B] text-[26px] font-bold leading-none">Проходите</span>
             {result.eventTitle && <p className="text-white/70 text-sm">{result.eventTitle}</p>}
             <div className="flex gap-5 text-sm text-white/50">
-              {result.tableNumber !== '' && <span>Стол <span className="text-white font-semibold">{result.tableNumber}</span></span>}
-              {result.seats !== '' && <span>Мест <span className="text-white font-semibold">{result.seats}</span></span>}
+              {result.tableNumber !== '' && <span>Стол <span className="text-white font-semibold text-base">{result.tableNumber}</span></span>}
+              {result.seats !== '' && <span>Гостей <span className="text-white font-semibold text-base">{result.seats}</span></span>}
             </div>
-            <button onClick={reset} className="mt-1 w-full py-3 rounded-xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-70">
+            <button onClick={reset} className="mt-1 w-full py-3.5 rounded-2xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-70">
               Следующий билет
             </button>
           </div>
         )}
 
-        {result.state === 'already_used' && (
-          <div className="rounded-2xl border border-yellow-500/40 bg-yellow-500/10 p-5 flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">⚠️</span>
-              <span className="text-yellow-400 text-xl font-bold">Уже использован</span>
+        {result.state === 'found' && (
+          <div className="rounded-2xl border border-white/15 bg-white/5 p-5 flex flex-col gap-3">
+            <span className="text-white text-[22px] font-bold leading-none">Бронь найдена</span>
+            {result.eventTitle && <p className="text-white/70 text-sm">{result.eventTitle}</p>}
+            <div className="flex gap-5 text-sm text-white/50">
+              {result.tableNumber !== '' && <span>Стол <span className="text-white font-semibold text-base">{result.tableNumber}</span></span>}
+              {result.seats !== '' && <span>Гостей <span className="text-white font-semibold text-base">{result.seats}</span></span>}
             </div>
-            <p className="text-white/50 text-sm">Этот билет уже был отсканирован ранее.</p>
-            <button onClick={reset} className="mt-1 w-full py-3 rounded-xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-70">
+            {result.phone && <p className="text-xs text-white/40">Телефон при брони: {result.phone}</p>}
+            <button
+              onClick={async () => {
+                const r = await markUsed(result.bookingId);
+                if (r.ok) {
+                  setResult({ state: 'success', eventTitle: result.eventTitle, tableNumber: result.tableNumber, seats: result.seats });
+                } else if (r.alreadyUsed === true) {
+                  setResult({ state: 'already_used' });
+                } else {
+                  setResult({ state: 'error', message: r.message ?? 'Не удалось отметить билет' });
+                }
+              }}
+              className="mt-1 w-full py-3.5 rounded-2xl bg-[#C6A75E] text-[#16130D] text-[15px] font-semibold active:opacity-80"
+            >
+              Впустить
+            </button>
+            <button onClick={reset} className="w-full py-2 text-white/40 text-sm">
+              Отмена
+            </button>
+          </div>
+        )}
+
+        {result.state === 'already_used' && (
+          <div className="rounded-2xl border border-[#E8B04B]/40 bg-[#E8B04B]/10 p-5 flex flex-col gap-3">
+            <span className="text-[#E8B04B] text-[26px] font-bold leading-none">Уже проходили</span>
+            <p className="text-white/50 text-sm">Этот билет отметили на входе раньше. Уточните у гостя.</p>
+            <button onClick={reset} className="mt-1 w-full py-3.5 rounded-2xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-70">
+              Следующий билет
+            </button>
+          </div>
+        )}
+
+        {result.state === 'wrong_date' && (
+          <div className="rounded-2xl border border-[#E8B04B]/40 bg-[#E8B04B]/10 p-5 flex flex-col gap-3">
+            <span className="text-[#E8B04B] text-[26px] font-bold leading-none">Билет на другой день</span>
+            <p className="text-white/50 text-sm">
+              {result.eventTitle ? `Это билет на «${result.eventTitle}».` : 'Этот билет не на сегодняшний концерт.'}
+            </p>
+            <button onClick={reset} className="mt-1 w-full py-3.5 rounded-2xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-70">
               Следующий билет
             </button>
           </div>
         )}
 
         {result.state === 'invalid' && (
-          <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5 flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">❌</span>
-              <span className="text-red-400 text-xl font-bold">Недействителен</span>
-            </div>
-            <p className="text-white/50 text-sm">Билет не найден или не оплачен.</p>
-            <button onClick={reset} className="mt-1 w-full py-3 rounded-xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-70">
+          <div className="rounded-2xl border border-[#FF5A2C]/40 bg-[#FF5A2C]/10 p-5 flex flex-col gap-3">
+            <span className="text-[#FF8A63] text-[26px] font-bold leading-none">Не подходит</span>
+            <p className="text-white/50 text-sm">Билет не найден или не оплачен. Попробуйте код брони.</p>
+            <button onClick={reset} className="mt-1 w-full py-3.5 rounded-2xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-70">
               Сканировать снова
             </button>
           </div>
         )}
 
         {result.state === 'error' && (
-          <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5 flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">❌</span>
-              <span className="text-red-400 text-xl font-bold">Ошибка</span>
-            </div>
+          <div className="rounded-2xl border border-[#FF5A2C]/40 bg-[#FF5A2C]/10 p-5 flex flex-col gap-3">
+            <span className="text-[#FF8A63] text-[22px] font-bold leading-none">Не получилось</span>
             <p className="text-white/50 text-sm">{result.message}</p>
-            <button onClick={reset} className="mt-1 w-full py-3 rounded-xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-70">
+            <button onClick={reset} className="mt-1 w-full py-3.5 rounded-2xl bg-white/10 border border-white/10 text-white text-sm font-medium active:opacity-70">
               Попробовать снова
             </button>
           </div>
