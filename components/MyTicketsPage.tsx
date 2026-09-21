@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import * as StorageService from '../services/storageService';
-import NeonTicketCard from '../src/ui/NeonTicketCard';
+import TicketCard from '../src/ui/TicketCard';
+import { bookingCode } from '../src/utils/bookingCode';
+import { formatPhone } from '../src/utils/formatPhone';
 import TicketModal from '../src/ui/TicketModal';
 import Card from '../src/ui/Card';
 import PrimaryButton from '../src/ui/PrimaryButton';
@@ -17,6 +19,7 @@ type BookingItem = {
   table_id: string | null;
   seat_indices: number[];
   seats_booked: number;
+  total_amount?: number;
   status: string;
   created_at: string;
   expires_at: string | null;
@@ -31,6 +34,7 @@ type EventInfo = {
   timezoneOffsetMinutes?: number;
   tableNumber?: number;
   imageUrl?: string | null;
+  paymentPhone?: string | null;
   tableIdToNumber?: Record<string, number>;
   categoryByTableId?: Record<string, { id: string; name: string }>;
 };
@@ -175,6 +179,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
             tableIdToNumber,
             categoryByTableId,
             imageUrl: ev?.imageUrl ?? null,
+            paymentPhone: (ev as any)?.paymentPhone ?? null,
           };
         } catch {
           tableMap[eventId] = new Set();
@@ -233,6 +238,26 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
     } finally {
       setSubmittingId(null);
     }
+  };
+
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!bookings.some((b) => PAYABLE_STATUSES.includes(b.status) && b.expires_at)) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [bookings]);
+
+  /** mm:ss left on a hold, or null when it is not holding any more. */
+  const timeLeft = (expiresAt: string | null): string | null => {
+    if (!expiresAt) return null;
+    const ms = new Date(expiresAt).getTime() - now;
+    if (ms <= 0) return null;
+    const total = Math.floor(ms / 1000);
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+  };
+
+  const copy = async (text: string) => {
+    try { await navigator.clipboard.writeText(text); } catch { window.prompt('Скопируйте', text); }
   };
 
   const isExpired = (expiresAt: string | null) => {
@@ -297,6 +322,8 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
   const filteredBookings = React.useMemo(() => {
     return bookings.filter((b) => {
       if (statusFilter === 'all') return true;
+      // "Ждут оплаты" covers every status where the money has not landed yet.
+      if (statusFilter === 'reserved') return PAYABLE_STATUSES.includes(b.status) || b.status === 'awaiting_confirmation' || b.status === 'payment_submitted';
       return b.status === statusFilter;
     });
   }, [bookings, statusFilter]);
@@ -321,7 +348,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
               Мои билеты
             </h1>
             <p className="text-sm text-white/50 mt-1">
-              Private Access
+              Брони и билеты
             </p>
           </div>
           <button
@@ -338,40 +365,25 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
         {error && <div className="text-sm text-red-400">{error}</div>}
 
         {!loading && !error && bookings.length > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="flex flex-1 min-w-0 rounded-2xl backdrop-blur-md bg-white/5 border border-white/10 p-1.5">
-              <div
-                ref={scrollRef}
-                className="flex flex-nowrap overflow-x-auto gap-2 py-1 no-scrollbar scroll-smooth cursor-grab select-none"
-              >
-                {['all', ...rawStatuses].map((status) => {
-                  const label = status === 'all' ? 'Все' : STATUS_LABELS[status] ?? status;
-                  const isActive = statusFilter === status;
-                  return (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => setStatusFilter(status)}
-                      className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-300 ${isActive
-                        ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] text-black shadow-lg shadow-yellow-500/20'
-                        : 'text-white/60 hover:text-white'
-                        }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            {hasActiveFilters && (
+          <div role="tablist" aria-label="Статус билета" className="flex gap-1 p-1 rounded-2xl bg-white/5">
+            {([
+              ['all', 'Все'],
+              ['reserved', 'Ждут оплаты'],
+              ['paid', 'Оплаченные'],
+            ] as const).map(([key, label]) => (
               <button
+                key={key}
                 type="button"
-                onClick={() => setStatusFilter('all')}
-                className="text-xs text-yellow-400 shrink-0"
+                role="tab"
+                aria-selected={statusFilter === key}
+                onClick={() => setStatusFilter(key)}
+                className={`flex-1 h-9 rounded-xl text-[13.5px] transition-colors ${
+                  statusFilter === key ? 'bg-white/10 text-white font-semibold' : 'text-white/45'
+                }`}
               >
-                Сбросить
+                {label}
               </button>
-            )}
+            ))}
           </div>
         )}
 
@@ -407,51 +419,100 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
               const seatLabel = formatSeatLabel(b.seat_indices, b.seats_booked);
               const canPay = PAYABLE_STATUSES.includes(b.status) && !isExpired(b.expires_at);
               const isNotPaid = b.status !== 'paid';
+              const info2 = eventInfoMap[b.event_id];
+              const phone = info2?.paymentPhone ?? '';
+              const left = timeLeft(b.expires_at);
+              const amount = Number(b.total_amount ?? 0);
+              const ticketUrl = getTicketImageUrl(b);
               return (
-                <div key={b.id} className="space-y-3 relative">
-                  {isNotPaid && (
-                    <div className="absolute top-2 right-2 z-10">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setContactModal({ eventId: b.event_id, bookingId: b.id });
-                        }}
-                        className="text-xs px-2 py-1 rounded bg-white/10 border border-white/20 text-amber-300 hover:bg-white/20 transition"
-                      >
-                        {UI_TEXT.booking.contactAdminButton}
-                      </button>
-                    </div>
-                  )}
-                  <div className="rounded-2xl border border-yellow-500/20 shadow-2xl shadow-black/60 hover:shadow-[0_0_24px_rgba(234,179,8,0.15)] hover:scale-[1.02] transition-all duration-300 overflow-hidden">
-                    <NeonTicketCard
-                      eventTitle={info?.title ?? 'Событие'}
-                      date={date}
-                      time={time}
-                      tableLabel={getTableDisplay(b)}
-                      seatLabel={seatLabel}
-                      status={getStatusType(b.status)}
-                      ticketImageUrl={getTicketImageUrl(b)}
-                      posterImageUrl={info?.imageUrl ?? undefined}
-                      onClick={() => {
-                        const url = getTicketImageUrl(b);
-                        if (url) setSelectedTicket(url);
-                      }}
-                    />
-                  </div>
+                <TicketCard
+                  key={b.id}
+                  eventTitle={info?.title ?? 'Событие'}
+                  date={date}
+                  time={time}
+                  tableLabel={getTableDisplay(b)}
+                  seatLabel={seatLabel}
+                  status={getStatusType(b.status)}
+                  posterUrl={info?.imageUrl ?? undefined}
+                >
                   {canPay && (
-                    <PrimaryButton
+                    <>
+                      <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl bg-white/5">
+                        <span className="text-[12.5px] text-white/60 flex-1">
+                          {left ? <>Оплатите за <span className="font-bold text-[#FF9C7F]">{left}</span></> : 'Время брони истекает'}
+                        </span>
+                        {amount > 0 && <span className="text-[22px] font-bold text-white">{amount.toLocaleString('ru-RU')} ₽</span>}
+                      </div>
+
+                      {phone && (
+                        <div className="flex items-center gap-2 h-12 pl-3.5 pr-2 rounded-2xl bg-white/5">
+                          <span className="flex-1 min-w-0 truncate text-[16px] font-semibold text-white">{formatPhone(phone)}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); void copy(phone); }}
+                            className="h-9 px-3 rounded-xl bg-white/10 text-[13px] text-white/80"
+                          >
+                            Копировать
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 h-12 pl-3.5 pr-2 rounded-2xl bg-white/5">
+                        <span className="flex-1 min-w-0 flex items-baseline gap-2">
+                          <span className="text-[11.5px] text-white/45">код брони</span>
+                          <span className="text-[18px] font-bold tracking-[0.08em] text-white">{bookingCode(b.id)}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); void copy(bookingCode(b.id)); }}
+                          className="h-9 px-3 rounded-xl bg-white/10 text-[13px] text-white/80"
+                        >
+                          Копировать
+                        </button>
+                      </div>
+                      <p className="text-[11.5px] leading-snug text-white/45 -mt-1">
+                        Переведите по СБП на этот номер и укажите код в сообщении к переводу — по нему организатор найдёт вашу бронь.
+                      </p>
+
+                      <PrimaryButton
+                        onClick={(e) => { e.stopPropagation(); handleIPaid(b); }}
+                        disabled={submittingId !== null}
+                        className="w-full h-12 rounded-2xl"
+                      >
+                        {submittingId === b.id ? 'Отправка…' : UI_TEXT.booking.paidButtonCaps}
+                      </PrimaryButton>
+                    </>
+                  )}
+
+                  {b.status === 'awaiting_confirmation' || b.status === 'payment_submitted' ? (
+                    <p className="text-[12.5px] text-white/50">
+                      Организатор подтвердит перевод — билет появится здесь же.
+                    </p>
+                  ) : null}
+
+                  {b.status === 'paid' && ticketUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTicket(ticketUrl)}
+                      className="h-12 rounded-2xl border border-[#C6A75E] text-[#C6A75E] text-[15px] font-semibold"
+                    >
+                      Показать билет
+                    </button>
+                  )}
+
+                  {isNotPaid && (
+                    <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleIPaid(b);
+                        setContactModal({ eventId: b.event_id, bookingId: b.id });
                       }}
-                      disabled={submittingId !== null}
-                      className="w-full"
+                      className="h-10 text-[13px] text-white/45"
                     >
-                      {submittingId === b.id ? 'Отправка…' : UI_TEXT.booking.paidButtonCaps}
-                    </PrimaryButton>
+                      {UI_TEXT.booking.contactAdminButton}
+                    </button>
                   )}
-                </div>
+                </TicketCard>
               );
             })}
           </motion.div>

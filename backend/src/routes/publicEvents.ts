@@ -66,6 +66,8 @@ function mapEventToPublic(e: any) {
     layoutWidth: e.layoutWidth ?? null,
     layoutHeight: e.layoutHeight ?? null,
     tables: filterTablesByVisibility(Array.isArray(e.tables) ? e.tables : []),
+    // The poster shows "места от N ₽"; without the categories it cannot.
+    ticketCategories: e.ticketCategories ?? [],
     isFeatured: (e as { isFeatured?: boolean }).isFeatured ?? false,
     organizerId: (e as { organizerId?: number | null }).organizerId ?? null,
   };

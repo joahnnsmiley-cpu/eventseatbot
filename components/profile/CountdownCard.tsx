@@ -14,6 +14,14 @@ type CountdownCardProps = {
 function CountdownCardInner({ eventDate, label = 'До начала вечера', variant = 'guest', dark = false }: CountdownCardProps) {
   const countdown = useCountdown(eventDate || '');
   const useLuxury = variant === 'organizer' || dark;
+  if (countdown.isStarted) {
+    // Zeros in every slot read as a broken clock. Say what happened instead.
+    return (
+      <p className={useLuxury ? 'text-sm text-white/70 m-0' : 'text-sm text-[#B8B2A8] m-0'}>
+        Вечер начался
+      </p>
+    );
+  }
   return (
     <>
       <p

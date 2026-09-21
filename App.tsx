@@ -755,7 +755,7 @@ function App() {
   const wrapWithLayout = (children: React.ReactNode) => (
     <AppLayout>
       {children}
-      {view !== 'booking-success' && pendingBookingsForBanner.length > 0 && (
+      {view !== 'booking-success' && view !== 'my-tickets' && pendingBookingsForBanner.length > 0 && (
         <PaymentReminderBanner
           pendingBookings={pendingBookingsForBanner}
           onMarkPaid={(id) => {
@@ -1581,103 +1581,66 @@ function App() {
             const fmt = featured ? getEventDisplayDate(featured) : null;
             return (
               <>
-                {featured && (
+                {featured && (() => {
+                  // The title used to sit on the poster itself, under a text
+                  // shadow, and nothing on the card said what a seat costs or
+                  // what pressing it would do.
+                  const cats = (featured.ticketCategories ?? []).filter((c) => c.isActive && Number(c.price) > 0);
+                  const from = cats.length ? Math.min(...cats.map((c) => Number(c.price))) : 0;
+                  const cover = (featured.imageUrl || (featured as { image_url?: string }).image_url || '').trim();
+                  return (
                   <div>
                     <p className="text-muted-light text-xs tracking-widest uppercase mb-2 text-center">
-                      ГЛАВНОЕ СОБЫТИЕ
+                      БЛИЖАЙШИЙ КОНЦЕРТ
                     </p>
                     <motion.div
-                      className="relative rounded-3xl overflow-hidden cursor-pointer"
+                      className="relative rounded-3xl overflow-hidden cursor-pointer bg-[#161412]"
                       role="button"
                       tabIndex={0}
                       onClick={() => handleEventSelect(featured.id)}
                       onKeyDown={(e) => e.key === 'Enter' && handleEventSelect(featured.id)}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileTap={{ scale: 0.99 }}
                       transition={{ duration: 0.2 }}
-                      style={{
-                        border: '1.5px solid rgba(198,167,94,0.35)',
-                        boxShadow: '0 8px 40px rgba(0,0,0,0.5), 0 0 30px rgba(198,167,94,0.12)',
-                      }}
+                      style={{ border: '1px solid rgba(198,167,94,0.28)' }}
                     >
-                      {/* Poster image area */}
                       <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
-                        <div
-                          className="absolute inset-0 bg-center bg-cover"
-                          style={{
-                            backgroundImage: (featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()
-                              ? `url(${(featured?.imageUrl || (featured as { image_url?: string })?.image_url)?.trim()})`
-                              : undefined,
-                            filter: 'brightness(1.1) contrast(1.05)',
-                          }}
-                        />
-                        {/* Bottom gradient fade for text separation */}
-                        <div
-                          className="absolute inset-0"
-                          style={{
-                            background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 40%, transparent 65%)',
-                          }}
-                        />
-                        {/* Title floating on poster */}
-                        <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
-                          <h2
-                            className="text-xl font-extrabold uppercase tracking-wide text-white leading-tight"
-                            style={{
-                              textShadow: '0 2px 12px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.5)',
-                            }}
-                          >
-                            {featured?.title ?? UI_TEXT.event.eventFallback}
-                          </h2>
-                        </div>
+                        {cover ? (
+                          <img src={cover} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                        ) : (
+                          <div className="absolute inset-0 bg-white/5" />
+                        )}
                       </div>
 
-                      {/* Glassmorphism info bar */}
-                      <div
-                        className="relative px-5 py-3.5"
-                        style={{
-                          background: 'linear-gradient(135deg, rgba(18,18,20,0.97) 0%, rgba(24,22,18,0.98) 100%)',
-                          borderTop: '1px solid rgba(198,167,94,0.2)',
-                        }}
-                      >
-                        {/* Date + time row */}
-                        <div className="flex items-center gap-3">
-                          {/* Calendar icon block */}
-                          <div
-                            className="shrink-0 w-11 h-11 rounded-xl flex flex-col items-center justify-center"
-                            style={{
-                              background: 'linear-gradient(135deg, #F5BE3C 0%, #D4A030 100%)',
-                              boxShadow: '0 2px 12px rgba(245,190,60,0.3)',
-                            }}
-                          >
-                            <span className="text-[10px] font-bold text-black/60 uppercase leading-none">
-                              {fmt?.date?.split(' ')[1]?.slice(0, 3) ?? ''}
+                      <div className="flex flex-col gap-3.5 px-4 pt-4 pb-4">
+                        <div className="flex flex-col gap-2">
+                          <h2 className="text-[22px] font-bold uppercase tracking-wide text-white leading-[1.05] m-0">
+                            {featured?.title ?? UI_TEXT.event.eventFallback}
+                          </h2>
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className="h-7 px-2.5 inline-flex items-center rounded-full bg-white/5 text-[12.5px] text-white/70">
+                              {fmt?.date ?? featured?.date ?? '—'}{fmt?.time ? ` · ${fmt.time}` : ''}
                             </span>
-                            <span className="text-lg font-extrabold text-black leading-none -mt-0.5">
-                              {fmt?.day ?? '—'}
-                            </span>
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-white">
-                              {fmt?.date ?? featured?.date ?? '—'}
-                            </p>
-                            {fmt?.time && (
-                              <p className="text-xs text-amber-300/90 font-medium">
-                                {fmt.time}
-                              </p>
+                            {(featured as { venue?: string })?.venue && (
+                              <span className="h-7 px-2.5 inline-flex items-center rounded-full bg-white/5 text-[12.5px] text-white/70">
+                                {(featured as { venue?: string }).venue}
+                              </span>
                             )}
                           </div>
                         </div>
 
-                        {/* Venue row */}
-                        {(featured as { venue?: string })?.venue && (
-                          <p className="text-[11px] text-white/50 uppercase tracking-wider mt-2.5 leading-snug">
-                            {(featured as { venue?: string })?.venue}
-                          </p>
-                        )}
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-[13px] text-white/45">
+                            {from > 0 ? <>Места от <span className="text-white font-semibold">{from.toLocaleString('ru-RU')} ₽</span></> : ' '}
+                          </span>
+                          <span className="h-11 px-4 inline-flex items-center rounded-2xl bg-[#C6A75E] text-[#16130D] text-[15px] font-semibold">
+                            Выбрать место
+                          </span>
+                        </div>
                       </div>
                     </motion.div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {events.length > 0 && (
                   <div>

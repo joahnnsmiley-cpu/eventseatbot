@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { bookingCode } from '../src/utils/bookingCode';
+import { formatPhone } from '../src/utils/formatPhone';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Clock, CreditCard, Copy, ChevronRight, AlertCircle } from 'lucide-react';
 import type { EventData, Booking } from '../types';
@@ -28,6 +30,15 @@ const formatEventDate = (event: EventData): { date: string; time: string } => {
   return { date: '—', time: '' };
 };
 
+/** 1 место, 2 места, 5 мест — the app said "1 мест". */
+const seatWord = (n: number): string => {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'место';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'места';
+  return 'мест';
+};
+
 const formatTablesAndSeats = (booking: Booking, event: EventData): string => {
   const tables = event.tables ?? [];
   const getTableNumber = (tableId: string) => {
@@ -36,7 +47,7 @@ const formatTablesAndSeats = (booking: Booking, event: EventData): string => {
   };
   if (Array.isArray(booking.tableBookings) && booking.tableBookings.length > 0) {
     return booking.tableBookings
-      .map((tb) => `Стол ${getTableNumber(tb.tableId)}: ${tb.seats} мест`)
+      .map((tb) => `Стол ${getTableNumber(tb.tableId)}: ${tb.seats} ${seatWord(tb.seats)}`)
       .join('; ');
   }
   if (Array.isArray(booking.seatIds) && booking.seatIds.length > 0) {
@@ -53,7 +64,7 @@ const formatTablesAndSeats = (booking: Booking, event: EventData): string => {
       .join('; ');
   }
   const count = booking.seatsCount ?? booking.seatIds?.length ?? 0;
-  return count > 0 ? `${count} мест` : '—';
+  return count > 0 ? `${count} ${seatWord(count)}` : '—';
 };
 
 /** Reusable countdown hook */
@@ -248,7 +259,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
             {displayTotal > 0 && (
               <Row label="К оплате" value={`${displayTotal.toLocaleString('ru-RU')} ₽`} highlight />
             )}
-            <Row label="Бронь №" value={booking.id} mono small />
+            <Row label="Код брони" value={bookingCode(booking.id)} mono />
           </div>
         </motion.div>
 
@@ -282,8 +293,8 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
                   border: '1px solid rgba(212,175,55,0.15)',
                 }}
               >
-                <span className="text-xl font-bold font-mono text-white tracking-wide">
-                  {event.paymentPhone.trim()}
+                <span className="text-xl font-bold text-white tracking-wide">
+                  {formatPhone(event.paymentPhone.trim())}
                 </span>
                 <span className="flex items-center gap-1 text-xs text-amber-400/70">
                   <Copy size={13} strokeWidth={2} />
@@ -292,7 +303,10 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
               </button>
 
               <div className="space-y-1.5 text-xs text-white/40 leading-relaxed">
-                <p>Укажите в комментарии: <span className="text-white/60 font-medium">ФИО и № брони</span></p>
+                <p>
+                  В сообщении к переводу укажите код брони:{' '}
+                  <span className="text-white/80 font-semibold tracking-[0.08em]">{bookingCode(booking.id)}</span>
+                </p>
                 <p className="font-medium text-amber-400/70">
                   После перевода обязательно нажмите «Я оплатил» ниже
                 </p>

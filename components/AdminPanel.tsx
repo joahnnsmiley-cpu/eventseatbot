@@ -25,6 +25,7 @@ import { EventCardSkeleton } from './EventCard';
 import AdminCard from '../src/ui/AdminCard';
 import { formatEventDate, formatEventDateTime, formatDateTimeRu } from '../src/utils/formatDate';
 import { tableFromApi, tableToApi } from '../src/model/table';
+import { bookingCode } from '../src/utils/bookingCode';
 import { deepClone } from '../src/utils/deepEqual';
 import { DEFAULT_TICKET_CATEGORIES } from '../constants/ticketStyles';
 import AdminTablesLayer from './AdminTablesLayer';
@@ -1492,7 +1493,8 @@ const AdminPanel: React.FC<{
                     <div className="text-[11.5px] text-[#8C8477] leading-relaxed">
                       {b.event?.title || UI_TEXT.event.eventFallback} · {formatEventDateDisplay(eventDetails) || formatAdminDate(b.event?.date)}
                       <br />
-                      {b.user_vk_id ? 'VK' : 'TG'} ID: {b.user_vk_id || telegramId || '—'}
+                      Код брони <span className="text-white/80 font-semibold tracking-[0.08em]">{bookingCode(b.id)}</span>
+                      {' · '}{b.user_vk_id ? 'VK' : 'TG'} ID: {b.user_vk_id || telegramId || '—'}
                     </div>
 
                     {canConfirm && (

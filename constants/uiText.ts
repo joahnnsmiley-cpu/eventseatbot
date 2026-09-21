@@ -4,7 +4,7 @@
 export const UI_TEXT = {
   events: {
     upcoming: 'Предстоящие события',
-    subtitle: 'Выберите ваше эксклюзивное событие',
+    subtitle: 'Выберите вечер и место за столом',
     featured: 'Главное событие',
     thisMonth: 'В этом месяце',
   },
