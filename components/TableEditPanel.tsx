@@ -295,6 +295,22 @@ export default function TableEditPanel({ table, ticketCategories, onUpdate, onDe
               </div>
             </div>
 
+            {/* Used to be hardcoded in the guest app as "tables 8, 10, 21, 22" —
+                which lied the moment a different hall was loaded. */}
+            <label className="flex items-center gap-3 py-2">
+              <input
+                type="checkbox"
+                role="switch"
+                className="admin-switch"
+                checked={table.limitedView === true}
+                onChange={(e) => onUpdate({ limitedView: e.target.checked })}
+              />
+              <span className="flex flex-col">
+                <span className="text-sm text-white">Ограниченный обзор</span>
+                <span className="text-[11.5px] text-white/45">Гость увидит предупреждение до брони</span>
+              </span>
+            </label>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={LABEL}>{UI_TEXT.tables.rotationDeg}</label>

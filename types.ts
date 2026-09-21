@@ -52,6 +52,8 @@ export interface TableModel {
   objectType?: ObjectType | string;
   label?: string;
   labelFontSize?: number;
+  /** Stage only partly visible from this table — the guest sees a note before booking. */
+  limitedView?: boolean;
 }
 
 /** Legacy Table type for API/EventData compatibility. Use TableModel in admin. */

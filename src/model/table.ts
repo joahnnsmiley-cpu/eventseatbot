@@ -84,6 +84,7 @@ export function tableFromApi(raw: unknown): TableModel {
     objectType: (r.objectType ?? r.object_type ?? 'table') as ObjectType,
     label: r.label ?? undefined,
     labelFontSize: firstNum(r.labelFontSize, r.label_font_size) ?? undefined,
+    limitedView: r.limitedView === true || r.limited_view === true,
   };
 }
 
@@ -112,6 +113,7 @@ export function tableToApi(t: TableModel, index: number): Record<string, unknown
     objectType: t.objectType ?? 'table',
     label: t.label ?? null,
     labelFontSize: t.labelFontSize ?? null,
+    limitedView: t.limitedView === true,
   };
   // Backend generates ids for new objects; only send one it can match.
   if (t.id && isUuid(t.id)) payload.id = t.id;

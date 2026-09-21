@@ -30,8 +30,8 @@ export default function PrivacyConsentModal({ onAccept, onDecline }: Props) {
             <div className="text-4xl mb-2">🔒</div>
             <h1 className="text-xl font-bold text-white">Обработка персональных данных</h1>
             <p className="text-sm text-white/60 leading-relaxed">
-              Для оформления бронирования сервис запрашивает контактный номер телефона и использует
-              идентификатор вашего аккаунта.
+              Чтобы забронировать место, нужен ваш телефон — по нему с вами свяжется организатор.
+              Вместе с бронью сохраняются данные вашего аккаунта.
             </p>
           </div>
 
@@ -44,13 +44,20 @@ export default function PrivacyConsentModal({ onAccept, onDecline }: Props) {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-[#C6A75E] mt-0.5">•</span>
-                ID аккаунта Telegram / VK
+                ID аккаунта Telegram или ВКонтакте
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-[#C6A75E] mt-0.5">•</span>
-                Комментарий к бронированию (по желанию)
+                Имя, фамилия и ник из профиля, дата последнего входа
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-[#C6A75E] mt-0.5">•</span>
+                Комментарий к бронированию, включая имена гостей, если вы их укажете
               </li>
             </ul>
+            <p className="text-xs text-white/40 leading-relaxed pt-1">
+              Фото профиля не сохраняется: приложение показывает его напрямую из Telegram.
+            </p>
           </div>
 
           <label className="flex items-start gap-3 cursor-pointer group">

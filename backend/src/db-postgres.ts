@@ -68,6 +68,8 @@ type EventTablesRow = {
   object_type?: string | null;
   label?: string | null;
   label_font_size?: number | null;
+  /** Stage only partly visible from this table. */
+  limited_view?: boolean | null;
   created_at?: string;
 };
 
@@ -160,6 +162,7 @@ function eventTablesRowToTable(row: EventTablesRow, bookedSeats?: number): Table
   if (row.object_type != null) (t as any).objectType = row.object_type;
   if (row.label != null) (t as any).label = row.label;
   if (row.label_font_size != null) (t as any).labelFontSize = row.label_font_size;
+  (t as any).limitedView = row.limited_view === true;
   return t;
 }
 
@@ -523,6 +526,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
           object_type: (t as any).objectType ?? 'table',
           label: (t as any).label ?? null,
           label_font_size: (t as any).labelFontSize ?? null,
+          limited_view: (t as any).limitedView === true,
         })
         .eq('id', tableId)
         .eq('event_id', event.id);
@@ -571,6 +575,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
         object_type: (t as any).objectType ?? 'table',
         label: (t as any).label ?? null,
         label_font_size: (t as any).labelFontSize ?? null,
+        limited_view: (t as any).limitedView === true,
       });
 
       if (insErr) {

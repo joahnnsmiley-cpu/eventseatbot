@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import vkBridge from '@vkontakte/vk-bridge';
 import * as StorageService from './services/storageService';
@@ -86,6 +86,14 @@ function App() {
     try { return localStorage.getItem(PRIVACY_CONSENT_KEY) === 'true'; } catch { return false; }
   });
   const [consentChecked, setConsentChecked] = useState(false);
+  /** Set when the booking button was pressed before consent was given. */
+  const [consentPending, setConsentPending] = useState(false);
+
+  const acceptPrivacy = useCallback(() => {
+    try { localStorage.setItem(PRIVACY_CONSENT_KEY, 'true'); } catch { /* private mode */ }
+    setPrivacyConsented(true);
+    StorageService.recordPrivacyConsent().catch(() => { });
+  }, []);
 
   // Warm up Render.com backend immediately on mount (prevents cold-start delay)
   useEffect(() => { void warmupBackend(); }, []);
@@ -811,26 +819,6 @@ function App() {
     );
   }
 
-  // --- PRIVACY CONSENT GATE ---
-  if (!privacyConsented) {
-    return (
-      <PrivacyConsentModal
-        onAccept={() => {
-          try { localStorage.setItem(PRIVACY_CONSENT_KEY, 'true'); } catch {}
-          setPrivacyConsented(true);
-          StorageService.recordPrivacyConsent().catch(() => {});
-        }}
-        onDecline={() => {
-          try {
-            const tg = (window as any).Telegram?.WebApp;
-            if (tg?.close) { tg.close(); return; }
-          } catch {}
-          try { vkBridge.send('VKWebAppClose' as any, {} as any); } catch {}
-        }}
-      />
-    );
-  }
-
   // --- AUTH GATE ---
   // If we're on VK, we MUST wait for the sign query to be recovered before doing anything.
   // This prevents child components from firing premature API calls that would fail with 401.
@@ -1013,6 +1001,117 @@ function App() {
     const activeCategory = selectedTable ? selectedEvent.ticketCategories?.find((c) => c.id === selectedTable.ticketCategoryId) : null;
     const activePalette = selectedTable ? getCategoryColorFromCategory(activeCategory) : { base: '#C6A75E', glow: 'rgba(198,167,94,0.5)' };
 
+    const submitBooking = async () => {
+                  setBookingError(null);
+                  const seats = selectedSeatsByTable[selectedTableId] ?? [];
+                  if (!selectedEventId || !selectedTableId || !selectedEvent) return;
+                  if (selectedTable.isAvailable !== true) return;
+                  const normalizedPhone = userPhone.trim();
+                  if (!normalizedPhone) {
+                    setBookingError(UI_TEXT.app.addPhoneToContinue);
+                    return;
+                  }
+                  if (seats.length === 0) {
+                    setBookingError(UI_TEXT.app.selectAtLeastOneSeat);
+                    return;
+                  }
+                  let telegramId: string | number | null = null;
+                  if (isVkPlatform) {
+                    telegramId = tgUser?.id ?? new URLSearchParams(window.location.search).get('vk_user_id') ?? null;
+                  } else {
+                    telegramId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id ?? null;
+                  }
+                  if (telegramId == null) {
+                    setBookingError('User ID not found');
+                    return;
+                  }
+
+                  const prevSeats = selectedSeatsByTable;
+                  const prevTableId = selectedTableId;
+                  const prevEvent = selectedEvent;
+                  setBookingLoading(true);
+                  try {
+                    const seatPriceFallback = selectedEvent?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
+                    const price = getPriceForTable(selectedEvent, selectedTable, seatPriceFallback);
+                    const total = seats.length * price;
+                    const res = await StorageService.createSeatsBooking({
+                      eventId: selectedEventId,
+                      tableId: selectedTableId,
+                      seatIndices: seats,
+                      userPhone: normalizedPhone,
+                      telegramId: Number(telegramId),
+                      totalAmount: total,
+                      userComment: userComment.trim() || undefined,
+                      platform: isVkPlatform ? 'vk' : 'telegram',
+                      vkUserId: isVkPlatform ? String(telegramId) : undefined,
+                    });
+                    const raw = res as Record<string, unknown>;
+                    const booking: Booking = {
+                      id: String(raw.id ?? ''),
+                      eventId: String(raw.event_id ?? raw.eventId ?? selectedEventId ?? ''),
+                      userPhone: String(raw.user_phone ?? raw.userPhone ?? normalizedPhone),
+                      seatIds: seats.map((idx) => `${selectedTableId}-${idx}`),
+                      status: (raw.status as Booking['status']) ?? 'reserved',
+                      totalAmount: Number(raw.total_amount ?? raw.totalAmount) || total,
+                      createdAt: typeof raw.created_at === 'string' ? new Date(raw.created_at).getTime() : Number(raw.createdAt) || Date.now(),
+                      expiresAt: (raw.expires_at ?? raw.expiresAt) as string | number | undefined,
+                      tableId: String(raw.table_id ?? raw.tableId ?? selectedTableId),
+                      tableBookings: [{ tableId: selectedTableId, seats: seats.length }],
+                      event: { id: selectedEvent.id, title: selectedEvent.title, date: selectedEvent.date ?? (selectedEvent as any).event_date },
+                    };
+                    setLastCreatedBooking(booking);
+                    setLastCreatedEvent(selectedEvent);
+                    setSelectedSeatsByTable((prev) => {
+                      const next = { ...prev };
+                      delete next[selectedTableId];
+                      return next;
+                    });
+                    setSelectedTableId(null);
+                    setSelectedEvent(null);
+                    try {
+                      const occupied = await StorageService.getOccupiedSeats(selectedEventId);
+                      const map: Record<string, Set<number>> = {};
+                      for (const row of occupied) {
+                        if (row.table_id && Array.isArray(row.seat_indices)) {
+                          map[row.table_id] = new Set(row.seat_indices.map(Number));
+                        }
+                      }
+                      setOccupiedMap(map);
+                    } catch { }
+                    setView('booking-success');
+                    showToast(UI_TEXT.booking.successTitle, 'success');
+                  } catch (e) {
+                    const err = e as Error & { status?: number };
+                    if (err.status === 401) {
+                      // The token is how the server knows whose booking this is.
+                      const msg = 'Не получилось подтвердить вход. Закройте приложение и откройте снова.';
+                      setBookingError(msg);
+                      showToast(msg, 'error');
+                    } else if (err.status === 409) {
+                      const msg = 'Некоторые места уже заняты. Обновите страницу.';
+                      setBookingError(msg);
+                      showToast(msg, 'error');
+                      setSelectedSeatsByTable(prevSeats);
+                      setSelectedTableId(prevTableId);
+                      setSelectedEvent(prevEvent);
+                    } else if (e instanceof TypeError) {
+                      const msg = 'Проверьте интернет. Бронирование могло создаться — зайдите в «Мои билеты».';
+                      setBookingError(msg);
+                      showToast(msg, 'error');
+                    } else {
+                      const msg = e instanceof Error ? e.message : UI_TEXT.common.errors.default;
+                      setBookingError(msg);
+                      showToast(msg, 'error');
+                      setSelectedSeatsByTable(prevSeats);
+                      setSelectedTableId(prevTableId);
+                      setSelectedEvent(prevEvent);
+                    }
+                  } finally {
+                    setBookingLoading(false);
+                  }
+    };
+
+
     return wrapWithLayout(
       <div
         className="max-w-[420px] mx-auto overflow-x-hidden bg-black min-h-screen flex flex-col"
@@ -1044,6 +1143,17 @@ function App() {
               <RefreshCw size={16} strokeWidth={2} />
             </button>
           </div>
+
+          {consentPending && (
+            <PrivacyConsentModal
+              onAccept={() => {
+                acceptPrivacy();
+                setConsentPending(false);
+                void submitBooking();
+              }}
+              onDecline={() => setConsentPending(false)}
+            />
+          )}
 
           {eventLoading && <div className="text-xs text-muted">{UI_TEXT.app.loadingSeats}</div>}
           {eventError && <div className="text-sm text-red-400 mb-3">{eventError}</div>}
@@ -1106,7 +1216,7 @@ function App() {
                 );
               })()}
 
-              {['8', '10', '21', '22'].includes(String(selectedTable.number)) && (
+              {(selectedTable as { limitedView?: boolean }).limitedView === true && (
                 <motion.div
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1233,109 +1343,11 @@ function App() {
                   bookingLoading ||
                   (selectedSeatsByTable[selectedTableId] ?? []).length === 0
                 }
-                onClick={async () => {
-                  setBookingError(null);
-                  const seats = selectedSeatsByTable[selectedTableId] ?? [];
-                  if (!selectedEventId || !selectedTableId || !selectedEvent) return;
-                  if (selectedTable.isAvailable !== true) return;
-                  const normalizedPhone = userPhone.trim();
-                  if (!normalizedPhone) {
-                    setBookingError(UI_TEXT.app.addPhoneToContinue);
-                    return;
-                  }
-                  if (seats.length === 0) {
-                    setBookingError(UI_TEXT.app.selectAtLeastOneSeat);
-                    return;
-                  }
-                  let telegramId: string | number | null = null;
-                  if (isVkPlatform) {
-                    telegramId = tgUser?.id ?? new URLSearchParams(window.location.search).get('vk_user_id') ?? null;
-                  } else {
-                    telegramId = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id ?? null;
-                  }
-                  if (telegramId == null) {
-                    setBookingError('User ID not found');
-                    return;
-                  }
-
-                  const prevSeats = selectedSeatsByTable;
-                  const prevTableId = selectedTableId;
-                  const prevEvent = selectedEvent;
-                  setBookingLoading(true);
-                  try {
-                    const seatPriceFallback = selectedEvent?.ticketCategories?.find((c) => c.isActive)?.price ?? 0;
-                    const price = getPriceForTable(selectedEvent, selectedTable, seatPriceFallback);
-                    const total = seats.length * price;
-                    const res = await StorageService.createSeatsBooking({
-                      eventId: selectedEventId,
-                      tableId: selectedTableId,
-                      seatIndices: seats,
-                      userPhone: normalizedPhone,
-                      telegramId: Number(telegramId),
-                      totalAmount: total,
-                      userComment: userComment.trim() || undefined,
-                      platform: isVkPlatform ? 'vk' : 'telegram',
-                      vkUserId: isVkPlatform ? String(telegramId) : undefined,
-                    });
-                    const raw = res as Record<string, unknown>;
-                    const booking: Booking = {
-                      id: String(raw.id ?? ''),
-                      eventId: String(raw.event_id ?? raw.eventId ?? selectedEventId ?? ''),
-                      userPhone: String(raw.user_phone ?? raw.userPhone ?? normalizedPhone),
-                      seatIds: seats.map((idx) => `${selectedTableId}-${idx}`),
-                      status: (raw.status as Booking['status']) ?? 'reserved',
-                      totalAmount: Number(raw.total_amount ?? raw.totalAmount) || total,
-                      createdAt: typeof raw.created_at === 'string' ? new Date(raw.created_at).getTime() : Number(raw.createdAt) || Date.now(),
-                      expiresAt: (raw.expires_at ?? raw.expiresAt) as string | number | undefined,
-                      tableId: String(raw.table_id ?? raw.tableId ?? selectedTableId),
-                      tableBookings: [{ tableId: selectedTableId, seats: seats.length }],
-                      event: { id: selectedEvent.id, title: selectedEvent.title, date: selectedEvent.date ?? (selectedEvent as any).event_date },
-                    };
-                    setLastCreatedBooking(booking);
-                    setLastCreatedEvent(selectedEvent);
-                    setSelectedSeatsByTable((prev) => {
-                      const next = { ...prev };
-                      delete next[selectedTableId];
-                      return next;
-                    });
-                    setSelectedTableId(null);
-                    setSelectedEvent(null);
-                    try {
-                      const occupied = await StorageService.getOccupiedSeats(selectedEventId);
-                      const map: Record<string, Set<number>> = {};
-                      for (const row of occupied) {
-                        if (row.table_id && Array.isArray(row.seat_indices)) {
-                          map[row.table_id] = new Set(row.seat_indices.map(Number));
-                        }
-                      }
-                      setOccupiedMap(map);
-                    } catch { }
-                    setView('booking-success');
-                    showToast(UI_TEXT.booking.successTitle, 'success');
-                  } catch (e) {
-                    const err = e as Error & { status?: number };
-                    if (err.status === 409) {
-                      const msg = 'Некоторые места уже заняты. Обновите страницу.';
-                      setBookingError(msg);
-                      showToast(msg, 'error');
-                      setSelectedSeatsByTable(prevSeats);
-                      setSelectedTableId(prevTableId);
-                      setSelectedEvent(prevEvent);
-                    } else if (e instanceof TypeError) {
-                      const msg = 'Проверьте интернет. Бронирование могло создаться — зайдите в «Мои билеты».';
-                      setBookingError(msg);
-                      showToast(msg, 'error');
-                    } else {
-                      const msg = e instanceof Error ? e.message : UI_TEXT.common.errors.default;
-                      setBookingError(msg);
-                      showToast(msg, 'error');
-                      setSelectedSeatsByTable(prevSeats);
-                      setSelectedTableId(prevTableId);
-                      setSelectedEvent(prevEvent);
-                    }
-                  } finally {
-                    setBookingLoading(false);
-                  }
+                onClick={() => {
+                  // The phone and the comment are handed over here, so this is
+                  // where the app asks — not on the way in, before the poster.
+                  if (!privacyConsented) { setConsentPending(true); return; }
+                  void submitBooking();
                 }}
               >
                 {bookingLoading ? UI_TEXT.app.booking : UI_TEXT.app.continueBook}
