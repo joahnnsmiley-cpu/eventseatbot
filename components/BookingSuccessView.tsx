@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { bookingCode } from '../src/utils/bookingCode';
 import { formatPhone } from '../src/utils/formatPhone';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Clock, CreditCard, Copy, ChevronRight, AlertCircle } from 'lucide-react';
+import { CaretRight, CheckCircle, Clock, Copy, CreditCard, WarningCircle } from '@phosphor-icons/react';
 import type { EventData, Booking } from '../types';
 import { getPriceForTable } from '../src/utils/getTablePrice';
 import { getEventDisplayParts, getEventDisplayPartsFromIso } from '../src/utils/formatDate';
@@ -163,7 +163,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
                 boxShadow: '0 0 40px rgba(212,175,55,0.12)',
               }}
             >
-              <CheckCircle2 size={36} strokeWidth={1.5} style={{ color: '#D4AF37' }} />
+              <CheckCircle size={36} weight="bold" style={{ color: '#D4AF37' }} />
             </div>
           </motion.div>
 
@@ -196,7 +196,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
                 border: '1px solid rgba(212,175,55,0.2)',
               }}
             >
-              <Clock size={18} strokeWidth={2} className="text-amber-400 shrink-0 mt-0.5" />
+              <Clock size={18} weight="bold" className="text-amber-400 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-amber-300">Ожидаем подтверждения оплаты</p>
                 <p className="text-xs text-white/40 mt-0.5">Организатор проверит платёж и подтвердит бронь</p>
@@ -223,7 +223,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
           >
             <Clock
               size={16}
-              strokeWidth={2}
+              weight="bold"
               className={isExpired ? 'text-red-400' : isUrgent ? 'text-orange-400' : 'text-white/30'}
             />
             {isExpired ? (
@@ -277,8 +277,8 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
           >
             <div className="px-4 py-4 space-y-3">
               <div className="flex items-center gap-2">
-                <CreditCard size={15} strokeWidth={2} className="text-amber-400/80" />
-                <span className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">
+                <CreditCard size={15} weight="bold" className="text-amber-400/80" />
+                <span className="text-[13px] font-semibold text-amber-400/90">
                   Оплата по СБП (Сбер)
                 </span>
               </div>
@@ -297,7 +297,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
                   {formatPhone(event.paymentPhone.trim())}
                 </span>
                 <span className="flex items-center gap-1 text-xs text-amber-400/70">
-                  <Copy size={13} strokeWidth={2} />
+                  <Copy size={13} weight="bold" />
                   {copied ? 'Скопировано' : 'Копировать'}
                 </span>
               </button>
@@ -323,7 +323,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
             className="rounded-xl px-3 py-2.5 flex items-center gap-2"
             style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.25)' }}
           >
-            <AlertCircle size={14} className="text-red-400 shrink-0" />
+            <WarningCircle size={14} className="text-red-400 shrink-0" />
             <p className="text-sm text-red-400">{statusUpdateError}</p>
           </motion.div>
         )}
@@ -364,7 +364,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
             }}
           >
             Мои билеты
-            <ChevronRight size={15} strokeWidth={2} className="opacity-50" />
+            <CaretRight size={15} weight="bold" className="opacity-50" />
           </button>
 
           <button

@@ -8,7 +8,7 @@ import TicketModal from '../src/ui/TicketModal';
 import Card from '../src/ui/Card';
 import PrimaryButton from '../src/ui/PrimaryButton';
 import { getEventDisplayParts, getEventDisplayPartsFromIso } from '../src/utils/formatDate';
-import { RefreshCw } from 'lucide-react';
+import { ArrowsClockwise } from '@phosphor-icons/react';
 import { UI_TEXT } from '../constants/uiText';
 import { useToast } from '../src/ui/ToastContext';
 import { getPlatform } from '../src/utils/platform';
@@ -357,7 +357,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
             className="w-9 h-9 rounded-full flex items-center justify-center text-yellow-400/90 hover:text-yellow-400 hover:shadow-[0_0_16px_rgba(250,204,21,0.3)] transition-all shrink-0"
             aria-label={UI_TEXT.common.refresh}
           >
-            <RefreshCw size={20} strokeWidth={2} />
+            <ArrowsClockwise size={20} weight="bold" />
           </button>
         </div>
 

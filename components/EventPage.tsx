@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, RefreshCw, Calendar, MapPin } from 'lucide-react';
+import { ArrowsClockwise, CalendarBlank, CaretDown, MapPin } from '@phosphor-icons/react';
 import type { EventData, TgUser } from '../types';
 import { getPriceForTable } from '../src/utils/getTablePrice';
 import { getCategoryColorFromCategory, readableOnDark } from '../src/config/categoryColors';
@@ -235,7 +235,7 @@ const EventPage: React.FC<EventPageProps> = ({
               border: '1px solid rgba(255,255,255,0.12)',
             }}
           >
-            <RefreshCw size={16} strokeWidth={2} />
+            <ArrowsClockwise size={16} weight="bold" />
           </motion.button>
         </div>
 
@@ -292,7 +292,7 @@ const EventPage: React.FC<EventPageProps> = ({
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-white/90 rounded-full px-3 py-1.5"
                         style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
                       >
-                        <Calendar size={12} strokeWidth={2.5} />
+                        <CalendarBlank size={12} weight="bold" />
                         {dateShort}
                       </span>
                     )}
@@ -301,7 +301,7 @@ const EventPage: React.FC<EventPageProps> = ({
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-white/90 rounded-full px-3 py-1.5"
                         style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
                       >
-                        <MapPin size={12} strokeWidth={2.5} />
+                        <MapPin size={12} weight="bold" />
                         {venue?.trim()}
                       </span>
                     )}
@@ -423,7 +423,7 @@ const EventPage: React.FC<EventPageProps> = ({
             className="w-8 h-8 rounded-full flex items-center justify-center text-[#C6A75E]/70 hover:text-[#C6A75E] hover:bg-white/5 transition"
             aria-label={UI_TEXT.app.refresh}
           >
-            <RefreshCw size={16} strokeWidth={2} />
+            <ArrowsClockwise size={16} weight="bold" />
           </button>
         </div>
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { CalendarDays, Ticket, User } from 'lucide-react';
+import { CalendarBlank, Ticket, User } from '@phosphor-icons/react';
 import { UI_TEXT } from '../../constants/uiText';
 
 export type BottomNavTab = 'events' | 'my-tickets' | 'profile';
@@ -19,9 +19,9 @@ export default function BottomNav({
   onProfileClick,
 }: BottomNavProps) {
   const items = [
-    { key: 'events' as const, icon: <CalendarDays size={22} strokeWidth={2} />, label: UI_TEXT.nav.events, onClick: onEventsClick },
-    { key: 'my-tickets' as const, icon: <Ticket size={22} strokeWidth={2} />, label: UI_TEXT.nav.myTickets, onClick: onMyTicketsClick },
-    { key: 'profile' as const, icon: <User size={22} strokeWidth={2} />, label: UI_TEXT.nav.profile, onClick: onProfileClick },
+    { key: 'events' as const, icon: <CalendarBlank size={22} weight="bold" />, label: UI_TEXT.nav.events, onClick: onEventsClick },
+    { key: 'my-tickets' as const, icon: <Ticket size={22} weight="bold" />, label: UI_TEXT.nav.myTickets, onClick: onMyTicketsClick },
+    { key: 'profile' as const, icon: <User size={22} weight="bold" />, label: UI_TEXT.nav.profile, onClick: onProfileClick },
   ];
 
   return (

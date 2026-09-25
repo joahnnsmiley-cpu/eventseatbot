@@ -366,16 +366,6 @@ const AdminPanel: React.FC<{
   const [eventStep, setEventStep] = useState<EventStep>(1);
   const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
 
-  // The admin's display and text faces load only when the admin opens —
-  // guests never download them.
-  useEffect(() => {
-    if (document.getElementById('admin-fonts')) return;
-    const link = document.createElement('link');
-    link.id = 'admin-fonts';
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Alumni+Sans:wght@700;800&family=Golos+Text:wght@400;500;600;700&display=swap';
-    document.head.appendChild(link);
-  }, []);
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

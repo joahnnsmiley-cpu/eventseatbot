@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronUp, ChevronDown, CreditCard, Timer } from 'lucide-react';
+import { CaretDown, CaretUp, CreditCard, Timer } from '@phosphor-icons/react';
 import { UI_TEXT } from '../../constants/uiText';
 import * as StorageService from '../../services/storageService';
 
@@ -92,7 +92,7 @@ const BookingRow: React.FC<{
                     <Timer
                         size={14}
                         className={isExpired ? 'text-red-400' : isUrgent ? 'text-orange-400' : 'text-white/40'}
-                        strokeWidth={2}
+                        weight="bold"
                     />
                     {isExpired ? (
                         <span className="text-xs font-semibold text-red-400">Бронь истекла</span>
@@ -138,7 +138,7 @@ const BookingRow: React.FC<{
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onPaid(b.bookingId); }}
                 disabled={submittingId !== null}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold uppercase tracking-wide transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                     background: 'linear-gradient(135deg, #F5BE3C 0%, #D4A030 100%)',
                     color: '#0B0A09',
@@ -209,14 +209,14 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
                                 boxShadow: '0 0 12px rgba(245,190,60,0.4)',
                             }}
                         >
-                            <CreditCard size={16} className="text-black" strokeWidth={2.5} />
+                            <CreditCard size={16} className="text-black" weight="bold" />
                         </div>
                         <span className="text-sm font-medium text-amber-200 truncate">
                             {UI_TEXT.booking.bannerCollapsedLabel}
                         </span>
                     </div>
                     <div className="shrink-0 text-amber-400/70">
-                        {expanded ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                        {expanded ? <CaretDown size={18} /> : <CaretUp size={18} />}
                     </div>
                 </div>
             </div>

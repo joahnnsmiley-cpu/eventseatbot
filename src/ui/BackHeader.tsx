@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { CaretLeft } from '@phosphor-icons/react';
 import { UI_TEXT } from '../../constants/uiText';
 
 type BackHeaderProps = {
@@ -33,7 +33,7 @@ export default function BackHeader({ onBack, title, right, variant = 'dark', bac
         style={{ color: textColor }}
         aria-label={backLabel ?? UI_TEXT.app.back}
       >
-        <ChevronLeft size={20} strokeWidth={2} />
+        <CaretLeft size={20} weight="bold" />
         {backLabel ?? UI_TEXT.app.back}
       </button>
       {title && (

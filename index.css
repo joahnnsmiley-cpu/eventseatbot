@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./src/fonts.css";
 
 /* Explicit content sources for Tailwind to scan */
 @source "./index.html";
@@ -145,7 +146,7 @@ body.tg-dark .shadow-lg {
 
 /* Premium event title — Apple-like typography */
 .font-premium-title {
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Display', 'Segoe UI', sans-serif;
+  font-family: 'Alumni Sans', 'Arial Narrow', 'Helvetica Neue', sans-serif;
   font-weight: 600;
   letter-spacing: -0.025em;
   -webkit-font-smoothing: antialiased;
@@ -153,18 +154,18 @@ body.tg-dark .shadow-lg {
 
 /* Profile organizer — premium typography */
 .profile-organizer-premium {
-  font-family: 'Cormorant Garamond', 'Georgia', serif;
+  font-family: 'Alumni Sans', 'Arial Narrow', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 .profile-organizer-premium .font-sans-fallback {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Golos Text', -apple-system, 'Segoe UI', system-ui, sans-serif;
 }
 
 /* Luxury event title — premium, rich, high-end */
 .font-luxury-event-title {
-  font-family: 'Cormorant Garamond', 'Georgia', serif;
+  font-family: 'Alumni Sans', 'Arial Narrow', 'Helvetica Neue', sans-serif;
   font-weight: 600;
   letter-spacing: 0.03em;
   background: linear-gradient(135deg, #F5E6C8 0%, #E8D48A 30%, #C6A75E 60%, #A68B47 100%);
@@ -865,4 +866,11 @@ body.tg-dark .shadow-lg {
   outline: 2px solid #C6A75E;
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+
+/* One type system: Golos Text for reading, Alumni Sans for display lines.
+   Both are in public/fonts, so nothing is fetched from a font CDN at runtime. */
+body {
+  font-family: 'Golos Text', -apple-system, 'Segoe UI', system-ui, sans-serif;
 }

@@ -155,7 +155,7 @@ export const UI_TEXT = {
     bannerPaymentRef: 'Назначение платежа:',
     bannerAmountLabel: 'К оплате:',
     paidButton: 'Я оплатил',
-    paidButtonCaps: 'Я ОПЛАТИЛ',
+    paidButtonCaps: 'Я оплатил',
     backToEvents: 'Вернуться к событиям',
     bookingCreated: 'Бронирование создано. Не забудьте оплатить 👑',
     bookingValidMinutes: 'Бронь действительна 15 минут. Оплатите и нажмите «Я оплатил» до истечения времени.',

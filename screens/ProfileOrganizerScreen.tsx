@@ -1,6 +1,6 @@
 import React, { memo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Check } from 'lucide-react';
+import { Check, GearSix } from '@phosphor-icons/react';
 import ProfileLayout from '../components/profile/ProfileLayout';
 import ProfileAnimatedStack from '../components/profile/ProfileAnimatedStack';
 import CountdownCard from '../components/profile/CountdownCard';
@@ -220,7 +220,7 @@ function ProfileOrganizerScreenInner({
                               }}>
                                 {evt.title}
                               </span>
-                              {isSelected && <Check size={15} strokeWidth={2.5} style={{ color: '#D4AF37', flexShrink: 0, marginLeft: 10 }} />}
+                              {isSelected && <Check size={15} weight="bold" style={{ color: '#D4AF37', flexShrink: 0, marginLeft: 10 }} />}
                             </motion.button>
                           </React.Fragment>
                         );
@@ -268,7 +268,7 @@ function ProfileOrganizerScreenInner({
               title="Перейти в админ-панель"
               aria-label="Перейти в админ-панель"
             >
-              <Settings size={24} className="text-yellow-400" strokeWidth={2} />
+              <GearSix size={24} className="text-yellow-400" weight="bold" />
             </button>
           )}
         </div>

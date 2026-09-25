@@ -21,7 +21,7 @@ import { getPriceForTable } from './src/utils/getTablePrice';
 import { getCategoryColorFromCategory } from './src/config/categoryColors';
 import { getCurrentUser } from './src/utils/getCurrentUser';
 import { getEventDisplayParts, getEventDisplayPartsFromIso, parseEventToUtc } from './src/utils/formatDate';
-import { RefreshCw, Settings } from 'lucide-react';
+import { ArrowsClockwise, GearSix } from '@phosphor-icons/react';
 import { UI_TEXT } from './constants/uiText';
 import { useToast } from './src/ui/ToastContext';
 import { getPlatform, getPlatformUserId, extractParam } from './src/utils/platform';
@@ -1140,7 +1140,7 @@ function App() {
               className="w-8 h-8 rounded-full flex items-center justify-center text-[#C6A75E]/70 hover:text-[#C6A75E] hover:bg-white/5 transition shrink-0"
               aria-label={UI_TEXT.app.refresh}
             >
-              <RefreshCw size={16} strokeWidth={2} />
+              <ArrowsClockwise size={16} weight="bold" />
             </button>
           </div>
 
@@ -1568,7 +1568,7 @@ function App() {
               title="Админка"
               aria-label="Админка"
             >
-              <Settings size={20} className="text-[#C6A75E]" strokeWidth={2} />
+              <GearSix size={20} className="text-[#C6A75E]" weight="bold" />
             </button>
           )}
         </div>
@@ -1613,8 +1613,8 @@ function App() {
                   const cover = (featured.imageUrl || (featured as { image_url?: string }).image_url || '').trim();
                   return (
                   <div>
-                    <p className="text-muted-light text-xs tracking-widest uppercase mb-2 text-center">
-                      БЛИЖАЙШИЙ КОНЦЕРТ
+                    <p className="text-muted-light text-[13px] mb-2 text-center">
+                      Ближайший концерт
                     </p>
                     <motion.div
                       className="relative rounded-3xl overflow-hidden cursor-pointer bg-[#161412]"
@@ -1636,7 +1636,7 @@ function App() {
 
                       <div className="flex flex-col gap-3.5 px-4 pt-4 pb-4">
                         <div className="flex flex-col gap-2">
-                          <h2 className="text-[22px] font-bold uppercase tracking-wide text-white leading-[1.05] m-0">
+                          <h2 className="font-premium-title text-[30px] uppercase text-white leading-[0.95] m-0">
                             {featured?.title ?? UI_TEXT.event.eventFallback}
                           </h2>
                           <div className="flex flex-wrap gap-1.5">
@@ -1667,8 +1667,8 @@ function App() {
 
                 {upcoming.length > 0 && (
                   <div>
-                    <p className="text-muted-light text-xs tracking-widest uppercase mb-2 text-center">
-                      ДРУГИЕ КОНЦЕРТЫ
+                    <p className="text-muted-light text-[13px] mb-2 text-center">
+                      Другие концерты
                     </p>
                     <div className="space-y-2">
                       {upcoming.map((evt) => {
@@ -1704,8 +1704,8 @@ function App() {
 
                 {past.length > 0 && (
                   <div>
-                    <p className="text-muted-light text-xs tracking-widest uppercase mb-2 text-center">
-                      УЖЕ ПРОШЛИ
+                    <p className="text-muted-light text-[13px] mb-2 text-center">
+                      Уже прошли
                     </p>
                     <div className="space-y-2">
                       {past.map((evt) => {

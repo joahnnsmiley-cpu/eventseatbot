@@ -164,7 +164,7 @@ export default function ProfileGuestScreen({
               }}
             />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-yellow-500/90 uppercase tracking-[0.12em] mb-3 mt-0">
+              <p className="text-[13px] font-semibold text-yellow-500/90 mb-3 mt-0">
                 {UI_TEXT.profile.yourEvening}
               </p>
               <p className="text-2xl font-bold text-white tracking-tight m-0">
@@ -188,7 +188,7 @@ export default function ProfileGuestScreen({
         {/* 5️⃣ Privileges */}
         {privileges.length > 0 && (
           <div className="space-y-3">
-            <p className="text-xs font-semibold text-yellow-500/90 uppercase tracking-[0.12em] m-0">
+            <p className="text-[13px] font-semibold text-yellow-500/90 m-0">
               {UI_TEXT.profile.yourPrivileges}
             </p>
             <ul className="m-0 pl-5 space-y-2 list-none">
