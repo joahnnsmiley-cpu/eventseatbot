@@ -3,7 +3,10 @@
  * Offset is set by admin via "current time" reference in event card.
  */
 
-const DEFAULT_OFFSET = 180; // UTC+3 (Moscow)
+import { DEFAULT_TZ_OFFSET_MINUTES } from '../config/timezone';
+
+/** Novosibirsk, UTC+7 — where the concerts are. */
+const DEFAULT_OFFSET = DEFAULT_TZ_OFFSET_MINUTES;
 
 /** Parse event_date + event_time in event timezone → UTC timestamp (ms) */
 export function parseEventToUtc(

@@ -1,3 +1,4 @@
+import { DEFAULT_TZ_OFFSET_MINUTES } from '../config/timezone';
 /**
  * Date/time formatting using event's timezone offset (minutes ahead of UTC).
  * Offset is set by admin via "current time" reference in event card.
@@ -13,7 +14,7 @@
 export function parseEventToUtc(
   dateStr: string | null | undefined,
   timeStr: string | null | undefined,
-  offsetMinutes: number = 180
+  offsetMinutes: number = DEFAULT_TZ_OFFSET_MINUTES
 ): number | null {
   if (!dateStr || !timeStr) return null;
   const parts = String(timeStr).match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
@@ -35,7 +36,7 @@ export function parseEventToUtc(
 export function parseEventToIso(
   dateStr: string | null | undefined,
   timeStr: string | null | undefined,
-  offsetMinutes: number = 180
+  offsetMinutes: number = DEFAULT_TZ_OFFSET_MINUTES
 ): string | null {
   const ts = parseEventToUtc(dateStr, timeStr, offsetMinutes);
   return ts != null ? new Date(ts).toISOString() : null;
@@ -45,7 +46,7 @@ export function parseEventToIso(
 export function formatEventDateRu(
   dateStr: string | null | undefined,
   timeStr: string | null | undefined,
-  offsetMinutes: number = 180
+  offsetMinutes: number = DEFAULT_TZ_OFFSET_MINUTES
 ): string {
   const ts = parseEventToUtc(dateStr, timeStr || '00:00:00', offsetMinutes);
   if (ts == null) return '';
@@ -61,7 +62,7 @@ export function formatEventDateRu(
 /** Format date for notifications (DD.MM.YYYY HH:mm) in event timezone */
 export function formatDateForNotification(
   date: string | number | Date | null | undefined,
-  offsetMinutes: number = 180
+  offsetMinutes: number = DEFAULT_TZ_OFFSET_MINUTES
 ): string {
   if (date == null) return '';
   const d = typeof date === 'number' ? new Date(date) : typeof date === 'string' ? new Date(date) : date;

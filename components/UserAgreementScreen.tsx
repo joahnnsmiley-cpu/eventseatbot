@@ -3,9 +3,11 @@ import { ArrowLeft } from '@phosphor-icons/react';
 
 type Props = {
   onBack: () => void;
+  /** Opens the offer, which section 4 leans on. */
+  onOpenOffer: () => void;
 };
 
-export default function UserAgreementScreen({ onBack }: Props) {
+export default function UserAgreementScreen({ onBack, onOpenOffer }: Props) {
   return (
     <div className="min-h-[100dvh] bg-[#0B0A09] text-white flex flex-col">
       <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 bg-[#0B0A09] border-b border-white/10">
@@ -66,22 +68,29 @@ export default function UserAgreementScreen({ onBack }: Props) {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-white font-semibold">4. Добровольное пожертвование</h2>
+          <h2 className="text-white font-semibold">4. Оплата услуги</h2>
           <p>
-            Денежные средства, перечисляемые Пользователем в рамках использования Сервиса, являются
-            добровольным пожертвованием в поддержку мероприятия. Пожертвование не является
-            оплатой услуги, товара или билета и не влечёт возникновения обязательств
-            коммерческого характера.
+            Денежные средства, перечисляемые Пользователем, являются оплатой услуги по обеспечению
+            присутствия на мероприятии на выбранном месте в зале. Услугу оказывает организатор
+            мероприятия — индивидуальный предприниматель Подковырина Дарья Андреевна
+            (ИНН <span className="nums">190309009577</span>) на условиях{' '}
+            <button
+              type="button"
+              onClick={onOpenOffer}
+              className="text-[#C6A75E] underline underline-offset-2 hover:text-[#d4b86c] transition"
+            >
+              публичной оферты
+            </button>.
           </p>
           <p>
-            Размер пожертвования определяется организатором мероприятия и носит рекомендательный
-            характер. Пользователь вносит пожертвование добровольно и осознанно.
+            Стоимость зависит от выбранной категории места и показывается до подтверждения брони.
+            Оплата проходит через платёжный сервис Robokassa; данные банковской карты Сервису
+            не передаются и в нём не хранятся. После оплаты Пользователь получает чек,
+            сформированный в соответствии с Федеральным законом от 27.11.2018 № 422-ФЗ.
           </p>
           <p>
-            В связи с добровольным характером пожертвования возврат перечисленных средств
-            не предусмотрен, за исключением случаев отмены или переноса мероприятия по инициативе
-            организатора, а также иных случаев, установленных действующим законодательством
-            Российской Федерации.
+            Порядок возврата денежных средств, в том числе при отмене или переносе мероприятия
+            и при отказе Пользователя от услуги, установлен разделом 7 публичной оферты.
           </p>
         </section>
 
@@ -89,8 +98,8 @@ export default function UserAgreementScreen({ onBack }: Props) {
           <h2 className="text-white font-semibold">5. Отмена и изменение мероприятия</h2>
           <p>
             Организатор мероприятия вправе изменить дату, место проведения или отменить мероприятие.
-            В случае отмены организатор самостоятельно уведомляет Пользователей и определяет
-            порядок возврата пожертвований.
+            В случае отмены или переноса организатор уведомляет Пользователей и возвращает
+            денежные средства в порядке, установленном разделом 7 публичной оферты.
           </p>
           <p>
             Разработчик Сервиса не несёт ответственности за решения организатора в отношении
@@ -144,7 +153,7 @@ export default function UserAgreementScreen({ onBack }: Props) {
           <p>По всем вопросам, связанным с использованием Сервиса, обращайтесь:</p>
           <ul className="list-none space-y-1">
             <li>Email:{' '}
-              <a href="mailto:joahnnsmiley@gmail.com" className="text-[#C6A75E] underline">joahnnsmiley@gmail.com</a>
+              <a href="mailto:darryp@yandex.ru" className="text-[#C6A75E] underline">darryp@yandex.ru</a>
             </li>
             <li>ВКонтакте:{' '}
               <a href="https://vk.com/niktonekruchee" target="_blank" rel="noopener noreferrer" className="text-[#C6A75E] underline">vk.com/niktonekruchee</a>
@@ -153,10 +162,10 @@ export default function UserAgreementScreen({ onBack }: Props) {
               <a href="https://t.me/nikto_ne_kruche_bot" target="_blank" rel="noopener noreferrer" className="text-[#C6A75E] underline">@nikto_ne_kruche_bot</a>
             </li>
           </ul>
-          <p>Срок рассмотрения обращений — 30 дней с момента получения.</p>
+          <p>Срок рассмотрения обращений — 10 календарных дней с момента получения.</p>
         </section>
 
-        <p className="text-xs text-white/40 pt-2">Дата актуализации: апрель 2025 г.</p>
+        <p className="text-xs text-white/40 pt-2">Дата актуализации: 25 сентября 2026 г.</p>
       </div>
     </div>
   );

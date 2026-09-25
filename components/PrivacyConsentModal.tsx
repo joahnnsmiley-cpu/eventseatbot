@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import PrivacyPolicyScreen from './PrivacyPolicyScreen';
 import UserAgreementScreen from './UserAgreementScreen';
+import OfferScreen from './OfferScreen';
 
 export const PRIVACY_CONSENT_KEY = 'eventseatbot_privacy_v1';
 
@@ -13,13 +14,23 @@ export default function PrivacyConsentModal({ onAccept, onDecline }: Props) {
   const [checked, setChecked] = useState(false);
   const [showPolicy, setShowPolicy] = useState(false);
   const [showAgreement, setShowAgreement] = useState(false);
+  const [showOffer, setShowOffer] = useState(false);
 
   if (showPolicy) {
     return <PrivacyPolicyScreen onBack={() => setShowPolicy(false)} />;
   }
 
+  if (showOffer) {
+    return <OfferScreen onBack={() => setShowOffer(false)} />;
+  }
+
   if (showAgreement) {
-    return <UserAgreementScreen onBack={() => setShowAgreement(false)} />;
+    return (
+      <UserAgreementScreen
+        onBack={() => setShowAgreement(false)}
+        onOpenOffer={() => setShowOffer(true)}
+      />
+    );
   }
 
   return (
@@ -91,13 +102,21 @@ export default function PrivacyConsentModal({ onAccept, onDecline }: Props) {
               >
                 пользовательским соглашением
               </button>{' '}
-              и{' '}
+,{' '}
               <button
                 type="button"
                 onClick={(e) => { e.preventDefault(); setShowPolicy(true); }}
                 className="text-[#C6A75E] underline underline-offset-2 hover:text-[#d4b86c] transition"
               >
                 политикой конфиденциальности
+              </button>{' '}
+              и{' '}
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); setShowOffer(true); }}
+                className="text-[#C6A75E] underline underline-offset-2 hover:text-[#d4b86c] transition"
+              >
+                публичной офертой
               </button>
               , даю согласие на обработку персональных данных.
             </span>

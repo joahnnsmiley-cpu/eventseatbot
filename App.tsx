@@ -39,6 +39,7 @@ import { DEFAULT_TZ_OFFSET_MINUTES } from './src/config/timezone';
  */
 const AdminPanel = React.lazy(() => import('./components/AdminPanel'));
 const ProfileScreen = React.lazy(() => import('./screens/ProfileScreen'));
+const PublicSiteScreen = React.lazy(() => import('./screens/PublicSiteScreen'));
 
 /** Holds the space a lazy screen is about to fill, so nothing jumps. */
 const ScreenFallback = () => (
@@ -802,22 +803,12 @@ function App() {
 
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
-  // --- PLATFORM GATE: только Telegram и VK ---
+  // --- PLATFORM GATE ---
+  // Booking still only works inside Telegram or VK, but the address itself is
+  // the brand's public site: someone arriving by link, or an acquirer checking
+  // the shop, gets the concert, the prices, the offer and who is selling.
   if (getPlatform() === 'web') {
-    return (
-      <div className="fixed inset-0 bg-[#0B0A09] flex flex-col items-center justify-center px-6 text-center">
-        <div className="text-5xl mb-5">🎟️</div>
-        <h1 className="text-xl font-bold text-white mb-3">НиктоНеКруче</h1>
-        <p className="text-sm text-white/60 leading-relaxed max-w-xs">
-          Сервис доступен только внутри{' '}
-          <span className="text-white/90 font-medium">Telegram</span> или{' '}
-          <span className="text-white/90 font-medium">ВКонтакте</span>.
-        </p>
-        <p className="text-xs text-white/30 mt-6">
-          Откройте приложение через мини-приложение в одной из платформ.
-        </p>
-      </div>
-    );
+    return <PublicSiteScreen />;
   }
 
   // --- AUTH GATE ---

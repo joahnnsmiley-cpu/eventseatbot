@@ -1012,7 +1012,7 @@ const AdminPanel: React.FC<{
     return cat?.name ?? '—';
   };
 
-  const formatAdminDate = (s: string | null | undefined, offset = 180): string => {
+  const formatAdminDate = (s: string | null | undefined, offset = DEFAULT_TZ_OFFSET_MINUTES): string => {
     if (!s) return '—';
     return formatDateTimeRu(s, offset) || String(s);
   };
