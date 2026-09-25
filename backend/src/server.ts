@@ -11,6 +11,7 @@ import adminUploadLayoutRouter from './routes/admin.uploadLayout';
 import adminBookingsRouter from './routes/adminBookings';
 import publicEventsRouter from './routes/publicEvents';
 import publicPaymentsRouter from './routes/publicPayments';
+import robokassaRouter from './routes/robokassa';
 import adminPaymentsRouter from './routes/adminPayments';
 import adminControllersRouter from './routes/adminControllers';
 import adminRolesRouter from './routes/adminRoles';
@@ -121,6 +122,12 @@ app.get('/health', (_req, res) => {
 
 // JSON body parser for req.body (equivalent to express.json())
 app.use(bodyParser.json());
+
+// Robokassa mounts at the root: its callbacks carry full paths and must sit
+// before anything that could swallow them. Its own routes do their own auth —
+// the callbacks by signature, the payment-link route by token.
+app.use(robokassaRouter);
+
 app.use('/auth', authRoutes);
 app.use('/me', meRoutes);
 

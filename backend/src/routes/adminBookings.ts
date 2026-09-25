@@ -4,77 +4,17 @@ import { authMiddleware } from '../auth/auth.middleware';
 import { adminOrOrganizer } from '../auth/admin.middleware';
 import { db } from '../db';
 import { supabase } from '../supabaseClient';
-import { sendTelegramMessage, sendTelegramPhoto } from '../services/telegramService';
-import { sendVkMessage, sendVkPhoto } from '../services/vkService';
-import { generateTicket } from '../services/ticketGenerator';
-import type { Ticket } from '../models';
+import { sendTelegramMessage } from '../services/telegramService';
+import { sendVkMessage } from '../services/vkService';
+import {
+  confirmBookingPaid,
+  deliverTicket as generateAndSendTicket,
+} from '../domain/bookings/confirmPayment';
 import type { Booking } from '../models';
 
 const router = Router();
 
 router.use(authMiddleware, adminOrOrganizer);
-
-/** Format seats for ticket/card: seat_indices as "1, 2, 3" (human 1-based). Fallback to count for table-only. */
-function formatSeatsForTicket(booking: { seatIndices?: number[]; seatsBooked?: number; tableBookings?: { seats: number }[] }): string {
-  if (Array.isArray(booking.seatIndices) && booking.seatIndices.length > 0) {
-    const sorted = [...booking.seatIndices].sort((a, b) => a - b);
-    return sorted.map((i) => i + 1).join(', ');
-  }
-  const count = booking.seatsBooked ?? booking.tableBookings?.[0]?.seats ?? 0;
-  return String(count);
-}
-
-/** Fire-and-forget: generate ticket PNG, save URL, send to user. Does not block confirm. */
-async function generateAndSendTicket(booking: Booking): Promise<void> {
-  try {
-    const ev = (await db.findEventById(booking.eventId)) as { imageUrl?: string; event_date?: string; event_time?: string; title?: string; tables?: { id: string; number: number }[] } | null;
-    const tbl = ev?.tables?.find((t) => t.id === booking.tableId);
-    const tableNumber = tbl?.number ?? booking.tableId ?? '—';
-    const seats = formatSeatsForTicket(booking);
-
-    const ticketUrl = await generateTicket({
-      templateUrl: (ev as any)?.ticketTemplateUrl ?? ev?.imageUrl ?? '',
-      bookingId: booking.id,
-      eventId: booking.eventId,
-      eventTitle: ev?.title ?? '',
-      eventDate: [ev?.event_date, ev?.event_time].filter(Boolean).join(' ') || '',
-      tableNumber,
-      seats,
-    });
-
-    if (ticketUrl) {
-      await db.updateBookingTicketFileUrl(booking.id, ticketUrl);
-
-      if (booking.platform === 'vk' && booking.user_vk_id) {
-        await sendVkPhoto(booking.user_vk_id, ticketUrl, '🎟 Ваш билет');
-      } else {
-        const userChatId = typeof booking.userTelegramId === 'number' ? booking.userTelegramId : 0;
-        if (Number.isFinite(userChatId) && userChatId > 0) {
-          await sendTelegramPhoto(userChatId, ticketUrl, '🎟 Ваш билет');
-        }
-      }
-    } else {
-      if (booking.platform === 'vk' && booking.user_vk_id) {
-        await sendVkMessage(booking.user_vk_id, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!');
-      } else {
-        const userChatId = typeof booking.userTelegramId === 'number' ? booking.userTelegramId : 0;
-        if (Number.isFinite(userChatId) && userChatId > 0) {
-          await sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!');
-        }
-      }
-    }
-  } catch (err) {
-    console.error('[generateAndSendTicket]', err);
-    if (booking.platform === 'vk' && booking.user_vk_id) {
-      sendVkMessage(booking.user_vk_id, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch(() => { });
-    } else {
-      const userChatId = typeof booking.userTelegramId === 'number' ? booking.userTelegramId : 0;
-      if (Number.isFinite(userChatId) && userChatId > 0) {
-        sendTelegramMessage(userChatId, '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!').catch(() => { });
-      }
-    }
-  }
-}
 
 // GET /admin/debug-bookings
 router.get('/debug-bookings', async (req, res) => {
@@ -326,81 +266,17 @@ router.post('/bookings/:id/confirm', async (req: Request, res: Response) => {
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
   if (!id) return res.status(400).json({ error: 'Booking id is required' });
 
-  const bookings = await db.getBookings();
-  const booking = bookings.find((b) => b.id === id);
-  if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  // No expiry check: an admin confirming is explicitly overriding it, for the
+  // guest who transferred the money but never pressed "I paid".
+  const result = await confirmBookingPaid(id, 'admin');
+  if (!result.ok) return res.status(result.status).json({ error: result.error });
 
-  // Allow confirming: reserved, awaiting_confirmation, payment_submitted, expired
-  // (Admin may confirm expired booking if user transferred money but forgot to tap "I paid")
-  const confirmableStatuses = ['reserved', 'awaiting_confirmation', 'payment_submitted', 'expired', 'pending'];
-  if (!confirmableStatuses.includes(String(booking.status))) {
-    return res.status(400).json({ error: `Cannot confirm booking with status: ${booking.status}` });
-  }
-
-  // No expiry check here — admin is explicitly overriding it
-  const now = Date.now();
-
-  const tickets: Ticket[] = [];
-  if (Array.isArray(booking.seatIds) && booking.seatIds.length > 0) {
-    for (const seatId of booking.seatIds) {
-      tickets.push({
-        id: uuid(),
-        bookingId: booking.id,
-        eventId: booking.eventId,
-        seatId,
-        createdAt: now,
-      });
-    }
-  } else if (Array.isArray(booking.tableBookings) && booking.tableBookings.length > 0) {
-    for (const tb of booking.tableBookings) {
-      const seats = Number(tb.seats) || 0;
-      for (let i = 0; i < seats; i += 1) {
-        tickets.push({
-          id: uuid(),
-          bookingId: booking.id,
-          eventId: booking.eventId,
-          tableId: tb.tableId,
-          createdAt: now,
-        });
-      }
-    }
-  } else if (booking.tableId && typeof booking.seatsBooked === 'number') {
-    for (let i = 0; i < booking.seatsBooked; i += 1) {
-      tickets.push({
-        id: uuid(),
-        bookingId: booking.id,
-        eventId: booking.eventId,
-        tableId: booking.tableId,
-        createdAt: now,
-      });
-    }
-  }
-  console.log(JSON.stringify({
-    action: 'tickets_generated',
-    bookingId: booking.id,
-    eventId: booking.eventId,
-    timestamp: new Date().toISOString(),
-    ticketsCount: tickets.length,
-  }));
-
-  const updated = await db.updateBookingStatus(id, 'paid');
-  if (!updated) return res.status(500).json({ error: 'Failed to update booking status' });
-
-  await db.updateBookingTickets(id, tickets);
-
-  console.log(JSON.stringify({
-    action: 'payment_confirmed',
-    bookingId: booking.id,
-    eventId: booking.eventId,
-    timestamp: new Date().toISOString(),
-  }));
-
-  const userChatId = typeof updated.userTelegramId === 'number' ? updated.userTelegramId : 0;
-  if (Number.isFinite(userChatId) && userChatId > 0) {
-    generateAndSendTicket(updated).catch((err) => console.error('Telegram/ticket:', err));
-  }
-
-  res.json({ ok: true, booking: { ...updated, tickets }, tickets });
+  res.json({
+    ok: true,
+    booking: { ...result.booking, tickets: result.tickets },
+    tickets: result.tickets,
+    alreadyPaid: result.alreadyPaid,
+  });
 });
 
 export default router;

@@ -28,7 +28,8 @@
     "reset:data": "ts-node src/scripts/resetData.ts",
     "storage:create-layouts-bucket": "ts-node scripts/create-layouts-bucket.ts",
     "storage:create-tickets-bucket": "ts-node scripts/create-tickets-bucket.ts",
-    "storage:create-ticket-templates-bucket": "ts-node scripts/create-ticket-templates-bucket.ts"
+    "storage:create-ticket-templates-bucket": "ts-node scripts/create-ticket-templates-bucket.ts",
+    "test:robokassa": "npx ts-node src/__tests__/robokassa.signature.test.ts"
   },
   "keywords": [],
   "author": "",
