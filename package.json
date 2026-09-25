@@ -23,7 +23,6 @@
     "@vkontakte/vk-bridge": "^2.15.11",
     "framer-motion": "^12.34.0",
     "jsqr": "^1.4.0",
-    "lucide-react": "^0.563.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-zoom-pan-pinch": "^3.7.0",
