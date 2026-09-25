@@ -97,7 +97,16 @@ export interface EventData {
   isFeatured?: boolean;
   /** Telegram user ID of event organizer. */
   organizerId?: number | string | null;
+  /**
+   * How money is taken for this event: 'robokassa' (card / СБП through the
+   * acquirer, which closes the booking itself) and/or 'transfer' (a transfer to
+   * the organizer's phone, confirmed by hand in the admin). Both may be on at
+   * once while the acquirer is being bedded in.
+   */
+  paymentMethods?: PaymentMethodKey[];
 }
+
+export type PaymentMethodKey = 'robokassa' | 'transfer';
 
 export type BookingStatus = 'reserved' | 'paid' | 'expired' | 'pending' | 'awaiting_confirmation' | 'cancelled';
 

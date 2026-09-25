@@ -13,6 +13,8 @@ import { UI_TEXT } from '../constants/uiText';
 import { useToast } from '../src/ui/ToastContext';
 import { getPlatform } from '../src/utils/platform';
 import { DEFAULT_TZ_OFFSET_MINUTES } from '../src/config/timezone';
+import { openExternal } from '../src/utils/openExternal';
+import type { PaymentMethodKey } from '../types';
 
 type BookingItem = {
   id: string;
@@ -36,6 +38,7 @@ type EventInfo = {
   tableNumber?: number;
   imageUrl?: string | null;
   paymentPhone?: string | null;
+  paymentMethods?: PaymentMethodKey[];
   tableIdToNumber?: Record<string, number>;
   categoryByTableId?: Record<string, { id: string; name: string }>;
 };
@@ -181,6 +184,9 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
             categoryByTableId,
             imageUrl: ev?.imageUrl ?? null,
             paymentPhone: (ev as any)?.paymentPhone ?? null,
+            // The public API has already narrowed this to what the server can
+            // actually do, so a card button never appears without an acquirer.
+            paymentMethods: ((ev as any)?.paymentMethods ?? ['transfer']) as PaymentMethodKey[],
           };
         } catch {
           tableMap[eventId] = new Set();
@@ -225,6 +231,8 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
     return () => window.clearInterval(id);
   }, [hasPendingPayments, load]);
 
+  const [payingId, setPayingId] = useState<string | null>(null);
+
   const handleIPaid = async (b: BookingItem) => {
     if (!PAYABLE_STATUSES.includes(b.status)) return;
     const expiresAt = b.expires_at ? new Date(b.expires_at).getTime() : Infinity;
@@ -238,6 +246,26 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
       setError(e instanceof Error ? e.message : 'Не удалось обновить статус');
     } finally {
       setSubmittingId(null);
+    }
+  };
+
+  /**
+   * Robokassa's page cannot live inside the messenger's web view — 3-D Secure
+   * and СБП both need a real browser — so the guest leaves and comes back.
+   * Nothing is marked paid here: only the ResultURL callback may do that.
+   */
+  const handlePayByCard = async (b: BookingItem) => {
+    if (!PAYABLE_STATUSES.includes(b.status)) return;
+    if (isExpired(b.expires_at)) return;
+    setPayingId(b.id);
+    setError(null);
+    try {
+      const { url } = await StorageService.createRobokassaPayment(b.id);
+      openExternal(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось перейти к оплате');
+    } finally {
+      setPayingId(null);
     }
   };
 
@@ -422,6 +450,9 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
               const isNotPaid = b.status !== 'paid';
               const info2 = eventInfoMap[b.event_id];
               const phone = info2?.paymentPhone ?? '';
+              const methods = info2?.paymentMethods ?? ['transfer'];
+              const byCard = methods.includes('robokassa');
+              const byTransfer = methods.includes('transfer');
               const left = timeLeft(b.expires_at);
               const amount = Number(b.total_amount ?? 0);
               const ticketUrl = getTicketImageUrl(b);
@@ -445,7 +476,21 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
                         {amount > 0 && <span className="text-[22px] font-bold text-white nums">{amount.toLocaleString('ru-RU')} ₽</span>}
                       </div>
 
-                      {phone && (
+                      {byCard && (
+                        <PrimaryButton
+                          onClick={(e) => { e.stopPropagation(); void handlePayByCard(b); }}
+                          disabled={payingId !== null}
+                          className="w-full h-12 rounded-2xl"
+                        >
+                          {payingId === b.id ? 'Открываем оплату…' : 'Оплатить картой или СБП'}
+                        </PrimaryButton>
+                      )}
+
+                      {byCard && byTransfer && (
+                        <p className="text-[11.5px] text-center text-white/35">или переводом по номеру</p>
+                      )}
+
+                      {byTransfer && phone && (
                         <div className="flex items-center gap-2 h-12 pl-3.5 pr-2 rounded-2xl bg-white/5">
                           <span className="flex-1 min-w-0 truncate text-[16px] font-semibold text-white">{formatPhone(phone)}</span>
                           <button
@@ -458,6 +503,8 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
                         </div>
                       )}
 
+                      {byTransfer && (
+                      <>
                       <div className="flex items-center gap-2 h-12 pl-3.5 pr-2 rounded-2xl bg-white/5">
                         <span className="flex-1 min-w-0 flex items-baseline gap-2">
                           <span className="text-[11.5px] text-white/45">код брони</span>
@@ -475,13 +522,18 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
                         Переведите по СБП на этот номер и укажите код в сообщении к переводу — по нему организатор найдёт вашу бронь.
                       </p>
 
-                      <PrimaryButton
+                      <button
+                        type="button"
                         onClick={(e) => { e.stopPropagation(); handleIPaid(b); }}
                         disabled={submittingId !== null}
-                        className="w-full h-12 rounded-2xl"
+                        className={byCard
+                          ? 'w-full h-12 rounded-2xl border border-white/20 text-[15px] text-white/85 disabled:opacity-60'
+                          : 'w-full h-12 rounded-2xl bg-[#C6A75E] text-[#14110B] text-[15px] font-semibold disabled:opacity-60'}
                       >
                         {submittingId === b.id ? 'Отправка…' : UI_TEXT.booking.paidButtonCaps}
-                      </PrimaryButton>
+                      </button>
+                      </>
+                      )}
                     </>
                   )}
 

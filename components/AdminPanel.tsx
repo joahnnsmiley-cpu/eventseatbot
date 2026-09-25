@@ -390,6 +390,8 @@ const AdminPanel: React.FC<{
   const [timezoneOffsetMinutes, setTimezoneOffsetMinutes] = useState<number>(DEFAULT_TZ_OFFSET_MINUTES);
   const [venue, setVenue] = useState('');
   const [eventPhone, setEventPhone] = useState('');
+  const [payByCard, setPayByCard] = useState(false);
+  const [payByTransfer, setPayByTransfer] = useState(true);
   const [eventPublished, setEventPublished] = useState(false);
   const [eventFeatured, setEventFeatured] = useState(false);
   const [savingLayout, setSavingLayout] = useState(false);
@@ -804,6 +806,11 @@ const AdminPanel: React.FC<{
     setTimezoneOffsetMinutes((fresh as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES);
     setVenue(fresh.venue ?? '');
     setEventPhone(fresh.paymentPhone || '');
+    {
+      const methods = fresh.paymentMethods?.length ? fresh.paymentMethods : ['transfer'];
+      setPayByCard(methods.includes('robokassa'));
+      setPayByTransfer(methods.includes('transfer'));
+    }
     setEventPublished(fresh.published === true);
     setEventFeatured((fresh as { isFeatured?: boolean }).isFeatured === true);
     setEvents((prev) => prev.map((e) => (e.id === fresh.id ? { ...e, title: fresh.title } : e)));
@@ -900,6 +907,10 @@ const AdminPanel: React.FC<{
         timezoneOffsetMinutes,
         venue: venue.trim() || null,
         paymentPhone: eventPhone.trim(),
+        paymentMethods: [
+          ...(payByCard ? ['robokassa' as const] : []),
+          ...(payByTransfer ? ['transfer' as const] : []),
+        ],
         imageUrl: eventPosterUrl.trim() || (selectedEvent?.imageUrl ?? null),
         layoutImageUrl: layoutUrl ? layoutUrl.trim() : (selectedEvent?.layoutImageUrl ?? null),
         published: eventPublished,
@@ -2117,6 +2128,39 @@ const AdminPanel: React.FC<{
                               onChange={(e) => { setEventFeatured(e.target.checked); }}
                             />
                           </label>
+                          <label className="admin-switch-row">
+                            <span className="flex-1 flex flex-col gap-0.5">
+                              <span className="text-[15px] font-semibold text-white">Оплата картой и СБП</span>
+                              <span className="text-[12.5px] text-[#8C8477]">
+                                Через Робокассу. Бронь закрывается сама, билет уходит сразу после оплаты
+                              </span>
+                            </span>
+                            <input
+                              type="checkbox"
+                              role="switch"
+                              className="admin-switch"
+                              checked={payByCard}
+                              disabled={payByCard && !payByTransfer}
+                              onChange={(e) => { setPayByCard(e.target.checked); }}
+                            />
+                          </label>
+                          <label className="admin-switch-row">
+                            <span className="flex-1 flex flex-col gap-0.5">
+                              <span className="text-[15px] font-semibold text-white">Перевод по номеру</span>
+                              <span className="text-[12.5px] text-[#8C8477]">
+                                Гость переводит по СБП и жмёт «Я оплатил», бронь подтверждаете вы
+                              </span>
+                            </span>
+                            <input
+                              type="checkbox"
+                              role="switch"
+                              className="admin-switch"
+                              checked={payByTransfer}
+                              disabled={payByTransfer && !payByCard}
+                              onChange={(e) => { setPayByTransfer(e.target.checked); }}
+                            />
+                          </label>
+                          {payByTransfer && (
                           <div className="rounded-2xl bg-[#161412] px-4 py-3.5 flex flex-col gap-2">
                             <label htmlFor="admin-payment-phone" className="text-[15px] font-semibold text-white">Телефон для оплаты по СБП</label>
                             <input
@@ -2129,6 +2173,7 @@ const AdminPanel: React.FC<{
                               className="w-full"
                             />
                           </div>
+                          )}
                         </div>
                         {selectedEvent?.id && (
                           <button

@@ -5,7 +5,7 @@
  * Not imported anywhere yet; switch when Supabase is the source of truth.
  */
 import { supabase } from './supabaseClient';
-import type { EventData, Booking, Admin, Table, BookingStatus, Ticket } from './models';
+import type { EventData, Booking, Admin, Table, BookingStatus, Ticket, PaymentMethodKey } from './models';
 import { DEFAULT_TZ_OFFSET_MINUTES } from './config/timezone';
 
 // NOTE:
@@ -35,6 +35,7 @@ type EventsRow = {
   /** ticket_template_url — public URL of ticket template image in storage. */
   ticket_template_url?: string | null;
   organizer_phone: string | null;
+  payment_methods?: string[] | null;
   organizer_id?: number | null;
   published: boolean | null;
   /** Archived is its own flag: `published` alone could only say published or draft. */
@@ -124,6 +125,8 @@ function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
     ticketTemplateUrl: row.ticket_template_url ?? null,
     schemaImageUrl: null,
     paymentPhone: row.organizer_phone ?? '',
+    // Older rows predate the column; a transfer is what they in fact accepted.
+    paymentMethods: (row.payment_methods?.length ? row.payment_methods : ['transfer']) as PaymentMethodKey[],
     maxSeatsPerBooking: 4,
     tables,
     status: row.archived ? 'archived' : row.published ? 'published' : 'draft',
@@ -465,6 +468,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
     image_url: event.imageUrl || null,
     layout_image_url: event.layoutImageUrl ?? null,
     organizer_phone: event.paymentPhone || null,
+    payment_methods: event.paymentMethods?.length ? event.paymentMethods : ['transfer'],
     organizer_id: organizerId,
     published: event.published ?? false,
     archived: event.status === 'archived',

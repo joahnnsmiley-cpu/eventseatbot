@@ -5,7 +5,7 @@ import { authMiddleware } from '../auth/auth.middleware';
 import { adminOnly, adminOrOrganizer } from '../auth/admin.middleware';
 import type { AuthRequest } from '../auth/auth.middleware';
 import { db } from '../db';
-import type { EventData } from '../models';
+import type { EventData, PaymentMethodKey } from '../models';
 import { supabase } from '../supabaseClient';
 import { DEFAULT_TZ_OFFSET_MINUTES } from '../config/timezone';
 
@@ -71,6 +71,18 @@ const respondBadRequest = (res: Response, err: Error, payload: unknown) => {
   console.error('[ADMIN ROUTER ERROR]', err);
   return res.status(400).json(payload);
 };
+
+/**
+ * Only the two known keys, deduplicated, and never empty: an event with no way
+ * to pay for it would look broken to a guest rather than configured. An unknown
+ * or missing value leaves the event as it was.
+ */
+function normalizePaymentMethods(raw: unknown): PaymentMethodKey[] | null {
+  if (!Array.isArray(raw)) return null;
+  const allowed: PaymentMethodKey[] = ['robokassa', 'transfer'];
+  const picked = allowed.filter((m) => raw.includes(m));
+  return picked.length ? picked : null;
+}
 
 /** Reduced shape for PUT response only. No tables — client must GET the event to refresh full EventData. */
 const toEvent = (e: EventData): Event => ({
@@ -173,6 +185,7 @@ router.post('/events', adminOnly, async (req: Request, res: Response) => {
     schemaImageUrl,
     layoutImageUrl: typeof layoutImageUrl === 'undefined' ? null : layoutImageUrl,
     paymentPhone: req.body.paymentPhone || '',
+    paymentMethods: normalizePaymentMethods(req.body.paymentMethods) ?? ['transfer'],
     maxSeatsPerBooking: Number(req.body.maxSeatsPerBooking) || 0,
     tables: (() => {
       console.log('normalizeTables input', req.body.tables);
@@ -427,6 +440,10 @@ router.put('/events/:id', async (req: Request, res: Response) => {
     existing.published = requestedStatusPut === 'published';
   }
   if (typeof req.body.paymentPhone === 'string') existing.paymentPhone = req.body.paymentPhone;
+  {
+    const methods = normalizePaymentMethods(req.body.paymentMethods);
+    if (methods) existing.paymentMethods = methods;
+  }
   if (typeof req.body.isFeatured === 'boolean') (existing as { isFeatured?: boolean }).isFeatured = req.body.isFeatured;
   if (typeof req.body.maxSeatsPerBooking !== 'undefined') existing.maxSeatsPerBooking = Number(req.body.maxSeatsPerBooking) || 0;
   if (Array.isArray(req.body.tables)) {

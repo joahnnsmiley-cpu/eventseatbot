@@ -12,6 +12,7 @@ import { formatDateForNotification, parseEventToUtc } from '../utils/formatDate'
 import { requireUser, identityOf, ownsBooking } from '../auth/user.middleware';
 import type { AuthRequest } from '../auth/auth.middleware';
 import { DEFAULT_TZ_OFFSET_MINUTES } from '../config/timezone';
+import { getRobokassaConfig } from '../config/robokassa';
 
 const router = Router();
 
@@ -49,6 +50,19 @@ router.get('/ticket/:id', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * What the guest may actually use: the event's own setting, narrowed by what
+ * the server can do. Robokassa disappears when its credentials are missing, so
+ * a half-configured deploy shows the transfer rather than a dead button.
+ */
+function availablePaymentMethods(e: { paymentMethods?: string[] | null }): string[] {
+  const configured = e.paymentMethods?.length ? e.paymentMethods : ['transfer'];
+  const acquiring = getRobokassaConfig().enabled;
+  const usable = configured.filter((m) => m !== 'robokassa' || acquiring);
+  // Never leave a bookable event with no way to pay.
+  return usable.length ? usable : ['transfer'];
+}
+
 function mapEventToPublic(e: any) {
   return {
     id: e.id,
@@ -59,6 +73,7 @@ function mapEventToPublic(e: any) {
     event_time: e.event_time ?? null,
     timezoneOffsetMinutes: e.timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES,
     venue: e.venue ?? null,
+    paymentMethods: availablePaymentMethods(e),
     coverImageUrl: e.imageUrl || e.schemaImageUrl || null,
     schemaImageUrl: e.schemaImageUrl || e.imageUrl || null,
     layoutImageUrl: typeof e.layoutImageUrl === 'undefined' ? null : e.layoutImageUrl,
@@ -121,6 +136,7 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     event_time: ev.event_time ?? null,
     timezoneOffsetMinutes: ev.timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES,
     venue: ev.venue ?? null,
+    paymentMethods: availablePaymentMethods(ev),
     coverImageUrl: ev.imageUrl || ev.schemaImageUrl || null,
     schemaImageUrl: ev.schemaImageUrl || ev.imageUrl || null,
     layoutImageUrl: typeof ev.layoutImageUrl === 'undefined' ? null : ev.layoutImageUrl,

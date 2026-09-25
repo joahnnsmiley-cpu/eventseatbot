@@ -79,6 +79,8 @@ export interface Table {
   ticketCategoryId?: string;
 }
 
+export type PaymentMethodKey = 'robokassa' | 'transfer';
+
 export interface EventData {
   id: string;
   title: string;
@@ -112,6 +114,13 @@ export interface EventData {
   /** Ticket categories for the event. Stored in event; sent via PUT. */
   ticketCategories?: TicketCategory[];
   paymentPhone: string;
+  /**
+   * How this event takes money: 'robokassa' (card / СБП, closes the booking by
+   * itself) and/or 'transfer' (a transfer to the organizer's phone, confirmed
+   * by hand). The public API narrows it to what the server can actually do, so
+   * a card button never appears without a working acquirer behind it.
+   */
+  paymentMethods?: PaymentMethodKey[];
   maxSeatsPerBooking: number;
   published?: boolean;
   status?: 'draft' | 'published' | 'archived';

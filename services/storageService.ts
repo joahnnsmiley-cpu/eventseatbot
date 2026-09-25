@@ -55,6 +55,27 @@ export const getEvent = async (eventId: string): Promise<EventData> => {
   return { ...data, imageUrl, tables } as EventData;
 };
 
+/**
+ * POST /public/payments/robokassa — ask for a payment link for one's own booking.
+ * The backend takes the identity from the token and the amount from the booking,
+ * so neither can be argued with from here.
+ */
+export const createRobokassaPayment = async (
+  bookingId: string,
+): Promise<{ url: string; invId: number; amount: string; isTest: boolean }> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/public/payments/robokassa`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
+    body: JSON.stringify({ bookingId }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error || 'Не удалось создать платёж');
+  }
+  return res.json();
+};
+
 /** GET /public/bookings/my — the signed-in person's own bookings. */
 export const getMyBookingsPublic = async (userId: number | string): Promise<{
   id: string;
