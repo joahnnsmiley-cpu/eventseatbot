@@ -26,6 +26,7 @@ export default function BottomNav({
 
   return (
     <motion.nav
+      aria-label="Разделы"
       initial={{ y: 32, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, type: 'spring', damping: 25, stiffness: 200 }}
@@ -51,6 +52,9 @@ export default function BottomNav({
                 key={item.key}
                 type="button"
                 onClick={item.onClick}
+                // The active tab was white-on-grey and nothing else; a screen
+                // reader had no way to tell which section it was in.
+                aria-current={isActive ? 'page' : undefined}
                 whileTap={{ scale: 0.88 }}
                 className="relative flex flex-col items-center justify-center gap-1.5 w-full h-full rounded-2xl transition-colors duration-300"
               >

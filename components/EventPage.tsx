@@ -13,6 +13,7 @@ import { UI_TEXT } from '../constants/uiText';
 import * as StorageService from '../services/storageService';
 import { useToast } from '../src/ui/ToastContext';
 import { getPlatform } from '../src/utils/platform';
+import { DEFAULT_TZ_OFFSET_MINUTES } from '../src/config/timezone';
 
 
 export interface EventPageProps {
@@ -48,7 +49,7 @@ const EventPage: React.FC<EventPageProps> = ({
   const eventDate = event.event_date ?? null;
   const eventTime = event.event_time ?? null;
   const venue = event.venue ?? null;
-  const offset = (event as any).timezoneOffsetMinutes ?? 180;
+  const offset = (event as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES;
   const displayDateTime = formatEventDateTime(eventDate ?? undefined, eventTime ?? undefined, offset);
   const dateShort = displayDateTime.replace(' · ', ' в ').replace(/ \d{4} г\./, '');
   const showDateTime = Boolean(eventDate && eventTime);

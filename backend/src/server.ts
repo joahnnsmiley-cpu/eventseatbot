@@ -35,6 +35,7 @@ import { startBookingExpirationJob } from './infra/scheduler';
 import { createPendingBookingFromWebAppPayload } from './webappBooking';
 import { supabase } from './supabaseClient';
 import { verifyTicketToken } from './services/ticketToken';
+import { DEFAULT_TZ_OFFSET_MINUTES } from './config/timezone';
 
 
 const app = express();
@@ -148,7 +149,7 @@ app.get('/verify-ticket/:token', async (req, res) => {
     const startTs = parseEventToUtc(
       (ev as any)?.event_date,
       (ev as any)?.event_time,
-      (ev as any)?.timezoneOffsetMinutes ?? 180,
+      (ev as any)?.timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES,
     );
     if (startTs != null) {
       const HOURS = 60 * 60 * 1000;

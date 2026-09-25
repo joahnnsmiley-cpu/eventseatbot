@@ -3,6 +3,7 @@ import type { EventData } from '../types';
 import { formatEventDate, formatEventDateTime, formatDateTimeRu } from '../src/utils/formatDate';
 import { UI_TEXT } from '../constants/uiText';
 import Skeleton from '../src/ui/Skeleton';
+import { DEFAULT_TZ_OFFSET_MINUTES } from '../src/config/timezone';
 
 export type EventCardMode = 'user' | 'admin';
 
@@ -27,7 +28,7 @@ const statusLabel = (status?: string) => {
 const EventCard: React.FC<EventCardProps> = ({ event, mode, onClick, selected = false, onDelete }) => {
   const coverUrl = (event.imageUrl ?? (event as { coverImageUrl?: string | null }).coverImageUrl ?? '').trim();
   const title = event.title?.trim() || UI_TEXT.event.eventFallback;
-  const offset = (event as any).timezoneOffsetMinutes ?? 180;
+  const offset = (event as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES;
   const dateFormatted =
     event.event_date && event.event_time
       ? formatEventDateTime(event.event_date, event.event_time, offset)

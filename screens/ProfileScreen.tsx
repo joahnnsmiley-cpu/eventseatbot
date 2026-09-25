@@ -219,7 +219,7 @@ export default function ProfileScreen({
   if (guestError) return <ProfileStateMessage message={guestError} isError />;
 
   if (!guestData || !guestData.hasBooking) {
-    return <ProfileGuestEmpty message="У вас пока нет забронированного места" />;
+    return <ProfileGuestEmpty message="У вас пока нет забронированного места" onBrowseEvents={onOpenMap} />;
   }
 
   const guestName = guestNameOverride ?? guestData.guestName;

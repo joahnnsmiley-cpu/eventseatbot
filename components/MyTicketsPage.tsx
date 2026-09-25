@@ -12,6 +12,7 @@ import { ArrowsClockwise } from '@phosphor-icons/react';
 import { UI_TEXT } from '../constants/uiText';
 import { useToast } from '../src/ui/ToastContext';
 import { getPlatform } from '../src/utils/platform';
+import { DEFAULT_TZ_OFFSET_MINUTES } from '../src/config/timezone';
 
 type BookingItem = {
   id: string;
@@ -175,7 +176,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
             date: ev?.date ?? '',
             event_date: (ev as any)?.event_date ?? null,
             event_time: (ev as any)?.event_time ?? null,
-            timezoneOffsetMinutes: (ev as any)?.timezoneOffsetMinutes ?? 180,
+            timezoneOffsetMinutes: (ev as any)?.timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES,
             tableIdToNumber,
             categoryByTableId,
             imageUrl: ev?.imageUrl ?? null,
@@ -278,7 +279,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
   /** Format event date and time as "22 марта 2026 г., 17:00" */
   const formatEventDateTime = (info: EventInfo | undefined): { date: string; time: string } => {
     if (!info) return { date: '—', time: '' };
-    const offset = (info as any).timezoneOffsetMinutes ?? 180;
+    const offset = (info as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES;
     if (info.event_date) {
       const parts = getEventDisplayParts(info.event_date, info.event_time ?? undefined, offset);
       return parts ? { date: parts.date, time: parts.time } : { date: '—', time: '' };

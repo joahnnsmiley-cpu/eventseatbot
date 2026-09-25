@@ -7,6 +7,7 @@ import type { AuthRequest } from '../auth/auth.middleware';
 import { db } from '../db';
 import type { EventData } from '../models';
 import { supabase } from '../supabaseClient';
+import { DEFAULT_TZ_OFFSET_MINUTES } from '../config/timezone';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -79,7 +80,7 @@ const toEvent = (e: EventData): Event => ({
   date: e.date,
   event_date: e.event_date ?? null,
   event_time: e.event_time ?? null,
-  timezoneOffsetMinutes: (e as any).timezoneOffsetMinutes ?? 180,
+  timezoneOffsetMinutes: (e as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES,
   venue: e.venue ?? null,
 });
 

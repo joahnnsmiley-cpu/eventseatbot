@@ -70,25 +70,40 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-input,
-textarea,
-select {
-  background-color: var(--tg-theme-bg-color, #ffffff);
-  color: var(--tg-theme-text-color, #111827);
-  border-color: var(--tg-theme-hint-color, #9ca3af);
+/* These are element selectors. Unlayered they outrank every Tailwind utility,
+   so `bg-[#111]` on the booking form's phone field silently computed to white
+   and the two fields sat on the dark screen as white slabs. Inside @layer base
+   a utility wins again. The app is dark everywhere now, so the field surface is
+   ours and no longer follows whatever theme Telegram hands us. */
+@layer base {
+  /* Text fields only — painting a checkbox, radio or range slider by hand
+     takes away the control's native rendering and leaves nothing behind. */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']),
+  textarea,
+  select {
+    background-color: #131110;
+    color: #F5F1E9;
+    border-color: #2B2723;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #6F6A63;
+  }
+
 }
 
-input::placeholder,
-textarea::placeholder {
-  color: var(--tg-theme-hint-color, #9ca3af);
-}
-
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-  border-color: var(--tg-theme-button-color, #2563eb);
-  box-shadow: 0 0 0 1px var(--tg-theme-button-color, #2563eb);
+/* The focus treatment stays outside the layer on purpose: a field that carries
+   a border utility would otherwise keep that border while focused. The old rule
+   here was `input:focus { outline: none }`, which also silently beat the
+   :focus-visible ring further down — so the one screen that asks people to type
+   was the one screen with no focus indicator at all. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #C6A75E;
+  outline-offset: 2px;
+  border-color: #C6A75E;
 }
 
 body.tg-light {

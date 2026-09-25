@@ -6,6 +6,7 @@ import { getPremiumUserInfo } from '../config/premium';
 import { formatEventDateRu, parseEventToIso } from '../utils/formatDate';
 import { getPriceForTable } from '../utils/getTablePrice';
 import { setPrivacyConsent, getPrivacyConsent, getOrganizerEventIds } from '../db-postgres';
+import { DEFAULT_TZ_OFFSET_MINUTES } from '../config/timezone';
 
 const router = Router();
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:4000';
@@ -216,7 +217,7 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
 
   const eventDate = (event as any).event_date ?? null;
   const eventTime = (event as any).event_time ?? null;
-  const offset = (event as any).timezoneOffsetMinutes ?? 180;
+  const offset = (event as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES;
   let startAt = parseEventToIso(eventDate, eventTime, offset);
   if (!startAt) {
     const rawDate = (event as any).date;
@@ -248,7 +249,7 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
       name: event.title,
       title: event.title,
       start_at: startAt,
-      date: formatEventDateRu(eventDate, eventTime || '00:00:00', (event as any).timezoneOffsetMinutes ?? 180),
+      date: formatEventDateRu(eventDate, eventTime || '00:00:00', (event as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES),
       venue: (event as any).venue ?? '',
     },
     tableNumber: table.number ?? 0,
@@ -513,7 +514,7 @@ router.get('/profile-organizer', authMiddleware, async (req: AuthRequest, res) =
 
   const eventDate = (event as any).event_date ?? null;
   const eventTime = (event as any).event_time ?? null;
-  const offset = (event as any).timezoneOffsetMinutes ?? 180;
+  const offset = (event as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES;
   const eventDateIso = parseEventToIso(eventDate, eventTime, offset) ?? (event as any).date ?? null;
 
   res.json({

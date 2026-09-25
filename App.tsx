@@ -27,6 +27,7 @@ import { useToast } from './src/ui/ToastContext';
 import { getPlatform, getPlatformUserId, extractParam } from './src/utils/platform';
 import PrivacyConsentModal, { PRIVACY_CONSENT_KEY } from './components/PrivacyConsentModal';
 import { warmupBackend } from './config/api';
+import { DEFAULT_TZ_OFFSET_MINUTES } from './src/config/timezone';
 
 /**
  * Loaded on demand rather than bundled into the first paint.
@@ -73,7 +74,7 @@ declare global {
 
 
 const getEventDisplayDate = (event: EventData): { day: number; date: string; time: string } | null => {
-  const offset = (event as any).timezoneOffsetMinutes ?? 180;
+  const offset = (event as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES;
   if (event.event_date) return getEventDisplayParts(event.event_date, event.event_time ?? undefined, offset) ?? null;
   if (event.date) return getEventDisplayPartsFromIso(event.date, offset) ?? null;
   return null;
@@ -1113,10 +1114,7 @@ function App() {
 
 
     return wrapWithLayout(
-      <div
-        className="max-w-[420px] mx-auto overflow-x-hidden bg-[#0B0A09] min-h-[100dvh] flex flex-col"
-        style={{ '--accent-color': activePalette.base, '--accent-glow': activePalette.glow } as React.CSSProperties}
-      >
+      <div className="max-w-[420px] mx-auto overflow-x-hidden bg-[#0B0A09] min-h-[100dvh] flex flex-col">
         <div className="px-4 pt-4 pb-32 space-y-4">
           <div className="flex items-center justify-between">
             <button
@@ -1168,20 +1166,10 @@ function App() {
                 const categoryName = category?.name ?? palette.label;
                 return (
                   <div
-                    className="rounded-2xl overflow-hidden border-2"
-                    style={{
-                      borderColor: `${palette.base}66`,
-                      background: `linear-gradient(135deg, ${palette.base}18 0%, transparent 50%)`,
-                      boxShadow: `0 0 24px ${palette.base}15`,
-                    }}
+                    className="rounded-2xl overflow-hidden border border-white/10"
+                    style={{ background: 'rgba(11,11,11,0.6)' }}
                   >
-                    <div
-                      className="px-4 py-4"
-                      style={{
-                        background: `linear-gradient(90deg, ${palette.base}30, ${palette.base}10)`,
-                        borderBottom: `1px solid ${palette.base}40`,
-                      }}
-                    >
+                    <div className="px-4 py-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="flex items-center gap-2">
@@ -1201,7 +1189,7 @@ function App() {
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-muted-light">за место</p>
-                          <p className="text-lg font-bold nums" style={{ color: palette.base }}>
+                          <p className="text-lg font-bold nums text-white">
                             {pricePerSeat.toLocaleString('ru-RU')} ₽
                           </p>
                         </div>
@@ -1281,11 +1269,7 @@ function App() {
                   value={userPhone}
                   onChange={(e) => setUserPhone(e.target.value)}
                   placeholder={UI_TEXT.app.phonePlaceholder}
-                  className="w-full rounded-xl px-3 py-2 text-sm bg-[#111] text-white placeholder-gray-500 focus:outline-none transition-shadow"
-                  style={{
-                    border: `1px solid ${activePalette.base}40`,
-                    boxShadow: userPhone ? `0 0 0 1px ${activePalette.base}40` : 'none'
-                  }}
+                  className="w-full rounded-xl px-3 py-2 text-sm bg-[#131110] text-[#F5F1E9] border border-[#2B2723] placeholder-[#6F6A63] transition-shadow"
                   disabled={bookingLoading}
                 />
               </Card>
@@ -1297,11 +1281,7 @@ function App() {
                   onChange={(e) => setUserComment(e.target.value)}
                   placeholder={UI_TEXT.app.commentPlaceholder}
                   rows={3}
-                  className="w-full rounded-xl px-3 py-2 text-sm resize-y bg-[#111] text-white placeholder-gray-500 focus:outline-none transition-shadow"
-                  style={{
-                    border: `1px solid ${activePalette.base}40`,
-                    boxShadow: userComment ? `0 0 0 1px ${activePalette.base}40` : 'none'
-                  }}
+                  className="w-full rounded-xl px-3 py-2 text-sm resize-y bg-[#131110] text-[#F5F1E9] border border-[#2B2723] placeholder-[#6F6A63] transition-shadow"
                   disabled={bookingLoading}
                 />
               </Card>
@@ -1331,12 +1311,6 @@ function App() {
                 })()}
               <PrimaryButton
                 className="flex-1 h-[54px] rounded-2xl disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-                style={{
-                  background: `linear-gradient(135deg, ${activePalette.base}, ${activePalette.base}dd)`,
-                  boxShadow: `0 4px 20px ${activePalette.glow}`,
-                  border: `1px solid ${activePalette.base}`,
-                  color: '#000'
-                }}
                 disabled={
                   selectedTable.isAvailable !== true ||
                   selectedTable.seatsAvailable === 0 ||
@@ -1594,7 +1568,7 @@ function App() {
               const ts = parseEventToUtc(
                 (e as { event_date?: string | null }).event_date ?? undefined,
                 (e as { event_time?: string | null }).event_time ?? undefined,
-                (e as { timezoneOffsetMinutes?: number }).timezoneOffsetMinutes ?? 180
+                (e as { timezoneOffsetMinutes?: number }).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES
               );
               return ts != null && ts <= Date.now();
             };

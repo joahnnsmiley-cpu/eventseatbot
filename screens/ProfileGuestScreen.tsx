@@ -1,5 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Ticket } from '@phosphor-icons/react';
+import PrimaryButton from '../src/ui/PrimaryButton';
 import ProfileLayout from '../components/profile/ProfileLayout';
 import ProfileAnimatedStack from '../components/profile/ProfileAnimatedStack';
 import CountdownCard from '../components/profile/CountdownCard';
@@ -33,14 +35,28 @@ export type ProfileGuestScreenProps = {
 
 export type ProfileGuestEmptyProps = {
   message?: string;
+  /** Takes the guest to the poster. Omitted when the screen already has a way back. */
+  onBrowseEvents?: () => void;
 };
 
 // ─── ProfileGuestEmpty ─────────────────────────────────────────────────────
-export function ProfileGuestEmpty({ message = 'У вас пока нет забронированного места' }: ProfileGuestEmptyProps) {
+export function ProfileGuestEmpty({
+  message = 'У вас пока нет забронированного места',
+  onBrowseEvents,
+}: ProfileGuestEmptyProps) {
   return (
     <ProfileLayout className="profile-guest-premium">
-      <div className="pt-12 text-center">
-        <p className="text-base text-white/70 leading-relaxed m-0">{message}</p>
+      <div className="pt-16 pb-8 px-6 flex flex-col items-center text-center">
+        <Ticket size={40} weight="light" className="text-[#C6A75E]/60" />
+        <p className="text-base text-white/80 leading-relaxed mt-5 mb-0">{message}</p>
+        <p className="text-sm text-white/45 leading-relaxed mt-2 mb-0 max-w-[260px]">
+          Выберите стол на плане зала — место, соседи и ваши билеты появятся здесь.
+        </p>
+        {onBrowseEvents && (
+          <PrimaryButton className="mt-7 h-12 px-7 rounded-2xl" onClick={onBrowseEvents}>
+            Выбрать место
+          </PrimaryButton>
+        )}
       </div>
     </ProfileLayout>
   );

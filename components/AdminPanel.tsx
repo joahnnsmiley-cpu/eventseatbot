@@ -34,6 +34,7 @@ import TeamInviteCard from './TeamInviteCard';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { CATEGORY_COLORS, CATEGORY_COLOR_KEYS, getCategoryColorFromCategory } from '../src/config/categoryColors';
 import type { TicketCategory } from '../types';
+import { DEFAULT_TZ_OFFSET_MINUTES } from '../src/config/timezone';
 
 type AdminBooking = {
   id: string;
@@ -386,7 +387,7 @@ const AdminPanel: React.FC<{
   const [eventDescription, setEventDescription] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
-  const [timezoneOffsetMinutes, setTimezoneOffsetMinutes] = useState<number>(180);
+  const [timezoneOffsetMinutes, setTimezoneOffsetMinutes] = useState<number>(DEFAULT_TZ_OFFSET_MINUTES);
   const [venue, setVenue] = useState('');
   const [eventPhone, setEventPhone] = useState('');
   const [eventPublished, setEventPublished] = useState(false);
@@ -579,7 +580,7 @@ const AdminPanel: React.FC<{
     const layoutDirty = (layoutUrl ?? '').trim() !== (ev.layoutImageUrl ?? '').trim();
     const publishedDirty = eventPublished !== (ev.published === true);
     const featuredDirty = eventFeatured !== ((ev as { isFeatured?: boolean }).isFeatured === true);
-    const tzDirty = timezoneOffsetMinutes !== ((ev as any).timezoneOffsetMinutes ?? 180);
+    const tzDirty = timezoneOffsetMinutes !== ((ev as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES);
     return (
       titleDirty ||
       descDirty ||
@@ -800,7 +801,7 @@ const AdminPanel: React.FC<{
     setEventDescription(fresh.description || '');
     setEventDate(fresh.event_date ?? '');
     setEventTime(fresh.event_time ? String(fresh.event_time).slice(0, 5) : '');
-    setTimezoneOffsetMinutes((fresh as any).timezoneOffsetMinutes ?? 180);
+    setTimezoneOffsetMinutes((fresh as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES);
     setVenue(fresh.venue ?? '');
     setEventPhone(fresh.paymentPhone || '');
     setEventPublished(fresh.published === true);
@@ -1018,7 +1019,7 @@ const AdminPanel: React.FC<{
 
   const formatEventDateDisplay = (ev: EventData | undefined): string => {
     if (!ev) return '—';
-    const offset = (ev as any).timezoneOffsetMinutes ?? 180;
+    const offset = (ev as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES;
     if (ev.event_date && ev.event_time) return formatEventDateTime(ev.event_date, ev.event_time, offset);
     if (ev.event_date) return formatEventDate(ev.event_date, offset);
     if (ev.date) return formatDateTimeRu(ev.date, offset);

@@ -11,6 +11,7 @@ import { forwardToAdminsAndOrganizer } from '../bot';
 import { formatDateForNotification, parseEventToUtc } from '../utils/formatDate';
 import { requireUser, identityOf, ownsBooking } from '../auth/user.middleware';
 import type { AuthRequest } from '../auth/auth.middleware';
+import { DEFAULT_TZ_OFFSET_MINUTES } from '../config/timezone';
 
 const router = Router();
 
@@ -56,7 +57,7 @@ function mapEventToPublic(e: any) {
     date: e.date,
     event_date: e.event_date ?? null,
     event_time: e.event_time ?? null,
-    timezoneOffsetMinutes: e.timezoneOffsetMinutes ?? 180,
+    timezoneOffsetMinutes: e.timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES,
     venue: e.venue ?? null,
     coverImageUrl: e.imageUrl || e.schemaImageUrl || null,
     schemaImageUrl: e.schemaImageUrl || e.imageUrl || null,
@@ -79,7 +80,7 @@ function mapEventToPublic(e: any) {
  * stops listing it.
  */
 function hasStarted(ev: any): boolean {
-  const ts = parseEventToUtc(ev?.event_date, ev?.event_time, (ev?.timezoneOffsetMinutes ?? 180));
+  const ts = parseEventToUtc(ev?.event_date, ev?.event_time, (ev?.timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES));
   if (ts == null) return false; // no date set yet — a draft-ish event, leave it alone
   return ts <= Date.now();
 }
@@ -118,7 +119,7 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     date: ev.date,
     event_date: ev.event_date ?? null,
     event_time: ev.event_time ?? null,
-    timezoneOffsetMinutes: ev.timezoneOffsetMinutes ?? 180,
+    timezoneOffsetMinutes: ev.timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES,
     venue: ev.venue ?? null,
     coverImageUrl: ev.imageUrl || ev.schemaImageUrl || null,
     schemaImageUrl: ev.schemaImageUrl || ev.imageUrl || null,
@@ -691,7 +692,7 @@ router.post('/bookings/seats', bookingLimiter, requireUser, async (req: Request,
 
     // Fire-and-forget Telegram notifications (user + admins)
     const tableNumber = tbl?.number ?? tableId;
-    const offset = (ev as any)?.timezoneOffsetMinutes ?? 180;
+    const offset = (ev as any)?.timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES;
     const evTs = parseEventToUtc(ev?.event_date, ev?.event_time, offset);
     const formattedDate = evTs != null
       ? formatDateForNotification(new Date(evTs), offset)

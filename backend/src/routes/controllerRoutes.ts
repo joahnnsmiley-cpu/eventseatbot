@@ -3,6 +3,7 @@ import { authMiddleware } from '../auth/auth.middleware';
 import { controllerOrAdmin } from '../auth/controller.middleware';
 import { db } from '../db';
 import { parseEventToUtc } from '../utils/formatDate';
+import { DEFAULT_TZ_OFFSET_MINUTES } from '../config/timezone';
 
 const router = Router();
 router.use(authMiddleware, controllerOrAdmin);
@@ -57,7 +58,7 @@ router.post('/bookings/by-code', async (req, res) => {
       const startTs = parseEventToUtc(
         (ev as any)?.event_date,
         (ev as any)?.event_time,
-        (ev as any)?.timezoneOffsetMinutes ?? 180,
+        (ev as any)?.timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES,
       );
       const inWindow = startTs == null || (Date.now() >= startTs - 12 * HOURS && Date.now() <= startTs + 12 * HOURS);
       if (!inWindow) continue;

@@ -8,6 +8,7 @@ import { getPriceForTable } from '../src/utils/getTablePrice';
 import { getEventDisplayParts, getEventDisplayPartsFromIso } from '../src/utils/formatDate';
 import { UI_TEXT } from '../constants/uiText';
 import * as StorageService from '../services/storageService';
+import { DEFAULT_TZ_OFFSET_MINUTES } from '../src/config/timezone';
 
 export interface BookingSuccessViewProps {
   event: EventData;
@@ -18,7 +19,7 @@ export interface BookingSuccessViewProps {
 }
 
 const formatEventDate = (event: EventData): { date: string; time: string } => {
-  const offset = (event as any).timezoneOffsetMinutes ?? 180;
+  const offset = (event as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES;
   if (event.event_date) {
     const parts = getEventDisplayParts(event.event_date, event.event_time ?? undefined, offset);
     return parts ? { date: parts.date, time: parts.time } : { date: '—', time: '' };

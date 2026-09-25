@@ -6,6 +6,7 @@
  */
 import { supabase } from './supabaseClient';
 import type { EventData, Booking, Admin, Table, BookingStatus, Ticket } from './models';
+import { DEFAULT_TZ_OFFSET_MINUTES } from './config/timezone';
 
 // NOTE:
 // Event tables are stored in a separate table (event_tables).
@@ -112,7 +113,7 @@ function eventsRowToEvent(row: EventsRow, tables: Table[]): EventData {
     date: row.date ?? new Date().toISOString(),
     event_date: row.event_date ?? null,
     event_time: row.event_time ?? null,
-    timezoneOffsetMinutes: row.timezone_offset_minutes ?? 180,
+    timezoneOffsetMinutes: row.timezone_offset_minutes ?? DEFAULT_TZ_OFFSET_MINUTES,
     venue: row.venue ?? null,
     // poster_image_path → imageUrl when set; else image_url
     imageUrl,
@@ -459,7 +460,7 @@ export async function upsertEvent(event: EventData, adminId?: number): Promise<v
     date: event.date || null,
     event_date: event.event_date ?? null,
     event_time: event.event_time ?? null,
-    timezone_offset_minutes: (event as any).timezoneOffsetMinutes ?? 180,
+    timezone_offset_minutes: (event as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES,
     venue: event.venue ?? null,
     image_url: event.imageUrl || null,
     layout_image_url: event.layoutImageUrl ?? null,
