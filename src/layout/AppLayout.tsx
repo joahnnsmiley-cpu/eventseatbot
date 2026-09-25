@@ -40,7 +40,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div
-      className="flex flex-col w-full max-w-[420px] mx-auto relative bg-black text-white overflow-x-hidden min-h-screen"
+      className="flex flex-col w-full max-w-[420px] mx-auto relative bg-[#0B0A09] text-white overflow-x-hidden min-h-[100dvh]"
       style={{
         paddingTop: 'calc(var(--vk-safe-top, 0px) + env(safe-area-inset-top))',
       }}

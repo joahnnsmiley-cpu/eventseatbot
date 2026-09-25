@@ -409,7 +409,7 @@ const EventPage: React.FC<EventPageProps> = ({
 
   // ─── SEATMAP MODE (legend top, layout, contact below) ─────────────────────
   return (
-    <div className="max-w-md mx-auto min-h-screen relative flex flex-col w-full">
+    <div className="max-w-md mx-auto min-h-[100dvh] relative flex flex-col w-full">
       <div className="px-4 pt-4 pb-2 space-y-4 flex-1 flex flex-col w-full">
         <div className="flex items-center justify-between">
           <button
@@ -498,7 +498,7 @@ const EventPage: React.FC<EventPageProps> = ({
                     <span className="text-xs text-white/45">свободно {free} {word}</span>
                   </span>
                   <span className="flex flex-col items-end leading-tight">
-                    <span className="text-[19px] font-bold text-white">{price.toLocaleString('ru-RU')} ₽</span>
+                    <span className="text-[19px] font-bold text-white nums">{price.toLocaleString('ru-RU')} ₽</span>
                     <span className="text-[10.5px] text-white/40">за место</span>
                   </span>
                 </button>
@@ -542,7 +542,7 @@ const EventPage: React.FC<EventPageProps> = ({
                 initial={{ scale: 1.1, opacity: 0.6 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.3 }}
-                className="text-xl font-bold text-[#FFC107]"
+                className="text-xl font-bold text-[#FFC107] nums"
               >
                 {totalAmount.toLocaleString('ru-RU')} ₽
               </motion.p>

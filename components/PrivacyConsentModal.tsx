@@ -23,7 +23,7 @@ export default function PrivacyConsentModal({ onAccept, onDecline }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col bg-[#0b0b0b]">
+    <div className="fixed inset-0 z-[200] flex flex-col bg-[#0B0A09]">
       <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 py-10">
         <div className="w-full max-w-sm space-y-6">
           <div className="space-y-2 text-center">

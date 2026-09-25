@@ -804,7 +804,7 @@ function App() {
   // --- PLATFORM GATE: только Telegram и VK ---
   if (getPlatform() === 'web') {
     return (
-      <div className="fixed inset-0 bg-[#0b0b0b] flex flex-col items-center justify-center px-6 text-center">
+      <div className="fixed inset-0 bg-[#0B0A09] flex flex-col items-center justify-center px-6 text-center">
         <div className="text-5xl mb-5">🎟️</div>
         <h1 className="text-xl font-bold text-white mb-3">НиктоНеКруче</h1>
         <p className="text-sm text-white/60 leading-relaxed max-w-xs">
@@ -824,7 +824,7 @@ function App() {
   // This prevents child components from firing premature API calls that would fail with 401.
   if (isVkPlatform && !AuthService.getToken() && !vkSignQuery && !authError) {
     return (
-      <div className="min-h-screen bg-[#0b0b0b] flex flex-col items-center justify-center p-8 space-y-6">
+      <div className="min-h-[100dvh] bg-[#0B0A09] flex flex-col items-center justify-center p-8 space-y-6">
         <div className="relative">
           {!initTimeout ? (
             <>
@@ -936,7 +936,7 @@ function App() {
   if (view === 'layout' && selectedEventId) {
     if (!selectedEvent) {
       return wrapWithLayout(
-        <div className="max-w-md mx-auto min-h-screen relative">
+        <div className="max-w-md mx-auto min-h-[100dvh] relative">
           <div className="px-4 pt-4 space-y-4">
             <div className="flex items-center justify-between">
               <button
@@ -989,7 +989,7 @@ function App() {
 
   if (view === 'seats' && (!selectedEvent || !selectedTableId || !selectedTable)) {
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-screen bg-surface shadow-2xl relative flex flex-col">
+      <div className="max-w-md mx-auto min-h-[100dvh] bg-surface shadow-2xl relative flex flex-col">
         <div className="p-4">
           <div className="text-xs text-muted">{UI_TEXT.app.returningToLayout}</div>
         </div>
@@ -1114,7 +1114,7 @@ function App() {
 
     return wrapWithLayout(
       <div
-        className="max-w-[420px] mx-auto overflow-x-hidden bg-black min-h-screen flex flex-col"
+        className="max-w-[420px] mx-auto overflow-x-hidden bg-[#0B0A09] min-h-[100dvh] flex flex-col"
         style={{ '--accent-color': activePalette.base, '--accent-glow': activePalette.glow } as React.CSSProperties}
       >
         <div className="px-4 pt-4 pb-32 space-y-4">
@@ -1187,7 +1187,7 @@ function App() {
                           <div className="flex items-center gap-2">
                             <span
                               className="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded"
-                              style={{ background: palette.base, color: '#0F0F0F' }}
+                              style={{ background: palette.base, color: '#0B0A09' }}
                             >
                               {categoryName}
                             </span>
@@ -1201,7 +1201,7 @@ function App() {
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-muted-light">за место</p>
-                          <p className="text-lg font-bold" style={{ color: palette.base }}>
+                          <p className="text-lg font-bold nums" style={{ color: palette.base }}>
                             {pricePerSeat.toLocaleString('ru-RU')} ₽
                           </p>
                         </div>
@@ -1323,7 +1323,7 @@ function App() {
                       <span className="text-[11.5px] text-[#8C8477] whitespace-nowrap">
                         {seatCount > 0 ? `${seatCount} × ${price.toLocaleString('ru-RU')} ₽` : 'Выберите места'}
                       </span>
-                      <span className="text-[26px] font-bold text-white">
+                      <span className="text-[26px] font-bold text-white nums">
                         {(seatCount * price).toLocaleString('ru-RU')} ₽
                       </span>
                     </div>
@@ -1367,7 +1367,7 @@ function App() {
   if (view === 'booking-success') {
     if (!lastCreatedEvent || !lastCreatedBooking) {
       return wrapWithLayout(
-        <div className="max-w-md mx-auto min-h-screen p-4">
+        <div className="max-w-md mx-auto min-h-[100dvh] p-4">
           <button onClick={() => setView('events')} className="text-sm border border-white/20 rounded px-3 py-2 text-muted-light">
             {UI_TEXT.app.backToEvents}
           </button>
@@ -1389,7 +1389,7 @@ function App() {
       setLastCreatedEvent(null);
     };
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-screen">
+      <div className="max-w-md mx-auto min-h-[100dvh]">
         <ErrorBoundary
           fallback={
             <div className="max-w-md mx-auto px-4 pt-6 pb-4 space-y-5 text-center">
@@ -1429,7 +1429,7 @@ function App() {
 
   if (view === 'my-bookings') {
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-screen bg-surface shadow-2xl relative">
+      <div className="max-w-md mx-auto min-h-[100dvh] bg-surface shadow-2xl relative">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
             <button
@@ -1557,7 +1557,7 @@ function App() {
             </h1>
             <div className="events-premium-line mx-auto" />
             <p className="text-muted-light text-sm">
-              Выберите ваше эксклюзивное событие
+              {UI_TEXT.events.subtitle}
             </p>
           </div>
           {(isAdmin || isOrganizer) && (
@@ -1577,7 +1577,7 @@ function App() {
         <div className="space-y-6">
           {loading && (
             <div className="space-y-4">
-              <div className="rounded-2xl bg-[#0b0b0b] border border-white/10 p-8 h-40 animate-pulse" />
+              <div className="rounded-2xl bg-[#0B0A09] border border-white/10 p-8 h-40 animate-pulse" />
               <div className="rounded-xl overflow-hidden border border-white/10 bg-[#111] h-20 animate-pulse" />
               <div className="rounded-xl overflow-hidden border border-white/10 bg-[#111] h-20 animate-pulse" />
             </div>

@@ -138,7 +138,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
   };
 
   return (
-    <div className="min-h-screen w-full" style={{ background: '#090909' }}>
+    <div className="min-h-[100dvh] w-full" style={{ background: '#0B0A09' }}>
       <div className="max-w-md mx-auto px-4 pt-8 pb-32 space-y-4">
 
         {/* ── Hero ── */}
@@ -345,7 +345,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
                 background: statusUpdateLoading
                   ? 'rgba(212,175,55,0.2)'
                   : 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 50%, #C9A227 100%)',
-                color: '#0a0a0a',
+                color: '#0B0A09',
                 boxShadow: statusUpdateLoading ? 'none' : '0 4px 24px rgba(212,175,55,0.3)',
               }}
             >

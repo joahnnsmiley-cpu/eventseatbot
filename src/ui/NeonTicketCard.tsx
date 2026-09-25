@@ -43,7 +43,7 @@ export default function NeonTicketCard({
     <button
       type="button"
       onClick={onClick}
-      className={`relative w-full text-left rounded-2xl overflow-hidden bg-black border border-white/10 ring-1 ring-white/10 ${hasTicket ? 'aspect-[2/1] min-h-[180px]' : ''}`}
+      className={`relative w-full text-left rounded-2xl overflow-hidden bg-[#0B0A09] border border-white/10 ring-1 ring-white/10 ${hasTicket ? 'aspect-[2/1] min-h-[180px]' : ''}`}
     >
       {hasTicket ? (
         <>
@@ -71,7 +71,7 @@ export default function NeonTicketCard({
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
             </>
           )}
-          {!posterImageUrl && <div className="absolute inset-0 bg-black" />}
+          {!posterImageUrl && <div className="absolute inset-0 bg-[#0B0A09]" />}
           <div className="relative z-10 p-4">
             <div className="flex items-start justify-between mb-4">
               <h3 className="text-lg font-bold text-white pr-2">{eventTitle}</h3>

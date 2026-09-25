@@ -33,12 +33,12 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
           <style>{GLASS_FALLBACK_STYLE}</style>
           <div
             style={{
-              minHeight: '100vh',
+              minHeight: '100dvh',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               padding: spacing[5],
-              background: '#0F0F0F',
+              background: '#0B0A09',
             }}
           >
             <div
@@ -82,7 +82,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                   padding: `${spacing[3]}px ${spacing[6]}px`,
                   fontSize: 14,
                   fontWeight: 500,
-                  color: '#0F0F0F',
+                  color: '#0B0A09',
                   background: 'linear-gradient(135deg, #C6A75E, #E8D48A)',
                   border: 'none',
                   borderRadius: radius.md,

@@ -7,8 +7,8 @@ type Props = {
 
 export default function UserAgreementScreen({ onBack }: Props) {
   return (
-    <div className="min-h-screen bg-[#0b0b0b] text-white flex flex-col">
-      <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 bg-[#0b0b0b] border-b border-white/10">
+    <div className="min-h-[100dvh] bg-[#0B0A09] text-white flex flex-col">
+      <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 bg-[#0B0A09] border-b border-white/10">
         <button
           type="button"
           onClick={onBack}

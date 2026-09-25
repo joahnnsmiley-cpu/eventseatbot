@@ -62,7 +62,7 @@ const BookingRow: React.FC<{
             <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-white/60 truncate">{b.eventTitle}</span>
                 {b.totalAmount > 0 && (
-                    <span className="text-sm font-bold text-amber-300 shrink-0">
+                    <span className="text-sm font-bold text-amber-300 shrink-0 nums">
                         {b.totalAmount.toLocaleString('ru-RU')} ₽
                     </span>
                 )}
@@ -141,7 +141,7 @@ const BookingRow: React.FC<{
                 className="w-full py-2.5 rounded-xl text-sm font-semibold uppercase tracking-wide transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                     background: 'linear-gradient(135deg, #F5BE3C 0%, #D4A030 100%)',
-                    color: '#0F0F0F',
+                    color: '#0B0A09',
                     boxShadow: '0 4px 16px rgba(245,190,60,0.25)',
                 }}
             >

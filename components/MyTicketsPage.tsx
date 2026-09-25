@@ -331,7 +331,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
   const hasActiveFilters = statusFilter !== 'all';
 
   return (
-    <div className="my-tickets-premium w-full max-w-[420px] mx-auto min-h-screen relative overflow-x-hidden flex flex-col">
+    <div className="my-tickets-premium w-full max-w-[420px] mx-auto min-h-[100dvh] relative overflow-x-hidden flex flex-col">
       {/* Subtle purple radial glow background */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -339,7 +339,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
           background: 'radial-gradient(ellipse 70% 50% at 80% 10%, rgba(88,28,135,0.12) 0%, transparent 55%)',
         }}
       />
-      <div className="absolute inset-0 bg-[#0a0a0a]" style={{ zIndex: -1 }} />
+      <div className="absolute inset-0 bg-[#0B0A09]" style={{ zIndex: -1 }} />
 
       <div className="relative px-4 pt-8 pb-2 space-y-4">
         <div className="flex items-center justify-between">
@@ -439,9 +439,9 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
                     <>
                       <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl bg-white/5">
                         <span className="text-[12.5px] text-white/60 flex-1">
-                          {left ? <>Оплатите за <span className="font-bold text-[#FF9C7F]">{left}</span></> : 'Время брони истекает'}
+                          {left ? <>Оплатите за <span className="font-bold text-[#FF9C7F] nums">{left}</span></> : 'Время брони истекает'}
                         </span>
-                        {amount > 0 && <span className="text-[22px] font-bold text-white">{amount.toLocaleString('ru-RU')} ₽</span>}
+                        {amount > 0 && <span className="text-[22px] font-bold text-white nums">{amount.toLocaleString('ru-RU')} ₽</span>}
                       </div>
 
                       {phone && (

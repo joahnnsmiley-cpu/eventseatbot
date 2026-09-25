@@ -236,7 +236,7 @@ export default function ControllerScannerScreen() {
     <div className="w-full max-w-[720px] mx-auto flex flex-col">
 
       {/* Camera viewfinder */}
-      <div className="relative w-full bg-black overflow-hidden" style={{ aspectRatio: '1', display: isIdle ? 'block' : 'none' }}>
+      <div className="relative w-full bg-[#0B0A09] overflow-hidden" style={{ aspectRatio: '1', display: isIdle ? 'block' : 'none' }}>
         <video
           ref={videoRef}
           className="w-full h-full object-cover"

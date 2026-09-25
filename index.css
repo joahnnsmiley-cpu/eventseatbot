@@ -844,3 +844,25 @@ body.tg-dark .shadow-lg {
 /* The older ".admin-root input" rule is unlayered and would paint the switch track. */
 .admin-root input.admin-switch { background: #2B2723; border: 0; padding: 0; }
 .admin-root input.admin-switch:checked { background: #57C79B; }
+
+
+/* ------------------------------------------------------------------------
+   From the design audit: digits that do not dance, and a visible focus ring.
+   ------------------------------------------------------------------------ */
+
+/* Money, seat counts and countdowns are data — they get tabular figures so
+   the numbers stay in their columns while they tick. */
+.nums,
+.admin-display,
+.admin-segmented-count {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* There was one :focus-visible rule in the whole app. Keyboard and switch
+   users had nothing to follow. */
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid #C6A75E;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
