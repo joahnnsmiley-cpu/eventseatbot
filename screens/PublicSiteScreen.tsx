@@ -117,10 +117,17 @@ export default function PublicSiteScreen() {
   });
   const next = upcoming[0] ?? null;
 
-  const categories = (next?.ticketCategories ?? [])
+  const priceList = (e: PublicEvent | null | undefined) => (e?.ticketCategories ?? [])
     .filter((c): c is Category & { price: number } => typeof c?.price === 'number' && c.isActive !== false)
     .sort((a, b) => b.price - a.price);
-  const cheapest = categories.length ? Math.min(...categories.map((c) => c.price)) : null;
+
+  // Between concerts there is no upcoming event, and the prices would disappear
+  // with it — so fall back to the most recent one that had any.
+  const lastWithPrices = [...events].reverse().find((e) => priceList(e).length > 0) ?? null;
+  const priceSource = priceList(next).length ? next : lastWithPrices;
+  const categories = priceList(priceSource);
+  const pricesAreIndicative = !priceList(next).length && categories.length > 0;
+  const cheapest = priceList(next).length ? Math.min(...priceList(next).map((c) => c.price)) : null;
 
   return (
     <div className="min-h-[100dvh] bg-[#0B0A09] text-[#F5F1E9]">
@@ -189,7 +196,7 @@ export default function PublicSiteScreen() {
         )}
 
         {categories.length > 0 && (
-          <Section title="Стоимость участия">
+          <Section title={pricesAreIndicative ? 'Обычная стоимость участия' : 'Стоимость участия'}>
             <ul className="rounded-2xl border border-white/10 divide-y divide-white/10 overflow-hidden">
               {categories.map((c, i) => (
                 <li key={`${c.name}-${i}`} className="flex items-center justify-between px-4 py-3">
@@ -201,6 +208,7 @@ export default function PublicSiteScreen() {
             <p className="text-xs text-white/40 leading-relaxed">
               Цена указана за одно место и зависит от категории стола. Итоговая сумма
               показывается до подтверждения брони. НДС не облагается.
+              {pricesAreIndicative && ' Это цены последнего концерта — на следующий они будут объявлены вместе с датой.'}
             </p>
           </Section>
         )}
