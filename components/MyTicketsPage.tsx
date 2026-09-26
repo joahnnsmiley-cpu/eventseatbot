@@ -57,7 +57,12 @@ const STATUS_LABELS: Record<string, string> = {
   expired: 'Истекло',
 };
 
-const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = ({ onBack, authLoading }) => {
+const MyTicketsPage: React.FC<{
+  onBack?: () => void;
+  authLoading?: boolean;
+  /** The booking just made, so the guest can see which card is theirs. */
+  highlightBookingId?: string | null;
+}> = ({ onBack, authLoading, highlightBookingId }) => {
   const { showToast } = useToast();
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -232,6 +237,14 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
   }, [hasPendingPayments, load]);
 
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [highlight, setHighlight] = useState<string | null>(highlightBookingId ?? null);
+
+  useEffect(() => {
+    if (!highlightBookingId) return;
+    setHighlight(highlightBookingId);
+    const t = window.setTimeout(() => setHighlight(null), 8000);
+    return () => window.clearTimeout(t);
+  }, [highlightBookingId]);
 
   const handleIPaid = async (b: BookingItem) => {
     if (!PAYABLE_STATUSES.includes(b.status)) return;
@@ -459,6 +472,7 @@ const MyTicketsPage: React.FC<{ onBack?: () => void; authLoading?: boolean }> = 
               return (
                 <TicketCard
                   key={b.id}
+                  highlighted={highlight === b.id}
                   eventTitle={info?.title ?? 'Событие'}
                   date={date}
                   time={time}

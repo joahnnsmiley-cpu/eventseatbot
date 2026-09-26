@@ -5,7 +5,6 @@ import * as StorageService from './services/storageService';
 import AuthService from './services/authService';
 import SeatMap from './components/SeatMap';
 import SeatChoice from './components/SeatChoice';
-import BookingSuccessView from './components/BookingSuccessView';
 import ErrorBoundary from './components/ErrorBoundary';
 import EventPage from './components/EventPage';
 import MyTicketsPage from './components/MyTicketsPage';
@@ -120,7 +119,7 @@ function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authRole, setAuthRole] = useState<string | null>(null);
   const [tokenRole, setTokenRole] = useState<string | null>(null);
-  const [view, setView] = useState<'events' | 'layout' | 'seats' | 'my-bookings' | 'my-tickets' | 'profile' | 'booking-success' | 'admin'>('events');
+  const [view, setView] = useState<'events' | 'layout' | 'seats' | 'my-bookings' | 'my-tickets' | 'profile' | 'admin'>('events');
 
   const [events, setEvents] = useState<EventData[]>([]);
   const [featuredEvent, setFeaturedEvent] = useState<EventData | null>(null);
@@ -148,7 +147,6 @@ function App() {
   const [bookingsStale, setBookingsStale] = useState(false);
   const [nowTick, setNowTick] = useState(Date.now());
   const [lastCreatedBooking, setLastCreatedBooking] = useState<Booking | null>(null);
-  const [lastCreatedEvent, setLastCreatedEvent] = useState<EventData | null>(null);
   /** Occupied seat indices per table — from GET /public/events/:eventId/occupied-seats */
   const [occupiedMap, setOccupiedMap] = useState<Record<string, Set<number>>>({});
   /** При возврате с экрана выбора мест — показывать карту столов, а не карточку события */
@@ -767,7 +765,7 @@ function App() {
   const wrapWithLayout = (children: React.ReactNode) => (
     <AppLayout>
       {children}
-      {view !== 'booking-success' && view !== 'my-tickets' && pendingBookingsForBanner.length > 0 && (
+      {view !== 'my-tickets' && pendingBookingsForBanner.length > 0 && (
         <PaymentReminderBanner
           pendingBookings={pendingBookingsForBanner}
           onMarkPaid={(id) => {
@@ -905,6 +903,7 @@ function App() {
     return wrapWithLayout(<MyTicketsPage
       onBack={() => { setView('events'); window.location.hash = ''; }}
       authLoading={authLoading}
+      highlightBookingId={lastCreatedBooking?.id ?? null}
     />);
   }
 
@@ -1054,7 +1053,6 @@ function App() {
                       event: { id: selectedEvent.id, title: selectedEvent.title, date: selectedEvent.date ?? (selectedEvent as any).event_date },
                     };
                     setLastCreatedBooking(booking);
-                    setLastCreatedEvent(selectedEvent);
                     setSelectedSeatsByTable((prev) => {
                       const next = { ...prev };
                       delete next[selectedTableId];
@@ -1072,7 +1070,9 @@ function App() {
                       }
                       setOccupiedMap(map);
                     } catch { }
-                    setView('booking-success');
+                    // Straight to «Мои билеты»: the old confirmation screen only
+                    // repeated the card waiting there.
+                    setView('my-tickets');
                     showToast(UI_TEXT.booking.successTitle, 'success');
                   } catch (e) {
                     const err = e as Error & { status?: number };
@@ -1327,69 +1327,6 @@ function App() {
             </Card>
           )}
         </div>
-      </div>
-    );
-  }
-
-  if (view === 'booking-success') {
-    if (!lastCreatedEvent || !lastCreatedBooking) {
-      return wrapWithLayout(
-        <div className="w-full max-w-md mx-auto min-h-[100dvh] p-4">
-          <button onClick={() => setView('events')} className="text-sm border border-white/20 rounded px-3 py-2 text-muted-light">
-            {UI_TEXT.app.backToEvents}
-          </button>
-        </div>
-      );
-    }
-    const onBackToEvents = () => {
-      setView('events');
-      setSelectedEventId(null);
-      setSelectedEvent(null);
-      setLastCreatedBooking(null);
-      setLastCreatedEvent(null);
-    };
-    const onGoToTickets = () => {
-      setView('my-tickets');
-      setSelectedEventId(null);
-      setSelectedEvent(null);
-      setLastCreatedBooking(null);
-      setLastCreatedEvent(null);
-    };
-    return wrapWithLayout(
-      <div className="w-full max-w-md mx-auto min-h-[100dvh]">
-        <ErrorBoundary
-          fallback={
-            <div className="w-full max-w-md mx-auto px-4 pt-6 pb-4 space-y-5 text-center">
-              <div className="mx-auto w-16 h-16 rounded-full border border-[#FFC107] flex items-center justify-center">
-                <div className="w-6 h-6 rounded-full bg-[#FFC107]" />
-              </div>
-              <h1 className="text-xl font-bold text-white">{UI_TEXT.booking.bookingCreated}</h1>
-              <p className="text-muted-light text-sm">
-                Бронь создана. Перейдите в «Мои билеты», чтобы увидеть детали и оплатить.
-              </p>
-              <div className="flex flex-col gap-3 mt-4">
-                <PrimaryButton onClick={onGoToTickets} className="w-full">
-                  Перейти к билетам
-                </PrimaryButton>
-                <button
-                  type="button"
-                  onClick={onBackToEvents}
-                  className="w-full px-4 py-2 text-sm font-medium text-muted-light border border-white/20 rounded-xl hover:bg-white/5 transition"
-                >
-                  {UI_TEXT.booking.backToEvents}
-                </button>
-              </div>
-            </div>
-          }
-        >
-          <BookingSuccessView
-            event={lastCreatedEvent}
-            booking={lastCreatedBooking}
-            onStatusUpdate={(updated) => setLastCreatedBooking((prev) => (prev ? { ...prev, ...updated } : prev))}
-            onBackToEvents={onBackToEvents}
-            onGoToTickets={onGoToTickets}
-          />
-        </ErrorBoundary>
       </div>
     );
   }

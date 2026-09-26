@@ -238,7 +238,7 @@ export const UI_TEXT = {
     numberOfSeats: 'Количество мест',
     contactPhone: 'Контактный телефон',
     phonePlaceholder: '+7 999 000-00-00',
-    commentLabel: 'Комментарий (укажите, пожалуйста, имена гостей, которые воспользуются билетами)',
+    commentLabel: 'Имена гостей, если нужны именные билеты',
     commentPlaceholder: 'Имена гостей',
     availabilityRefreshes: 'Данные обновляются автоматически.',
     addPhoneToContinue: 'Укажите телефон для продолжения.',

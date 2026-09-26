@@ -13,6 +13,8 @@ type Props = {
   /** Payment details, countdown, "Я оплатил" — whatever this ticket still needs. */
   children?: React.ReactNode;
   footer?: React.ReactNode;
+  /** Briefly ringed after booking, so the new card is obvious among the others. */
+  highlighted?: boolean;
 };
 
 const STATUS: Record<TicketStatus, { label: string; style: React.CSSProperties; border: string }> = {
@@ -39,14 +41,17 @@ export default function TicketCard({
   status,
   posterUrl,
   children,
-  footer,
-}: Props) {
+  footer, highlighted = false }: Props) {
   const s = STATUS[status] ?? STATUS.reserved;
   const faded = status === 'cancelled' || status === 'expired';
   return (
     <article
-      className="flex flex-col gap-3.5 p-4 rounded-[20px] bg-[#161412]"
-      style={{ border: `1px solid ${s.border}`, opacity: faded ? 0.65 : 1 }}
+      className="flex flex-col gap-3.5 p-4 rounded-[20px] bg-[#161412] transition-shadow duration-500"
+      style={{
+        border: `1px solid ${highlighted ? '#C6A75E' : s.border}`,
+        opacity: faded ? 0.65 : 1,
+        boxShadow: highlighted ? '0 0 0 3px rgba(198,167,94,0.22)' : 'none',
+      }}
     >
       <div className="flex items-start gap-3">
         {posterUrl && (

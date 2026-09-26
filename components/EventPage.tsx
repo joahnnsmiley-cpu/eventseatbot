@@ -346,37 +346,23 @@ const EventPage: React.FC<EventPageProps> = ({
                   );
                 })()}
 
-                {/* Ticket categories */}
-                {categories.length > 0 && (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {categories.map((cat) => {
-                      const base = getCategoryColorFromCategory(cat).base;
-                      // Dot keeps the true category color; the label is lightened
-                      // until it reads on the dark background.
-                      const label = readableOnDark(base);
-                      return (
-                        <span
-                          key={cat.id}
-                          className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-3 py-1.5"
-                          style={{
-                            background: `${base}1A`,
-                            border: `1px solid ${base}40`,
-                            color: label,
-                          }}
-                        >
-                          <span
-                            style={{
-                              width: 6, height: 6, borderRadius: '50%',
-                              background: base,
-                              flexShrink: 0, display: 'inline-block',
-                            }}
-                          />
-                          {cat.name} · {cat.price.toLocaleString('ru-RU')} ₽
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
+                {/* One line, not five: the hall lists every table's own price a tap later. */}
+                {categories.length > 0 && (() => {
+                  const prices = categories.map((c) => Number(c.price)).filter((n) => n > 0);
+                  if (prices.length === 0) return null;
+                  const lo = Math.min(...prices);
+                  const hi = Math.max(...prices);
+                  const money = (n: number) => n.toLocaleString('ru-RU');
+                  return (
+                    <p className="pt-1 text-sm text-white/70">
+                      Места{' '}
+                      <span className="nums font-semibold text-white">
+                        {lo === hi ? `${money(lo)} ₽` : `от ${money(lo)} до ${money(hi)} ₽`}
+                      </span>
+                      {' '}— зависит от категории стола.
+                    </p>
+                  );
+                })()}
 
                 <div className="pt-2">
                   {/* CTA */}
@@ -444,9 +430,6 @@ const EventPage: React.FC<EventPageProps> = ({
                   style={{ background: getCategoryColorFromCategory(cat).base }}
                 />
                 <span className="text-sm font-medium text-white">{cat.name}</span>
-                <span className="text-sm font-semibold text-[#C6A75E]">
-                  {cat.price.toLocaleString('ru-RU')} ₽
-                </span>
               </div>
             ))}
           </div>
@@ -508,13 +491,11 @@ const EventPage: React.FC<EventPageProps> = ({
           </div>
         )}
 
-        <div className="p-4 rounded-2xl border border-white/10 bg-white/5 space-y-3">
-          <p className="text-base font-medium text-white">{UI_TEXT.event.contactOrganizer}</p>
-          <p className="text-sm text-muted-light">{UI_TEXT.event.contactOrganizerPrompt}</p>
+        <div className="pt-1 text-center">
           <button
             type="button"
             onClick={() => setContactModalOpen(true)}
-            className="w-full border border-[#C6A75E]/40 text-[#C6A75E] bg-transparent hover:bg-[#C6A75E]/10 rounded-xl py-3 text-sm font-medium inline-flex items-center justify-center transition"
+            className="text-[13px] text-white/45 underline underline-offset-4 decoration-white/20 hover:text-white/70 transition"
           >
             {UI_TEXT.event.contactOrganizer}
           </button>
