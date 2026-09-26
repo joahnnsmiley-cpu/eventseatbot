@@ -69,8 +69,41 @@ function OpenAppButtons({ compact = false }: { compact?: boolean }) {
   );
 }
 
-export default function PublicSiteScreen() {
-  const [doc, setDoc] = useState<'offer' | 'agreement' | 'privacy' | null>(null);
+type DocKey = 'offer' | 'agreement' | 'privacy';
+
+/** Адреса документов, чтобы на них можно было дать прямую ссылку. */
+const DOC_HASH: Record<DocKey, string> = {
+  offer: '#/offer',
+  agreement: '#/agreement',
+  privacy: '#/privacy',
+};
+
+function docFromHash(): DocKey | null {
+  const h = typeof window === 'undefined' ? '' : window.location.hash;
+  const found = (Object.keys(DOC_HASH) as DocKey[]).find((k) => DOC_HASH[k] === h);
+  return found ?? null;
+}
+
+function PublicSiteScreenInner() {
+  const [doc, setDocState] = useState<DocKey | null>(docFromHash);
+
+  // Открытый документ отражается в адресе, чтобы ссылку можно было отправить —
+  // проверяющему, юристу, кому угодно. И чтобы «назад» в браузере работало.
+  const setDoc = (next: DocKey | null) => {
+    setDocState(next);
+    const target = next ? DOC_HASH[next] : window.location.pathname + window.location.search;
+    window.history.pushState(null, '', target);
+  };
+
+  useEffect(() => {
+    const onPop = () => setDocState(docFromHash());
+    window.addEventListener('popstate', onPop);
+    window.addEventListener('hashchange', onPop);
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      window.removeEventListener('hashchange', onPop);
+    };
+  }, []);
   const [events, setEvents] = useState<PublicEvent[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -317,4 +350,8 @@ export default function PublicSiteScreen() {
       </div>
     </div>
   );
+}
+
+export default function PublicSiteScreen() {
+  return <PublicSiteScreenInner />;
 }
