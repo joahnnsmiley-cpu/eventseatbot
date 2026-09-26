@@ -4,7 +4,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>НиктоНеКруче — билеты</title>
+  <title>НиктоНеКруче — билеты на концерты в Новосибирске</title>
+  <meta name="description"
+    content="Живые концерты #НиктоНеКруче в Новосибирске. Бронирование мест за столами, оплата картой и СБП. Организатор — ИП Подковырина Д. А." />
   <script>
     // Debug overlay — shows JS errors in VK WebView where DevTools are unavailable.
     // Opt-in only: append ?debug=1 to the URL. Never shown to guests in production.
@@ -33,6 +35,60 @@
     style="display:none;position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;font-size:12px;padding:8px;z-index:99999;white-space:pre-wrap;word-break:break-all;max-height:50vh;overflow:auto;">
   </div>
   <div id="root"></div>
+
+  <!--
+    Без JavaScript приложение не рисует ничего. Этот блок — то, что должно быть
+    видно всегда: описание услуги, цены, условия и реквизиты. Проверяющему,
+    сканеру и поисковику этого достаточно, чтобы понять, что за сайт.
+  -->
+  <noscript>
+    <div style="max-width:40rem;margin:0 auto;padding:2rem 1.25rem;color:#F5F1E9;font-family:-apple-system,'Segoe UI',system-ui,sans-serif;line-height:1.55;">
+      <h1 style="font-size:1.6rem;margin:0 0 .25rem;">#НИКТОНЕКРУЧЕ</h1>
+      <p style="color:#8A8377;margin:0 0 1.5rem;">Живые концерты за столами в Новосибирске</p>
+
+      <h2 style="font-size:1.05rem;margin:1.5rem 0 .5rem;">Услуга</h2>
+      <p>Обеспечение присутствия на концерте на выбранном месте за столом в зале
+        ruinpub&nbsp;ТИПОГРАФИЯ. Гость выбирает стол и места на плане зала,
+        бронирует их и оплачивает онлайн. Билет приходит сообщением в Telegram
+        или ВКонтакте.</p>
+
+      <h2 style="font-size:1.05rem;margin:1.5rem 0 .5rem;">Стоимость</h2>
+      <p>Цена зависит от категории стола и указывается до подтверждения брони:
+        VIP — 1&nbsp;500&nbsp;₽, Gold — 1&nbsp;300&nbsp;₽, Silver — 1&nbsp;000&nbsp;₽,
+        Bronze — 800&nbsp;₽, танцпол — 600&nbsp;₽ за одно место. НДС не облагается.</p>
+
+      <h2 style="font-size:1.05rem;margin:1.5rem 0 .5rem;">Оплата</h2>
+      <p>Банковская карта и Система быстрых платежей через сервис Robokassa.
+        Данные карты не передаются в приложение и не хранятся в нём. После оплаты
+        покупателю направляется чек, сформированный в соответствии с Федеральным
+        законом от 27.11.2018 №&nbsp;422-ФЗ.</p>
+
+      <h2 style="font-size:1.05rem;margin:1.5rem 0 .5rem;">Возврат</h2>
+      <p>При отмене концерта денежные средства возвращаются в полном объёме, при
+        переносе — по выбору гостя. При отказе до начала концерта возврат
+        производится в соответствии со статьёй 32 Закона «О защите прав
+        потребителей». Заявление направляется на электронную почту, указанную
+        ниже, и рассматривается в течение 10 календарных дней. Деньги
+        возвращаются тем же способом, которым была произведена оплата.</p>
+
+      <h2 style="font-size:1.05rem;margin:1.5rem 0 .5rem;">Документы</h2>
+      <p>Публичная оферта, пользовательское соглашение и политика
+        конфиденциальности размещены на этом сайте и доступны по адресам
+        /#/offer, /#/agreement и /#/privacy. Для их просмотра требуется
+        включённый JavaScript.</p>
+
+      <h2 style="font-size:1.05rem;margin:1.5rem 0 .5rem;">Организатор</h2>
+      <p>Индивидуальный предприниматель Подковырина Дарья Андреевна<br />
+        ИНН 190309009577<br />
+        ОГРНИП 326190000025967<br />
+        Телефон: +7&nbsp;903&nbsp;917-89-40<br />
+        Электронная почта: darryp@yandex.ru</p>
+
+      <p style="color:#8A8377;margin-top:2rem;">Бронирование и оплата доступны в
+        мини-приложении внутри Telegram или ВКонтакте. Для работы сайта нужен
+        включённый JavaScript.</p>
+    </div>
+  </noscript>
   <script>
     // Load Telegram SDK only when NOT running inside VK Mini Apps.
     // VK's webview cannot reach telegram.org — the request times out and
