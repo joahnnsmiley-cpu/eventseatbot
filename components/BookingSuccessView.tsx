@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { bookingCode } from '../src/utils/bookingCode';
 import { formatPhone } from '../src/utils/formatPhone';
+import { openExternal } from '../src/utils/openExternal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CaretRight, CheckCircle, Clock, Copy, CreditCard, WarningCircle } from '@phosphor-icons/react';
 import type { EventData, Booking } from '../types';
@@ -95,7 +96,30 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
 
   const isAwaitingPayment = booking.status === 'reserved' || booking.status === 'pending';
   const isAwaitingConfirmation = booking.status === 'awaiting_confirmation' || booking.status === 'payment_submitted';
-  const showPaidButton = isAwaitingPayment;
+  const methods = event.paymentMethods?.length ? event.paymentMethods : ['transfer'];
+  const byCard = methods.includes('robokassa');
+  const byTransfer = methods.includes('transfer');
+  const showPaidButton = isAwaitingPayment && byTransfer;
+
+  const [payLoading, setPayLoading] = useState(false);
+
+  /**
+   * Robokassa's page needs a real browser — 3-D Secure and СБП do not work
+   * inside a messenger's web view. Nothing is marked paid here: that is the
+   * ResultURL callback's job alone.
+   */
+  const handlePayByCard = async () => {
+    setStatusUpdateError(null);
+    setPayLoading(true);
+    try {
+      const { url } = await StorageService.createRobokassaPayment(booking.id);
+      openExternal(url);
+    } catch (e) {
+      setStatusUpdateError(e instanceof Error ? e.message : UI_TEXT.common.errors.default);
+    } finally {
+      setPayLoading(false);
+    }
+  };
 
   const expiresAt = (booking as any).expiresAt;
   const remainingMs = useCountdown(expiresAt);
@@ -265,7 +289,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
         </motion.div>
 
         {/* ── Payment details ── */}
-        {event.paymentPhone?.trim() && isAwaitingPayment && (
+        {byTransfer && event.paymentPhone?.trim() && isAwaitingPayment && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -336,13 +360,35 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
           transition={{ delay: 0.45 }}
           className="flex flex-col gap-3 pt-1"
         >
+          {byCard && isAwaitingPayment && (
+            <button
+              type="button"
+              onClick={handlePayByCard}
+              disabled={payLoading}
+              className="w-full py-4 rounded-2xl text-sm font-semibold tracking-wide transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
+              style={{
+                background: payLoading
+                  ? 'rgba(212,175,55,0.2)'
+                  : 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 50%, #C9A227 100%)',
+                color: '#0B0A09',
+                boxShadow: payLoading ? 'none' : '0 4px 24px rgba(212,175,55,0.3)',
+              }}
+            >
+              {payLoading ? 'Открываем оплату…' : 'Оплатить картой или СБП'}
+            </button>
+          )}
+
           {showPaidButton && (
             <button
               type="button"
               onClick={handlePaidClick}
               disabled={statusUpdateLoading}
               className="w-full py-4 rounded-2xl text-sm font-semibold tracking-wide transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
-              style={{
+              style={byCard ? {
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                color: 'rgba(255,255,255,0.85)',
+              } : {
                 background: statusUpdateLoading
                   ? 'rgba(212,175,55,0.2)'
                   : 'linear-gradient(135deg, #D4AF37 0%, #F5D76E 50%, #C9A227 100%)',

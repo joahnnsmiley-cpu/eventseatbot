@@ -93,6 +93,18 @@ body {
 
 }
 
+/* iOS zooms the whole page in when a field smaller than 16px takes focus, and
+   never zooms back out. 16px on touch is the only reliable cure — `user-scalable=no`
+   has been ignored since iOS 10, and taking zoom away from people who need it
+   would be the wrong fix anyway. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 /* The focus treatment stays outside the layer on purpose: a field that carries
    a border utility would otherwise keep that border while focused. The old rule
    here was `input:focus { outline: none }`, which also silently beat the

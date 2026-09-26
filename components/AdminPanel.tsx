@@ -90,6 +90,11 @@ function normalizeTables(tables: TableModel[]): Array<Record<string, unknown>> {
       isActive: t.isActive,
       objectType: t.objectType ?? 'table',
       label: t.label ?? null,
+      // Editable on the table panel, and all three were missing here: a change
+      // to any of them left the form looking already saved.
+      shape: t.shape,
+      limitedView: t.limitedView ?? false,
+      labelFontSize: t.labelFontSize ?? null,
     }))
     .sort((a, b) => String(a.id).localeCompare(String(b.id)));
 }
@@ -560,6 +565,8 @@ const AdminPanel: React.FC<{
     setBulkIds([]);
   };
   const initialTablesRef = useRef<TableModel[]>([]);
+  /** Prices are edited into selectedEvent itself, so they need their own baseline. */
+  const initialCategoriesRef = useRef<string>('[]');
   const hasInitializedRef = useRef(false);
 
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -583,6 +590,11 @@ const AdminPanel: React.FC<{
     const publishedDirty = eventPublished !== (ev.published === true);
     const featuredDirty = eventFeatured !== ((ev as { isFeatured?: boolean }).isFeatured === true);
     const tzDirty = timezoneOffsetMinutes !== ((ev as any).timezoneOffsetMinutes ?? DEFAULT_TZ_OFFSET_MINUTES);
+    const storedMethods = ev.paymentMethods?.length ? ev.paymentMethods : ['transfer'];
+    const methodsDirty =
+      payByCard !== storedMethods.includes('robokassa') ||
+      payByTransfer !== storedMethods.includes('transfer');
+    const categoriesDirty = JSON.stringify(ev.ticketCategories ?? []) !== initialCategoriesRef.current;
     return (
       titleDirty ||
       descDirty ||
@@ -594,7 +606,9 @@ const AdminPanel: React.FC<{
       layoutDirty ||
       publishedDirty ||
       featuredDirty ||
-      tzDirty
+      tzDirty ||
+      methodsDirty ||
+      categoriesDirty
     );
   }, [
     tables,
@@ -610,6 +624,8 @@ const AdminPanel: React.FC<{
     eventPublished,
     eventFeatured,
     timezoneOffsetMinutes,
+    payByCard,
+    payByTransfer,
   ]);
 
   useEffect(() => {
@@ -784,6 +800,7 @@ const AdminPanel: React.FC<{
       setSelectedEvent(null);
       setTables([]);
       initialTablesRef.current = [];
+      initialCategoriesRef.current = '[]';
       setSelectedTableId(null);
       return;
     }
@@ -795,6 +812,7 @@ const AdminPanel: React.FC<{
     if (!opts?.skipInitialTablesRef) {
       initialTablesRef.current = deepClone(mappedTables);
     }
+    initialCategoriesRef.current = JSON.stringify(ticketCategories);
     setSelectedTableId(null);
     setLayoutUrl(fresh.layoutImageUrl || '');
     setEventPosterUrl(fresh.imageUrl ?? '');

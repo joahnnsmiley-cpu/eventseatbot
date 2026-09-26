@@ -16,7 +16,7 @@ import SectionTitle from './src/ui/SectionTitle';
 import PremiumGreetingModal, { PREMIUM_HIDE_KEY } from './src/ui/PremiumGreetingModal';
 import PaymentReminderBanner, { type PendingBookingInfo } from './src/ui/PaymentReminderBanner';
 import PrimaryButton from './src/ui/PrimaryButton';
-import type { Booking, EventData, Table, TgUser } from './types';
+import type { Booking, EventData, PaymentMethodKey, Table, TgUser } from './types';
 import { getPriceForTable } from './src/utils/getTablePrice';
 import { getCategoryColorFromCategory } from './src/config/categoryColors';
 import { getCurrentUser } from './src/utils/getCurrentUser';
@@ -206,6 +206,7 @@ function App() {
             eventId: b.event_id,
             totalAmount: seatCount * price,
             paymentPhone: (ev as any)?.paymentPhone?.trim() ?? '',
+            paymentMethods: ((ev as any)?.paymentMethods ?? ['transfer']) as PaymentMethodKey[],
             eventTitle: ev?.title ?? 'Событие',
             status: b.status,
             tableNumber,
@@ -218,6 +219,7 @@ function App() {
             eventId: b.event_id,
             totalAmount: 0,
             paymentPhone: '',
+            paymentMethods: ['transfer'],
             eventTitle: 'Событие',
             status: b.status,
           });

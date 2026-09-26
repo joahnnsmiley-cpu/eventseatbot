@@ -3,12 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CaretDown, CaretUp, CreditCard, Timer } from '@phosphor-icons/react';
 import { UI_TEXT } from '../../constants/uiText';
 import * as StorageService from '../../services/storageService';
+import { openExternal } from '../utils/openExternal';
+import type { PaymentMethodKey } from '../../types';
 
 export interface PendingBookingInfo {
     bookingId: string;
     eventId: string;
     totalAmount: number;
     paymentPhone: string;
+    /** Narrowed by the public API to what the server can actually do. */
+    paymentMethods?: PaymentMethodKey[];
     eventTitle: string;
     status: string;
     tableNumber?: number | string;
@@ -47,9 +51,14 @@ const BookingRow: React.FC<{
     b: PendingBookingInfo;
     submittingId: string | null;
     onPaid: (id: string) => void;
+    payingId: string | null;
+    payByCard: (id: string) => void;
     isLast: boolean;
     totalCount: number;
-}> = ({ b, submittingId, onPaid, isLast, totalCount }) => {
+}> = ({ b, submittingId, onPaid, payingId, payByCard, isLast, totalCount }) => {
+    const methods = b.paymentMethods?.length ? b.paymentMethods : ['transfer'];
+    const byCard = methods.includes('robokassa');
+    const byTransfer = methods.includes('transfer');
     const remainingMs = useCountdown(b.expiresAt);
     const mins = Math.floor(remainingMs / 60000);
     const secs = Math.floor((remainingMs % 60000) / 1000);
@@ -109,8 +118,24 @@ const BookingRow: React.FC<{
                 </div>
             )}
 
+            {byCard && (
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); void payByCard(b.bookingId); }}
+                    disabled={payingId !== null}
+                    className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+                    style={{
+                        background: 'linear-gradient(135deg, #F5BE3C 0%, #D4A030 100%)',
+                        color: '#0B0A09',
+                        boxShadow: '0 4px 16px rgba(245,190,60,0.25)',
+                    }}
+                >
+                    {payingId === b.bookingId ? 'Открываем оплату…' : 'Оплатить картой или СБП'}
+                </button>
+            )}
+
             {/* SBP Payment details */}
-            {b.paymentPhone ? (
+            {byTransfer && b.paymentPhone ? (
                 <div
                     className="rounded-xl px-3 py-2.5 space-y-1.5"
                     style={{
@@ -124,10 +149,12 @@ const BookingRow: React.FC<{
                         {UI_TEXT.booking.bannerPaymentRef} {b.bookingId}
                     </p>
                 </div>
-            ) : (
+            ) : byTransfer ? (
                 <p className="text-xs text-muted-light">{UI_TEXT.booking.paymentNoPhoneFallback}</p>
-            )}
+            ) : null}
 
+            {byTransfer && (
+            <>
             {/* FIO reminder */}
             <p className="text-[11px] text-amber-300/70 italic">
                 Не забудьте указать ФИО в комментарии к платежу
@@ -147,6 +174,8 @@ const BookingRow: React.FC<{
             >
                 {submittingId === b.bookingId ? '…' : UI_TEXT.booking.paidButtonCaps}
             </button>
+            </>
+            )}
 
             {/* Separator for multiple bookings */}
             {totalCount > 1 && !isLast && (
@@ -163,6 +192,7 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
 }) => {
     const [expanded, setExpanded] = useState(false);
     const [submittingId, setSubmittingId] = useState<string | null>(null);
+    const [payingId, setPayingId] = useState<string | null>(null);
 
     if (pendingBookings.length === 0) return null;
 
@@ -176,6 +206,19 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
             // silent fail
         } finally {
             setSubmittingId(null);
+        }
+    };
+
+    /** Leaves the mini app for Robokassa's page; the callback settles the booking. */
+    const handlePayByCard = async (bookingId: string) => {
+        setPayingId(bookingId);
+        try {
+            const { url } = await StorageService.createRobokassaPayment(bookingId);
+            openExternal(url);
+        } catch {
+            // The booking card in «Мои билеты» shows the reason; this strip stays quiet.
+        } finally {
+            setPayingId(null);
         }
     };
 
@@ -247,6 +290,8 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
                                     b={b}
                                     submittingId={submittingId}
                                     onPaid={handlePaid}
+                            payingId={payingId}
+                            payByCard={handlePayByCard}
                                     isLast={i === pendingBookings.length - 1}
                                     totalCount={pendingBookings.length}
                                 />
