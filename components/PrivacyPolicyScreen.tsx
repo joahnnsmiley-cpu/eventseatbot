@@ -25,12 +25,18 @@ export default function PrivacyPolicyScreen({ onBack }: Props) {
         <section className="space-y-2">
           <h2 className="text-white font-semibold">1. Оператор персональных данных</h2>
           <p>
-            Оператором персональных данных является сервис НиктоНеКруче (далее — Разработчик). По всем
-            вопросам, связанным с обработкой персональных данных, обращайтесь:
+            Оператором персональных данных является индивидуальный предприниматель
+            Подковырина Дарья Андреевна (далее — Оператор), ИНН{' '}
+            <span className="nums">190309009577</span>, ОГРНИП{' '}
+            <span className="nums">326190000025967</span>. По всем вопросам, связанным
+            с обработкой персональных данных, обращайтесь:
           </p>
           <ul className="list-none space-y-1">
             <li>Email:{' '}
-              <a href="mailto:joahnnsmiley@gmail.com" className="text-[#C6A75E] underline">joahnnsmiley@gmail.com</a>
+              <a href="mailto:darryp@yandex.ru" className="text-[#C6A75E] underline">darryp@yandex.ru</a>
+            </li>
+            <li>Телефон:{' '}
+              <a href="tel:+79039178940" className="text-[#C6A75E] underline nums">+7 903 917-89-40</a>
             </li>
             <li>ВКонтакте:{' '}
               <a href="https://vk.com/niktonekruchee" target="_blank" rel="noopener noreferrer" className="text-[#C6A75E] underline">vk.com/niktonekruchee</a>
@@ -40,14 +46,14 @@ export default function PrivacyPolicyScreen({ onBack }: Props) {
             </li>
           </ul>
           <p>
-            Разработчик обязуется рассмотреть и направить ответ на поступивший запрос в течение
+            Оператор обязуется рассмотреть и направить ответ на поступивший запрос в течение
             30 дней с момента его получения.
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-white font-semibold">2. Состав обрабатываемых данных</h2>
-          <p>Разработчик обрабатывает следующие персональные данные Пользователей:</p>
+          <p>Оператор обрабатывает следующие персональные данные Пользователей:</p>
           <ul className="list-disc list-inside space-y-1">
             <li>Контактный номер телефона — вводится Пользователем при оформлении бронирования.</li>
             <li>
@@ -62,7 +68,7 @@ export default function PrivacyPolicyScreen({ onBack }: Props) {
           <h2 className="text-white font-semibold">3. Цели обработки</h2>
           <p>
             Обработка персональных данных осуществляется исключительно в целях выполнения
-            обязательств Разработчика перед Пользователями:
+            обязательств Оператора перед Пользователями:
           </p>
           <ul className="list-disc list-inside space-y-1">
             <li>Оформление и подтверждение бронирования мест на мероприятия.</li>
@@ -99,9 +105,9 @@ export default function PrivacyPolicyScreen({ onBack }: Props) {
           <h2 className="text-white font-semibold">6. Прекращение обработки данных</h2>
           <p>
             Обработка персональных данных прекращается при достижении целей обработки или по
-            запросу Пользователя об отзыве согласия. Для отзыва согласия обратитесь к Разработчику:
+            запросу Пользователя об отзыве согласия. Для отзыва согласия обратитесь к Оператору:
             Email{' '}
-            <a href="mailto:joahnnsmiley@gmail.com" className="text-[#C6A75E] underline">joahnnsmiley@gmail.com</a>
+            <a href="mailto:darryp@yandex.ru" className="text-[#C6A75E] underline">darryp@yandex.ru</a>
             , ВКонтакте{' '}
             <a href="https://vk.com/niktonekruchee" target="_blank" rel="noopener noreferrer" className="text-[#C6A75E] underline">vk.com/niktonekruchee</a>
             {' '}или Telegram{' '}
@@ -115,10 +121,10 @@ export default function PrivacyPolicyScreen({ onBack }: Props) {
           <p>Пользователь вправе:</p>
           <ul className="list-disc list-inside space-y-1">
             <li>
-              Осуществлять бесплатный доступ к информации о себе, обратившись к Разработчику.
+              Осуществлять бесплатный доступ к информации о себе, обратившись к Оператору.
             </li>
             <li>
-              Запрашивать у Разработчика информацию, касающуюся обработки его персональных данных.
+              Запрашивать у Оператора информацию, касающуюся обработки его персональных данных.
             </li>
             <li>
               Требовать уточнения, блокирования или уничтожения своих персональных данных в случае,
@@ -126,12 +132,12 @@ export default function PrivacyPolicyScreen({ onBack }: Props) {
             </li>
             <li>
               Отозвать согласие на обработку персональных данных, направив соответствующий запрос
-              Разработчику.
+              Оператору.
             </li>
           </ul>
           <p>
             Запросы направляются на Email{' '}
-            <a href="mailto:joahnnsmiley@gmail.com" className="text-[#C6A75E] underline">joahnnsmiley@gmail.com</a>
+            <a href="mailto:darryp@yandex.ru" className="text-[#C6A75E] underline">darryp@yandex.ru</a>
             , ВКонтакте{' '}
             <a href="https://vk.com/niktonekruchee" target="_blank" rel="noopener noreferrer" className="text-[#C6A75E] underline">vk.com/niktonekruchee</a>
             {' '}или Telegram{' '}
@@ -143,7 +149,7 @@ export default function PrivacyPolicyScreen({ onBack }: Props) {
         <section className="space-y-2">
           <h2 className="text-white font-semibold">8. Меры защиты данных</h2>
           <p>
-            Разработчик принимает необходимые технические и организационные меры для защиты
+            Оператор принимает необходимые технические и организационные меры для защиты
             персональных данных Пользователей от неправомерного или случайного доступа,
             уничтожения, изменения, блокирования, копирования и распространения.
           </p>

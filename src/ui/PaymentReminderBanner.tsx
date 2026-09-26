@@ -194,6 +194,27 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
     const [submittingId, setSubmittingId] = useState<string | null>(null);
     const [payingId, setPayingId] = useState<string | null>(null);
 
+    const rootRef = React.useRef<HTMLDivElement | null>(null);
+
+    // Expanded, the strip sits on top of whatever is at the bottom of the
+    // screen. Left there it swallows taps meant for the page, so it folds back
+    // by itself; the tap that folds it still reaches what is underneath.
+    useEffect(() => {
+        if (!expanded) return;
+        const collapse = () => setExpanded(false);
+        const onPointerDown = (e: PointerEvent) => {
+            if (!rootRef.current?.contains(e.target as Node)) collapse();
+        };
+        const timer = window.setTimeout(collapse, 7000);
+        window.addEventListener('scroll', collapse, { passive: true, capture: true });
+        document.addEventListener('pointerdown', onPointerDown, true);
+        return () => {
+            window.clearTimeout(timer);
+            window.removeEventListener('scroll', collapse, true);
+            document.removeEventListener('pointerdown', onPointerDown, true);
+        };
+    }, [expanded]);
+
     if (pendingBookings.length === 0) return null;
 
     const handlePaid = async (bookingId: string) => {
@@ -224,6 +245,7 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
 
     return (
         <motion.div
+            ref={rootRef}
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.4, type: 'spring', damping: 20 }}
