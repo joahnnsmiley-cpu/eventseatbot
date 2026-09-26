@@ -84,6 +84,37 @@ export const loginWithTelegram = async (telegramId: number, initData: string) =>
   return data;
 };
 
+/**
+ * Перевыпустить токен тем же способом, которым он был получен.
+ *
+ * Нужна там, где запрос уже упёрся в 401: токена нет, он протух или его
+ * отклонили. Молча получить новый и повторить запрос честнее, чем просить
+ * человека закрыть и открыть приложение.
+ *
+ * Возвращает true, если токен получен.
+ */
+export const reauthenticate = async (): Promise<boolean> => {
+  try {
+    const url = window.location.href;
+    const isVk = /[?&#](vk_user_id|vk_app_id)=/.test(url);
+    if (isVk) {
+      const params = new URLSearchParams(window.location.search || window.location.hash.replace(/^#/, ''));
+      const vkUserId = params.get('vk_user_id');
+      if (!vkUserId) return false;
+      await loginWithVk(vkUserId, params.toString());
+      return Boolean(getToken());
+    }
+    const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string; initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp;
+    const initData = tg?.initData || '';
+    const id = tg?.initDataUnsafe?.user?.id;
+    if (!initData || !id) return false;
+    await loginWithTelegram(id, initData);
+    return Boolean(getToken());
+  } catch {
+    return false;
+  }
+};
+
 export const logout = () => setToken(null);
 
 // initialize token from storage on module load
@@ -118,6 +149,7 @@ export const loginWithVk = async (vkUserId: number | string, allParams: string) 
 export default {
   loginWithTelegram,
   loginWithVk,
+  reauthenticate,
   getToken,
   getAuthHeader,
   decodeToken,

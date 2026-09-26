@@ -474,8 +474,15 @@ function App() {
           setAuthLoading(false);
         }
       } else {
-        const tg = (window as any).Telegram?.WebApp;
-        const initData = tg?.initData || '';
+        // initData появляется не мгновенно: SDK успевает не всегда к первому
+        // рендеру. Раньше пустая строка означала молчаливый выход навсегда —
+        // зависимости эффекта больше не менялись, и токен не появлялся до
+        // перезапуска приложения.
+        let initData = (window as any).Telegram?.WebApp?.initData || '';
+        for (let i = 0; i < 20 && !initData; i += 1) {
+          await new Promise((r) => setTimeout(r, 150));
+          initData = (window as any).Telegram?.WebApp?.initData || '';
+        }
         if (!initData) return;
         setAuthLoading(true);
         setAuthError(null);
@@ -994,7 +1001,7 @@ function App() {
     const activeCategory = selectedTable ? selectedEvent.ticketCategories?.find((c) => c.id === selectedTable.ticketCategoryId) : null;
     const activePalette = selectedTable ? getCategoryColorFromCategory(activeCategory) : { base: '#C6A75E', glow: 'rgba(198,167,94,0.5)' };
 
-    const submitBooking = async () => {
+    const submitBooking = async (isRetry = false): Promise<void> => {
                   setBookingError(null);
                   const seats = selectedSeatsByTable[selectedTableId] ?? [];
                   if (!selectedEventId || !selectedTableId || !selectedEvent) return;
@@ -1077,7 +1084,14 @@ function App() {
                   } catch (e) {
                     const err = e as Error & { status?: number };
                     if (err.status === 401) {
-                      // The token is how the server knows whose booking this is.
+                      // Токен — это то, как сервер понимает, чья это бронь. Он
+                      // мог не успеть появиться: Telegram отдаёт initData не
+                      // мгновенно. Повтор безопасен — на 401 сервер отклонил
+                      // запрос до того, как что-либо записал.
+                      if (!isRetry && await AuthService.reauthenticate()) {
+                        await submitBooking(true);
+                        return;
+                      }
                       const msg = 'Не получилось подтвердить вход. Закройте приложение и откройте снова.';
                       setBookingError(msg);
                       showToast(msg, 'error');
