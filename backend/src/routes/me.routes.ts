@@ -9,6 +9,13 @@ import { setPrivacyConsent, getPrivacyConsent, getOrganizerEventIds } from '../d
 import { DEFAULT_TZ_OFFSET_MINUTES } from '../config/timezone';
 
 const router = Router();
+
+/**
+ * A booking belongs to its guest until it is cancelled or expired. Pressing
+ * «Я оплатил» moves it to awaiting_confirmation, which must not make the seat
+ * vanish from the guest's own profile.
+ */
+const LIVE_STATUSES = ['reserved', 'paid', 'awaiting_confirmation', 'payment_submitted', 'confirmed', 'pending'];
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:4000';
 
 /** Parse comment into guest names (comma-separated). */
@@ -127,7 +134,7 @@ router.get('/bookings', authMiddleware, async (req: AuthRequest, res) => {
   // Owner filtering happens in Postgres now; this used to select every
   // booking ever made and match on two id columns in JavaScript.
   const userBookings = (await db.getBookingsByOwner(userId)).filter(
-    (b: any) => b.status === 'reserved' || b.status === 'paid'
+    (b: any) => LIVE_STATUSES.includes(String(b.status))
   );
 
   res.json(userBookings.map((b: any) => mapBooking(b, events)));
@@ -190,7 +197,7 @@ router.get('/profile-guest', authMiddleware, async (req: AuthRequest, res) => {
   // Neighbours are other people's bookings, so the owner query above cannot
   // serve them. One event's bookings, not the whole table.
   const tableBookings = (await db.getBookingsByEvent(String(eventId))).filter(
-    (b: any) => b.tableId === tableId && (b.status === 'reserved' || b.status === 'paid')
+    (b: any) => b.tableId === tableId && LIVE_STATUSES.includes(String(b.status))
   );
   const neighborBookings = tableBookings.filter((b: any) => {
     const isOwner = (b.platform === 'vk' && String(b.user_vk_id) === userId) || (String(b.userTelegramId ?? '') === userId);

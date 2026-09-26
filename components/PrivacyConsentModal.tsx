@@ -16,16 +16,22 @@ export default function PrivacyConsentModal({ onAccept, onDecline }: Props) {
   const [showAgreement, setShowAgreement] = useState(false);
   const [showOffer, setShowOffer] = useState(false);
 
+  // Each document keeps the overlay the consent screen has, or the booking
+  // screen's fixed bottom bar shows through the text it sits on top of.
+  const asOverlay = (screen: React.ReactNode) => (
+    <div className="fixed inset-0 z-[200] overflow-y-auto bg-[#0B0A09]">{screen}</div>
+  );
+
   if (showPolicy) {
-    return <PrivacyPolicyScreen onBack={() => setShowPolicy(false)} />;
+    return asOverlay(<PrivacyPolicyScreen onBack={() => setShowPolicy(false)} />);
   }
 
   if (showOffer) {
-    return <OfferScreen onBack={() => setShowOffer(false)} />;
+    return asOverlay(<OfferScreen onBack={() => setShowOffer(false)} />);
   }
 
   if (showAgreement) {
-    return (
+    return asOverlay(
       <UserAgreementScreen
         onBack={() => setShowAgreement(false)}
         onOpenOffer={() => setShowOffer(true)}
