@@ -164,7 +164,7 @@ const BookingSuccessView: React.FC<BookingSuccessViewProps> = ({
 
   return (
     <div className="min-h-[100dvh] w-full" style={{ background: '#0B0A09' }}>
-      <div className="max-w-md mx-auto px-4 pt-8 pb-32 space-y-4">
+      <div className="w-full max-w-md mx-auto px-4 pt-8 pb-32 space-y-4">
 
         {/* ── Hero ── */}
         <motion.div

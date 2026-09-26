@@ -930,7 +930,7 @@ function App() {
   if (view === 'layout' && selectedEventId) {
     if (!selectedEvent) {
       return wrapWithLayout(
-        <div className="max-w-md mx-auto min-h-[100dvh] relative">
+        <div className="w-full max-w-md mx-auto min-h-[100dvh] relative">
           <div className="px-4 pt-4 space-y-4">
             <div className="flex items-center justify-between">
               <button
@@ -983,7 +983,7 @@ function App() {
 
   if (view === 'seats' && (!selectedEvent || !selectedTableId || !selectedTable)) {
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-[100dvh] bg-surface shadow-2xl relative flex flex-col">
+      <div className="w-full max-w-md mx-auto min-h-[100dvh] bg-surface shadow-2xl relative flex flex-col">
         <div className="p-4">
           <div className="text-xs text-muted">{UI_TEXT.app.returningToLayout}</div>
         </div>
@@ -1107,7 +1107,7 @@ function App() {
 
 
     return wrapWithLayout(
-      <div className="max-w-[420px] mx-auto overflow-x-hidden bg-[#0B0A09] min-h-[100dvh] flex flex-col">
+      <div className="w-full max-w-[420px] mx-auto overflow-x-hidden bg-[#0B0A09] min-h-[100dvh] flex flex-col">
         <div className="px-4 pt-4 pb-32 space-y-4">
           <div className="flex items-center justify-between">
             <button
@@ -1334,7 +1334,7 @@ function App() {
   if (view === 'booking-success') {
     if (!lastCreatedEvent || !lastCreatedBooking) {
       return wrapWithLayout(
-        <div className="max-w-md mx-auto min-h-[100dvh] p-4">
+        <div className="w-full max-w-md mx-auto min-h-[100dvh] p-4">
           <button onClick={() => setView('events')} className="text-sm border border-white/20 rounded px-3 py-2 text-muted-light">
             {UI_TEXT.app.backToEvents}
           </button>
@@ -1356,10 +1356,10 @@ function App() {
       setLastCreatedEvent(null);
     };
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-[100dvh]">
+      <div className="w-full max-w-md mx-auto min-h-[100dvh]">
         <ErrorBoundary
           fallback={
-            <div className="max-w-md mx-auto px-4 pt-6 pb-4 space-y-5 text-center">
+            <div className="w-full max-w-md mx-auto px-4 pt-6 pb-4 space-y-5 text-center">
               <div className="mx-auto w-16 h-16 rounded-full border border-[#FFC107] flex items-center justify-center">
                 <div className="w-6 h-6 rounded-full bg-[#FFC107]" />
               </div>
@@ -1396,7 +1396,7 @@ function App() {
 
   if (view === 'my-bookings') {
     return wrapWithLayout(
-      <div className="max-w-md mx-auto min-h-[100dvh] bg-surface shadow-2xl relative">
+      <div className="w-full max-w-md mx-auto min-h-[100dvh] bg-surface shadow-2xl relative">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
             <button
