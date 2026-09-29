@@ -12,7 +12,7 @@ import { v4 as uuid } from 'uuid';
 import { db } from '../../db';
 import { sendTelegramMessage, sendTelegramPhoto, notifyAdmins } from '../../services/telegramService';
 import { sendVkMessage, sendVkPhoto } from '../../services/vkService';
-import { generateTicket } from '../../services/ticketGenerator';
+import { generateTicket, findExistingTicket } from '../../services/ticketGenerator';
 import type { Booking, Ticket } from '../../models';
 
 const CONFIRMED_TEXT = '✅ Оплата подтверждена\n\nЖдём вас на мероприятии!';
@@ -44,31 +44,60 @@ async function notifyGuest(booking: Booking, text: string, photoUrl?: string): P
   else await sendTelegramMessage(chatId, text);
 }
 
+/** Отрисовать билет и положить в хранилище. Базу и мессенджеры не трогает. */
+async function renderTicket(booking: Booking): Promise<string | null> {
+  const ev = (await db.findEventById(booking.eventId)) as {
+    imageUrl?: string;
+    ticketTemplateUrl?: string;
+    event_date?: string;
+    event_time?: string;
+    title?: string;
+    tables?: { id: string; number: number }[];
+  } | null;
+  const tbl = ev?.tables?.find((t) => t.id === booking.tableId);
+
+  return generateTicket({
+    templateUrl: ev?.ticketTemplateUrl ?? ev?.imageUrl ?? '',
+    bookingId: booking.id,
+    eventId: booking.eventId,
+    eventTitle: ev?.title ?? '',
+    eventDate: [ev?.event_date, ev?.event_time].filter(Boolean).join(' ') || '',
+    tableNumber: tbl?.number ?? booking.tableId ?? '—',
+    seats: formatSeatsForTicket(booking),
+  });
+}
+
+/**
+ * Отрисовать билет заранее — пока гость на странице оплаты.
+ *
+ * Картинка не зависит от того, оплачена бронь или нет: место, стол и событие
+ * известны с момента брони. А вот QR без оплаты бесполезен — проверка на входе
+ * отказывает любой брони не в статусе paid (server.ts, /verify-ticket).
+ *
+ * Поэтому самую дорогую часть выдачи — скачать шаблон, свести, закодировать,
+ * загрузить — можно сделать в те полминуты, пока человек вводит карту. Ссылку
+ * в бронь при этом не пишем: до оплаты билета у гостя нет.
+ *
+ * Ничего не бросает и ничего не ломает, если не получилось: тогда билет просто
+ * отрисуется после оплаты, как раньше.
+ */
+export async function prepareTicket(booking: Booking): Promise<void> {
+  try {
+    if (await findExistingTicket(booking.id)) return;
+    await renderTicket(booking);
+  } catch (err) {
+    console.warn('[prepareTicket]', err instanceof Error ? err.message : err);
+  }
+}
+
 /**
  * Fire-and-forget: render the ticket, store its URL, send it.
  * Never throws — a messenger being down must not undo a confirmed payment.
  */
 export async function deliverTicket(booking: Booking): Promise<void> {
   try {
-    const ev = (await db.findEventById(booking.eventId)) as {
-      imageUrl?: string;
-      ticketTemplateUrl?: string;
-      event_date?: string;
-      event_time?: string;
-      title?: string;
-      tables?: { id: string; number: number }[];
-    } | null;
-    const tbl = ev?.tables?.find((t) => t.id === booking.tableId);
-
-    const ticketUrl = await generateTicket({
-      templateUrl: ev?.ticketTemplateUrl ?? ev?.imageUrl ?? '',
-      bookingId: booking.id,
-      eventId: booking.eventId,
-      eventTitle: ev?.title ?? '',
-      eventDate: [ev?.event_date, ev?.event_time].filter(Boolean).join(' ') || '',
-      tableNumber: tbl?.number ?? booking.tableId ?? '—',
-      seats: formatSeatsForTicket(booking),
-    });
+    // Если предпрогрев успел — отправляем сразу, не тратя секунды на отрисовку.
+    const ticketUrl = (await findExistingTicket(booking.id)) ?? (await renderTicket(booking));
 
     if (ticketUrl) {
       await db.updateBookingTicketFileUrl(booking.id, ticketUrl);

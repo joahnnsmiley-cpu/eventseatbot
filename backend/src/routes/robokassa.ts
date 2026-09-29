@@ -16,6 +16,7 @@ import { db } from '../db';
 import { getRobokassaConfig, ROBOKASSA_IPS } from '../config/robokassa';
 import {
   buildPaymentLink,
+  buildPaymentParams,
   verifyResult,
   verifySuccess,
   resultAck,
@@ -29,7 +30,7 @@ import {
   findPaymentByInvId,
   markPaymentPaid,
 } from '../domain/payments/robokassa.repository';
-import { confirmBookingPaid } from '../domain/bookings/confirmPayment';
+import { confirmBookingPaid, prepareTicket } from '../domain/bookings/confirmPayment';
 import { requireUser, ownsBooking } from '../auth/user.middleware';
 import type { AuthRequest } from '../auth/auth.middleware';
 import { notifyAdmins } from '../services/telegramService';
@@ -155,12 +156,20 @@ router.post('/public/payments/robokassa', requireUser, async (req: AuthRequest, 
     const title = event?.title ?? 'Мероприятие';
     const seats = seatCount(booking);
 
-    const url = buildPaymentLink(cfg, {
+    const input = {
       invId: payment.invId,
       amount,
       description: `Участие в мероприятии «${title}»`,
       receiptItems: receiptFor(title, seats, amount, cfg.tax),
-    });
+    };
+    // Те же поля и та же подпись: встроенной форме — по отдельности,
+    // запасной ссылке — собранными в адрес.
+    const fields = buildPaymentParams(cfg, input);
+    const url = buildPaymentLink(cfg, input);
+
+    // Пока гость вводит карту, рисуем билет. К моменту, когда придёт
+    // подтверждение, отправлять будет уже нечего ждать.
+    void prepareTicket(booking);
 
     console.log(JSON.stringify({
       action: 'robokassa_payment_started',
@@ -168,7 +177,14 @@ router.post('/public/payments/robokassa', requireUser, async (req: AuthRequest, 
       timestamp: new Date().toISOString(),
     }));
 
-    return res.json({ url, invId: payment.invId, amount: formatSum(amount), isTest: cfg.isTest });
+    return res.json({
+      url,
+      fields,
+      payUrl: cfg.payUrl,
+      invId: payment.invId,
+      amount: formatSum(amount),
+      isTest: cfg.isTest,
+    });
   } catch (err) {
     console.error('[robokassa create]', err);
     return res.status(500).json({ error: 'Не удалось создать платёж' });

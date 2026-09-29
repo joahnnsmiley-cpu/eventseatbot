@@ -89,15 +89,29 @@ export type PaymentLinkInput = {
   email?: string | undefined;
 };
 
+/** Поля платежа: то, из чего строится и ссылка, и встроенная форма. */
+export type PaymentParams = {
+  MerchantLogin: string;
+  OutSum: string;
+  InvId: string;
+  Description: string;
+  SignatureValue: string;
+  Culture: string;
+  Encoding: string;
+  Receipt?: string;
+  Email?: string;
+  IsTest?: string;
+};
+
 /**
- * The link the guest opens.
+ * Собрать параметры платежа вместе с подписью.
  *
- * Receipt is url-encoded once for the signature, and URLSearchParams encodes it
- * a second time on the way into the query string. That double encoding is not a
- * bug: Robokassa decodes the transport layer once and must then find exactly
- * the string that was signed.
+ * Receipt кодируется один раз — ровно та строка, которая участвует в подписи.
+ * Что с ней будет дальше, зависит от способа: в ссылке URLSearchParams
+ * закодирует её ещё раз (Робокасса декодирует транспорт и должна найти ту же
+ * строку), а скрипту встроенной формы она передаётся как есть.
  */
-export function buildPaymentLink(cfg: RobokassaConfig, input: PaymentLinkInput): string {
+export function buildPaymentParams(cfg: RobokassaConfig, input: PaymentLinkInput): PaymentParams {
   const outSum = formatSum(input.amount);
   const invId = String(input.invId);
 
@@ -108,21 +122,30 @@ export function buildPaymentLink(cfg: RobokassaConfig, input: PaymentLinkInput):
   const parts = [cfg.merchantLogin, outSum, invId];
   if (receipt) parts.push(receipt);
   parts.push(cfg.password1);
-  const signature = digest(parts.join(':'), cfg.hash);
 
-  const params = new URLSearchParams();
-  params.set('MerchantLogin', cfg.merchantLogin);
-  params.set('OutSum', outSum);
-  params.set('InvId', invId);
-  params.set('Description', safeText(input.description, 100));
-  params.set('SignatureValue', signature);
-  params.set('Culture', 'ru');
-  params.set('Encoding', 'utf-8');
-  if (receipt) params.set('Receipt', receipt);
-  if (input.email) params.set('Email', input.email);
-  if (cfg.isTest) params.set('IsTest', '1');
+  const params: PaymentParams = {
+    MerchantLogin: cfg.merchantLogin,
+    OutSum: outSum,
+    InvId: invId,
+    Description: safeText(input.description, 100),
+    SignatureValue: digest(parts.join(':'), cfg.hash),
+    Culture: 'ru',
+    Encoding: 'utf-8',
+  };
+  if (receipt) params.Receipt = receipt;
+  if (input.email) params.Email = input.email;
+  if (cfg.isTest) params.IsTest = '1';
+  return params;
+}
 
-  return `${cfg.payUrl}?${params.toString()}`;
+/** Ссылка на платёжную страницу — запасной путь, когда форму встроить не вышло. */
+export function buildPaymentLink(cfg: RobokassaConfig, input: PaymentLinkInput): string {
+  const params = buildPaymentParams(cfg, input);
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) query.set(key, value);
+  }
+  return `${cfg.payUrl}?${query.toString()}`;
 }
 
 /** Shared by both callbacks: the amount and number Robokassa reports back. */

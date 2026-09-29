@@ -20,7 +20,9 @@ import { deliverTicket } from '../../domain/bookings/confirmPayment';
 
 let intervalHandle: NodeJS.Timeout | null = null;
 
-const CHECK_INTERVAL_MS = 120_000;
+// Полминуты, а не две: это последний рубеж, и если он сработал, гость уже
+// ждёт. Запрос дешёвый — одна выборка по статусу.
+const CHECK_INTERVAL_MS = 30_000;
 /** Насколько назад смотрим. Сутки — с запасом на ночной перезапуск. */
 const LOOK_BACK_MS = 24 * 60 * 60 * 1000;
 /** За один проход, чтобы не занять процесс надолго генерацией картинок. */
@@ -51,7 +53,7 @@ export function startTicketRetryJob(): void {
     return;
   }
 
-  console.log('[TicketRetryJob] Starting (interval: 120s)');
+  console.log(`[TicketRetryJob] Starting (interval: ${CHECK_INTERVAL_MS / 1000}s)`);
 
   intervalHandle = setInterval(() => {
     runOnce().catch((err) => {
