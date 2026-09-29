@@ -10,7 +10,7 @@
 
 import { v4 as uuid } from 'uuid';
 import { db } from '../../db';
-import { sendTelegramMessage, sendTelegramPhoto } from '../../services/telegramService';
+import { sendTelegramMessage, sendTelegramPhoto, notifyAdmins } from '../../services/telegramService';
 import { sendVkMessage, sendVkPhoto } from '../../services/vkService';
 import { generateTicket } from '../../services/ticketGenerator';
 import type { Booking, Ticket } from '../../models';
@@ -79,7 +79,7 @@ export async function deliverTicket(booking: Booking): Promise<void> {
     // Деньги взяты, билета нет. Гостю — что оплата прошла, администратору —
     // что билет надо выдать руками. Молчать здесь нельзя.
     await notifyGuest(booking, CONFIRMED_TEXT);
-    await alertAdmin(
+    await notifyAdmins(
       `⚠️ Билет не сгенерировался
 
 Бронь ${booking.id}
@@ -91,7 +91,7 @@ export async function deliverTicket(booking: Booking): Promise<void> {
   } catch (err) {
     console.error('[deliverTicket]', err);
     notifyGuest(booking, CONFIRMED_TEXT).catch(() => {});
-    alertAdmin(
+    notifyAdmins(
       `⚠️ Билет не сгенерировался
 
 Бронь ${booking.id}
@@ -101,16 +101,7 @@ export async function deliverTicket(booking: Booking): Promise<void> {
   }
 }
 
-/** Сообщить администратору. Никогда не бросает: это уведомление, а не операция. */
-async function alertAdmin(text: string): Promise<void> {
-  const chatId = Number(process.env.TELEGRAM_ADMIN_CHAT_ID ?? 0);
-  if (!Number.isFinite(chatId) || chatId === 0) return;
-  try {
-    await sendTelegramMessage(chatId, text);
-  } catch (err) {
-    console.error('[deliverTicket alertAdmin]', err);
-  }
-}
+
 
 /** One ticket per seat, whichever of the three shapes the booking uses. */
 export function buildTickets(booking: Booking, now: number): Ticket[] {

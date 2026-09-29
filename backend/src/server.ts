@@ -364,7 +364,10 @@ app.listen(PORT, () => {
   // this, turning the secret on would make the server reject every real
   // Telegram call until someone called setWebhook by hand.
   const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  const publicUrl = process.env.PUBLIC_API_URL || process.env.API_BASE_URL;
+  // BASE_URL третьим: он уже задан ради ссылок в QR-коде билета и указывает на
+  // тот же самый адрес API. Требовать ради вебхука ещё одну переменную с тем же
+  // значением — способ получить их расхождение.
+  const publicUrl = process.env.PUBLIC_API_URL || process.env.API_BASE_URL || process.env.BASE_URL;
   if (bot && webhookSecret && publicUrl) {
     const url = `${publicUrl.replace(/\/+$/, '')}/telegram/webhook`;
     bot.telegram
@@ -372,6 +375,6 @@ app.listen(PORT, () => {
       .then(() => console.log('[telegram] webhook registered with a secret:', url))
       .catch((e) => console.error('[telegram] setWebhook failed', e));
   } else if (bot && webhookSecret) {
-    console.warn('[telegram] TELEGRAM_WEBHOOK_SECRET is set but PUBLIC_API_URL/API_BASE_URL is not — register the webhook manually');
+    console.warn('[telegram] TELEGRAM_WEBHOOK_SECRET is set but none of PUBLIC_API_URL/API_BASE_URL/BASE_URL is — register the webhook manually');
   }
 });

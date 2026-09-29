@@ -32,7 +32,7 @@ import {
 import { confirmBookingPaid } from '../domain/bookings/confirmPayment';
 import { requireUser, ownsBooking } from '../auth/user.middleware';
 import type { AuthRequest } from '../auth/auth.middleware';
-import { sendTelegramMessage } from '../services/telegramService';
+import { notifyAdmins } from '../services/telegramService';
 
 const router = Router();
 
@@ -234,7 +234,7 @@ async function handleResult(req: Request, res: Response) {
       action: 'robokassa_paid_but_booking_stuck',
       invId: verified.invId, bookingId: payment.bookingId, error: result.error,
     }));
-    void alertAdmin(`⚠️ Оплата прошла, но бронь не подтвердилась.\n\nСчёт ${verified.invId}, бронь ${payment.bookingId}, сумма ${verified.outSum} ₽.\nПричина: ${result.error}`);
+    void notifyAdmins(`⚠️ Оплата прошла, но бронь не подтвердилась.\n\nСчёт ${verified.invId}, бронь ${payment.bookingId}, сумма ${verified.outSum} ₽.\nПричина: ${result.error}`);
   }
 
   console.log(JSON.stringify({
@@ -244,16 +244,6 @@ async function handleResult(req: Request, res: Response) {
   }));
 
   return res.send(resultAck(verified.invId));
-}
-
-async function alertAdmin(text: string): Promise<void> {
-  const chatId = Number(process.env.TELEGRAM_ADMIN_CHAT_ID ?? 0);
-  if (!Number.isFinite(chatId) || chatId === 0) return;
-  try {
-    await sendTelegramMessage(chatId, text);
-  } catch (err) {
-    console.error('[robokassa alertAdmin]', err);
-  }
 }
 
 router.get('/robokassa/result', handleResult);
