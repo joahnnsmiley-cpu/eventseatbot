@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { motion } from 'framer-motion';
 import vkBridge from '@vkontakte/vk-bridge';
 import * as StorageService from './services/storageService';
+import { installKeyboardAwareFocus } from './src/utils/keyboardAwareFocus';
 import AuthService from './services/authService';
 import SeatMap from './components/SeatMap';
 import SeatChoice from './components/SeatChoice';
@@ -98,6 +99,9 @@ function App() {
 
   // Warm up Render.com backend immediately on mount (prevents cold-start delay)
   useEffect(() => { void warmupBackend(); }, []);
+
+  // Чтобы поле, в которое пишут, не пряталось за клавиатурой и нижней панелью.
+  useEffect(() => installKeyboardAwareFocus(), []);
 
   const isVkPlatform = getPlatform() === 'vk';
   const [vkAvailable, setVkAvailable] = useState(false);
@@ -1301,6 +1305,7 @@ function App() {
               )}
 
               <div
+                data-sticky-bar
                 className="fixed bottom-0 left-0 right-0 z-40 max-w-[420px] mx-auto flex items-center gap-4 px-4 pt-3 bg-[#0C0B0A]/96 border-t border-[#2B2723]"
                 style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
               >

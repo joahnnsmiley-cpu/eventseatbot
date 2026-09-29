@@ -30,6 +30,7 @@ export default function BottomNav({
       initial={{ y: 32, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, type: 'spring', damping: 25, stiffness: 200 }}
+      data-sticky-bar
       className="fixed bottom-0 left-0 right-0 max-w-[420px] mx-auto z-40 px-4"
       style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
     >

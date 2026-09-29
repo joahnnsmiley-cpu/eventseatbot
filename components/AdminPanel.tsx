@@ -302,6 +302,7 @@ function AdminTabBar({
   return (
     <nav
       aria-label="Разделы админки"
+      data-sticky-bar
       className="fixed bottom-0 left-0 right-0 z-40 max-w-[420px] mx-auto flex px-3 bg-[#0C0B0A]/95 border-t border-[#2B2723] backdrop-blur"
       style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
     >
@@ -2696,6 +2697,7 @@ const AdminPanel: React.FC<{
 
       {inEvent && selectedEvent && !(eventStep === 2 && selectedTableId && !bulkMode) && (
         <div
+          data-sticky-bar
           className="fixed bottom-0 left-0 right-0 z-50 max-w-[420px] mx-auto bg-[#0C0B0A]/95 backdrop-blur border-t border-[#2B2723] px-4 pt-3.5 flex items-center gap-3"
           style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
         >
