@@ -32,7 +32,7 @@ import { setBookingEventNotifier } from './domain/bookings';
 import { setPaymentEventNotifier } from './domain/payments';
 import { TelegramBookingNotifier } from './infra/telegram';
 import { TelegramPaymentNotifier } from './infra/telegram/telegram.payment-notifier';
-import { startBookingExpirationJob } from './infra/scheduler';
+import { startBookingExpirationJob, startTicketRetryJob } from './infra/scheduler';
 import { createPendingBookingFromWebAppPayload } from './webappBooking';
 import { supabase } from './supabaseClient';
 import { verifyTicketToken } from './services/ticketToken';
@@ -40,6 +40,12 @@ import { DEFAULT_TZ_OFFSET_MINUTES } from './config/timezone';
 
 
 const app = express();
+
+// Render ставит приложение за свой прокси и присылает X-Forwarded-For. Без
+// этой строки express-rate-limit отказывается считать таковой доверенным и
+// валится с ERR_ERL_UNEXPECTED_X_FORWARDED_FOR, а ограничения по адресу
+// применяются к адресу прокси, то есть ко всем сразу.
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 4000;
 
 app.use(helmet());
@@ -352,6 +358,7 @@ app.get('/test-admin-notify', authMiddleware, adminOnly, async (_req, res) => {
 app.listen(PORT, () => {
   console.log(`Backend API listening on http://localhost:${PORT}`);
   startBookingExpirationJob();
+  startTicketRetryJob();
 
   // Re-register the webhook with the secret this server checks for. Without
   // this, turning the secret on would make the server reject every real

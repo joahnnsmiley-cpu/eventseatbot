@@ -671,6 +671,26 @@ export async function getBookingById(id: string): Promise<Booking | null> {
 }
 
 /**
+ * Оплаченные брони, которым не досталось билета.
+ *
+ * Выдача билета не ждётся вызывающим кодом, поэтому перезапуск процесса её
+ * теряет. Здесь — список того, что нужно догенерировать.
+ */
+export async function findPaidBookingsWithoutTicket(sinceIso: string, limit = 20): Promise<Booking[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('status', 'paid')
+    .is('ticket_file_url', null)
+    .gte('created_at', sinceIso)
+    .order('created_at', { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((r) => bookingsRowToBooking(r as BookingsRow));
+}
+
+/**
  * Bookings belonging to one person, across both platforms.
  *
  * Telegram and VK ids live in separate columns, so the profile screens matched

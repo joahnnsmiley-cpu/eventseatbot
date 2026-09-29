@@ -7,3 +7,8 @@ export {
   stopBookingExpirationJob,
   isBookingExpirationJobRunning,
 } from './bookingExpirationJob';
+
+export {
+  startTicketRetryJob,
+  stopTicketRetryJob,
+} from './ticketRetryJob';
