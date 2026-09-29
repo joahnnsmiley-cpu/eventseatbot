@@ -4,6 +4,7 @@ import { CaretDown, CaretUp, CreditCard, Timer } from '@phosphor-icons/react';
 import { UI_TEXT } from '../../constants/uiText';
 import * as StorageService from '../../services/storageService';
 import { openExternal } from '../utils/openExternal';
+import { payInApp } from '../payments/robokassaWidget';
 import type { PaymentMethodKey } from '../../types';
 
 export interface PendingBookingInfo {
@@ -53,9 +54,10 @@ const BookingRow: React.FC<{
     onPaid: (id: string) => void;
     payingId: string | null;
     payByCard: (id: string) => void;
+    payBySbp: (id: string) => void;
     isLast: boolean;
     totalCount: number;
-}> = ({ b, submittingId, onPaid, payingId, payByCard, isLast, totalCount }) => {
+}> = ({ b, submittingId, onPaid, payingId, payByCard, payBySbp, isLast, totalCount }) => {
     const methods = b.paymentMethods?.length ? b.paymentMethods : ['transfer'];
     const byCard = methods.includes('robokassa');
     const byTransfer = methods.includes('transfer');
@@ -130,7 +132,18 @@ const BookingRow: React.FC<{
                         boxShadow: '0 4px 16px rgba(245,190,60,0.25)',
                     }}
                 >
-                    {payingId === b.bookingId ? 'Открываем оплату…' : 'Оплатить картой или СБП'}
+                    {payingId === b.bookingId ? 'Открываем оплату…' : 'Оплатить картой'}
+                </button>
+            )}
+
+            {byCard && (
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); void payBySbp(b.bookingId); }}
+                    disabled={payingId !== null}
+                    className="w-full py-2 text-[12.5px] font-medium text-white/55 disabled:opacity-50"
+                >
+                    Оплатить через СБП
                 </button>
             )}
 
@@ -230,14 +243,28 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
         }
     };
 
-    /** Leaves the mini app for Robokassa's page; the callback settles the booking. */
+    /** Карта — формой поверх приложения; не открылась — уходим на полную страницу. */
     const handlePayByCard = async (bookingId: string) => {
+        setPayingId(bookingId);
+        try {
+            const { url, fields } = await StorageService.createRobokassaPayment(bookingId);
+            await payInApp(fields, url, () => onRefresh?.());
+            onRefresh?.();
+        } catch {
+            // The booking card in «Мои билеты» shows the reason; this strip stays quiet.
+        } finally {
+            setPayingId(null);
+        }
+    };
+
+    /** СБП — только наружу: приложение банка из окна поверх аппа не запускается. */
+    const handlePayBySbp = async (bookingId: string) => {
         setPayingId(bookingId);
         try {
             const { url } = await StorageService.createRobokassaPayment(bookingId);
             openExternal(url);
         } catch {
-            // The booking card in «Мои билеты» shows the reason; this strip stays quiet.
+            // Тихо: причину покажет карточка брони в «Моих билетах».
         } finally {
             setPayingId(null);
         }
@@ -314,6 +341,7 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
                                     onPaid={handlePaid}
                             payingId={payingId}
                             payByCard={handlePayByCard}
+                                    payBySbp={handlePayBySbp}
                                     isLast={i === pendingBookings.length - 1}
                                     totalCount={pendingBookings.length}
                                 />

@@ -14,6 +14,7 @@ import { useToast } from '../src/ui/ToastContext';
 import { getPlatform } from '../src/utils/platform';
 import { DEFAULT_TZ_OFFSET_MINUTES } from '../src/config/timezone';
 import { openExternal } from '../src/utils/openExternal';
+import { payInApp } from '../src/payments/robokassaWidget';
 import type { PaymentMethodKey } from '../types';
 
 type BookingItem = {
@@ -236,6 +237,18 @@ const MyTicketsPage: React.FC<{
     return () => window.clearInterval(id);
   }, [hasPendingPayments, load]);
 
+  // Бронь, за которой следим вплотную, пока открыта форма оплаты.
+  const [watching, setWatching] = useState<string | null>(null);
+  useEffect(() => {
+    if (!watching) return;
+    const paid = bookings.find((b) => b.id === watching)?.status === 'paid';
+    if (paid) { setWatching(null); return; }
+    const id = window.setInterval(load, 3000);
+    // Десять минут — больше, чем живёт платёжная сессия; дальше хватит общего опроса.
+    const stop = window.setTimeout(() => setWatching(null), 10 * 60 * 1000);
+    return () => { window.clearInterval(id); window.clearTimeout(stop); };
+  }, [watching, bookings, load]);
+
   const [payingId, setPayingId] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<string | null>(highlightBookingId ?? null);
 
@@ -263,11 +276,31 @@ const MyTicketsPage: React.FC<{
   };
 
   /**
-   * Robokassa's page cannot live inside the messenger's web view — 3-D Secure
-   * and СБП both need a real browser — so the guest leaves and comes back.
-   * Nothing is marked paid here: only the ResultURL callback may do that.
+   * Карта — формой поверх приложения, не уводя гостя в браузер. Если форма не
+   * открылась, payInApp сам уходит на полную страницу, и тогда гость вернётся
+   * по ссылке. Оплаченным здесь ничего не становится: это решает только
+   * уведомление на ResultURL.
    */
   const handlePayByCard = async (b: BookingItem) => {
+    if (!PAYABLE_STATUSES.includes(b.status)) return;
+    if (isExpired(b.expires_at)) return;
+    setPayingId(b.id);
+    setError(null);
+    try {
+      const { url, fields } = await StorageService.createRobokassaPayment(b.id);
+      const how = await payInApp(fields, url, () => { void load(); });
+      // Гость остался здесь и платит на глазах — ждать общий тридцатисекундный
+      // опрос слишком долго, статус нужен почти сразу.
+      if (how === 'frame') setWatching(b.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось перейти к оплате');
+    } finally {
+      setPayingId(null);
+    }
+  };
+
+  /** СБП — только во внешнем браузере: во фрейме приложение банка не запустится. */
+  const handlePayBySbp = async (b: BookingItem) => {
     if (!PAYABLE_STATUSES.includes(b.status)) return;
     if (isExpired(b.expires_at)) return;
     setPayingId(b.id);
@@ -491,13 +524,26 @@ const MyTicketsPage: React.FC<{
                       </div>
 
                       {byCard && (
-                        <PrimaryButton
-                          onClick={(e) => { e.stopPropagation(); void handlePayByCard(b); }}
-                          disabled={payingId !== null}
-                          className="w-full h-12 rounded-2xl"
-                        >
-                          {payingId === b.id ? 'Открываем оплату…' : 'Оплатить картой или СБП'}
-                        </PrimaryButton>
+                        <>
+                          <PrimaryButton
+                            onClick={(e) => { e.stopPropagation(); void handlePayByCard(b); }}
+                            disabled={payingId !== null}
+                            className="w-full h-12 rounded-2xl"
+                          >
+                            {payingId === b.id ? 'Открываем оплату…' : 'Оплатить картой'}
+                          </PrimaryButton>
+                          {/* Отдельной кнопкой, а не вместе с картой: СБП уводит в
+                              приложение банка, а оно из окна поверх аппа не
+                              запускается — только через внешний браузер. */}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); void handlePayBySbp(b); }}
+                            disabled={payingId !== null}
+                            className="w-full h-12 rounded-2xl bg-white/5 border border-white/10 text-[15px] font-semibold text-white/80 disabled:opacity-50"
+                          >
+                            Оплатить через СБП
+                          </button>
+                        </>
                       )}
 
                       {byCard && byTransfer && (

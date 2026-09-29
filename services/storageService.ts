@@ -62,7 +62,16 @@ export const getEvent = async (eventId: string): Promise<EventData> => {
  */
 export const createRobokassaPayment = async (
   bookingId: string,
-): Promise<{ url: string; invId: number; amount: string; isTest: boolean }> => {
+): Promise<{
+  /** Полная страница оплаты: запасной путь и путь для СБП. */
+  url: string;
+  /** Те же поля по отдельности — для формы, встроенной в приложение. */
+  fields: Record<string, string>;
+  payUrl: string;
+  invId: number;
+  amount: string;
+  isTest: boolean;
+}> => {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/public/payments/robokassa`, {
     method: 'POST',
