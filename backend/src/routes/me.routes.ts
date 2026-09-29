@@ -5,7 +5,14 @@ import { bot } from '../bot';
 import { getPremiumUserInfo } from '../config/premium';
 import { formatEventDateRu, parseEventToIso } from '../utils/formatDate';
 import { getPriceForTable } from '../utils/getTablePrice';
-import { setPrivacyConsent, getPrivacyConsent, getOrganizerEventIds } from '../db-postgres';
+import {
+  setPrivacyConsent,
+  getPrivacyConsent,
+  getOrganizerEventIds,
+  getUserEmail,
+  setUserEmail,
+  normalizeEmail,
+} from '../db-postgres';
 import { DEFAULT_TZ_OFFSET_MINUTES } from '../config/timezone';
 
 const router = Router();
@@ -578,6 +585,46 @@ router.post('/consent', authMiddleware, async (req: AuthRequest, res) => {
   } catch (err: any) {
     console.error('[me] setPrivacyConsent error:', err);
     return res.status(500).json({ error: 'Failed to record consent' });
+  }
+});
+
+/**
+ * GET /me/email — почта для чека, если она уже сохранена.
+ */
+router.get('/email', authMiddleware, async (req: AuthRequest, res) => {
+  const user = req.user;
+  if (!user || typeof user.id === 'undefined') return res.status(401).json({ error: 'Unauthorized' });
+  const platform = (user as any).platform ?? 'telegram';
+  const email = await getUserEmail(user.id, platform).catch(() => null);
+  return res.json({ email });
+});
+
+/**
+ * POST /me/email { email }  — сохранить или стереть почту для чека.
+ *
+ * Пустая строка стирает: человек вправе забрать согласие на хранение, и для
+ * этого не должно требоваться писать организатору.
+ */
+router.post('/email', authMiddleware, async (req: AuthRequest, res) => {
+  const user = req.user;
+  if (!user || typeof user.id === 'undefined') return res.status(401).json({ error: 'Unauthorized' });
+  const platform = (user as any).platform ?? 'telegram';
+
+  const raw = String((req.body as { email?: string })?.email ?? '').trim();
+  if (raw === '') {
+    await setUserEmail(user.id, platform, null).catch(() => {});
+    return res.json({ email: null });
+  }
+
+  const email = normalizeEmail(raw);
+  if (!email) return res.status(400).json({ error: 'Проверьте адрес почты' });
+
+  try {
+    await setUserEmail(user.id, platform, email);
+    return res.json({ email });
+  } catch (err) {
+    console.error('[me] setUserEmail error:', err);
+    return res.status(500).json({ error: 'Не удалось сохранить почту' });
   }
 });
 

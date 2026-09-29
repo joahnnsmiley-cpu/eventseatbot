@@ -34,6 +34,7 @@ import { confirmBookingPaid, prepareTicket } from '../domain/bookings/confirmPay
 import { requireUser, ownsBooking } from '../auth/user.middleware';
 import type { AuthRequest } from '../auth/auth.middleware';
 import { notifyAdmins } from '../services/telegramService';
+import { getUserEmail } from '../db-postgres';
 
 const router = Router();
 
@@ -156,11 +157,22 @@ router.post('/public/payments/robokassa', requireUser, async (req: AuthRequest, 
     const title = event?.title ?? 'Мероприятие';
     const seats = seatCount(booking);
 
+    // Почта, если человек её уже оставил: тогда Робокасса не спросит её ещё раз,
+    // а чек по 422-ФЗ уйдёт туда, куда он просил.
+    const userId = req.user?.id;
+    const email = userId == null
+      ? null
+      : await getUserEmail(
+        userId,
+        (req.user as { platform?: string })?.platform ?? 'telegram',
+      ).catch(() => null);
+
     const input = {
       invId: payment.invId,
       amount,
       description: `Участие в мероприятии «${title}»`,
       receiptItems: receiptFor(title, seats, amount, cfg.tax),
+      ...(email ? { email } : {}),
     };
     // Те же поля и та же подпись: встроенной форме — по отдельности,
     // запасной ссылке — собранными в адрес.

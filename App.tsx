@@ -1151,9 +1151,12 @@ function App() {
 
           {consentPending && (
             <PrivacyConsentModal
-              onAccept={() => {
+              onAccept={(email) => {
                 acceptPrivacy();
                 setConsentPending(false);
+                // Почта необязательна и бронь не держит: не сохранилась —
+                // спросим на шаге оплаты, там она и понадобится.
+                if (email) void StorageService.saveReceiptEmail(email).catch(() => {});
                 void submitBooking();
               }}
               onDecline={() => setConsentPending(false)}

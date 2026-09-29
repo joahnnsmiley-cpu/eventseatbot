@@ -978,6 +978,50 @@ export async function setPrivacyConsent(id: number | string, platform: string): 
   if (error) throw error;
 }
 
+/**
+ * Почта для фискального чека.
+ *
+ * Хранится ровно ради чека: Робокасса шлёт его покупателю и регистрирует доход
+ * в «Моём налоге». Нормализуем регистр и пробелы — иначе одна и та же почта
+ * будет выглядеть как разная, а в чек уйдёт то, что человек случайно набрал.
+ */
+export function normalizeEmail(raw: string): string | null {
+  const value = String(raw ?? '').trim().toLowerCase();
+  if (!value || value.length > 254) return null;
+  // Намеренно нестрогая проверка: задача — отсечь опечатки и мусор, а не
+  // реализовать RFC 5322. Настоящую доставку проверит только письмо.
+  if (!/^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[^\s@.]{2,}$/.test(value)) return null;
+  return value;
+}
+
+export async function setUserEmail(
+  id: number | string,
+  platform: string,
+  email: string | null,
+): Promise<void> {
+  if (!supabase) return;
+  const numericId = typeof id === 'string' ? Number(id) : id;
+  const { error } = await supabase
+    .from('app_users')
+    .update({ email, email_set_at: email ? new Date().toISOString() : null })
+    .eq('id', numericId)
+    .eq('platform', platform);
+  if (error) throw error;
+}
+
+export async function getUserEmail(id: number | string, platform: string): Promise<string | null> {
+  if (!supabase) return null;
+  const numericId = typeof id === 'string' ? Number(id) : id;
+  const { data, error } = await supabase
+    .from('app_users')
+    .select('email')
+    .eq('id', numericId)
+    .eq('platform', platform)
+    .single();
+  if (error) return null;
+  return (data?.email as string | null) ?? null;
+}
+
 export async function getPrivacyConsent(id: number | string, platform: string): Promise<boolean> {
   if (!supabase) return false;
   const numericId = typeof id === 'string' ? Number(id) : id;

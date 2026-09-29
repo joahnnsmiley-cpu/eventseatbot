@@ -6,12 +6,14 @@ import OfferScreen from './OfferScreen';
 export const PRIVACY_CONSENT_KEY = 'eventseatbot_privacy_v1';
 
 type Props = {
-  onAccept: () => void;
+  /** Почта необязательна: её всегда можно оставить позже, на шаге оплаты. */
+  onAccept: (email: string) => void;
   onDecline: () => void;
 };
 
 export default function PrivacyConsentModal({ onAccept, onDecline }: Props) {
   const [checked, setChecked] = useState(false);
+  const [email, setEmail] = useState('');
   const [showPolicy, setShowPolicy] = useState(false);
   const [showAgreement, setShowAgreement] = useState(false);
   const [showOffer, setShowOffer] = useState(false);
@@ -71,9 +73,34 @@ export default function PrivacyConsentModal({ onAccept, onDecline }: Props) {
                 <span className="text-[#C6A75E] mt-0.5">•</span>
                 Комментарий к бронированию, включая имена гостей, если вы их укажете
               </li>
+              <li className="flex items-start gap-2">
+                <span className="text-[#C6A75E] mt-0.5">•</span>
+                Почта — только если вы её укажете, и только чтобы отправить кассовый чек
+              </li>
             </ul>
             <p className="text-xs text-white/40 leading-relaxed pt-1">
               Фото профиля не сохраняется: приложение показывает его напрямую из Telegram.
+            </p>
+          </div>
+
+          {/* Необязательное поле. При оплате чек всё равно нужен по закону, но
+              спросить почту можно и тогда — заставлять здесь не за чем. */}
+          <div className="space-y-1.5">
+            <label htmlFor="receipt-email" className="block text-sm text-white/70">
+              Почта для чека <span className="text-white/35">— необязательно</span>
+            </label>
+            <input
+              id="receipt-email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full h-12 px-4 rounded-2xl bg-[#141414] border border-white/10 text-white placeholder:text-white/25"
+            />
+            <p className="text-xs text-white/40 leading-relaxed">
+              Туда придёт кассовый чек после оплаты. Если пропустить — спросим на шаге оплаты.
             </p>
           </div>
 
@@ -133,7 +160,7 @@ export default function PrivacyConsentModal({ onAccept, onDecline }: Props) {
       <div className="px-6 pb-8 space-y-3 w-full max-w-sm mx-auto">
         <button
           type="button"
-          onClick={onAccept}
+          onClick={() => onAccept(email.trim())}
           disabled={!checked}
           className={`w-full py-3.5 rounded-2xl text-sm font-semibold transition ${
             checked

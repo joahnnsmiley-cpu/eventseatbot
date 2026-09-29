@@ -85,6 +85,34 @@ export const createRobokassaPayment = async (
   return res.json();
 };
 
+/**
+ * Почта для фискального чека.
+ *
+ * Её требует 422-ФЗ: чек должен дойти до покупателя. Раньше её спрашивала сама
+ * страница Робокассы, но своя форма оплаты и свой QR СБП обязаны спросить сами.
+ * Пустая строка стирает сохранённое — отозвать согласие можно самому.
+ */
+export const getReceiptEmail = async (): Promise<string | null> => {
+  const res = await fetch(`${getApiBaseUrl()}/me/email`, { headers: AuthService.getAuthHeader() });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { email?: string | null };
+  return data.email ?? null;
+};
+
+export const saveReceiptEmail = async (email: string): Promise<string | null> => {
+  const res = await fetch(`${getApiBaseUrl()}/me/email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error || 'Не удалось сохранить почту');
+  }
+  const data = (await res.json()) as { email?: string | null };
+  return data.email ?? null;
+};
+
 /** GET /public/bookings/my — the signed-in person's own bookings. */
 export const getMyBookingsPublic = async (userId: number | string): Promise<{
   id: string;
