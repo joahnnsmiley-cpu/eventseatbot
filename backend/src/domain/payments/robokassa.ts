@@ -39,6 +39,22 @@ function sameSignature(a: string, b: string): boolean {
   return crypto.timingSafeEqual(left, right);
 }
 
+/**
+ * Оставить только то, что Робокасса принимает в названиях.
+ *
+ * Допускаем буквы, цифры, пробел и минимальную пунктуацию. Всё остальное —
+ * вертикальные черты из названий концертов, кавычки-ёлочки, любые символы
+ * оформления — превращается в пробел, лишние пробелы схлопываются. Пустая
+ * строка недопустима: в чеке должна быть хотя бы одна названная позиция.
+ */
+export function safeText(raw: string, limit: number): string {
+  const cleaned = raw
+    .replace(/[^\p{L}\p{N} .,:()\-\/№]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return (cleaned || 'Услуга').slice(0, limit).trim();
+}
+
 /** Robokassa wants a plain decimal with two places: 1500 → "1500.00". */
 export function formatSum(amount: number): string {
   return (Math.round(amount * 100) / 100).toFixed(2);
@@ -54,7 +70,7 @@ export function formatSum(amount: number): string {
  */
 export function buildReceipt(items: ReceiptItem[]): string {
   const safe = items.map((item) => ({
-    name: item.name.slice(0, 128),
+    name: safeText(item.name, 128),
     quantity: item.quantity,
     sum: Math.round(item.sum * 100) / 100,
     tax: item.tax,
@@ -95,7 +111,7 @@ export function buildPaymentLink(cfg: RobokassaConfig, input: PaymentLinkInput):
   params.set('MerchantLogin', cfg.merchantLogin);
   params.set('OutSum', outSum);
   params.set('InvId', invId);
-  params.set('Description', input.description.slice(0, 100));
+  params.set('Description', safeText(input.description, 100));
   params.set('SignatureValue', signature);
   params.set('Culture', 'ru');
   params.set('Encoding', 'utf-8');

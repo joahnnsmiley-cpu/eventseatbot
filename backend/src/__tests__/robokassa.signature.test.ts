@@ -12,6 +12,7 @@ import crypto from 'crypto';
 import {
   buildPaymentLink,
   buildReceipt,
+  safeText,
   verifyResult,
   verifySuccess,
   resultAck,
@@ -93,6 +94,37 @@ check('payment link omits Receipt when receipts are off', () => {
   assert(url.searchParams.get('Receipt') === null, 'Receipt must be absent');
   assert(url.searchParams.get('SignatureValue') === md5('NiktoNeKruche:600.00:7:pass1'),
     'signature must drop the Receipt segment too');
+});
+
+check('special characters are stripped from names', () => {
+  // Название концерта содержит вертикальную черту и кавычки-ёлочки; Робокасса
+  // требует «без спецсимволов» и в Description, и в позиции чека.
+  const cleaned = safeText('Участие в мероприятии «НиктоНеКруче|Карина Лубнина», 1 место', 128);
+  assert(!/[«»|]/.test(cleaned), `остались спецсимволы: ${cleaned}`);
+  assert(cleaned.includes('НиктоНеКруче'), 'название не должно теряться');
+  assert(cleaned.includes('Карина Лубнина'), 'вторая часть названия не должна теряться');
+  assert(!/\s{2,}/.test(cleaned), 'двойные пробелы должны схлопываться');
+});
+
+check('a name of nothing but symbols does not become empty', () => {
+  // В чеке должна быть хотя бы одна названная позиция.
+  assert(safeText('«|»', 128) === 'Услуга', `got ${safeText('«|»', 128)}`);
+});
+
+check('the receipt item carries the cleaned name', () => {
+  const parsed = JSON.parse(buildReceipt([
+    { name: 'Концерт «А|Б»', quantity: 1, sum: 600, tax: 'none' },
+  ])) as { items: { name: string }[] };
+  assert(!/[«»|]/.test(parsed.items[0]!.name), `в чеке спецсимволы: ${parsed.items[0]!.name}`);
+});
+
+check('the payment link carries the cleaned description', () => {
+  const url = new URL(buildPaymentLink(cfg, {
+    invId: 4, amount: 1000, description: 'Участие в мероприятии «НиктоНеКруче|Карина Лубнина»',
+  }));
+  const d = url.searchParams.get('Description') ?? '';
+  assert(!/[«»|]/.test(d), `в Description спецсимволы: ${d}`);
+  assert(d.length <= 100, 'Description не длиннее 100 символов');
 });
 
 check('ResultURL is signed with password #2', () => {
