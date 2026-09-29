@@ -188,6 +188,25 @@ async function prepareBookingPayment(
 }
 
 /**
+ * GET /public/payments/methods — какие способы оплаты есть у магазина.
+ *
+ * Отдельно от создания платежа, и это важно: раньше список приходил только
+ * вместе с ответом на «оплатить», то есть уже после нажатия. Кнопки успевали
+ * перерисоваться под пальцем — человек жал «Оплатить», а на её месте
+ * появлялась другая кнопка.
+ *
+ * Ничего чувствительного здесь нет: тот же список Робокасса отдаёт любому по
+ * идентификатору магазина.
+ */
+router.get('/public/payments/methods', async (_req: Request, res: Response) => {
+  const cfg = getRobokassaConfig();
+  if (!cfg.enabled) return res.json({ enabled: false, methods: [] });
+  const methods = await getShopMethods(cfg);
+  res.set('Cache-Control', 'public, max-age=300');
+  return res.json({ enabled: true, methods });
+});
+
+/**
  * POST /public/payments/robokassa/sbp  { bookingId }
  *
  * Поля для Robokassa.pay.startOp: приложение само получит ссылку СБП и уведёт

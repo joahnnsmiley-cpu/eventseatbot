@@ -254,6 +254,14 @@ const MyTicketsPage: React.FC<{
    */
   const [shopMethods, setShopMethods] = useState<string[]>([]);
 
+  // Спрашиваем сразу при открытии экрана. Раньше список приходил только вместе
+  // с ответом на «оплатить» — и кнопки менялись уже после нажатия.
+  useEffect(() => {
+    let alive = true;
+    void StorageService.getPaymentMethods().then((m) => { if (alive) setShopMethods(m); });
+    return () => { alive = false; };
+  }, []);
+
   // Бронь, за которой следим вплотную, пока открыта форма оплаты.
   const [watching, setWatching] = useState<string | null>(null);
   // Оплата прошла — наблюдать больше не за чем.

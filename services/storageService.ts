@@ -116,6 +116,23 @@ export const saveReceiptEmail = async (email: string): Promise<string | null> =>
   return data.email ?? null;
 };
 
+/**
+ * GET /public/payments/methods — способы оплаты магазина.
+ *
+ * Спрашиваем заранее, при открытии экрана, а не в ответ на нажатие: иначе
+ * кнопки перерисовываются под пальцем.
+ */
+export const getPaymentMethods = async (): Promise<string[]> => {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/public/payments/methods`);
+    if (!res.ok) return [];
+    const data = (await res.json()) as { methods?: string[] };
+    return Array.isArray(data.methods) ? data.methods : [];
+  } catch {
+    return [];
+  }
+};
+
 /** Почта ещё не сохранена — СБП без неё не запустить. */
 export class ReceiptEmailRequired extends Error {
   constructor() { super('need_email'); this.name = 'ReceiptEmailRequired'; }

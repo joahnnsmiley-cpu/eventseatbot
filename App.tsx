@@ -142,6 +142,16 @@ function App() {
   const selectionAdjustedTimerRef = useRef<number | null>(null);
   const [userPhone, setUserPhone] = useState('');
   const [userComment, setUserComment] = useState('');
+  /**
+   * Бронь заполняется в два шага: сначала телефон, потом имя.
+   *
+   * Раньше кнопка «Забронировать» была доступна сразу, и имя почти никто не
+   * вводил — поле стояло последним и выглядело необязательным. Теперь одна
+   * кнопка ведёт по полям: пока телефона нет, она неактивна; телефон введён —
+   * «Далее» и переход к имени; имя введено — «Забронировать».
+   */
+  const [bookingStep, setBookingStep] = useState<'phone' | 'name'>('phone');
+  const nameFieldRef = useRef<HTMLTextAreaElement | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [bookingSuccessMessage, setBookingSuccessMessage] = useState<string | null>(null);
@@ -1013,6 +1023,15 @@ function App() {
                   const normalizedPhone = userPhone.trim();
                   if (!normalizedPhone) {
                     setBookingError(UI_TEXT.app.addPhoneToContinue);
+                    setBookingStep('phone');
+                    return;
+                  }
+                  // Кнопка до сюда без имени не пускает, но проверка нужна и
+                  // здесь: согласие открывается между нажатием и отправкой.
+                  if (!userComment.trim()) {
+                    setBookingError(UI_TEXT.app.addNameToContinue);
+                    setBookingStep('name');
+                    nameFieldRef.current?.focus();
                     return;
                   }
                   if (seats.length === 0) {
@@ -1289,15 +1308,25 @@ function App() {
               </Card>
 
               <Card>
-                <div className="text-sm font-semibold text-white mb-2">{UI_TEXT.app.commentLabel}</div>
+                <div className="text-sm font-semibold text-white mb-2">
+                  {UI_TEXT.app.commentLabel} <span className="text-red-400">*</span>
+                </div>
                 <textarea
+                  ref={nameFieldRef}
                   value={userComment}
                   onChange={(e) => setUserComment(e.target.value)}
+                  // Нажали в поле сами, не через кнопку — шаг всё равно второй.
+                  onFocus={() => setBookingStep('name')}
                   placeholder={UI_TEXT.app.commentPlaceholder}
-                  rows={3}
+                  rows={2}
                   className="w-full rounded-xl px-3 py-2 text-sm resize-y bg-[#131110] text-[#F5F1E9] border border-[#2B2723] placeholder-[#6F6A63] transition-shadow"
                   disabled={bookingLoading}
                 />
+                {(selectedSeatsByTable[selectedTableId!] ?? []).length > 1 && (
+                  <div className="text-[11.5px] text-[#8C8477] mt-2">
+                    {UI_TEXT.app.namesHint}
+                  </div>
+                )}
               </Card>
 
               {bookingError && (
@@ -1324,23 +1353,39 @@ function App() {
                     </div>
                   );
                 })()}
-              <PrimaryButton
-                className="flex-1 h-[54px] rounded-2xl disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-                disabled={
+              {(() => {
+                const hasPhone = userPhone.trim().length > 0;
+                const hasName = userComment.trim().length > 0;
+                const onNameStep = bookingStep === 'name';
+                const blocked =
                   selectedTable.isAvailable !== true ||
                   selectedTable.seatsAvailable === 0 ||
                   bookingLoading ||
-                  (selectedSeatsByTable[selectedTableId] ?? []).length === 0
-                }
-                onClick={() => {
-                  // The phone and the comment are handed over here, so this is
-                  // where the app asks — not on the way in, before the poster.
-                  if (!privacyConsented) { setConsentPending(true); return; }
-                  void submitBooking();
-                }}
-              >
-                {bookingLoading ? UI_TEXT.app.booking : UI_TEXT.app.continueBook}
-              </PrimaryButton>
+                  (selectedSeatsByTable[selectedTableId] ?? []).length === 0;
+
+                return (
+                  <PrimaryButton
+                    className="flex-1 h-[54px] rounded-2xl disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                    disabled={blocked || !hasPhone || (onNameStep && !hasName)}
+                    onClick={() => {
+                      // Первый шаг только переводит к имени — ничего не отправляет.
+                      if (!onNameStep) {
+                        setBookingStep('name');
+                        nameFieldRef.current?.focus();
+                        return;
+                      }
+                      // Телефон и имя передаются именно здесь, поэтому согласие
+                      // спрашивается тут, а не на входе, до афиши.
+                      if (!privacyConsented) { setConsentPending(true); return; }
+                      void submitBooking();
+                    }}
+                  >
+                    {bookingLoading
+                      ? UI_TEXT.app.booking
+                      : onNameStep ? UI_TEXT.app.continueBook : UI_TEXT.app.nextStep}
+                  </PrimaryButton>
+                );
+              })()}
               </div>
             </div>
           ) : (
