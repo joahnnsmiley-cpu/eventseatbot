@@ -4,7 +4,7 @@ import { CaretDown, CaretUp, CreditCard, Timer } from '@phosphor-icons/react';
 import { UI_TEXT } from '../../constants/uiText';
 import * as StorageService from '../../services/storageService';
 import { openExternal } from '../utils/openExternal';
-import { payInApp } from '../payments/robokassaWidget';
+import { payInApp, paySbp } from '../payments/robokassaWidget';
 import type { PaymentMethodKey } from '../../types';
 
 export interface PendingBookingInfo {
@@ -257,14 +257,26 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
         }
     };
 
-    /** СБП — только наружу: приложение банка из окна поверх аппа не запускается. */
+    /**
+     * СБП — ссылкой прямо в банк, минуя страницу Робокассы. Только наружу:
+     * приложение банка из окна поверх аппа не запускается.
+     *
+     * Если почта не сохранена, здесь её не спрашиваем: полоска-напоминание —
+     * не место для формы. Уводим на обычную страницу оплаты, она спросит сама.
+     */
     const handlePayBySbp = async (bookingId: string) => {
         setPayingId(bookingId);
         try {
-            const { url } = await StorageService.createRobokassaPayment(bookingId);
-            openExternal(url);
-        } catch {
-            // Тихо: причину покажет карточка брони в «Моих билетах».
+            const { op, url } = await StorageService.createSbpPayment(bookingId);
+            await paySbp(op, url);
+        } catch (e) {
+            if (e instanceof StorageService.ReceiptEmailRequired) {
+                try {
+                    const { url } = await StorageService.createRobokassaPayment(bookingId);
+                    openExternal(url);
+                } catch { /* причину покажет карточка брони */ }
+            }
+            // Иначе тихо: причину покажет карточка брони в «Моих билетах».
         } finally {
             setPayingId(null);
         }

@@ -11,6 +11,7 @@
 import crypto from 'crypto';
 import {
   buildPaymentLink,
+  buildSbpStartOp,
   buildReceipt,
   safeText,
   verifyResult,
@@ -125,6 +126,37 @@ check('the payment link carries the cleaned description', () => {
   const d = url.searchParams.get('Description') ?? '';
   assert(!/[«»|]/.test(d), `в Description спецсимволы: ${d}`);
   assert(d.length <= 100, 'Description не длиннее 100 символов');
+});
+
+check('СБП подписывается сырым JSON чека, а не url-encoded', () => {
+  // Это главное отличие от обычной ссылки, и перепутать их — значит получить
+  // молчаливый отказ на старте операции. В примере Робокассы для startOp чек
+  // передаётся сырым JSON, поэтому подписываем ровно то, что отправляем.
+  const items = [{ name: 'Участие', quantity: 1, sum: 1500, tax: 'none' }];
+  const raw = buildReceipt(items);
+  const op = buildSbpStartOp(cfg, {
+    invId: 42, amount: 1500, description: 'Участие', receiptItems: items,
+    email: 'guest@example.com',
+  });
+
+  assert(op.receipt === raw, 'чек должен уходить сырым JSON');
+  assert(op.signature === md5(`NiktoNeKruche:1500.00:42:${raw}:pass1`),
+    'подпись считается по сырому чеку');
+  assert(op.signature !== md5(`NiktoNeKruche:1500.00:42:${encodeURIComponent(raw)}:pass1`),
+    'подпись СБП не должна совпадать с подписью обычной ссылки');
+  assert(op.paymentMethod === 'SBP', 'метод строго SBP');
+  assert(op.outSum === '1500.00', 'сумма той же строкой, что и подписана');
+  assert(op.email === 'guest@example.com', 'почта обязательна для startOp');
+});
+
+check('СБП без чека подписывается без сегмента чека', () => {
+  const off = { ...cfg, sendReceipt: false };
+  const op = buildSbpStartOp(off, {
+    invId: 7, amount: 600, description: 'Участие', email: 'a@b.ru',
+    receiptItems: [{ name: 'Участие', quantity: 1, sum: 600, tax: 'none' }],
+  });
+  assert(op.receipt === undefined, 'чека быть не должно');
+  assert(op.signature === md5('NiktoNeKruche:600.00:7:pass1'), 'подпись без чека');
 });
 
 check('ResultURL is signed with password #2', () => {

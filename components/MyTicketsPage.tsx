@@ -14,7 +14,8 @@ import { useToast } from '../src/ui/ToastContext';
 import { getPlatform } from '../src/utils/platform';
 import { DEFAULT_TZ_OFFSET_MINUTES } from '../src/config/timezone';
 import { openExternal } from '../src/utils/openExternal';
-import { payInApp } from '../src/payments/robokassaWidget';
+import { payInApp, paySbp } from '../src/payments/robokassaWidget';
+import ReceiptEmailModal from '../src/ui/ReceiptEmailModal';
 import type { PaymentMethodKey } from '../types';
 
 type BookingItem = {
@@ -299,17 +300,28 @@ const MyTicketsPage: React.FC<{
     }
   };
 
-  /** СБП — только во внешнем браузере: во фрейме приложение банка не запустится. */
+  /**
+   * СБП — ссылкой прямо в приложение банка, минуя страницу Робокассы. Только
+   * наружу: из вебвью мессенджера ссылка банка не запустится.
+   */
+  const [emailFor, setEmailFor] = useState<string | null>(null);
+
   const handlePayBySbp = async (b: BookingItem) => {
     if (!PAYABLE_STATUSES.includes(b.status)) return;
     if (isExpired(b.expires_at)) return;
     setPayingId(b.id);
     setError(null);
     try {
-      const { url } = await StorageService.createRobokassaPayment(b.id);
-      openExternal(url);
+      const { op, url } = await StorageService.createSbpPayment(b.id);
+      await paySbp(op, url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось перейти к оплате');
+      // Почту спрашиваем здесь, а не заранее: это единственный момент, когда
+      // без неё дальше не пройти.
+      if (e instanceof StorageService.ReceiptEmailRequired) {
+        setEmailFor(b.id);
+      } else {
+        setError(e instanceof Error ? e.message : 'Не удалось перейти к оплате');
+      }
     } finally {
       setPayingId(null);
     }
@@ -407,6 +419,17 @@ const MyTicketsPage: React.FC<{
 
   return (
     <div className="my-tickets-premium w-full max-w-[420px] mx-auto min-h-[100dvh] relative overflow-x-hidden flex flex-col">
+      {emailFor && (
+        <ReceiptEmailModal
+          onCancel={() => setEmailFor(null)}
+          onSubmit={async (email) => {
+            await StorageService.saveReceiptEmail(email);
+            const booking = bookings.find((x) => x.id === emailFor);
+            setEmailFor(null);
+            if (booking) await handlePayBySbp(booking);
+          }}
+        />
+      )}
       {/* Subtle purple radial glow background */}
       <div
         className="absolute inset-0 pointer-events-none"

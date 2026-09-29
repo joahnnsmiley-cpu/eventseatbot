@@ -148,6 +148,56 @@ export function buildPaymentLink(cfg: RobokassaConfig, input: PaymentLinkInput):
   return `${cfg.payUrl}?${query.toString()}`;
 }
 
+/** Поля для Robokassa.pay.startOp — платёж по СБП со своей ссылкой и QR. */
+export type SbpStartOp = {
+  merchantLogin: string;
+  outSum: string;
+  invId: number;
+  email: string;
+  paymentMethod: 'SBP';
+  signature: string;
+  receipt?: string;
+};
+
+/**
+ * Платёж по СБП: своя ссылка и свой QR вместо страницы Робокассы.
+ *
+ * Подпись здесь считается по отдельной формуле из раздела про СБП:
+ * merchantLogin:outSum:invId:receipt:Пароль#1. Ключевое отличие от обычной
+ * ссылки — receipt в примере Робокассы передаётся сырым JSON, а не
+ * url-encoded. Формулы в их документации это отличие не оговаривают, поэтому
+ * подписываем ровно ту строку, которую отправляем: что бы ни оказалось верным,
+ * обе стороны увидят одно и то же.
+ *
+ * Тестового режима у метода нет — IsTest в его параметрах отсутствует. Значит
+ * первая же настоящая оплата по СБП и есть проверка, а на случай отказа у
+ * вызывающей стороны должен оставаться обычный платёжный адрес.
+ */
+export function buildSbpStartOp(
+  cfg: RobokassaConfig,
+  input: PaymentLinkInput & { email: string },
+): SbpStartOp {
+  const outSum = formatSum(input.amount);
+  const receipt = cfg.sendReceipt && input.receiptItems && input.receiptItems.length > 0
+    ? buildReceipt(input.receiptItems)
+    : '';
+
+  const parts = [cfg.merchantLogin, outSum, String(input.invId)];
+  if (receipt) parts.push(receipt);
+  parts.push(cfg.password1);
+
+  const op: SbpStartOp = {
+    merchantLogin: cfg.merchantLogin,
+    outSum,
+    invId: input.invId,
+    email: input.email,
+    paymentMethod: 'SBP',
+    signature: digest(parts.join(':'), cfg.hash),
+  };
+  if (receipt) op.receipt = receipt;
+  return op;
+}
+
 /** Shared by both callbacks: the amount and number Robokassa reports back. */
 export type CallbackParams = {
   OutSum?: string;

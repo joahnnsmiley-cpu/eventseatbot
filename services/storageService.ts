@@ -1,5 +1,6 @@
 import { EventData, Booking, TicketCategory } from '../types';
 import AuthService from './authService';
+import type { SbpOp } from '../src/payments/robokassaWidget';
 import { getApiBaseUrl } from '@/config/api';
 
 type ErrorBody = { error?: string };
@@ -111,6 +112,34 @@ export const saveReceiptEmail = async (email: string): Promise<string | null> =>
   }
   const data = (await res.json()) as { email?: string | null };
   return data.email ?? null;
+};
+
+/** Почта ещё не сохранена — СБП без неё не запустить. */
+export class ReceiptEmailRequired extends Error {
+  constructor() { super('need_email'); this.name = 'ReceiptEmailRequired'; }
+}
+
+/**
+ * POST /public/payments/robokassa/sbp — поля для оплаты по СБП.
+ *
+ * Возвращает и поля для startOp, и обычную платёжную ссылку: у метода СБП нет
+ * тестового режима и он может не ответить, тогда нужен путь, который работал
+ * всегда.
+ */
+export const createSbpPayment = async (
+  bookingId: string,
+): Promise<{ op: SbpOp; url: string; invId: number; amount: string }> => {
+  const res = await fetch(`${getApiBaseUrl()}/public/payments/robokassa/sbp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
+    body: JSON.stringify({ bookingId }),
+  });
+  if (res.status === 422) throw new ReceiptEmailRequired();
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error || 'Не удалось создать платёж');
+  }
+  return res.json();
 };
 
 /** GET /public/bookings/my — the signed-in person's own bookings. */

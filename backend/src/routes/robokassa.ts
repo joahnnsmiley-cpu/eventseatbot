@@ -17,6 +17,7 @@ import { getRobokassaConfig, ROBOKASSA_IPS } from '../config/robokassa';
 import {
   buildPaymentLink,
   buildPaymentParams,
+  buildSbpStartOp,
   verifyResult,
   verifySuccess,
   resultAck,
@@ -114,6 +115,123 @@ function seatCount(booking: {
   const fromTables = (booking.tableBookings ?? []).reduce((n, t) => n + (Number(t.seats) || 0), 0);
   return fromTables || 1;
 }
+
+type Prepared = {
+  booking: Awaited<ReturnType<typeof db.getBookingById>>;
+  payment: { invId: number; amount: number };
+  title: string;
+  seats: number;
+  amount: number;
+  email: string | null;
+};
+
+/**
+ * Всё, что нужно любому способу оплаты: проверить бронь, завести (или найти)
+ * строку платежа и собрать данные для чека.
+ *
+ * Карта и СБП расходятся только в самом конце, а до него правила одни и те же,
+ * и разойтись им нельзя: например, повторное открытие экрана оплаты обязано
+ * переиспользовать тот же InvId — иначе на одни и те же места будет два живых
+ * платежа.
+ */
+async function prepareBookingPayment(
+  req: AuthRequest,
+  res: Response,
+): Promise<Prepared | null> {
+  const cfg = getRobokassaConfig();
+  const bookingId = String((req.body as { bookingId?: string })?.bookingId ?? '').trim();
+  if (!bookingId) { res.status(400).json({ error: 'bookingId is required' }); return null; }
+
+  const booking = await db.getBookingById(bookingId);
+  if (!booking) { res.status(404).json({ error: 'Booking not found' }); return null; }
+  if (!ownsBooking(req, booking)) { res.status(403).json({ error: 'Forbidden' }); return null; }
+
+  if (booking.status === 'paid') {
+    res.status(409).json({ error: 'Бронь уже оплачена' });
+    return null;
+  }
+  const payable = ['reserved', 'pending', 'awaiting_confirmation', 'payment_submitted'];
+  if (!payable.includes(String(booking.status))) {
+    res.status(409).json({ error: `Бронь нельзя оплатить в статусе ${booking.status}` });
+    return null;
+  }
+
+  const amount = Number(booking.totalAmount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    res.status(409).json({ error: 'У брони нет суммы к оплате' });
+    return null;
+  }
+
+  const existing = await findPendingPaymentForBooking(bookingId, cfg.isTest);
+  const payment = existing && Math.abs(existing.amount - amount) < 0.01
+    ? existing
+    : await createPayment({ bookingId, amount, isTest: cfg.isTest });
+
+  const event = await db.findEventById(booking.eventId);
+  const userId = req.user?.id;
+  const email = userId == null
+    ? null
+    : await getUserEmail(
+      userId,
+      (req.user as { platform?: string })?.platform ?? 'telegram',
+    ).catch(() => null);
+
+  return {
+    booking,
+    payment,
+    title: event?.title ?? 'Мероприятие',
+    seats: seatCount(booking),
+    amount,
+    email,
+  };
+}
+
+/**
+ * POST /public/payments/robokassa/sbp  { bookingId }
+ *
+ * Поля для Robokassa.pay.startOp: приложение само получит ссылку СБП и уведёт
+ * гостя сразу в банк, минуя страницу Робокассы. Почта обязательна — без неё
+ * метод не работает, и об этом надо сказать отдельным кодом, чтобы приложение
+ * знало, что именно спросить.
+ */
+router.post('/public/payments/robokassa/sbp', requireUser, async (req: AuthRequest, res: Response) => {
+  const cfg = getRobokassaConfig();
+  if (!cfg.enabled) return res.status(503).json({ error: 'Оплата временно недоступна' });
+
+  try {
+    const prepared = await prepareBookingPayment(req, res);
+    if (!prepared) return;
+
+    if (!prepared.email) {
+      return res.status(422).json({ error: 'need_email' });
+    }
+
+    const input = {
+      invId: prepared.payment.invId,
+      amount: prepared.amount,
+      description: `Участие в мероприятии «${prepared.title}»`,
+      receiptItems: receiptFor(prepared.title, prepared.seats, prepared.amount, cfg.tax),
+      email: prepared.email,
+    };
+    const op = buildSbpStartOp(cfg, input);
+    // Тот же платёж обычной ссылкой. У startOp нет тестового режима и он может
+    // не ответить — тогда гостю нужен путь, который работал всегда.
+    const url = buildPaymentLink(cfg, input);
+
+    if (prepared.booking) void prepareTicket(prepared.booking);
+
+    console.log(JSON.stringify({
+      action: 'robokassa_sbp_started',
+      bookingId: prepared.booking?.id, invId: prepared.payment.invId,
+      amount: prepared.amount, timestamp: new Date().toISOString(),
+    }));
+
+    return res.json({ op, url, invId: prepared.payment.invId, amount: formatSum(prepared.amount) });
+  } catch (err) {
+    console.error('[robokassa sbp]', err);
+    return res.status(500).json({ error: 'Не удалось создать платёж' });
+  }
+});
 
 /**
  * POST /public/payments/robokassa  { bookingId }
