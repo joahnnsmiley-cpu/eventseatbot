@@ -238,7 +238,7 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
         setPayingId(bookingId);
         try {
             const { url, fields, methods } = await StorageService.createRobokassaPayment(bookingId);
-            await payInApp(fields, url, () => onRefresh?.(), methods);
+            await payInApp(fields, url, { onComplete: () => onRefresh?.(), methods });
             onRefresh?.();
         } catch {
             // The booking card in «Мои билеты» shows the reason; this strip stays quiet.

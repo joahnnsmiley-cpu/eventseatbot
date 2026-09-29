@@ -119,12 +119,28 @@ export type InAppResult = 'frame' | 'external';
  * Возвращает, чем дело кончилось, чтобы экран знал, ждать ли гостя обратно
  * (external) или он остался здесь и статус надо опрашивать чаще (frame).
  */
+export type PayOptions = {
+  /** Обновить экран, когда форма сообщит о завершении. */
+  onComplete?: () => void;
+  /** Способы, подключённые магазину. Приходят с сервера. */
+  methods?: string[];
+  /**
+   * Показать только эти способы.
+   *
+   * Порядок кнопок внутри формы задаёт сама Робокасса и наш порядок в списке
+   * игнорирует — проверено: передал СБП первым, карта всё равно осталась
+   * сверху. Поэтому единственный способ вывести нужный способ вперёд — открыть
+   * форму, где он один, отдельной кнопкой у нас.
+   */
+  only?: string[];
+};
+
 export async function payInApp(
   fields: RobokassaFields,
   fallbackUrl: string,
-  onComplete?: () => void,
-  methods?: string[],
+  options: PayOptions = {},
 ): Promise<InAppResult> {
+  const { onComplete, methods, only } = options;
   const goOut = (): InAppResult => { openExternal(fallbackUrl); return 'external'; };
 
   if (!(await loadApi(IFRAME_SRC, hasFrameApi))) return goOut();
@@ -146,8 +162,9 @@ export async function payInApp(
   // СБП из формы исключён намеренно. Он там дошёл бы до выбора банка и упёрся
   // в deep link, который вебвью мессенджера не открывает, — для него есть
   // отдельная кнопка, уводящая наружу.
-  const inFrame = (methods ?? []).filter((m) => m !== 'SBP');
-  const paymentMethods = inFrame.length > 0 ? inFrame : ['BankCard'];
+  const available = (methods ?? []).filter((m) => m !== 'SBP');
+  const wanted = only ? available.filter((m) => only.includes(m)) : available;
+  const paymentMethods = wanted.length > 0 ? wanted : ['BankCard'];
 
   try {
     start.call(rk, {

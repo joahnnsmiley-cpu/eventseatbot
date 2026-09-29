@@ -320,7 +320,7 @@ const MyTicketsPage: React.FC<{
    * по ссылке. Оплаченным здесь ничего не становится: это решает только
    * уведомление на ResultURL.
    */
-  const handlePayByCard = async (b: BookingItem) => {
+  const handlePayByCard = async (b: BookingItem, only?: string[]) => {
     if (!PAYABLE_STATUSES.includes(b.status)) return;
     if (isExpired(b.expires_at)) return;
     setPayingId(b.id);
@@ -328,7 +328,11 @@ const MyTicketsPage: React.FC<{
     try {
       const { url, fields, methods } = await StorageService.createRobokassaPayment(b.id);
       setShopMethods(methods ?? []);
-      const how = await payInApp(fields, url, () => { void load(); }, methods);
+      const how = await payInApp(fields, url, {
+        onComplete: () => { void load(); },
+        methods,
+        ...(only ? { only } : {}),
+      });
       // Гость остался здесь и платит на глазах — ждать общий тридцатисекундный
       // опрос слишком долго, статус нужен почти сразу.
       if (how === 'frame') setWatching(b.id);
@@ -590,13 +594,37 @@ const MyTicketsPage: React.FC<{
 
                       {byCard && (
                         <>
-                          <PrimaryButton
-                            onClick={(e) => { e.stopPropagation(); void handlePayByCard(b); }}
-                            disabled={payingId !== null}
-                            className="w-full h-12 rounded-2xl"
-                          >
-                            {payingId === b.id ? 'Открываем оплату…' : 'Оплатить'}
-                          </PrimaryButton>
+                          {/* Порядок кнопок внутри формы Робокассы задаёт она сама и наш
+                              порядок в списке игнорирует. Поэтому вывести T-Pay вперёд
+                              можно только так: своей кнопкой, открывающей форму, где он
+                              один. Показываем её, лишь когда способ реально подключён. */}
+                          {shopMethods.includes('TinkoffPay') && (
+                            <PrimaryButton
+                              onClick={(e) => { e.stopPropagation(); void handlePayByCard(b, ['TinkoffPay']); }}
+                              disabled={payingId !== null}
+                              className="w-full h-12 rounded-2xl"
+                            >
+                              {payingId === b.id ? 'Открываем оплату…' : 'Оплатить через T-Pay'}
+                            </PrimaryButton>
+                          )}
+                          {shopMethods.includes('TinkoffPay') ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); void handlePayByCard(b); }}
+                              disabled={payingId !== null}
+                              className="w-full h-12 rounded-2xl bg-white/5 border border-white/10 text-[15px] font-semibold text-white/80 disabled:opacity-50"
+                            >
+                              Оплатить картой
+                            </button>
+                          ) : (
+                            <PrimaryButton
+                              onClick={(e) => { e.stopPropagation(); void handlePayByCard(b); }}
+                              disabled={payingId !== null}
+                              className="w-full h-12 rounded-2xl"
+                            >
+                              {payingId === b.id ? 'Открываем оплату…' : 'Оплатить'}
+                            </PrimaryButton>
+                          )}
                           {/* СБП отдельной кнопкой и только наружу: он уводит в
                               приложение банка, а оно из окна поверх аппа не
                               запускается. Показываем, лишь когда способ
