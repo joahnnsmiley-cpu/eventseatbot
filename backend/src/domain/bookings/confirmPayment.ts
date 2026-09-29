@@ -73,12 +73,42 @@ export async function deliverTicket(booking: Booking): Promise<void> {
     if (ticketUrl) {
       await db.updateBookingTicketFileUrl(booking.id, ticketUrl);
       await notifyGuest(booking, '🎟 Ваш билет', ticketUrl);
-    } else {
-      await notifyGuest(booking, CONFIRMED_TEXT);
+      return;
     }
+
+    // Деньги взяты, билета нет. Гостю — что оплата прошла, администратору —
+    // что билет надо выдать руками. Молчать здесь нельзя.
+    await notifyGuest(booking, CONFIRMED_TEXT);
+    await alertAdmin(
+      `⚠️ Билет не сгенерировался
+
+Бронь ${booking.id}
+Событие ${booking.eventId}
+` +
+      'Оплата прошла, гостю отправлено подтверждение без билета. ' +
+      'Причина — в логах по метке [ticketGenerator].',
+    );
   } catch (err) {
     console.error('[deliverTicket]', err);
     notifyGuest(booking, CONFIRMED_TEXT).catch(() => {});
+    alertAdmin(
+      `⚠️ Билет не сгенерировался
+
+Бронь ${booking.id}
+` +
+      `Ошибка: ${err instanceof Error ? err.message : String(err)}`,
+    ).catch(() => {});
+  }
+}
+
+/** Сообщить администратору. Никогда не бросает: это уведомление, а не операция. */
+async function alertAdmin(text: string): Promise<void> {
+  const chatId = Number(process.env.TELEGRAM_ADMIN_CHAT_ID ?? 0);
+  if (!Number.isFinite(chatId) || chatId === 0) return;
+  try {
+    await sendTelegramMessage(chatId, text);
+  } catch (err) {
+    console.error('[deliverTicket alertAdmin]', err);
   }
 }
 
