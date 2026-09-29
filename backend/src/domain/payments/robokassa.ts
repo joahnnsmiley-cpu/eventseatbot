@@ -51,6 +51,9 @@ export function safeText(raw: string, limit: number): string {
   const cleaned = raw
     .replace(/[^\p{L}\p{N} .,:()\-\/№]+/gu, ' ')
     .replace(/\s+/g, ' ')
+    // Выброшенная кавычка оставляет пробел перед запятой — на чеке это видно.
+    .replace(/\s+([.,:)])/g, '$1')
+    .replace(/([(])\s+/g, '$1')
     .trim();
   return (cleaned || 'Услуга').slice(0, limit).trim();
 }
