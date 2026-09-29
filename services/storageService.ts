@@ -68,6 +68,8 @@ export const createRobokassaPayment = async (
   url: string;
   /** Те же поля по отдельности — для формы, встроенной в приложение. */
   fields: Record<string, string>;
+  /** Способы оплаты, подключённые магазину в личном кабинете Робокассы. */
+  methods: string[];
   payUrl: string;
   invId: number;
   amount: string;

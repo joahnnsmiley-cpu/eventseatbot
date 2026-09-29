@@ -14,6 +14,7 @@ import { Router, Request, Response } from 'express';
 import express from 'express';
 import { db } from '../db';
 import { getRobokassaConfig, ROBOKASSA_IPS } from '../config/robokassa';
+import { getShopMethods } from '../domain/payments/robokassaCurrencies';
 import {
   buildPaymentLink,
   buildPaymentParams,
@@ -202,6 +203,14 @@ router.post('/public/payments/robokassa/sbp', requireUser, async (req: AuthReque
     const prepared = await prepareBookingPayment(req, res);
     if (!prepared) return;
 
+    const methods = await getShopMethods(cfg);
+    if (methods.length > 0 && !methods.includes('SBP')) {
+      // Не молча: иначе это выглядит как поломка, а лечится включением СБП
+      // в личном кабинете Робокассы.
+      console.warn(JSON.stringify({ action: 'robokassa_sbp_not_enabled', methods }));
+      return res.status(409).json({ error: 'sbp_not_enabled' });
+    }
+
     if (!prepared.email) {
       return res.status(422).json({ error: 'need_email' });
     }
@@ -307,9 +316,14 @@ router.post('/public/payments/robokassa', requireUser, async (req: AuthRequest, 
       timestamp: new Date().toISOString(),
     }));
 
+    // Что предлагать во встроенной форме, решает не код, а личный кабинет:
+    // способ, которого магазину не подключили, стал бы кнопкой в никуда.
+    const methods = await getShopMethods(cfg);
+
     return res.json({
       url,
       fields,
+      methods,
       payUrl: cfg.payUrl,
       invId: payment.invId,
       amount: formatSum(amount),

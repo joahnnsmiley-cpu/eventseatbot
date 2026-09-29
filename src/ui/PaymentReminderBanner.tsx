@@ -4,7 +4,7 @@ import { CaretDown, CaretUp, CreditCard, Timer } from '@phosphor-icons/react';
 import { UI_TEXT } from '../../constants/uiText';
 import * as StorageService from '../../services/storageService';
 import { openExternal } from '../utils/openExternal';
-import { payInApp, paySbp } from '../payments/robokassaWidget';
+import { payInApp } from '../payments/robokassaWidget';
 import type { PaymentMethodKey } from '../../types';
 
 export interface PendingBookingInfo {
@@ -54,10 +54,9 @@ const BookingRow: React.FC<{
     onPaid: (id: string) => void;
     payingId: string | null;
     payByCard: (id: string) => void;
-    payBySbp: (id: string) => void;
     isLast: boolean;
     totalCount: number;
-}> = ({ b, submittingId, onPaid, payingId, payByCard, payBySbp, isLast, totalCount }) => {
+}> = ({ b, submittingId, onPaid, payingId, payByCard, isLast, totalCount }) => {
     const methods = b.paymentMethods?.length ? b.paymentMethods : ['transfer'];
     const byCard = methods.includes('robokassa');
     const byTransfer = methods.includes('transfer');
@@ -132,20 +131,11 @@ const BookingRow: React.FC<{
                         boxShadow: '0 4px 16px rgba(245,190,60,0.25)',
                     }}
                 >
-                    {payingId === b.bookingId ? 'Открываем оплату…' : 'Оплатить картой'}
+                    {payingId === b.bookingId ? 'Открываем оплату…' : 'Оплатить'}
                 </button>
             )}
 
-            {byCard && (
-                <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); void payBySbp(b.bookingId); }}
-                    disabled={payingId !== null}
-                    className="w-full py-2 text-[12.5px] font-medium text-white/55 disabled:opacity-50"
-                >
-                    Оплатить через СБП
-                </button>
-            )}
+
 
             {/* SBP Payment details */}
             {byTransfer && b.paymentPhone ? (
@@ -247,8 +237,8 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
     const handlePayByCard = async (bookingId: string) => {
         setPayingId(bookingId);
         try {
-            const { url, fields } = await StorageService.createRobokassaPayment(bookingId);
-            await payInApp(fields, url, () => onRefresh?.());
+            const { url, fields, methods } = await StorageService.createRobokassaPayment(bookingId);
+            await payInApp(fields, url, () => onRefresh?.(), methods);
             onRefresh?.();
         } catch {
             // The booking card in «Мои билеты» shows the reason; this strip stays quiet.
@@ -257,30 +247,6 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
         }
     };
 
-    /**
-     * СБП — ссылкой прямо в банк, минуя страницу Робокассы. Только наружу:
-     * приложение банка из окна поверх аппа не запускается.
-     *
-     * Если почта не сохранена, здесь её не спрашиваем: полоска-напоминание —
-     * не место для формы. Уводим на обычную страницу оплаты, она спросит сама.
-     */
-    const handlePayBySbp = async (bookingId: string) => {
-        setPayingId(bookingId);
-        try {
-            const { op, url } = await StorageService.createSbpPayment(bookingId);
-            await paySbp(op, url);
-        } catch (e) {
-            if (e instanceof StorageService.ReceiptEmailRequired) {
-                try {
-                    const { url } = await StorageService.createRobokassaPayment(bookingId);
-                    openExternal(url);
-                } catch { /* причину покажет карточка брони */ }
-            }
-            // Иначе тихо: причину покажет карточка брони в «Моих билетах».
-        } finally {
-            setPayingId(null);
-        }
-    };
 
     return (
         <motion.div
@@ -353,7 +319,6 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
                                     onPaid={handlePaid}
                             payingId={payingId}
                             payByCard={handlePayByCard}
-                                    payBySbp={handlePayBySbp}
                                     isLast={i === pendingBookings.length - 1}
                                     totalCount={pendingBookings.length}
                                 />

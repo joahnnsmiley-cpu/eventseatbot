@@ -89,6 +89,10 @@ function loadApi(src: string, ready: () => boolean): Promise<boolean> {
 }
 
 /** Форма на странице и она показана — признак того, что оплата действительно открылась. */
+export function isPaymentFrameOpen(): boolean {
+  return frameIsUp();
+}
+
 function frameIsUp(): boolean {
   const el = document.getElementById(FRAME_ID);
   return Boolean(el) && (el as HTMLElement).style.visibility !== 'hidden';
@@ -119,6 +123,7 @@ export async function payInApp(
   fields: RobokassaFields,
   fallbackUrl: string,
   onComplete?: () => void,
+  methods?: string[],
 ): Promise<InAppResult> {
   const goOut = (): InAppResult => { openExternal(fallbackUrl); return 'external'; };
 
@@ -135,10 +140,19 @@ export async function payInApp(
     rk?.SetCallbacks?.({ onComplete: () => onComplete?.() });
   } catch { /* необязательная возможность */ }
 
+  // Что показать в форме, решает личный кабинет магазина, а не код: список
+  // приходит с сервера. Карта — если список не доехал: она есть всегда.
+  //
+  // СБП из формы исключён намеренно. Он там дошёл бы до выбора банка и упёрся
+  // в deep link, который вебвью мессенджера не открывает, — для него есть
+  // отдельная кнопка, уводящая наружу.
+  const inFrame = (methods ?? []).filter((m) => m !== 'SBP');
+  const paymentMethods = inFrame.length > 0 ? inFrame : ['BankCard'];
+
   try {
     start.call(rk, {
       ...fields,
-      Settings: JSON.stringify({ PaymentMethods: ['BankCard'], Mode: 'modal' }),
+      Settings: JSON.stringify({ PaymentMethods: paymentMethods, Mode: 'modal' }),
     });
   } catch {
     return goOut();

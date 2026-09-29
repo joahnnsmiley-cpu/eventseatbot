@@ -14,7 +14,7 @@ import { useToast } from '../src/ui/ToastContext';
 import { getPlatform } from '../src/utils/platform';
 import { DEFAULT_TZ_OFFSET_MINUTES } from '../src/config/timezone';
 import { openExternal } from '../src/utils/openExternal';
-import { payInApp, paySbp } from '../src/payments/robokassaWidget';
+import { payInApp, paySbp, isPaymentFrameOpen } from '../src/payments/robokassaWidget';
 import ReceiptEmailModal from '../src/ui/ReceiptEmailModal';
 import type { PaymentMethodKey } from '../types';
 
@@ -135,7 +135,16 @@ const MyTicketsPage: React.FC<{
     };
   }, []);
 
-  const load = React.useCallback(async () => {
+  /**
+   * @param quiet фоновое обновление: не зажигать «Загрузка…».
+   *
+   * Экран обновляется сам — раз в полминуты, пока есть неоплаченные брони, и
+   * чаще, пока открыта форма оплаты. Если каждый такой заход включает общий
+   * признак загрузки, вкладка мигает и выглядит так, будто её постоянно
+   * перезагружают. Видимая загрузка уместна только тогда, когда её попросили:
+   * при открытии экрана и по кнопке обновления.
+   */
+  const load = React.useCallback(async (quiet = false) => {
     // Platform-aware user ID retrieval
     const platform = getPlatform();
     let userId: string | number | undefined;
@@ -154,7 +163,7 @@ const MyTicketsPage: React.FC<{
       return;
     }
 
-    setLoading(true);
+    if (!quiet) setLoading(true);
     setError(null);
     try {
       const data = await StorageService.getMyBookingsPublic(userId);
@@ -205,7 +214,7 @@ const MyTicketsPage: React.FC<{
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load bookings');
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   }, []);
 
@@ -234,21 +243,50 @@ const MyTicketsPage: React.FC<{
   );
   useEffect(() => {
     if (!hasPendingPayments) return;
-    const id = window.setInterval(load, 30000);
+    const id = window.setInterval(() => { void load(true); }, 30000);
     return () => window.clearInterval(id);
   }, [hasPendingPayments, load]);
 
+  /**
+   * Способы оплаты магазина. Пусто, пока не открывали оплату: список приходит
+   * с сервера вместе с платежом, а не зашит в приложение — его меняют в личном
+   * кабинете Робокассы, и кнопка способа, которого нет, вела бы в никуда.
+   */
+  const [shopMethods, setShopMethods] = useState<string[]>([]);
+
   // Бронь, за которой следим вплотную, пока открыта форма оплаты.
   const [watching, setWatching] = useState<string | null>(null);
+  // Оплата прошла — наблюдать больше не за чем.
   useEffect(() => {
     if (!watching) return;
-    const paid = bookings.find((b) => b.id === watching)?.status === 'paid';
-    if (paid) { setWatching(null); return; }
-    const id = window.setInterval(load, 3000);
-    // Десять минут — больше, чем живёт платёжная сессия; дальше хватит общего опроса.
-    const stop = window.setTimeout(() => setWatching(null), 10 * 60 * 1000);
+    if (bookings.find((b) => b.id === watching)?.status === 'paid') setWatching(null);
+  }, [watching, bookings]);
+
+  /**
+   * Пока форма оплаты открыта, статус брони нужен быстрее, чем раз в полминуты:
+   * гость платит на глазах и ждёт билет.
+   *
+   * Наблюдение прекращается, когда гость закрыл форму, — с небольшой отсрочкой
+   * на уведомление от Робокассы. Раньше здесь стоял только десятиминутный
+   * предел, и любая закрытая без оплаты форма оставляла экран опрашивать сервер
+   * десять минут подряд.
+   *
+   * bookings намеренно нет в зависимостях: они меняются при каждом обновлении,
+   * и таймер пересоздавался бы сам от себя.
+   */
+  useEffect(() => {
+    if (!watching) return;
+    let closedAt: number | null = null;
+    const id = window.setInterval(() => {
+      void load(true);
+      if (isPaymentFrameOpen()) { closedAt = null; return; }
+      if (closedAt === null) closedAt = Date.now();
+      else if (Date.now() - closedAt > 30_000) setWatching(null);
+    }, 3000);
+    // Предел на случай, если форма почему-то осталась висеть.
+    const stop = window.setTimeout(() => setWatching(null), 5 * 60 * 1000);
     return () => { window.clearInterval(id); window.clearTimeout(stop); };
-  }, [watching, bookings, load]);
+  }, [watching, load]);
 
   const [payingId, setPayingId] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<string | null>(highlightBookingId ?? null);
@@ -288,8 +326,9 @@ const MyTicketsPage: React.FC<{
     setPayingId(b.id);
     setError(null);
     try {
-      const { url, fields } = await StorageService.createRobokassaPayment(b.id);
-      const how = await payInApp(fields, url, () => { void load(); });
+      const { url, fields, methods } = await StorageService.createRobokassaPayment(b.id);
+      setShopMethods(methods ?? []);
+      const how = await payInApp(fields, url, () => { void load(); }, methods);
       // Гость остался здесь и платит на глазах — ждать общий тридцатисекундный
       // опрос слишком долго, статус нужен почти сразу.
       if (how === 'frame') setWatching(b.id);
@@ -319,6 +358,9 @@ const MyTicketsPage: React.FC<{
       // без неё дальше не пройти.
       if (e instanceof StorageService.ReceiptEmailRequired) {
         setEmailFor(b.id);
+      } else if (e instanceof Error && e.message === 'sbp_not_enabled') {
+        setShopMethods((prev) => prev.filter((m) => m !== 'SBP'));
+        setError('Оплата через СБП пока не подключена. Можно оплатить картой.');
       } else {
         setError(e instanceof Error ? e.message : 'Не удалось перейти к оплате');
       }
@@ -553,19 +595,23 @@ const MyTicketsPage: React.FC<{
                             disabled={payingId !== null}
                             className="w-full h-12 rounded-2xl"
                           >
-                            {payingId === b.id ? 'Открываем оплату…' : 'Оплатить картой'}
+                            {payingId === b.id ? 'Открываем оплату…' : 'Оплатить'}
                           </PrimaryButton>
-                          {/* Отдельной кнопкой, а не вместе с картой: СБП уводит в
+                          {/* СБП отдельной кнопкой и только наружу: он уводит в
                               приложение банка, а оно из окна поверх аппа не
-                              запускается — только через внешний браузер. */}
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); void handlePayBySbp(b); }}
-                            disabled={payingId !== null}
-                            className="w-full h-12 rounded-2xl bg-white/5 border border-white/10 text-[15px] font-semibold text-white/80 disabled:opacity-50"
-                          >
-                            Оплатить через СБП
-                          </button>
+                              запускается. Показываем, лишь когда способ
+                              действительно подключён магазину — иначе это
+                              кнопка в никуда. */}
+                          {shopMethods.includes('SBP') && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); void handlePayBySbp(b); }}
+                              disabled={payingId !== null}
+                              className="w-full h-12 rounded-2xl bg-white/5 border border-white/10 text-[15px] font-semibold text-white/80 disabled:opacity-50"
+                            >
+                              Оплатить через СБП
+                            </button>
+                          )}
                         </>
                       )}
 
