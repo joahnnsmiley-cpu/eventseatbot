@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { handlePhoneInput } from '../src/utils/phone';
 import {
   DndContext,
   closestCenter,
@@ -2186,8 +2187,9 @@ const AdminPanel: React.FC<{
                               id="admin-payment-phone"
                               type="tel"
                               inputMode="tel"
+                              autoComplete="tel"
                               value={eventPhone}
-                              onChange={(e) => { setEventPhone(e.target.value); }}
+                              onChange={(e) => { handlePhoneInput(e.target, setEventPhone); }}
                               placeholder={UI_TEXT.event.phonePlaceholder}
                               className="w-full"
                             />

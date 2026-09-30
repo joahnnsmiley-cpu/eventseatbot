@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import vkBridge from '@vkontakte/vk-bridge';
 import * as StorageService from './services/storageService';
 import { installKeyboardAwareFocus } from './src/utils/keyboardAwareFocus';
+import { handlePhoneInput, isUsablePhone } from './src/utils/phone';
 import AuthService from './services/authService';
 import SeatMap from './components/SeatMap';
 import SeatChoice from './components/SeatChoice';
@@ -1299,8 +1300,10 @@ function App() {
                 <div className="text-sm font-semibold text-white mb-2">{UI_TEXT.app.contactPhone} <span className="text-red-400">*</span></div>
                 <input
                   type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
                   value={userPhone}
-                  onChange={(e) => setUserPhone(e.target.value)}
+                  onChange={(e) => handlePhoneInput(e.target, setUserPhone)}
                   placeholder={UI_TEXT.app.phonePlaceholder}
                   className="w-full rounded-xl px-3 py-2 text-sm bg-[#131110] text-[#F5F1E9] border border-[#2B2723] placeholder-[#6F6A63] transition-shadow"
                   disabled={bookingLoading}
@@ -1354,7 +1357,7 @@ function App() {
                   );
                 })()}
               {(() => {
-                const hasPhone = userPhone.trim().length > 0;
+                const hasPhone = isUsablePhone(userPhone);
                 const hasName = userComment.trim().length > 0;
                 const onNameStep = bookingStep === 'name';
                 const blocked =
