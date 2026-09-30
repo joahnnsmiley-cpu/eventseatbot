@@ -390,6 +390,19 @@ async function handleResult(req: Request, res: Response) {
       action: 'robokassa_amount_mismatch',
       invId: verified.invId, expected: payment.amount, received: verified.outSum,
     }));
+    // Только лога мало: расхождение суммы — это деньги, и его должен увидеть
+    // человек, а не строчка в журнале, которую никто не читает.
+    void notifyAdmins(
+      `⚠️ Сумма платежа не совпала
+
+`
+      + `Счёт ${verified.invId}
+Ожидали ${payment.amount} ₽, пришло ${verified.outSum} ₽
+`
+      + `Бронь ${payment.bookingId}
+
+Подпись верна, то есть это действительно Робокасса. Проверьте вручную.`,
+    );
   }
 
   const updated = await markPaymentPaid(verified.invId, {

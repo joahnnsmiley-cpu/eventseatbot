@@ -767,8 +767,6 @@ const MyTicketsPage: React.FC<{
                       eventId: contactModal.eventId,
                       problemText: text,
                       bookingId: contactModal.bookingId,
-                      userTelegramId: !isVk ? tg?.id : undefined,
-                      userVkId: vkUserId,
                       userFirstName: tg?.first_name,
                       userLastName: tg?.last_name,
                       userUsername: tg?.username,

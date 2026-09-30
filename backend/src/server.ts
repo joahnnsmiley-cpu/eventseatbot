@@ -10,7 +10,6 @@ import adminEventsRouter from './routes/adminEvents';
 import adminUploadLayoutRouter from './routes/admin.uploadLayout';
 import adminBookingsRouter from './routes/adminBookings';
 import publicEventsRouter from './routes/publicEvents';
-import publicPaymentsRouter from './routes/publicPayments';
 import robokassaRouter from './routes/robokassa';
 import { getRobokassaConfig } from './config/robokassa';
 import adminPaymentsRouter from './routes/adminPayments';
@@ -374,7 +373,11 @@ app.use('/admin', adminInvitesRouter);
 app.use('/controller', controllerRouter);
 // Public read-only event views and JSON endpoints
 app.use('/public', publicEventsRouter);
-app.use('/public', publicPaymentsRouter);
+// Старый роутер оплат (/public/payments, /payments/:id/cancel) снят с
+// обслуживания. Он остался от времён до эквайринга, работал без всякой
+// авторизации и писал во временный файл на диске контейнера, а фронт им давно
+// не пользуется — деньги ходят через Робокассу. Открытая ручка, которой никто
+// не пользуется, это только лишняя поверхность.
 app.use('/debug', debugRouter);
 app.use('/vk', vkWebhookRouter);
 

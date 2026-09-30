@@ -41,14 +41,32 @@ export function verifyTicketToken(token: string): TicketPayload | null {
     .update(base64)
     .digest('base64url');
 
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+  // Длины сравниваем сами: timingSafeEqual бросает исключение на разной длине,
+  // и подпись не того размера роняла проверку в 500 вместо честного отказа.
+  const received = Buffer.from(signature);
+  const want = Buffer.from(expected);
+  if (received.length !== want.length) return null;
+  if (!crypto.timingSafeEqual(received, want)) return null;
 
   try {
     const json = Buffer.from(base64, 'base64url').toString();
     const payload = JSON.parse(json) as TicketPayload;
-    // Reject tokens older than 24 hours
-    const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
-    if (Date.now() - payload.iat > TOKEN_TTL_MS) return null;
+
+    /**
+     * Срок жизни токена — год, а не сутки.
+     *
+     * Здесь стояли 24 часа, и это ломало саму суть предпродажи: билет
+     * выпускается в момент оплаты, а концерт бывает через месяц. Проверено на
+     * настоящем оплаченном билете — через сутки после выпуска он уже отвечал
+     * «недействителен», то есть на входе не прошёл бы никто, кто купил заранее.
+     *
+     * Ограничивает билет не этот срок, а проверка при сканировании: она
+     * пропускает только оплаченную и непогашенную бронь и только в окрестности
+     * даты своего концерта. Год здесь — просто верхняя граница здравого смысла.
+     */
+    const TOKEN_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+    const age = Date.now() - payload.iat;
+    if (!Number.isFinite(age) || age > TOKEN_TTL_MS) return null;
     return payload;
   } catch {
     return null;

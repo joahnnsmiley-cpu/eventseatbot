@@ -100,11 +100,9 @@ router.post('/telegram', async (req, res) => {
   const initData = typeof body.initData === 'string' ? body.initData : '';
   let rawId: unknown = body.telegramId ?? body.telegram_id ?? body.userId ?? body.user_id ?? body.id ?? req.query?.telegramId ?? req.query?.telegram_id ?? req.query?.userId ?? req.query?.user_id ?? req.query?.id;
 
-  if (rawId === undefined || rawId === null) {
-    console.warn('[AUTH] Telegram login failed: telegramId missing');
-    return res.status(400).json({ error: 'telegramId is required' });
-  }
-
+  // telegramId из тела больше не требуется и ни на что не влияет: личность
+  // берётся из подписанной initData. Поле оставлено только затем, чтобы
+  // замечать в логах попытки подмены.
   if (!initData) {
     console.warn('[AUTH] Telegram login failed: initData missing');
     return res.status(400).json({ error: 'initData is required' });
@@ -158,13 +156,58 @@ router.post('/telegram', async (req, res) => {
     return res.status(401).json({ error: 'Invalid initData signature' });
   }
 
-  if (typeof rawId === 'string') rawId = rawId.trim();
-  if (rawId === '') {
-    return res.status(400).json({ error: 'telegramId must not be empty' });
+  /**
+   * Свежесть initData.
+   *
+   * Подпись сама по себе не стареет: один раз перехваченная строка работала бы
+   * вечно. Телеграм кладёт в неё время выдачи именно для того, чтобы мы это
+   * ограничили. Сутки — с запасом на то, что мини-апп держат открытым долго.
+   */
+  const AUTH_DATE_TTL_SEC = 24 * 60 * 60;
+  const authDateRaw = Number(pairs.find((p) => p.key === 'auth_date')?.value ?? NaN);
+  if (!Number.isFinite(authDateRaw)) {
+    console.warn('[AUTH] Telegram login failed: auth_date missing');
+    return res.status(401).json({ error: 'Invalid initData: missing auth_date' });
+  }
+  const ageSec = Math.floor(Date.now() / 1000) - authDateRaw;
+  if (ageSec > AUTH_DATE_TTL_SEC || ageSec < -300) {
+    console.warn(`[AUTH] Telegram login failed: initData stale (${ageSec}s)`);
+    return res.status(401).json({ error: 'initData expired, reopen the app' });
   }
 
-  const asNumber = Number(rawId as any);
-  const normalizedId: number | string = Number.isFinite(asNumber) ? asNumber : String(rawId);
+  /**
+   * Кто вошёл — берём ТОЛЬКО из подписанных данных.
+   *
+   * Здесь была дыра, и серьёзная: подпись проверялась у initData, а личность
+   * бралась из поля telegramId в теле запроса, которое ничем не подписано.
+   * То есть любой, кто хоть раз открыл мини-апп и получил свою законную
+   * initData, мог отправить её вместе с чужим telegramId и получить токен от
+   * чужого имени — в том числе от имени администратора, потому что роль
+   * считается по тому же значению. Во ВКонтакте это сделано правильно, id
+   * берётся из подписанных параметров; здесь — не было.
+   *
+   * Поле telegramId из тела больше не участвует ни в чём.
+   */
+  const signedUserRaw = pairs.find((p) => p.key === 'user')?.value;
+  let signedId: number | null = null;
+  if (signedUserRaw) {
+    try {
+      const parsed = JSON.parse(signedUserRaw) as { id?: unknown };
+      const asNum = Number(parsed?.id);
+      if (Number.isFinite(asNum) && asNum > 0) signedId = asNum;
+    } catch { /* разберём ниже как отсутствие */ }
+  }
+  if (signedId === null) {
+    console.warn('[AUTH] Telegram login failed: no user id inside signed initData');
+    return res.status(401).json({ error: 'Invalid initData: no user' });
+  }
+  if (rawId !== undefined && rawId !== null && String(rawId).trim() !== String(signedId)) {
+    // Не ошибка клиента, а признак подмены: стоит видеть в логах.
+    console.warn(`[AUTH] telegramId in body (${String(rawId)}) ignored, signed id is ${signedId}`);
+  }
+
+  const asNumber = signedId;
+  const normalizedId: number | string = signedId;
 
   if (!process.env.JWT_SECRET) {
     console.error('[AUTH] Telegram login failed: JWT_SECRET not set');

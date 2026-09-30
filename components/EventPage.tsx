@@ -180,8 +180,6 @@ const EventPage: React.FC<EventPageProps> = ({
         eventId: event.id,
         problemText: text,
         bookingId,
-        userTelegramId: !isVk && typeof tgUser?.id === 'number' ? tgUser.id : undefined,
-        userVkId: isVk && typeof tgUser?.id === 'number' ? tgUser.id : undefined,
         userFirstName: tgUser?.first_name,
         userLastName: tgUser?.last_name,
         userUsername: tgUser?.username,

@@ -17,6 +17,11 @@ import { getRobokassaConfig } from '../config/robokassa';
 const router = Router();
 
 const bookingLimiter = rateLimit({ windowMs: 60_000, max: 15, standardHeaders: true, legacyHeaders: false });
+/**
+ * Обращение к организатору уходит ему в Телеграм. Без ограничения это готовый
+ * способ завалить его сообщениями с одной машины.
+ */
+const contactLimiter = rateLimit({ windowMs: 10 * 60_000, max: 5, standardHeaders: true, legacyHeaders: false });
 
 const now = () => new Date().toISOString();
 
@@ -845,14 +850,19 @@ router.post('/bookings/:id/cancel', requireUser, async (req: Request, res: Respo
 });
 
 // POST /public/contact-organizer — send user message to admins (only admins see it)
-router.post('/contact-organizer', async (req: Request, res: Response) => {
+/**
+ * Обращение к организатору.
+ *
+ * Раньше было открыто всем и брало личность отправителя из тела запроса, так
+ * что любой мог написать организатору от чужого имени, сколько угодно раз.
+ * Теперь нужен вход, а кто пишет — решает подписанный токен.
+ */
+router.post('/contact-organizer', contactLimiter, requireUser, async (req: Request, res: Response) => {
   try {
     const {
       eventId,
       problemText,
       bookingId,
-      userTelegramId,
-      userVkId,
       userFirstName,
       userLastName,
       userUsername,
@@ -860,9 +870,10 @@ router.post('/contact-organizer', async (req: Request, res: Response) => {
 
     if (!eventId || typeof eventId !== 'string') return res.status(400).json({ error: 'eventId required' });
     if (!problemText || typeof problemText !== 'string') return res.status(400).json({ error: 'problemText required' });
-    const userId = typeof userTelegramId === 'number' ? userTelegramId
-      : typeof userVkId === 'number' ? userVkId
-      : null;
+    // Длина — чтобы в уведомление организатору не улетала простыня.
+    if (problemText.length > 2000) return res.status(400).json({ error: 'problemText too long' });
+    const me = identityOf(req as AuthRequest);
+    const userId = me ? me.id : null;
 
     const ev = (await db.findEventById(eventId)) as any;
     if (!ev) return res.status(404).json({ error: 'Event not found' });
@@ -934,8 +945,9 @@ router.post('/contact-organizer', async (req: Request, res: Response) => {
     ].join('\n');
 
     forwardToAdminsAndOrganizer({
-      userTelegramId: typeof userTelegramId === 'number' ? userTelegramId : null,
-      userVkId: typeof userVkId === 'number' ? userVkId : null,
+      // Обе площадки — из токена, а не из тела: отправителя нельзя назвать чужим.
+      userTelegramId: me?.platform === 'telegram' ? me.id : null,
+      userVkId: me?.platform === 'vk' ? me.id : null,
       eventId: String(eventId),
       text: adminMsg,
     }).catch((err: any) => console.error('[contact-organizer] forwardToAdminsAndOrganizer failed:', err));

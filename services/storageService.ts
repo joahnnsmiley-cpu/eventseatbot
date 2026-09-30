@@ -274,12 +274,14 @@ export const updateBookingStatus = async (bookingId: string, status: 'awaiting_c
 };
 
 /** POST /public/contact-organizer — send user message to admins (only admins see it). */
+/**
+ * Обращение к организатору. Кто пишет — сервер берёт из токена, а не из тела:
+ * раньше отправителя можно было назвать любым.
+ */
 export const contactOrganizer = async (payload: {
   eventId: string;
   problemText: string;
   bookingId?: string;
-  userTelegramId?: number;
-  userVkId?: number;
   userFirstName?: string;
   userLastName?: string;
   userUsername?: string;
@@ -287,7 +289,7 @@ export const contactOrganizer = async (payload: {
   const apiBaseUrl = getApiBaseUrl();
   const res = await fetch(`${apiBaseUrl}/public/contact-organizer`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...AuthService.getAuthHeader() },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
