@@ -148,6 +148,17 @@ app.get('/health', (_req, res) => {
           (process.env.ROBOKASSA_TEST_PASSWORD_1 ?? '').trim() &&
           (process.env.ROBOKASSA_TEST_PASSWORD_2 ?? '').trim(),
         ),
+        // Самая частая причина ошибки 29 после перехода в боевой режим: в
+        // боевые переменные скопировали тестовую пару. Сравнение — булево,
+        // сами значения наружу не выходят.
+        prodEqualsTest: Boolean(
+          (process.env.ROBOKASSA_PASSWORD_1 ?? '').trim() &&
+          (process.env.ROBOKASSA_PASSWORD_1 ?? '').trim() ===
+            (process.env.ROBOKASSA_TEST_PASSWORD_1 ?? '').trim(),
+        ),
+        // Должен совпадать с алгоритмом в технических настройках магазина.
+        // Не совпадает — подпись не сойдётся, какой бы пароль ни стоял.
+        hash: cfg.hash,
         sendReceipt: cfg.sendReceipt,
         tax: cfg.tax,
       };
@@ -387,6 +398,21 @@ app.get('/test-admin-notify', authMiddleware, adminOnly, async (_req, res) => {
 app.listen(PORT, () => {
   console.log(`Backend API listening on http://localhost:${PORT}`);
   startBookingExpirationJob();
+  // Длины паролей — в лог, а не в публичную ручку: обрезанная при копировании
+  // строка выглядит ровно как ошибка 29, и отличить это иначе нельзя.
+  {
+    const cfg = getRobokassaConfig();
+    console.log(JSON.stringify({
+      action: 'robokassa_boot',
+      mode: cfg.isTest ? 'test' : 'live',
+      merchant: cfg.merchantLogin,
+      hash: cfg.hash,
+      password1Length: cfg.password1.length,
+      password2Length: cfg.password2.length,
+      samePasswords: cfg.password1 === cfg.password2,
+    }));
+  }
+
   startTicketRetryJob();
 
   // Re-register the webhook with the secret this server checks for. Without
