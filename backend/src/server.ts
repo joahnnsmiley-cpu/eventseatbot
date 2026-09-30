@@ -12,6 +12,7 @@ import adminBookingsRouter from './routes/adminBookings';
 import publicEventsRouter from './routes/publicEvents';
 import publicPaymentsRouter from './routes/publicPayments';
 import robokassaRouter from './routes/robokassa';
+import { getRobokassaConfig } from './config/robokassa';
 import adminPaymentsRouter from './routes/adminPayments';
 import adminControllersRouter from './routes/adminControllers';
 import adminRolesRouter from './routes/adminRoles';
@@ -128,6 +129,29 @@ app.get('/health', (_req, res) => {
     // Проверить значение иначе нельзя — только выпустив билет и прочитав QR,
     // поэтому оно показано здесь. Это не секрет, а публичный адрес проверки.
     ticketQrBase: (process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, ''),
+    // Боевой режим или тестовый — снаружи это иначе не проверить, а перепутать
+    // легко: тестовому и боевому режимам нужны РАЗНЫЕ пары паролей, и боевой
+    // пароль в тестовом режиме даёт ошибку 29. Пароли не показываем даже
+    // частично, только сам факт, что они заданы. Логин магазина не секрет —
+    // он печатается на платёжной форме у каждого гостя.
+    payments: (() => {
+      const cfg = getRobokassaConfig();
+      return {
+        enabled: cfg.enabled,
+        mode: cfg.isTest ? 'ТЕСТ' : 'БОЕВОЙ',
+        merchant: cfg.merchantLogin || null,
+        hasProdPasswords: Boolean(
+          (process.env.ROBOKASSA_PASSWORD_1 ?? '').trim() &&
+          (process.env.ROBOKASSA_PASSWORD_2 ?? '').trim(),
+        ),
+        hasTestPasswords: Boolean(
+          (process.env.ROBOKASSA_TEST_PASSWORD_1 ?? '').trim() &&
+          (process.env.ROBOKASSA_TEST_PASSWORD_2 ?? '').trim(),
+        ),
+        sendReceipt: cfg.sendReceipt,
+        tax: cfg.tax,
+      };
+    })(),
   });
 });
 
