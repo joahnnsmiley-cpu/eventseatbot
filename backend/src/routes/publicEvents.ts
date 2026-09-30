@@ -164,6 +164,39 @@ export function invalidatePublicEventCache(): void {
   eventCache.clear();
 }
 
+/**
+ * Короткая память на занятые места — две секунды.
+ *
+ * Это второе узкое место, которое показала нагрузка: тридцать запросов в
+ * секунду, и при двух сотнях гостей карта мест отдавалась за шесть с половиной
+ * секунд.
+ *
+ * Кэшировать занятость страшно только на первый взгляд. Бронь всё равно
+ * перепроверяет занятость на сервере и отвечает 409, если место успели взять,
+ * так что двойной брони из-за устаревшей карты не случится — в худшем случае
+ * гость получит честный отказ вместо тихой потери места. Две секунды выбраны
+ * так, чтобы карта ощущалась живой.
+ *
+ * При любой брони и отмене память по этому событию сбрасывается сразу, так что
+ * обычно она даже не успевает устареть — она спасает именно в наплыв, когда
+ * один и тот же запрос приходит сотнями в секунду.
+ */
+const SEATS_CACHE_TTL_MS = 2_000;
+const seatsCache = new Map<string, { at: number; body: unknown }>();
+
+function cachedSeats(eventId: string): unknown | null {
+  const hit = seatsCache.get(eventId);
+  if (!hit) return null;
+  if (Date.now() - hit.at > SEATS_CACHE_TTL_MS) { seatsCache.delete(eventId); return null; }
+  return hit.body;
+}
+
+/** Места этого события изменились: бронь, отмена, истечение. */
+export function invalidateSeatsCache(eventId?: string | null): void {
+  if (eventId) seatsCache.delete(String(eventId));
+  else seatsCache.clear();
+}
+
 // Return a single published event
 router.get('/events/:id', async (req: Request, res: Response) => {
   const id = req.params.id;
@@ -212,6 +245,9 @@ router.get('/events/:eventId/occupied-seats', async (req: Request, res: Response
   const eventId = req.params.eventId;
   if (!eventId) return res.status(400).json({ error: 'eventId is required' });
   if (!supabase) return res.status(503).json({ error: 'Storage not configured' });
+
+  const remembered = cachedSeats(String(eventId));
+  if (remembered !== null) return res.json(remembered);
 
   try {
     const { data: activeTables, error: tablesErr } = await supabase
@@ -266,6 +302,8 @@ router.get('/events/:eventId/occupied-seats', async (req: Request, res: Response
       seat_indices: Array.from(set),
     }));
 
+    if (seatsCache.size > 50) seatsCache.clear();
+    seatsCache.set(String(eventId), { at: Date.now(), body: result });
     return res.json(result);
   } catch (err) {
     console.error('[occupied-seats]', err);
@@ -392,6 +430,7 @@ router.get('/view/:id', (req: Request, res: Response) => {
 // POST /public/bookings — create pending booking (no payment, no seat blocking)
 // Body: { eventId, tableId, seats: number[], phone }
 router.post('/bookings', bookingLimiter, requireUser, async (req: Request, res: Response) => {
+  res.on('finish', () => invalidateSeatsCache());
   try {
     const me = identityOf(req as AuthRequest)!;
     const { eventId, tableId, seats, phone } = req.body || {};
@@ -481,6 +520,7 @@ router.post('/bookings', bookingLimiter, requireUser, async (req: Request, res: 
 // Create a reserved booking for a table (public read-only booking endpoint)
 // Body: { eventId, tableId, seatsRequested, platform, vkUserId }
 router.post('/bookings/table', bookingLimiter, requireUser, async (req: Request, res: Response) => {
+  res.on('finish', () => invalidateSeatsCache());
   const me = identityOf(req as AuthRequest)!;
   const { eventId, tableId, seatsRequested, userPhone, userComment } = req.body || {};
   const platform = me.platform;
@@ -704,6 +744,8 @@ router.post('/bookings/seats', bookingLimiter, requireUser, async (req: Request,
     }
     const overlap = indices.some((i: number) => occupied.has(i));
     if (overlap) return res.status(409).json({ error: 'Seat conflict: some seats are already booked' });
+    // Дальше место уходит в бронь — карта занятости устарела.
+    invalidateSeatsCache(String(eventId));
 
     const id = uuid();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
@@ -791,6 +833,8 @@ router.post('/bookings/seats', bookingLimiter, requireUser, async (req: Request,
 // PATCH /public/bookings/:id/status
 // Allow user to set booking status to awaiting_confirmation (e.g. after "Я оплатил").
 router.patch('/bookings/:id/status', requireUser, async (req: Request, res: Response) => {
+  // Любая смена статуса может освободить или занять места.
+  res.on('finish', () => invalidateSeatsCache());
   const bookingId = String(req.params.id);
   if (!bookingId) return res.status(400).json({ error: 'bookingId is required' });
   const { status } = req.body || {};
@@ -830,6 +874,7 @@ router.patch('/bookings/:id/status', requireUser, async (req: Request, res: Resp
 // POST /public/bookings/:id/cancel
 // Cancel a reserved booking and restore seatsAvailable on the related table.
 router.post('/bookings/:id/cancel', requireUser, async (req: Request, res: Response) => {
+  res.on('finish', () => invalidateSeatsCache());
   const bookingId = String(req.params.id);
   if (!bookingId) return res.status(400).json({ error: 'bookingId is required' });
 
