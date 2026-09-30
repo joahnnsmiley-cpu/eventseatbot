@@ -4,7 +4,8 @@ import { CaretDown, CaretUp, CreditCard, Timer } from '@phosphor-icons/react';
 import { UI_TEXT } from '../../constants/uiText';
 import * as StorageService from '../../services/storageService';
 import { openExternal } from '../utils/openExternal';
-import { payInApp } from '../payments/robokassaWidget';
+import { payInApp, paySbp } from '../payments/robokassaWidget';
+import { preferredMethod, payButtonLabel } from '../payments/methods';
 import type { PaymentMethodKey } from '../../types';
 
 export interface PendingBookingInfo {
@@ -53,10 +54,13 @@ const BookingRow: React.FC<{
     submittingId: string | null;
     onPaid: (id: string) => void;
     payingId: string | null;
-    payByCard: (id: string) => void;
+    payByCard: (id: string, only?: string[]) => void;
+    payBySbp: (id: string) => void;
+    /** Способы, подключённые магазину. Приходят с сервера при открытии. */
+    shopMethods: string[];
     isLast: boolean;
     totalCount: number;
-}> = ({ b, submittingId, onPaid, payingId, payByCard, isLast, totalCount }) => {
+}> = ({ b, submittingId, onPaid, payingId, payByCard, payBySbp, shopMethods, isLast, totalCount }) => {
     const methods = b.paymentMethods?.length ? b.paymentMethods : ['transfer'];
     const byCard = methods.includes('robokassa');
     const byTransfer = methods.includes('transfer');
@@ -119,21 +123,43 @@ const BookingRow: React.FC<{
                 </div>
             )}
 
-            {byCard && (
-                <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); void payByCard(b.bookingId); }}
-                    disabled={payingId !== null}
-                    className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
-                    style={{
-                        background: 'linear-gradient(135deg, #F5BE3C 0%, #D4A030 100%)',
-                        color: '#0B0A09',
-                        boxShadow: '0 4px 16px rgba(245,190,60,0.25)',
-                    }}
-                >
-                    {payingId === b.bookingId ? 'Открываем оплату…' : 'Оплатить'}
-                </button>
-            )}
+            {byCard && (() => {
+                // Тот же порядок, что и в «Моих билетах»: предлагать в двух местах
+                // разное значило бы в одном беречь комиссию, а в другом нет.
+                const best = preferredMethod(shopMethods);
+                const busy = payingId === b.bookingId;
+                return (
+                    <>
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (best === 'SBP') void payBySbp(b.bookingId);
+                                else void payByCard(b.bookingId, best ? [best] : undefined);
+                            }}
+                            disabled={payingId !== null}
+                            className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+                            style={{
+                                background: 'linear-gradient(135deg, #F5BE3C 0%, #D4A030 100%)',
+                                color: '#0B0A09',
+                                boxShadow: '0 4px 16px rgba(245,190,60,0.25)',
+                            }}
+                        >
+                            {busy ? 'Открываем оплату…' : payButtonLabel(best)}
+                        </button>
+                        {best && (
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); void payByCard(b.bookingId); }}
+                                disabled={payingId !== null}
+                                className="w-full py-2 text-[12.5px] font-medium text-white/55 disabled:opacity-50"
+                            >
+                                Оплатить картой
+                            </button>
+                        )}
+                    </>
+                );
+            })()}
 
 
 
@@ -197,6 +223,17 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
     const [submittingId, setSubmittingId] = useState<string | null>(null);
     const [payingId, setPayingId] = useState<string | null>(null);
 
+    /**
+     * Способы оплаты магазина. Спрашиваем при появлении полоски, а не в ответ
+     * на нажатие: иначе кнопка успевает смениться под пальцем.
+     */
+    const [shopMethods, setShopMethods] = useState<string[]>([]);
+    useEffect(() => {
+        let alive = true;
+        void StorageService.getPaymentMethods().then((m) => { if (alive) setShopMethods(m); });
+        return () => { alive = false; };
+    }, []);
+
     const rootRef = React.useRef<HTMLDivElement | null>(null);
 
     // Expanded, the strip sits on top of whatever is at the bottom of the
@@ -234,14 +271,40 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
     };
 
     /** Карта — формой поверх приложения; не открылась — уходим на полную страницу. */
-    const handlePayByCard = async (bookingId: string) => {
+    const handlePayByCard = async (bookingId: string, only?: string[]) => {
         setPayingId(bookingId);
         try {
             const { url, fields, methods } = await StorageService.createRobokassaPayment(bookingId);
-            await payInApp(fields, url, { onComplete: () => onRefresh?.(), methods });
+            await payInApp(fields, url, {
+                onComplete: () => onRefresh?.(),
+                methods,
+                ...(only ? { only } : {}),
+            });
             onRefresh?.();
         } catch {
             // The booking card in «Мои билеты» shows the reason; this strip stays quiet.
+        } finally {
+            setPayingId(null);
+        }
+    };
+
+    /**
+     * СБП — ссылкой прямо в банк: из окна поверх аппа приложение банка не
+     * запускается. Почту здесь не спрашиваем, полоска для этого мала: без неё
+     * уводим на обычную страницу оплаты, она спросит сама.
+     */
+    const handlePayBySbp = async (bookingId: string) => {
+        setPayingId(bookingId);
+        try {
+            const { op, url } = await StorageService.createSbpPayment(bookingId);
+            await paySbp(op, url);
+        } catch (e) {
+            if (e instanceof StorageService.ReceiptEmailRequired) {
+                try {
+                    const { url } = await StorageService.createRobokassaPayment(bookingId);
+                    openExternal(url);
+                } catch { /* причину покажет карточка брони */ }
+            }
         } finally {
             setPayingId(null);
         }
@@ -319,6 +382,8 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
                                     onPaid={handlePaid}
                             payingId={payingId}
                             payByCard={handlePayByCard}
+                                    payBySbp={handlePayBySbp}
+                                    shopMethods={shopMethods}
                                     isLast={i === pendingBookings.length - 1}
                                     totalCount={pendingBookings.length}
                                 />

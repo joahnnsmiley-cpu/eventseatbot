@@ -16,6 +16,7 @@ import { DEFAULT_TZ_OFFSET_MINUTES } from '../src/config/timezone';
 import { openExternal } from '../src/utils/openExternal';
 import { payInApp, paySbp, isPaymentFrameOpen } from '../src/payments/robokassaWidget';
 import ReceiptEmailModal from '../src/ui/ReceiptEmailModal';
+import { preferredMethod, payButtonLabel } from '../src/payments/methods';
 import type { PaymentMethodKey } from '../types';
 
 type BookingItem = {
@@ -603,51 +604,50 @@ const MyTicketsPage: React.FC<{
                       {byCard && (
                         <>
                           {/* Порядок кнопок внутри формы Робокассы задаёт она сама и наш
-                              порядок в списке игнорирует. Поэтому вывести T-Pay вперёд
-                              можно только так: своей кнопкой, открывающей форму, где он
-                              один. Показываем её, лишь когда способ реально подключён. */}
-                          {shopMethods.includes('TinkoffPay') && (
-                            <PrimaryButton
-                              onClick={(e) => { e.stopPropagation(); void handlePayByCard(b, ['TinkoffPay']); }}
-                              disabled={payingId !== null}
-                              className="w-full h-12 rounded-2xl"
-                            >
-                              {payingId === b.id ? 'Открываем оплату…' : 'Оплатить через T-Pay'}
-                            </PrimaryButton>
-                          )}
-                          {shopMethods.includes('TinkoffPay') ? (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); void handlePayByCard(b); }}
-                              disabled={payingId !== null}
-                              className="w-full h-12 rounded-2xl bg-white/5 border border-white/10 text-[15px] font-semibold text-white/80 disabled:opacity-50"
-                            >
-                              Оплатить картой
-                            </button>
-                          ) : (
-                            <PrimaryButton
-                              onClick={(e) => { e.stopPropagation(); void handlePayByCard(b); }}
-                              disabled={payingId !== null}
-                              className="w-full h-12 rounded-2xl"
-                            >
-                              {payingId === b.id ? 'Открываем оплату…' : 'Оплатить'}
-                            </PrimaryButton>
-                          )}
-                          {/* СБП отдельной кнопкой и только наружу: он уводит в
-                              приложение банка, а оно из окна поверх аппа не
-                              запускается. Показываем, лишь когда способ
-                              действительно подключён магазину — иначе это
-                              кнопка в никуда. */}
-                          {shopMethods.includes('SBP') && (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); void handlePayBySbp(b); }}
-                              disabled={payingId !== null}
-                              className="w-full h-12 rounded-2xl bg-white/5 border border-white/10 text-[15px] font-semibold text-white/80 disabled:opacity-50"
-                            >
-                              Оплатить через СБП
-                            </button>
-                          )}
+                              порядок в списке игнорирует. Поэтому выгодный способ выносим
+                              вперёд своей кнопкой, открывающей форму, где он один.
+                              Какой именно — решает METHOD_PRIORITY, там же и комиссии.
+
+                              СБП — особый случай: он уводит в приложение банка, а оно из
+                              окна поверх аппа не запускается, поэтому идёт наружу. */}
+                          {(() => {
+                            const best = preferredMethod(shopMethods);
+                            const busy = payingId === b.id;
+                            if (!best) {
+                              return (
+                                <PrimaryButton
+                                  onClick={(e) => { e.stopPropagation(); void handlePayByCard(b); }}
+                                  disabled={payingId !== null}
+                                  className="w-full h-12 rounded-2xl"
+                                >
+                                  {busy ? 'Открываем оплату…' : 'Оплатить'}
+                                </PrimaryButton>
+                              );
+                            }
+                            return (
+                              <>
+                                <PrimaryButton
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (best === 'SBP') void handlePayBySbp(b);
+                                    else void handlePayByCard(b, [best]);
+                                  }}
+                                  disabled={payingId !== null}
+                                  className="w-full h-12 rounded-2xl"
+                                >
+                                  {busy ? 'Открываем оплату…' : payButtonLabel(best)}
+                                </PrimaryButton>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); void handlePayByCard(b); }}
+                                  disabled={payingId !== null}
+                                  className="w-full h-12 rounded-2xl bg-white/5 border border-white/10 text-[15px] font-semibold text-white/80 disabled:opacity-50"
+                                >
+                                  Оплатить картой
+                                </button>
+                              </>
+                            );
+                          })()}
                         </>
                       )}
 
