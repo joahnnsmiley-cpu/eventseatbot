@@ -27,6 +27,25 @@ import { notifyAdmins } from '../../services/telegramService';
 
 let intervalHandle: NodeJS.Timeout | null = null;
 
+/**
+ * Что сверка делала в последний раз.
+ *
+ * Видно в /health. Без этого задача, которая молча ничего не находит,
+ * неотличима от задачи, которая молча падает: логи Render читает только
+ * владелец, а понять «работает ли вообще» надо быстро.
+ */
+let lastRun: {
+  at: string | null;
+  candidates: number;
+  answered: number;
+  refunded: number;
+  reason: string | null;
+} = { at: null, candidates: 0, answered: 0, refunded: 0, reason: 'ещё не запускалась' };
+
+export function reconcileStatus() {
+  return { ...lastRun };
+}
+
 /** Раз в пять минут: возврат — не та новость, ради которой стоит частить. */
 const CHECK_INTERVAL_MS = 5 * 60_000;
 /** За один проход, чтобы не устроить Робокассе поток запросов. */
@@ -60,25 +79,37 @@ async function handleRefund(invId: number, bookingId: string): Promise<void> {
 }
 
 async function runOnce(): Promise<void> {
+  lastRun = { at: new Date().toISOString(), candidates: 0, answered: 0, refunded: 0, reason: null };
+
   const cfg = getRobokassaConfig();
   // В тестовом режиме опрашивать нечего: Робокасса о тестовых операциях этим
   // методом не отвечает.
-  if (!cfg.enabled || cfg.isTest) return;
+  if (!cfg.enabled) { lastRun.reason = 'эквайринг выключен'; return; }
+  if (cfg.isTest) { lastRun.reason = 'тестовый режим'; return; }
 
   const since = new Date(Date.now() - LOOK_BACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  const payments = await findPaidPaymentsToReconcile(since, BATCH);
-  if (payments.length === 0) return;
+  let payments;
+  try {
+    payments = await findPaidPaymentsToReconcile(since, BATCH);
+  } catch (err) {
+    lastRun.reason = 'выборка не удалась: ' + (err instanceof Error ? err.message : String(err)).slice(0, 120);
+    return;
+  }
+  lastRun.candidates = payments.length;
+  if (payments.length === 0) { lastRun.reason = 'нечего сверять'; return; }
 
   for (const payment of payments) {
     const state = await fetchOpState(cfg, payment.invId);
     // Не ответили — не беда, вернёмся через пять минут.
-    if (!state) continue;
+    if (!state) { lastRun.reason = 'Робокасса не ответила'; continue; }
+    lastRun.answered += 1;
 
     await recordOpState(payment.invId, state).catch((err) => {
       console.error('[PaymentReconcile] не смог записать состояние', payment.invId, err);
     });
 
     if (meansRefunded(state.stateCode)) {
+      lastRun.refunded += 1;
       await handleRefund(payment.invId, payment.bookingId).catch((err) => {
         console.error('[PaymentReconcile] ошибка при гашении', payment.invId, err);
       });

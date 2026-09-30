@@ -32,6 +32,7 @@ import { setPaymentEventNotifier } from './domain/payments';
 import { TelegramBookingNotifier } from './infra/telegram';
 import { TelegramPaymentNotifier } from './infra/telegram/telegram.payment-notifier';
 import { startBookingExpirationJob, startTicketRetryJob, startPaymentReconcileJob } from './infra/scheduler';
+import { reconcileStatus } from './infra/scheduler/paymentReconcileJob';
 import { createPendingBookingFromWebAppPayload } from './webappBooking';
 import { supabase } from './supabaseClient';
 import { verifyTicketToken } from './services/ticketToken';
@@ -161,6 +162,8 @@ app.get('/health', (_req, res) => {
         // него — она спрашивает состояние Паролем #2, — но раз он заведён,
         // пусть видно будет, что имя переменной угадано верно.
         hasPassword3: Boolean((process.env.ROBOKASSA_PASSWORD_3 ?? '').trim()),
+        // Живёт ли сверка возвратов и что нашла в последний раз.
+        reconcile: reconcileStatus(),
         sendReceipt: cfg.sendReceipt,
         tax: cfg.tax,
       };
