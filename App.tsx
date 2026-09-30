@@ -150,8 +150,13 @@ function App() {
    * вводил — поле стояло последним и выглядело необязательным. Теперь одна
    * кнопка ведёт по полям: пока телефона нет, она неактивна; телефон введён —
    * «Далее» и переход к имени; имя введено — «Забронировать».
+   *
+   * Отдельного «текущего шага» здесь намеренно нет. Он был, и из-за него
+   * появлялась несуразность: стираешь уже введённое имя, а кнопка так и
+   * осталась «Забронировать» — флаг переключился один раз и назад не
+   * возвращался. Надпись выводится прямо из полей, и рассогласоваться ей не с
+   * чем.
    */
-  const [bookingStep, setBookingStep] = useState<'phone' | 'name'>('phone');
   const nameFieldRef = useRef<HTMLTextAreaElement | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
@@ -1024,14 +1029,12 @@ function App() {
                   const normalizedPhone = userPhone.trim();
                   if (!normalizedPhone) {
                     setBookingError(UI_TEXT.app.addPhoneToContinue);
-                    setBookingStep('phone');
                     return;
                   }
                   // Кнопка до сюда без имени не пускает, но проверка нужна и
                   // здесь: согласие открывается между нажатием и отправкой.
                   if (!userComment.trim()) {
                     setBookingError(UI_TEXT.app.addNameToContinue);
-                    setBookingStep('name');
                     nameFieldRef.current?.focus();
                     return;
                   }
@@ -1318,8 +1321,6 @@ function App() {
                   ref={nameFieldRef}
                   value={userComment}
                   onChange={(e) => setUserComment(e.target.value)}
-                  // Нажали в поле сами, не через кнопку — шаг всё равно второй.
-                  onFocus={() => setBookingStep('name')}
                   placeholder={UI_TEXT.app.commentPlaceholder}
                   rows={2}
                   className="w-full rounded-xl px-3 py-2 text-sm resize-y bg-[#131110] text-[#F5F1E9] border border-[#2B2723] placeholder-[#6F6A63] transition-shadow"
@@ -1359,7 +1360,6 @@ function App() {
               {(() => {
                 const hasPhone = isUsablePhone(userPhone);
                 const hasName = userComment.trim().length > 0;
-                const onNameStep = bookingStep === 'name';
                 const blocked =
                   selectedTable.isAvailable !== true ||
                   selectedTable.seatsAvailable === 0 ||
@@ -1369,11 +1369,11 @@ function App() {
                 return (
                   <PrimaryButton
                     className="flex-1 h-[54px] rounded-2xl disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-                    disabled={blocked || !hasPhone || (onNameStep && !hasName)}
+                    disabled={blocked || !hasPhone}
                     onClick={() => {
-                      // Первый шаг только переводит к имени — ничего не отправляет.
-                      if (!onNameStep) {
-                        setBookingStep('name');
+                      // Имени ещё нет — кнопка только переводит к нему и ничего
+                      // не отправляет.
+                      if (!hasName) {
                         nameFieldRef.current?.focus();
                         return;
                       }
@@ -1385,7 +1385,10 @@ function App() {
                   >
                     {bookingLoading
                       ? UI_TEXT.app.booking
-                      : onNameStep ? UI_TEXT.app.continueBook : UI_TEXT.app.nextStep}
+                      // «Забронировать» — только когда заполнено всё. Стёрли
+                      // телефон или имя, и надпись возвращается к «Далее»:
+                      // кнопка всегда говорит то, что произойдёт по нажатию.
+                      : hasPhone && hasName ? UI_TEXT.app.continueBook : UI_TEXT.app.nextStep}
                   </PrimaryButton>
                 );
               })()}
