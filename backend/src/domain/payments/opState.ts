@@ -12,7 +12,7 @@
  */
 
 import crypto from 'crypto';
-import type { RobokassaConfig } from '../../config/robokassa';
+import type { HashAlgorithm } from '../../config/robokassa';
 
 const SERVICE_URL = 'https://auth.robokassa.ru/Merchant/WebService/Service.asmx/OpStateExt';
 const TIMEOUT_MS = 8000;
@@ -69,17 +69,17 @@ function tag(xml: string, name: string): string | null {
  * о чём прямо сказано в их документации.
  */
 export async function fetchOpState(
-  cfg: RobokassaConfig,
+  creds: { merchantLogin: string; password2: string; hash: HashAlgorithm },
   invId: number,
 ): Promise<OpState | null> {
-  if (!cfg.merchantLogin || !cfg.password2) return null;
+  if (!creds.merchantLogin || !creds.password2) return null;
 
   const signature = crypto
-    .createHash(cfg.hash)
-    .update(`${cfg.merchantLogin}:${invId}:${cfg.password2}`, 'utf8')
+    .createHash(creds.hash)
+    .update(`${creds.merchantLogin}:${invId}:${creds.password2}`, 'utf8')
     .digest('hex');
 
-  const url = `${SERVICE_URL}?MerchantLogin=${encodeURIComponent(cfg.merchantLogin)}`
+  const url = `${SERVICE_URL}?MerchantLogin=${encodeURIComponent(creds.merchantLogin)}`
     + `&InvoiceID=${invId}&Signature=${signature}`;
 
   try {

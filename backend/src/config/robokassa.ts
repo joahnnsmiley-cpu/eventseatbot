@@ -84,3 +84,21 @@ export function getRobokassaConfig(): RobokassaConfig {
     enabled: Boolean(merchantLogin && password1 && password2),
   };
 }
+
+/**
+ * Боевые реквизиты — независимо от того, в каком режиме магазин сейчас.
+ *
+ * Нужны для сверки уже состоявшихся настоящих оплат. Платёж, сделанный
+ * по-настоящему, остаётся настоящим, даже если магазин потом переключили в
+ * тестовый режим, — а подпись к запросу о его состоянии считается боевым
+ * Паролем #2. Брать пароль «по текущему режиму» здесь нельзя: в тестовом
+ * режиме подпись вышла бы тестовой, и Робокасса о боевой операции не ответила
+ * бы ничего.
+ */
+export function getProductionCredentials(): { merchantLogin: string; password2: string; hash: HashAlgorithm } | null {
+  const merchantLogin = env('ROBOKASSA_MERCHANT_LOGIN');
+  const password2 = env('ROBOKASSA_PASSWORD_2');
+  if (!merchantLogin || !password2) return null;
+  const rawHash = env('ROBOKASSA_HASH').toLowerCase() as HashAlgorithm;
+  return { merchantLogin, password2, hash: HASHES.includes(rawHash) ? rawHash : 'md5' };
+}

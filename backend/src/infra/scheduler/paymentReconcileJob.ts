@@ -16,7 +16,7 @@
  */
 
 import { db } from '../../db';
-import { getRobokassaConfig } from '../../config/robokassa';
+import { getProductionCredentials } from '../../config/robokassa';
 import { fetchOpState, meansRefunded, isKnownState, OP_STATE } from '../../domain/payments/opState';
 import {
   findPaidPaymentsToReconcile,
@@ -81,11 +81,17 @@ async function handleRefund(invId: number, bookingId: string): Promise<void> {
 async function runOnce(): Promise<void> {
   lastRun = { at: new Date().toISOString(), candidates: 0, answered: 0, refunded: 0, reason: null };
 
-  const cfg = getRobokassaConfig();
-  // В тестовом режиме опрашивать нечего: Робокасса о тестовых операциях этим
-  // методом не отвечает.
-  if (!cfg.enabled) { lastRun.reason = 'эквайринг выключен'; return; }
-  if (cfg.isTest) { lastRun.reason = 'тестовый режим'; return; }
+  /**
+   * Сверяем боевые платежи всегда, даже если магазин сейчас в тестовом режиме.
+   *
+   * Здесь была ошибка замысла: я привязал сверку к текущему режиму магазина, а
+   * надо к тому, каким был сам платёж. Настоящая оплата остаётся настоящей, и
+   * возврат по ней может случиться когда угодно — в том числе после того, как
+   * магазин переключили обратно в тест. Выборка и так берёт только боевые
+   * платежи, а подпись считаем боевым Паролем #2.
+   */
+  const creds = getProductionCredentials();
+  if (!creds) { lastRun.reason = 'нет боевых реквизитов'; return; }
 
   const since = new Date(Date.now() - LOOK_BACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
   let payments;
@@ -99,7 +105,7 @@ async function runOnce(): Promise<void> {
   if (payments.length === 0) { lastRun.reason = 'нечего сверять'; return; }
 
   for (const payment of payments) {
-    const state = await fetchOpState(cfg, payment.invId);
+    const state = await fetchOpState(creds, payment.invId);
     // Не ответили — не беда, вернёмся через пять минут.
     if (!state) { lastRun.reason = 'Робокасса не ответила'; continue; }
     lastRun.answered += 1;
