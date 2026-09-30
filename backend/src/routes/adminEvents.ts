@@ -5,6 +5,7 @@ import { authMiddleware } from '../auth/auth.middleware';
 import { adminOnly, adminOrOrganizer, scopeOf, mayTouchEvent } from '../auth/admin.middleware';
 import type { AuthRequest } from '../auth/auth.middleware';
 import { db } from '../db';
+import { invalidatePublicEventCache } from './publicEvents';
 import type { EventData, PaymentMethodKey } from '../models';
 import { supabase } from '../supabaseClient';
 import { DEFAULT_TZ_OFFSET_MINUTES } from '../config/timezone';
@@ -133,6 +134,16 @@ const normalizeTables = (tables: unknown): EventData['tables'] => {
  * организатор одного концерта мог открыть, отредактировать, опубликовать или
  * заменить афишу у чужого.
  */
+/**
+ * Изменили что-нибудь в админке — гостевая карточка события должна обновиться
+ * сразу, а не через десять секунд. Сбрасываем после ответа, чтобы не трогать
+ * память, если запрос всё равно провалился.
+ */
+router.use((req: Request, res: Response, next) => {
+  if (req.method !== 'GET') res.on('finish', invalidatePublicEventCache);
+  next();
+});
+
 router.use('/events/:id', async (req: Request, res: Response, next) => {
   const eventId = normalizeId(req.params.id);
   const scope = await scopeOf(req as AuthRequest);

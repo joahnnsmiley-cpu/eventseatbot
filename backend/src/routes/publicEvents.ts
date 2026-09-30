@@ -126,9 +126,54 @@ router.get('/events', async (_req: Request, res: Response) => {
   }
 });
 
+/**
+ * Короткая память на карточку события.
+ *
+ * Нагрузочная проверка показала узкое место: экран выбора мест держал около
+ * двадцати запросов в секунду, и при двух сотнях одновременных гостей карточка
+ * отдавалась за семь секунд. Причина не в обработчике — он простой, — а в том,
+ * что каждый гость каждый раз ходил в базу за одними и теми же данными: один
+ * такой поход занимает треть секунды и делает несколько обращений подряд.
+ *
+ * А данные там почти неподвижные: название, афиша, расстановка столов,
+ * категории. Занятость мест сюда не входит, она приходит отдельной ручкой и не
+ * кэшируется никогда — иначе гость увидел бы занятое место свободным.
+ *
+ * Десять секунд выбраны так, чтобы правка в админке доходила до гостя быстрее,
+ * чем он успеет удивиться, а при наплыве в базу уходил один запрос вместо
+ * сотен. При правке события память сбрасывается сразу.
+ */
+const EVENT_CACHE_TTL_MS = 10_000;
+const eventCache = new Map<string, { at: number; body: unknown }>();
+
+function cachedEvent(key: string): unknown | null {
+  const hit = eventCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > EVENT_CACHE_TTL_MS) { eventCache.delete(key); return null; }
+  return hit.body;
+}
+
+function rememberEvent(key: string, body: unknown): void {
+  // Событий единицы, но на всякий случай не даём карте расти без предела.
+  if (eventCache.size > 50) eventCache.clear();
+  eventCache.set(key, { at: Date.now(), body });
+}
+
+/** Сбросить память: событие изменили в админке. */
+export function invalidatePublicEventCache(): void {
+  eventCache.clear();
+}
+
 // Return a single published event
 router.get('/events/:id', async (req: Request, res: Response) => {
   const id = req.params.id;
+
+  const remembered = cachedEvent(`one:${id}`);
+  if (remembered !== null) {
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json(remembered);
+  }
+
   const ev = (await db.findEventById(id as string)) as any;
   if (!ev || (ev.published !== true && ev.status !== 'published')) return res.status(404).json({ error: 'Event not found' });
   // image_url → cover (poster); layout_image_url → seating only (рассадка)
@@ -152,6 +197,9 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     paymentPhone: ev.paymentPhone ?? ev.organizer_phone ?? '',
     organizerId: (ev as { organizerId?: number | null }).organizerId ?? null,
   };
+  rememberEvent(`one:${id}`, mapped);
+  // Заголовки прежние: кэшируем у себя, а не в браузере и не у посредников —
+  // так мы сами решаем, когда данные устарели, и можем сбросить их мгновенно.
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
