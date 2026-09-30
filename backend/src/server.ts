@@ -31,7 +31,7 @@ import { setBookingEventNotifier } from './domain/bookings';
 import { setPaymentEventNotifier } from './domain/payments';
 import { TelegramBookingNotifier } from './infra/telegram';
 import { TelegramPaymentNotifier } from './infra/telegram/telegram.payment-notifier';
-import { startBookingExpirationJob, startTicketRetryJob } from './infra/scheduler';
+import { startBookingExpirationJob, startTicketRetryJob, startPaymentReconcileJob } from './infra/scheduler';
 import { createPendingBookingFromWebAppPayload } from './webappBooking';
 import { supabase } from './supabaseClient';
 import { verifyTicketToken } from './services/ticketToken';
@@ -157,6 +157,10 @@ app.get('/health', (_req, res) => {
         // Должен совпадать с алгоритмом в технических настройках магазина.
         // Не совпадает — подпись не сойдётся, какой бы пароль ни стоял.
         hash: cfg.hash,
+        // Пароль #3 нужен их API возвратов. Сверка возвратов обходится без
+        // него — она спрашивает состояние Паролем #2, — но раз он заведён,
+        // пусть видно будет, что имя переменной угадано верно.
+        hasPassword3: Boolean((process.env.ROBOKASSA_PASSWORD_3 ?? '').trim()),
         sendReceipt: cfg.sendReceipt,
         tax: cfg.tax,
       };
@@ -429,6 +433,7 @@ app.listen(PORT, () => {
   }
 
   startTicketRetryJob();
+  startPaymentReconcileJob();
 
   // Re-register the webhook with the secret this server checks for. Without
   // this, turning the secret on would make the server reject every real

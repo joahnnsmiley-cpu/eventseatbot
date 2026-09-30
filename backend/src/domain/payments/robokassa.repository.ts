@@ -179,3 +179,55 @@ export async function markPaymentCancelled(invId: number): Promise<void> {
     .eq('status', 'pending');
   if (error) throw new Error(`payments.markCancelled: ${error.message}`);
 }
+
+/**
+ * Оплаченные платежи, которые стоит сверить с Робокассой.
+ *
+ * Только боевые: тестовые этим методом не опрашиваются. Только недавние:
+ * возврат через полгода после концерта — случай для человека, а не для
+ * подметания. Сначала те, кого давно не сверяли.
+ */
+export async function findPaidPaymentsToReconcile(
+  sinceIso: string,
+  limit: number,
+): Promise<PaymentRow[]> {
+  const { data, error } = await client()
+    .from('payments')
+    .select('*')
+    .eq('status', 'paid')
+    .eq('is_test', false)
+    .gte('paid_at', sinceIso)
+    .order('op_state_at', { ascending: true, nullsFirst: true })
+    .limit(limit);
+  if (error) throw new Error(`payments.findPaidToReconcile: ${error.message}`);
+  return ((data as DbRow[] | null) ?? []).map(mapRow);
+}
+
+/** Запомнить, что ответила Робокасса о состоянии операции. */
+export async function recordOpState(
+  invId: number,
+  state: { stateCode: number | null; opKey: string | null; raw: string },
+): Promise<void> {
+  const patch: Record<string, unknown> = {
+    op_state_code: state.stateCode,
+    op_state_at: new Date().toISOString(),
+    op_state_raw: state.raw,
+  };
+  // OpKey не перезаписываем пустым: однажды полученный, он не меняется.
+  if (state.opKey) patch.op_key = state.opKey;
+
+  const { error } = await client().from('payments').update(patch).eq('inv_id', invId);
+  if (error) throw new Error(`payments.recordOpState: ${error.message}`);
+}
+
+/** Пометить платёж возвращённым. */
+export async function markPaymentRefunded(invId: number): Promise<boolean> {
+  const { data, error } = await client()
+    .from('payments')
+    .update({ status: 'refunded' })
+    .eq('inv_id', invId)
+    .eq('status', 'paid')
+    .select();
+  if (error) throw new Error(`payments.markRefunded: ${error.message}`);
+  return Array.isArray(data) && data.length > 0;
+}
