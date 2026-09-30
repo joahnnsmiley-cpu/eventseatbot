@@ -110,6 +110,50 @@ function waitForFrame(): Promise<boolean> {
   });
 }
 
+type TelegramBackButton = {
+  show?: () => void;
+  hide?: () => void;
+  onClick?: (cb: () => void) => void;
+  offClick?: (cb: () => void) => void;
+};
+
+function backButton(): TelegramBackButton | undefined {
+  return (window as unknown as { Telegram?: { WebApp?: { BackButton?: TelegramBackButton } } })
+    .Telegram?.WebApp?.BackButton;
+}
+
+/**
+ * Выход из платёжной формы кнопкой «назад» мессенджера.
+ *
+ * Внутри формы есть своё подтверждение «прервать оплату», и на него нельзя
+ * полагаться: у нас оно уже попадалось в состоянии, когда кнопка «Прервать» не
+ * нажимается, и гость оставался запертым в окне поверх приложения. Закрыть
+ * форму снаружи мы можем всегда — этим и страхуемся.
+ *
+ * Кнопку «назад» приложение больше нигде не занимает, так что перехват ничего
+ * не ломает: пока форма открыта, она закрывает форму, потом возвращается как
+ * была.
+ */
+function guardWithBackButton(close: () => void): void {
+  const back = backButton();
+  if (!back?.onClick || !back.show) return;
+
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    window.clearInterval(watch);
+    try { back.offClick?.(handler); back.hide?.(); } catch { /* уже скрыта */ }
+  };
+  const handler = () => { close(); finish(); };
+
+  // Форму могли закрыть и изнутри — тогда кнопку надо убрать самим.
+  const watch = window.setInterval(() => { if (!frameIsUp()) finish(); }, 500);
+
+  back.onClick(handler);
+  back.show();
+}
+
 export type InAppResult = 'frame' | 'external';
 
 /**
@@ -175,7 +219,11 @@ export async function payInApp(
     return goOut();
   }
 
-  return (await waitForFrame()) ? 'frame' : goOut();
+  if (!(await waitForFrame())) return goOut();
+
+  // Форма открылась — обеспечиваем выход из неё.
+  guardWithBackButton(() => { try { rk?.ClosePaymentForm?.(); } catch { /* уже закрыта */ } });
+  return 'frame';
 }
 
 export type SbpResult = 'bank' | 'external';
