@@ -14,7 +14,7 @@ import { useToast } from '../src/ui/ToastContext';
 import { getPlatform } from '../src/utils/platform';
 import { DEFAULT_TZ_OFFSET_MINUTES } from '../src/config/timezone';
 import { openExternal } from '../src/utils/openExternal';
-import { payInApp, paySbp, isPaymentFrameOpen } from '../src/payments/robokassaWidget';
+import { paySbp } from '../src/payments/robokassaWidget';
 import ReceiptEmailModal from '../src/ui/ReceiptEmailModal';
 import { preferredMethod, payButtonLabel } from '../src/payments/methods';
 import type { PaymentMethodKey } from '../types';
@@ -238,6 +238,23 @@ const MyTicketsPage: React.FC<{
     load();
   }, [load]);
 
+  /**
+   * Вернулись из браузера после оплаты — обновляем сразу.
+   *
+   * Гость уходит на страницу Робокассы и возвращается в приложение; ждать при
+   * этом общий тридцатисекундный опрос слишком долго, человек смотрит на экран
+   * и ждёт билет.
+   */
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') void load(true); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [load]);
+
   // Auto-refresh for non-paid tickets (poll every 30s when there are awaiting/pending)
   const hasPendingPayments = bookings.some(
     (b) => ['reserved', 'pending', 'awaiting_confirmation'].includes(b.status)
@@ -265,38 +282,6 @@ const MyTicketsPage: React.FC<{
 
   // Бронь, за которой следим вплотную, пока открыта форма оплаты.
   const [watching, setWatching] = useState<string | null>(null);
-  // Оплата прошла — наблюдать больше не за чем.
-  useEffect(() => {
-    if (!watching) return;
-    if (bookings.find((b) => b.id === watching)?.status === 'paid') setWatching(null);
-  }, [watching, bookings]);
-
-  /**
-   * Пока форма оплаты открыта, статус брони нужен быстрее, чем раз в полминуты:
-   * гость платит на глазах и ждёт билет.
-   *
-   * Наблюдение прекращается, когда гость закрыл форму, — с небольшой отсрочкой
-   * на уведомление от Робокассы. Раньше здесь стоял только десятиминутный
-   * предел, и любая закрытая без оплаты форма оставляла экран опрашивать сервер
-   * десять минут подряд.
-   *
-   * bookings намеренно нет в зависимостях: они меняются при каждом обновлении,
-   * и таймер пересоздавался бы сам от себя.
-   */
-  useEffect(() => {
-    if (!watching) return;
-    let closedAt: number | null = null;
-    const id = window.setInterval(() => {
-      void load(true);
-      if (isPaymentFrameOpen()) { closedAt = null; return; }
-      if (closedAt === null) closedAt = Date.now();
-      else if (Date.now() - closedAt > 30_000) setWatching(null);
-    }, 3000);
-    // Предел на случай, если форма почему-то осталась висеть.
-    const stop = window.setTimeout(() => setWatching(null), 5 * 60 * 1000);
-    return () => { window.clearInterval(id); window.clearTimeout(stop); };
-  }, [watching, load]);
-
   const [payingId, setPayingId] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<string | null>(highlightBookingId ?? null);
 
@@ -324,27 +309,23 @@ const MyTicketsPage: React.FC<{
   };
 
   /**
-   * Карта — формой поверх приложения, не уводя гостя в браузер. Если форма не
-   * открылась, payInApp сам уходит на полную страницу, и тогда гость вернётся
-   * по ссылке. Оплаченным здесь ничего не становится: это решает только
-   * уведомление на ResultURL.
+   * Карта — на полную страницу Робокассы, в настоящий браузер.
+   *
+   * Встроенная форма здесь была и убрана: внутри вебвью Телеграма она
+   * открывается, но оплата не проходит — карта отклоняется как неверная. Один
+   * лишний переход лучше, чем гость, который не смог заплатить.
+   *
+   * Оплаченным здесь ничего не становится: это решает только уведомление на
+   * ResultURL.
    */
-  const handlePayByCard = async (b: BookingItem, only?: string[]) => {
+  const handlePayByCard = async (b: BookingItem) => {
     if (!PAYABLE_STATUSES.includes(b.status)) return;
     if (isExpired(b.expires_at)) return;
     setPayingId(b.id);
     setError(null);
     try {
-      const { url, fields, methods } = await StorageService.createRobokassaPayment(b.id);
-      setShopMethods(methods ?? []);
-      const how = await payInApp(fields, url, {
-        onComplete: () => { void load(); },
-        methods,
-        ...(only ? { only } : {}),
-      });
-      // Гость остался здесь и платит на глазах — ждать общий тридцатисекундный
-      // опрос слишком долго, статус нужен почти сразу.
-      if (how === 'frame') setWatching(b.id);
+      const { url } = await StorageService.createRobokassaPayment(b.id);
+      openExternal(url);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось перейти к оплате');
     } finally {
@@ -624,14 +605,12 @@ const MyTicketsPage: React.FC<{
                                 </PrimaryButton>
                               );
                             }
+                            // В списке приоритета остался только СБП, и у него свой
+                            // путь — ссылкой прямо в банк, минуя страницу Робокассы.
                             return (
                               <>
                                 <PrimaryButton
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (best === 'SBP') void handlePayBySbp(b);
-                                    else void handlePayByCard(b, [best]);
-                                  }}
+                                  onClick={(e) => { e.stopPropagation(); void handlePayBySbp(b); }}
                                   disabled={payingId !== null}
                                   className="w-full h-12 rounded-2xl"
                                 >

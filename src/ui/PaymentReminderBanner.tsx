@@ -4,7 +4,7 @@ import { CaretDown, CaretUp, CreditCard, Timer } from '@phosphor-icons/react';
 import { UI_TEXT } from '../../constants/uiText';
 import * as StorageService from '../../services/storageService';
 import { openExternal } from '../utils/openExternal';
-import { payInApp, paySbp } from '../payments/robokassaWidget';
+import { paySbp } from '../payments/robokassaWidget';
 import { preferredMethod, payButtonLabel } from '../payments/methods';
 import type { PaymentMethodKey } from '../../types';
 
@@ -271,16 +271,12 @@ const PaymentReminderBanner: React.FC<PaymentReminderBannerProps> = ({
     };
 
     /** Карта — формой поверх приложения; не открылась — уходим на полную страницу. */
-    const handlePayByCard = async (bookingId: string, only?: string[]) => {
+    /** На полную страницу Робокассы: встроенная форма в вебвью не проводит оплату. */
+    const handlePayByCard = async (bookingId: string, _only?: string[]) => {
         setPayingId(bookingId);
         try {
-            const { url, fields, methods } = await StorageService.createRobokassaPayment(bookingId);
-            await payInApp(fields, url, {
-                onComplete: () => onRefresh?.(),
-                methods,
-                ...(only ? { only } : {}),
-            });
-            onRefresh?.();
+            const { url } = await StorageService.createRobokassaPayment(bookingId);
+            openExternal(url);
         } catch {
             // The booking card in «Мои билеты» shows the reason; this strip stays quiet.
         } finally {
