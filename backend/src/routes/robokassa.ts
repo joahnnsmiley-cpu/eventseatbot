@@ -11,6 +11,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import express from 'express';
 import { db } from '../db';
 import { getRobokassaConfig, ROBOKASSA_IPS } from '../config/robokassa';
@@ -40,8 +41,25 @@ import { getUserEmail } from '../db-postgres';
 
 const router = Router();
 
+/**
+ * Создание платежа.
+ *
+ * Каждый вызов заводит строку в базе и рисует билет заранее. Без ограничения
+ * это способ засорить таблицу платежей и занять процессор генерацией картинок,
+ * не потратив ни рубля. Человеку хватает: открыть экран оплаты десять раз за
+ * минуту можно только случайно.
+ */
+const payLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  message: { error: 'Слишком часто. Подождите минуту.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Robokassa posts form-encoded bodies; the app's global parser only reads JSON.
-router.use(express.urlencoded({ extended: false }));
+// Уведомление Робокассы — это полтора десятка полей; предел с запасом.
+router.use(express.urlencoded({ extended: false, limit: '64kb' }));
 
 const TELEGRAM_APP_URL = process.env.ROBOKASSA_RETURN_TELEGRAM || 'https://t.me/nikto_ne_kruche_bot';
 const VK_APP_URL = process.env.ROBOKASSA_RETURN_VK || 'https://vk.ru/app54480403';
@@ -214,7 +232,7 @@ router.get('/public/payments/methods', async (_req: Request, res: Response) => {
  * метод не работает, и об этом надо сказать отдельным кодом, чтобы приложение
  * знало, что именно спросить.
  */
-router.post('/public/payments/robokassa/sbp', requireUser, async (req: AuthRequest, res: Response) => {
+router.post('/public/payments/robokassa/sbp', payLimiter, requireUser, async (req: AuthRequest, res: Response) => {
   const cfg = getRobokassaConfig();
   if (!cfg.enabled) return res.status(503).json({ error: 'Оплата временно недоступна' });
 
@@ -265,7 +283,7 @@ router.post('/public/payments/robokassa/sbp', requireUser, async (req: AuthReque
  * POST /public/payments/robokassa  { bookingId }
  * Returns the link the guest opens. Identity comes from the token, never the body.
  */
-router.post('/public/payments/robokassa', requireUser, async (req: AuthRequest, res: Response) => {
+router.post('/public/payments/robokassa', payLimiter, requireUser, async (req: AuthRequest, res: Response) => {
   const cfg = getRobokassaConfig();
   if (!cfg.enabled) {
     return res.status(503).json({ error: 'Оплата картой временно недоступна' });
@@ -405,11 +423,23 @@ async function handleResult(req: Request, res: Response) {
     );
   }
 
+  /**
+   * Уведомление сохраняем без подписи.
+   *
+   * Подпись посчитана вторым паролем от суммы и номера счёта. Сама по себе она
+   * бесполезна — мы её уже проверили, — но вместе с суммой и номером, которые
+   * лежат рядом, это готовая пара «исходные данные и хеш». Кто получит выгрузку
+   * базы, сможет подбирать второй пароль у себя, никак себя не обнаруживая.
+   * Хранить её незачем: после проверки она не нужна больше никогда.
+   */
+  const { SignatureValue, crc, ...rawWithoutSignature } = p as Record<string, unknown>;
+  void SignatureValue; void crc;
+
   const updated = await markPaymentPaid(verified.invId, {
     paymentMethod: p.PaymentMethod ?? p.IncCurrLabel ?? null,
     fee: p.Fee !== undefined ? Number(p.Fee) : null,
     email: p.EMail ?? p.Email ?? null,
-    raw: p,
+    raw: rawWithoutSignature as CallbackParams,
   });
   if (!updated) {
     // Another retry won the race and is confirming right now.

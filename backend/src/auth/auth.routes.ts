@@ -12,6 +12,23 @@ const webLoginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * Вход из мини-аппа.
+ *
+ * Подобрать здесь нечего: подпись Телеграма и ВКонтакте не угадывается. Но
+ * каждый заход — это проверка HMAC, запрос в базу и запись пользователя, и
+ * ничто не мешало устроить это тысячу раз в секунду. Порог высокий нарочно:
+ * приложение переспрашивает токен само, когда тот протухает, и упереться в
+ * лимит живому человеку не должно быть возможно.
+ */
+const miniAppLoginLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  message: { error: 'Слишком часто. Подождите минуту.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const router = Router();
 
 // Dev-only endpoints — disabled in production
@@ -94,7 +111,7 @@ router.post('/web-login', webLoginLimiter, (req, res) => {
   return res.json({ token });
 });
 
-router.post('/telegram', async (req, res) => {
+router.post('/telegram', miniAppLoginLimiter, async (req, res) => {
   console.log('[AUTH] Telegram login attempt received');
   const body = req && typeof req.body === 'object' ? req.body : {};
   const initData = typeof body.initData === 'string' ? body.initData : '';
@@ -268,7 +285,7 @@ router.post('/telegram', async (req, res) => {
   }
 });
 
-router.post('/vk', async (req, res) => {
+router.post('/vk', miniAppLoginLimiter, async (req, res) => {
   const body = req && typeof req.body === 'object' ? req.body : {};
 
   const vkSign = String(body.vkSign || '');

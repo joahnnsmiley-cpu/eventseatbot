@@ -12,7 +12,6 @@ import adminBookingsRouter from './routes/adminBookings';
 import publicEventsRouter from './routes/publicEvents';
 import robokassaRouter from './routes/robokassa';
 import { getRobokassaConfig } from './config/robokassa';
-import adminPaymentsRouter from './routes/adminPayments';
 import adminControllersRouter from './routes/adminControllers';
 import adminRolesRouter from './routes/adminRoles';
 import adminDetectLayoutRouter from './routes/adminDetectLayout';
@@ -166,7 +165,17 @@ app.get('/health', (_req, res) => {
 });
 
 // JSON body parser for req.body (equivalent to express.json())
-app.use(bodyParser.json());
+/**
+ * Предел на размер тела запроса.
+ *
+ * Без явного предела его легко не заметить, а он нужен: самый большой честный
+ * запрос у нас — схема зала с описанием столов, и это десятки килобайт.
+ * Мегабайта хватает с большим запасом, а присылать в JSON-ручку сто мегабайт
+ * незачем никому, кроме того, кто хочет занять память.
+ *
+ * Загрузка картинок сюда не относится — она идёт через multer отдельно.
+ */
+app.use(bodyParser.json({ limit: '1mb' }));
 
 // Robokassa mounts at the root: its callbacks carry full paths and must sit
 // before anything that could swallow them. Its own routes do their own auth —
@@ -364,7 +373,10 @@ app.get('/bookings/my', authMiddleware, async (req: any, res) => {
 app.use('/admin', adminEventsRouter);
 app.use('/admin', adminUploadLayoutRouter);
 app.use('/admin', adminBookingsRouter);
-app.use('/admin', adminPaymentsRouter);
+// Админская ручка подтверждения оплаты снята вместе с остальным старым
+// платёжным контуром: она работала с тем же файловым хранилищем «намерений
+// оплаты», к настоящим деньгам отношения не имела и фронтом не вызывалась.
+// Оплату подтверждает уведомление Робокассы, а вручную — /admin/bookings/:id/confirm.
 app.use('/admin', adminControllersRouter);
 app.use('/admin', adminRolesRouter);
 app.use('/admin', adminDetectLayoutRouter);

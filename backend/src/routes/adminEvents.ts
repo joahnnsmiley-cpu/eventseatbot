@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { v4 as uuid } from 'uuid';
 import { authMiddleware } from '../auth/auth.middleware';
-import { adminOnly, adminOrOrganizer } from '../auth/admin.middleware';
+import { adminOnly, adminOrOrganizer, scopeOf, mayTouchEvent } from '../auth/admin.middleware';
 import type { AuthRequest } from '../auth/auth.middleware';
 import { db } from '../db';
 import type { EventData, PaymentMethodKey } from '../models';
@@ -126,9 +126,30 @@ const normalizeTables = (tables: unknown): EventData['tables'] => {
 };
 
 // GET /admin/events — return full EventData[] for admin list (e.g. EventCard with layoutImageUrl, status)
-router.get('/events', async (_req: Request, res: Response) => {
+/**
+ * Любое действие над конкретным событием — только над своим.
+ *
+ * adminOrOrganizer решает лишь, пускать ли в админку вообще. Без этой проверки
+ * организатор одного концерта мог открыть, отредактировать, опубликовать или
+ * заменить афишу у чужого.
+ */
+router.use('/events/:id', async (req: Request, res: Response, next) => {
+  const eventId = normalizeId(req.params.id);
+  const scope = await scopeOf(req as AuthRequest);
+  if (mayTouchEvent(scope, eventId)) return next();
+  console.warn(JSON.stringify({
+    action: 'admin_event_out_of_scope',
+    userId: String((req as AuthRequest).user?.id ?? ''),
+    eventId,
+  }));
+  return res.status(403).json({ error: 'Forbidden' });
+});
+
+router.get('/events', async (req: Request, res: Response) => {
   const events = await db.getEvents();
-  res.json(events);
+  const scope = await scopeOf(req as AuthRequest);
+  // Организатору — только его концерты, администратору — все.
+  res.json(scope.isAdmin ? events : events.filter((e) => mayTouchEvent(scope, e.id)));
 });
 
 // GET /admin/events/:id — full EventData with tables via findEventById; no filtering by published
@@ -481,7 +502,8 @@ router.put('/events/:id', async (req: Request, res: Response) => {
 });
 
 // DELETE /admin/events/:id — hard delete; cascades to event_tables and bookings via FK
-router.delete('/events/:id', async (req: Request, res: Response) => {
+// Удаление — только полному администратору: создание события тоже за ним.
+router.delete('/events/:id', adminOnly, async (req: Request, res: Response) => {
   const id = normalizeId(req.params.id);
 
   if (!id) {
@@ -496,7 +518,8 @@ router.delete('/events/:id', async (req: Request, res: Response) => {
 });
 
 // POST /admin/resync-seats — recalculate seatsAvailable from bookings
-router.post('/resync-seats', async (_req: Request, res: Response) => {
+// Пересборка мест затрагивает все события сразу.
+router.post('/resync-seats', adminOnly, async (_req: Request, res: Response) => {
   const events = await db.getEvents();
   const bookings = await db.getBookings();
 

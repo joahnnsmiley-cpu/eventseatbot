@@ -84,3 +84,39 @@ export function adminOnly(
 
   next();
 }
+
+/**
+ * Что этому человеку вообще позволено видеть.
+ *
+ * Здесь была дыра по смыслу, а не по коду: adminOrOrganizer пропускает любого,
+ * кто организатор хотя бы одного события, и дальше ручки отдавали всё подряд.
+ * То есть организатор одного концерта видел брони и телефоны гостей всех
+ * остальных и мог подтвердить чужую оплату. Пока организаторов двое и оба свои,
+ * это не стреляло; с первым же приглашённым со стороны выстрелит.
+ *
+ * Полный администратор видит всё — у него eventIds пустой и isAdmin = true.
+ * Организатор видит только свои события.
+ */
+export type AdminScope = { isAdmin: boolean; eventIds: string[] };
+
+export async function scopeOf(req: AuthRequest): Promise<AdminScope> {
+  const telegramAdmins = (process.env.ADMINS_IDS || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const vkAdmins = (process.env.VK_ADMINS_IDS || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const userId = String(req.user?.id ?? '');
+
+  if ([...telegramAdmins, ...vkAdmins].includes(userId)) return { isAdmin: true, eventIds: [] };
+  if ((req.user as { role?: string })?.role === 'admin') return { isAdmin: true, eventIds: [] };
+
+  // Список из токена может отстать: организатора могли назначить после входа.
+  const fromToken: string[] = (req.user as { organizerEventIds?: string[] })?.organizerEventIds ?? [];
+  if (fromToken.length > 0) return { isAdmin: false, eventIds: fromToken.map(String) };
+  if (!userId) return { isAdmin: false, eventIds: [] };
+  const fromDb = await getOrganizerEventIds(userId).catch(() => [] as string[]);
+  return { isAdmin: false, eventIds: fromDb.map(String) };
+}
+
+/** Можно ли этому человеку трогать именно это событие. */
+export function mayTouchEvent(scope: AdminScope, eventId: string | null | undefined): boolean {
+  if (scope.isAdmin) return true;
+  return Boolean(eventId) && scope.eventIds.includes(String(eventId));
+}

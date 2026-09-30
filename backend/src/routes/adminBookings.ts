@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuid } from 'uuid';
 import { authMiddleware } from '../auth/auth.middleware';
-import { adminOrOrganizer } from '../auth/admin.middleware';
+import { adminOrOrganizer, scopeOf, mayTouchEvent } from '../auth/admin.middleware';
+import type { AuthRequest } from '../auth/auth.middleware';
 import { db } from '../db';
 import { supabase } from '../supabaseClient';
 import { sendTelegramMessage } from '../services/telegramService';
@@ -16,9 +17,56 @@ const router = Router();
 
 router.use(authMiddleware, adminOrOrganizer);
 
+/**
+ * Оставить только те брони, которые этому человеку положено видеть.
+ *
+ * adminOrOrganizer отвечает лишь на вопрос «пускать ли сюда вообще». Дальше
+ * ручки отдавали всё подряд, и организатор одного концерта видел брони и
+ * телефоны гостей всех остальных.
+ */
+async function visibleBookings<T extends { eventId?: string | null }>(
+  req: Request,
+  bookings: T[],
+): Promise<T[]> {
+  const scope = await scopeOf(req as AuthRequest);
+  if (scope.isAdmin) return bookings;
+  return bookings.filter((b) => mayTouchEvent(scope, b.eventId ?? null));
+}
+
+/**
+ * Не дать тронуть чужую бронь.
+ *
+ * Без этого организатор мог подтвердить оплату чужого концерта — то есть
+ * выдать билет даром, — или отменить чужую оплаченную бронь.
+ */
+async function guardBooking(req: Request, res: Response): Promise<boolean> {
+  const id = String(req.params.id ?? '');
+  const booking = id ? await db.getBookingById(id) : null;
+  if (!booking) {
+    res.status(404).json({ error: 'Booking not found' });
+    return false;
+  }
+  const scope = await scopeOf(req as AuthRequest);
+  if (!mayTouchEvent(scope, booking.eventId)) {
+    console.warn(JSON.stringify({
+      action: 'admin_booking_out_of_scope',
+      userId: String((req as AuthRequest).user?.id ?? ''),
+      bookingId: id, eventId: booking.eventId,
+    }));
+    res.status(403).json({ error: 'Forbidden' });
+    return false;
+  }
+  return true;
+}
+
+// Все действия над конкретной бронью проходят проверку принадлежности события.
+router.use('/bookings/:id', async (req: Request, res: Response, next) => {
+  if (await guardBooking(req, res)) next();
+});
+
 // GET /admin/debug-bookings
 router.get('/debug-bookings', async (req, res) => {
-  const bookings = await db.getBookings();
+  const bookings = await visibleBookings(req, await db.getBookings());
   return res.json({
     count: bookings.length,
     bookings
@@ -27,7 +75,7 @@ router.get('/debug-bookings', async (req, res) => {
 
 // GET /admin/raw-bookings
 router.get('/raw-bookings', async (req, res) => {
-  const bookings = await db.getBookings();
+  const bookings = await visibleBookings(req, await db.getBookings());
   return res.json({
     count: bookings.length,
     data: bookings
@@ -35,11 +83,11 @@ router.get('/raw-bookings', async (req, res) => {
 });
 
 // GET /admin/bookings
-router.get('/bookings', async (_req: Request, res: Response) => {
+router.get('/bookings', async (req: Request, res: Response) => {
   let bookings: Awaited<ReturnType<typeof db.getBookings>>;
   let events: Awaited<ReturnType<typeof db.getEvents>>;
   try {
-    bookings = await db.getBookings();
+    bookings = await visibleBookings(req, await db.getBookings());
     events = await db.getEvents();
   } catch (e) {
     console.error('[GET /admin/bookings] DB error:', e);
