@@ -53,6 +53,19 @@ export type OpState = {
   raw: string;
 };
 
+/**
+ * Вычистить из ответа то, что нам хранить незачем.
+ *
+ * В ответе приходит IncAccount — маскированный номер карты вида
+ * 220070******2265. Это не полные данные карты и хранить их не запрещено, но и
+ * незачем: мы их нигде не показываем и ни с чем не сверяем, а сохранять
+ * платёжные реквизиты «на всякий случай» — плохая привычка. Ответ сохраняется
+ * ради разбора незнакомых состояний, и для этого номер карты не нужен.
+ */
+function stripSensitive(xml: string): string {
+  return xml.replace(/<IncAccount>[^<]*<\/IncAccount>/g, '<IncAccount>убрано</IncAccount>');
+}
+
 /** Достать значение одного тега. Ответ плоский, полноценный разбор XML тут лишний. */
 function tag(xml: string, name: string): string | null {
   const m = xml.match(new RegExp(`<${name}>([^<]*)</${name}>`));
@@ -101,7 +114,7 @@ export async function fetchOpState(
       resultCode,
       stateCode,
       opKey: tag(xml, 'OpKey'),
-      raw: xml.replace(/\s+/g, ' ').slice(0, 1000),
+      raw: stripSensitive(xml).replace(/\s+/g, ' ').slice(0, 1000),
     };
   } catch {
     return null;
