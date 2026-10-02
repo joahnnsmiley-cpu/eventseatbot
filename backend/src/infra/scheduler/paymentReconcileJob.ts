@@ -29,9 +29,12 @@ import { getProductionCredentials } from '../../config/robokassa';
 import { fetchOpState, meansRefunded, isKnownState, OP_STATE } from '../../domain/payments/opState';
 import {
   findPaidPaymentsToReconcile,
+  findPendingRefunds,
   recordOpState,
+  recordRefundState,
   markPaymentRefunded,
 } from '../../domain/payments/robokassa.repository';
+import { fetchRefundState } from '../../domain/payments/refund';
 import { notifyAdmins } from '../../services/telegramService';
 
 let intervalHandle: NodeJS.Timeout | null = null;
@@ -87,6 +90,52 @@ async function handleRefund(invId: number, bookingId: string): Promise<void> {
   ).catch(() => {});
 }
 
+/**
+ * Чем кончились поданные нами заявки на возврат.
+ *
+ * Возврат у Робокассы не мгновенный, а уведомления о его исполнении нет —
+ * только опрос по номеру заявки. Пока деньги не вернулись, бронь не трогаем:
+ * погасить её раньше значило бы отнять билет у человека, которому деньги могут
+ * и не прийти.
+ */
+async function checkPendingRefunds(): Promise<number> {
+  let settled = 0;
+  const pending = await findPendingRefunds(BATCH).catch(() => []);
+
+  for (const payment of pending) {
+    if (!payment.refundRequestId) continue;
+    const state = await fetchRefundState(payment.refundRequestId);
+    // Не ответили — спросим через пять минут.
+    if (!state) continue;
+    if (state.state === 'processing') continue;
+
+    await recordRefundState(payment.invId, state.state).catch((err) => {
+      console.error('[PaymentReconcile] не смог записать исход возврата', payment.invId, err);
+    });
+
+    if (state.state === 'finished') {
+      settled += 1;
+      await handleRefund(payment.invId, payment.bookingId).catch((err) => {
+        console.error('[PaymentReconcile] ошибка при гашении после возврата', payment.invId, err);
+      });
+      continue;
+    }
+
+    // canceled: заявку отменили в кабинете. Деньги остались у нас, бронь
+    // трогать не нужно — но человек должен знать, что возврат не состоялся.
+    console.warn(JSON.stringify({
+      action: 'robokassa_refund_canceled', invId: payment.invId, bookingId: payment.bookingId,
+    }));
+    await notifyAdmins(
+      `↩️ Возврат по счёту ${payment.invId} отменён
+
+`
+      + `Деньги остались у нас, бронь ${payment.bookingId} не трогали.`,
+    ).catch(() => {});
+  }
+  return settled;
+}
+
 async function runOnce(): Promise<void> {
   lastRun = { at: new Date().toISOString(), candidates: 0, answered: 0, refunded: 0, reason: null };
 
@@ -99,6 +148,10 @@ async function runOnce(): Promise<void> {
    * магазин переключили обратно в тест. Выборка и так берёт только боевые
    * платежи, а подпись считаем боевым Паролем #2.
    */
+  // Сначала заявки, которые подали мы: это единственный возврат, о котором мы
+  // вообще можем узнать.
+  lastRun.refunded += await checkPendingRefunds().catch(() => 0);
+
   const creds = getProductionCredentials();
   if (!creds) { lastRun.reason = 'нет боевых реквизитов'; return; }
 

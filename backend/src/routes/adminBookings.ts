@@ -12,6 +12,14 @@ import {
   deliverTicket as generateAndSendTicket,
 } from '../domain/bookings/confirmPayment';
 import type { Booking } from '../models';
+import { getProductionCredentials, getRefundPassword } from '../config/robokassa';
+import { fetchOpState } from '../domain/payments/opState';
+import { requestRefund } from '../domain/payments/refund';
+import {
+  findPaymentForBooking,
+  recordOpState,
+  recordRefundRequest,
+} from '../domain/payments/robokassa.repository';
 
 const router = Router();
 
@@ -324,6 +332,94 @@ router.post('/bookings/:id/confirm', async (req: Request, res: Response) => {
     booking: { ...result.booking, tickets: result.tickets },
     tickets: result.tickets,
     alreadyPaid: result.alreadyPaid,
+  });
+});
+
+
+/**
+ * POST /admin/bookings/:id/refund — вернуть деньги за бронь.
+ *
+ * Зачем это здесь, хотя вернуть можно и в кабинете Робокассы: возврат из
+ * кабинета наша система не видит. Проверено на настоящем возврате — состояние
+ * операции остаётся «оплата прошла», уведомления о возврате у Робокассы нет.
+ * Значит билет у человека продолжает работать. Когда заявку подаём мы, мы
+ * знаем её номер и узнаём, чем дело кончилось.
+ *
+ * Бронь гасится не здесь. Возврат у Робокассы не мгновенный: сначала заявка,
+ * потом исполнение. Погасить бронь сразу означало бы отнять билет у человека,
+ * которому деньги могут и не вернуться. Поэтому здесь только подаём заявку, а
+ * гасит её отдельная задача, когда Робокасса ответит «finished».
+ *
+ * Принадлежность брони уже проверена заслонкой на /bookings/:id — организатор
+ * чужого концерта сюда не дойдёт.
+ */
+router.post('/bookings/:id/refund', async (req: Request, res: Response) => {
+  const id = String(req.params.id ?? '');
+  if (!id) return res.status(400).json({ error: 'Booking id is required' });
+
+  const password3 = getRefundPassword();
+  if (!password3) {
+    return res.status(503).json({ error: 'Возврат не настроен: нет Пароля #3' });
+  }
+
+  const booking = await db.getBookingById(id);
+  if (!booking) return res.status(404).json({ error: 'Бронь не найдена' });
+
+  const payment = await findPaymentForBooking(id);
+  if (!payment) return res.status(404).json({ error: 'По этой брони нет платежа' });
+  if (payment.isTest) return res.status(409).json({ error: 'Это тестовый платёж, возвращать нечего' });
+  if (payment.status !== 'paid') {
+    return res.status(409).json({ error: `Платёж в статусе «${payment.status}», возврат невозможен` });
+  }
+  if (payment.refundRequestId) {
+    return res.status(409).json({
+      error: 'Возврат по этому платежу уже запрошен',
+      refundState: payment.refundState,
+    });
+  }
+
+  // OpKey в уведомлении об оплате не приходит — если его ещё не забрала сверка,
+  // забираем сейчас, иначе возврат запросить нечем.
+  let opKey = payment.opKey;
+  if (!opKey) {
+    const creds = getProductionCredentials();
+    if (!creds) return res.status(503).json({ error: 'Нет боевых реквизитов Робокассы' });
+    const state = await fetchOpState(creds, payment.invId);
+    if (state?.opKey) {
+      opKey = state.opKey;
+      await recordOpState(payment.invId, state).catch(() => {});
+    }
+  }
+  if (!opKey) {
+    return res.status(502).json({ error: 'Робокасса не отдала идентификатор операции, попробуйте позже' });
+  }
+
+  const result = await requestRefund(password3, opKey);
+  if (!result.ok) {
+    console.error(JSON.stringify({
+      action: 'robokassa_refund_failed', bookingId: id, invId: payment.invId, reason: result.error,
+    }));
+    return res.status(502).json({ error: `Робокасса отказала: ${result.error}` });
+  }
+
+  const who = String((req as AuthRequest).user?.id ?? 'неизвестно');
+  const claimed = await recordRefundRequest(payment.invId, result.requestId, who);
+  if (!claimed) {
+    // Кто-то нажал одновременно. Заявка подана, но записана не нами — это не
+    // ошибка для нажавшего, просто сообщаем честно.
+    return res.status(409).json({ error: 'Возврат уже запрошен' });
+  }
+
+  console.log(JSON.stringify({
+    action: 'robokassa_refund_requested',
+    bookingId: id, invId: payment.invId, requestId: result.requestId, by: who,
+    timestamp: new Date().toISOString(),
+  }));
+
+  return res.json({
+    ok: true,
+    requestId: result.requestId,
+    message: 'Заявка на возврат подана. Бронь погасится, когда Робокасса вернёт деньги.',
   });
 });
 

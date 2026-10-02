@@ -471,6 +471,27 @@ export const confirmBookingPayment = async (bookingId: string): Promise<any> => 
   return res.json();
 };
 
+/**
+ * POST /admin/bookings/:id/refund — вернуть деньги за бронь.
+ *
+ * Возвращаем через нашу админку, а не в кабинете Робокассы: возврат из
+ * кабинета система не видит, и билет у человека остаётся рабочим. Бронь гасится
+ * не сразу — возврат у Робокассы не мгновенный, и билет отнимается только когда
+ * деньги действительно вернулись.
+ */
+export const refundBooking = async (bookingId: string): Promise<{ requestId: string; message: string }> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const res = await fetch(`${apiBaseUrl}/admin/bookings/${encodeURIComponent(bookingId)}/refund`, {
+    method: 'POST',
+    headers: AuthService.getAuthHeader(),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error || 'Не удалось запросить возврат');
+  }
+  return res.json();
+};
+
 /** PATCH /admin/bookings/:id/cancel — cancel booking, restore seats. */
 export const cancelBooking = async (bookingId: string): Promise<any> => {
   const apiBaseUrl = getApiBaseUrl();

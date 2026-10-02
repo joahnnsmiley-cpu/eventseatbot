@@ -26,6 +26,8 @@ export type PaymentRow = {
   email: string | null;
   createdAt: string;
   paidAt: string | null;
+  refundRequestId: string | null;
+  refundState: string | null;
 };
 
 type DbRow = {
@@ -42,6 +44,8 @@ type DbRow = {
   email: string | null;
   created_at: string;
   paid_at: string | null;
+  refund_request_id?: string | null;
+  refund_state?: string | null;
 };
 
 function mapRow(row: DbRow): PaymentRow {
@@ -59,6 +63,8 @@ function mapRow(row: DbRow): PaymentRow {
     email: row.email,
     createdAt: row.created_at,
     paidAt: row.paid_at,
+    refundRequestId: row.refund_request_id ?? null,
+    refundState: row.refund_state ?? null,
   };
 }
 
@@ -230,4 +236,66 @@ export async function markPaymentRefunded(invId: number): Promise<boolean> {
     .select();
   if (error) throw new Error(`payments.markRefunded: ${error.message}`);
   return Array.isArray(data) && data.length > 0;
+}
+
+/** Найти платёж по брони — любой, не только ожидающий. */
+export async function findPaymentForBooking(bookingId: string): Promise<PaymentRow | null> {
+  const { data, error } = await client()
+    .from('payments')
+    .select('*')
+    .eq('booking_id', bookingId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (error) throw new Error(`payments.findForBooking: ${error.message}`);
+  const row = (data as DbRow[] | null)?.[0];
+  return row ? mapRow(row) : null;
+}
+
+/**
+ * Записать поданную заявку на возврат.
+ *
+ * Условие по статусу — защита от двойного возврата: два нажатия подряд не
+ * должны подать две заявки. Возвращает false, если заявка уже была.
+ */
+export async function recordRefundRequest(
+  invId: number,
+  requestId: string,
+  requestedBy: string,
+): Promise<boolean> {
+  const { data, error } = await client()
+    .from('payments')
+    .update({
+      refund_request_id: requestId,
+      refund_state: 'processing',
+      refund_requested_at: new Date().toISOString(),
+      refund_requested_by: requestedBy,
+    })
+    .eq('inv_id', invId)
+    .is('refund_request_id', null)
+    .select();
+  if (error) throw new Error(`payments.recordRefundRequest: ${error.message}`);
+  return Array.isArray(data) && data.length > 0;
+}
+
+/** Заявки, судьба которых ещё неизвестна. */
+export async function findPendingRefunds(limit: number): Promise<PaymentRow[]> {
+  const { data, error } = await client()
+    .from('payments')
+    .select('*')
+    .eq('refund_state', 'processing')
+    .not('refund_request_id', 'is', null)
+    .limit(limit);
+  if (error) throw new Error(`payments.findPendingRefunds: ${error.message}`);
+  return ((data as DbRow[] | null) ?? []).map(mapRow);
+}
+
+/** Чем кончилась заявка. */
+export async function recordRefundState(
+  invId: number,
+  state: 'finished' | 'canceled',
+): Promise<void> {
+  const patch: Record<string, unknown> = { refund_state: state };
+  if (state === 'finished') patch.refunded_at = new Date().toISOString();
+  const { error } = await client().from('payments').update(patch).eq('inv_id', invId);
+  if (error) throw new Error(`payments.recordRefundState: ${error.message}`);
 }

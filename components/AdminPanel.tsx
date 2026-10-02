@@ -379,6 +379,9 @@ const AdminPanel: React.FC<{
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [refundingId, setRefundingId] = useState<string | null>(null);
+  /** Бронь, по которой кнопка возврата уже нажата и ждёт подтверждения. */
+  const [refundArmed, setRefundArmed] = useState<string | null>(null);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [events, setEvents] = useState<EventData[]>([]);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -1134,6 +1137,30 @@ const AdminPanel: React.FC<{
     }
   };
 
+  /**
+   * Возврат денег.
+   *
+   * В два нажатия нарочно: это деньги и отнятый билет, случайное касание такого
+   * стоить не должно. Бронь здесь не гаснет — она погаснет, когда Робокасса
+   * ответит, что деньги вернулись.
+   */
+  const refundBookingAction = async (bookingId: string) => {
+    if (refundArmed !== bookingId) { setRefundArmed(bookingId); return; }
+    setRefundArmed(null);
+    setRefundingId(bookingId);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const res = await StorageService.refundBooking(bookingId);
+      setSuccessMessage(res.message || 'Заявка на возврат подана');
+      await load();
+    } catch (e) {
+      setError(toFriendlyError(e));
+    } finally {
+      setRefundingId(null);
+    }
+  };
+
   const cancelBookingAction = async (bookingId: string) => {
     setCancellingId(bookingId);
     setError(null);
@@ -1518,6 +1545,26 @@ const AdminPanel: React.FC<{
                       Код брони <span className="text-white/80 font-semibold tracking-[0.08em]">{bookingCode(b.id)}</span>
                       {' · '}{b.user_vk_id ? 'VK' : 'TG'} ID: {b.user_vk_id || telegramId || '—'}
                     </div>
+
+                    {status === 'paid' && (
+                      <button
+                        type="button"
+                        onClick={() => refundBookingAction(b.id)}
+                        onBlur={() => { if (refundArmed === b.id) setRefundArmed(null); }}
+                        disabled={refundingId !== null}
+                        className={`h-11 px-4 rounded-xl border text-sm disabled:opacity-50 ${
+                          refundArmed === b.id
+                            ? 'border-[#FF9C7F] text-[#FF9C7F]'
+                            : 'border-[#2B2723] text-[#BDB5A8]'
+                        }`}
+                      >
+                        {refundingId === b.id
+                          ? 'Запрашиваем возврат…'
+                          : refundArmed === b.id
+                            ? 'Точно вернуть деньги?'
+                            : 'Вернуть деньги'}
+                      </button>
+                    )}
 
                     {canConfirm && (
                       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">

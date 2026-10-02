@@ -102,3 +102,8 @@ export function getProductionCredentials(): { merchantLogin: string; password2: 
   const rawHash = env('ROBOKASSA_HASH').toLowerCase() as HashAlgorithm;
   return { merchantLogin, password2, hash: HASHES.includes(rawHash) ? rawHash : 'md5' };
 }
+
+/** Пароль #3 — им подписывается только API возвратов. */
+export function getRefundPassword(): string {
+  return env('ROBOKASSA_PASSWORD_3');
+}
