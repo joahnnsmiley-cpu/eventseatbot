@@ -1022,6 +1022,16 @@ export async function getUserEmail(id: number | string, platform: string): Promi
   return (data?.email as string | null) ?? null;
 }
 
+/**
+ * Момент, с которого действует нынешний текст согласия (в нём появилась передача
+ * данных на сервер в Германии). Согласие, данное раньше, относится к старому
+ * тексту и действующим не считается — окно показывается заново. Дату в базе при
+ * этом не трогаем: она остаётся записью о прежнем согласии, пока её не
+ * перезапишет новое. При следующей смене текста — сдвинуть сюда и поменять
+ * PRIVACY_CONSENT_KEY на фронте.
+ */
+const PRIVACY_CONSENT_VALID_FROM = Date.parse('2026-10-03T10:00:00Z');
+
 export async function getPrivacyConsent(id: number | string, platform: string): Promise<boolean> {
   if (!supabase) return false;
   const numericId = typeof id === 'string' ? Number(id) : id;
@@ -1031,8 +1041,8 @@ export async function getPrivacyConsent(id: number | string, platform: string): 
     .eq('id', numericId)
     .eq('platform', platform)
     .single();
-  if (error) return false;
-  return data?.privacy_consented_at != null;
+  if (error || !data?.privacy_consented_at) return false;
+  return Date.parse(data.privacy_consented_at) >= PRIVACY_CONSENT_VALID_FROM;
 }
 
 // ---- Organizers ----

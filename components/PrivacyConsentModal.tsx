@@ -3,7 +3,9 @@ import PrivacyPolicyScreen from './PrivacyPolicyScreen';
 import UserAgreementScreen from './UserAgreementScreen';
 import OfferScreen from './OfferScreen';
 
-export const PRIVACY_CONSENT_KEY = 'eventseatbot_privacy_v1';
+// v2: текст согласия дополнен передачей данных на сервер в Германии (3 октября 2026).
+// Новый ключ — чтобы согласие, данное со старым текстом, не считалось действующим.
+export const PRIVACY_CONSENT_KEY = 'eventseatbot_privacy_v2';
 
 type Props = {
   /** Почта необязательна: её всегда можно оставить позже, на шаге оплаты. */
@@ -50,7 +52,8 @@ export default function PrivacyConsentModal({ onAccept, onDecline }: Props) {
             <h1 className="text-xl font-bold text-white">Обработка персональных данных</h1>
             <p className="text-sm text-white/60 leading-relaxed">
               Чтобы забронировать место, нужен ваш телефон — по нему с вами свяжется организатор.
-              Вместе с бронью сохраняются данные вашего аккаунта.
+              Вместе с бронью сохраняются данные вашего аккаунта. Хранятся они в России;
+              сервер приложения находится в Германии, данные передаются туда для обработки.
             </p>
           </div>
 
@@ -151,7 +154,8 @@ export default function PrivacyConsentModal({ onAccept, onDecline }: Props) {
               >
                 публичной офертой
               </button>
-              , даю согласие на обработку персональных данных.
+              , даю согласие на обработку персональных данных, включая их передачу на
+              сервер приложения в Германии.
             </span>
           </label>
         </div>
