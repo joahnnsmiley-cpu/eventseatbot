@@ -220,7 +220,7 @@ router.post('/telegram', miniAppLoginLimiter, async (req, res) => {
   }
   if (rawId !== undefined && rawId !== null && String(rawId).trim() !== String(signedId)) {
     // Не ошибка клиента, а признак подмены: стоит видеть в логах.
-    console.warn(`[AUTH] telegramId in body (${String(rawId)}) ignored, signed id is ${signedId}`);
+    console.warn('[AUTH] telegramId in body differs from the signed id, ignored');
   }
 
   const asNumber = signedId;
@@ -244,8 +244,8 @@ router.post('/telegram', miniAppLoginLimiter, async (req, res) => {
       : typeof body.telegram_username === 'string'
         ? body.telegram_username.trim()
         : '';
-  const telegramIdValue = Number.isFinite(asNumber) ? asNumber : String(normalizedId);
-  console.log(`[AUTH] telegramId=${telegramIdValue} username=${username || '-'} role=${role}`);
+  // Без id и ника: логи хостинга лежат за рубежом, персональным данным там не место.
+  console.log(`[AUTH] Success: role=${role} platform=telegram`);
 
   // Extract user info for app_users upsert
   const userObj = pairs.find((p) => p.key === 'user')?.value;
@@ -374,7 +374,7 @@ async function issueVkToken(res: any, userId: string) {
   const vkAdmins = (process.env.VK_ADMINS_IDS || '').split(',').map((id) => id.trim());
   const role = (vkAdmins.includes(userId) || telegramAdmins.includes(userId)) ? 'admin' : 'user';
 
-  console.log(`[AUTH] Success: vkUserId=${userId} role=${role} platform=vk`);
+  console.log(`[AUTH] Success: role=${role} platform=vk`);
 
   let isControllerVk = false;
   try { isControllerVk = await isUserController(userId); } catch { /* non-fatal */ }
