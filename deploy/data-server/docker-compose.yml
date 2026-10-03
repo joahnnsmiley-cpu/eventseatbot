@@ -1,0 +1,125 @@
+# Shared data server for three projects: Лила, Билеты (ННК), Мурашки.
+#
+# Grown from leelah_game_bot_2_0/deploy/docker-compose.yml — same idea, three
+# databases instead of one. One Postgres, a PostgREST per database, and a
+# Storage API for tickets only (the other two projects store no files).
+# No GoTrue, Realtime, Analytics, Studio, Kong or imgproxy: none of the three
+# projects calls them.
+#
+# Versions are pinned deliberately. An unattended `docker compose pull` that
+# silently moves a major version is how a database stops opening.
+services:
+  db:
+    # pgvector is NOT optional: user_insights.embedding in the Лила database is
+    # vector(1536) with an index on it. A plain postgres image cannot restore
+    # that dump.
+    image: pgvector/pgvector:0.8.7-pg17-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      LEELAH_AUTHENTICATOR_PASSWORD: ${LEELAH_AUTHENTICATOR_PASSWORD:?}
+      TICKETS_AUTHENTICATOR_PASSWORD: ${TICKETS_AUTHENTICATOR_PASSWORD:?}
+      MURASHKI_AUTHENTICATOR_PASSWORD: ${MURASHKI_AUTHENTICATOR_PASSWORD:?}
+      TICKETS_STORAGE_PASSWORD: ${TICKETS_STORAGE_PASSWORD:?}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    # No `ports:` on purpose. Postgres must never be reachable from the
+    # internet. Reach it with `docker compose exec db psql -U postgres`.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rest-leelah:
+    image: postgrest/postgrest:v14.18
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: postgres://authenticator_leelah:${LEELAH_AUTHENTICATOR_PASSWORD}@db:5432/leelah
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${LEELAH_JWT_SECRET:?}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  rest-tickets:
+    image: postgrest/postgrest:v14.18
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: postgres://authenticator_tickets:${TICKETS_AUTHENTICATOR_PASSWORD}@db:5432/tickets
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${TICKETS_JWT_SECRET:?}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  rest-murashki:
+    image: postgrest/postgrest:v14.18
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: postgres://authenticator_murashki:${MURASHKI_AUTHENTICATOR_PASSWORD}@db:5432/murashki
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${MURASHKI_JWT_SECRET:?}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Buckets posters, layouts, tickets. Files live on the local volume; the
+  # object index lives in schema `storage` of the tickets database.
+  storage-tickets:
+    image: supabase/storage-api:v1.79.31
+    restart: unless-stopped
+    environment:
+      ANON_KEY: ${TICKETS_ANON_KEY:?}
+      SERVICE_KEY: ${TICKETS_SERVICE_KEY:?}
+      # Same secret as rest-tickets, so one service_role key opens both.
+      AUTH_JWT_SECRET: ${TICKETS_JWT_SECRET:?}
+      PGRST_JWT_SECRET: ${TICKETS_JWT_SECRET:?}
+      DATABASE_URL: postgres://supabase_storage_admin:${TICKETS_STORAGE_PASSWORD}@db:5432/tickets
+      DB_INSTALL_ROLES: "false"
+      POSTGREST_URL: http://rest-tickets:3000
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      FILE_SIZE_LIMIT: 52428800
+      TENANT_ID: tickets
+      REGION: local
+      GLOBAL_S3_BUCKET: local
+      ENABLE_IMAGE_TRANSFORMATION: "false"
+    volumes:
+      - storage-tickets:/var/lib/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # TLS and routing by hostname. Caddy obtains and renews certificates by
+  # itself — no certbot run to remember.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    profiles: ["edge"]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      LEELAH_HOST: ${LEELAH_HOST:-leelah.localhost}
+      TICKETS_HOST: ${TICKETS_HOST:-tickets.localhost}
+      MURASHKI_HOST: ${MURASHKI_HOST:-murashki.localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - rest-leelah
+      - rest-tickets
+      - rest-murashki
+      - storage-tickets
+
+volumes:
+  db-data:
+  storage-tickets:
+  caddy-data:
+  caddy-config:
